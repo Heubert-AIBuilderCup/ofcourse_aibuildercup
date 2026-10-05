@@ -1,0 +1,235 @@
+/*
+ * The sign-in page's motion, from the Industry login design: a load sequence (rise, lines,
+ * frames and marks), ambient drift on the panel's grid, a scanline, cells that light in turn, a
+ * blinking cursor, and corner marks that spread on hover. Every animation and transition is
+ * declared only under prefers-reduced-motion: no-preference, so under reduce nothing moves and
+ * no selector has to out-rank another. Keyframes and multi-step delays have no Tailwind
+ * utility, so they live here; colours and sizes still come from the tokens.
+ */
+
+.page {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* The grid lines are hairlines: 1px on purpose, so they stay one device pixel. */
+.grid {
+  background-color: var(--panel);
+  background-image:
+    linear-gradient(
+      color-mix(in oklch, var(--panel-foreground) 6%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in oklch, var(--panel-foreground) 6%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 1.7rem 1.7rem;
+}
+
+.scanline {
+  background: color-mix(in oklch, var(--panel-accent) 55%, transparent);
+  box-shadow: 0 0 0.75rem color-mix(in oklch, var(--panel-accent) 40%, transparent);
+}
+
+/* On the dark panel the hairlines and marks are drawn in the panel's foreground. */
+.onPanel {
+  border-color: color-mix(in oklch, var(--panel-foreground) 18%, transparent);
+}
+.onPanel [data-frame-mark] {
+  color: color-mix(in oklch, var(--panel-foreground) 45%, transparent);
+}
+
+.line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.06em;
+}
+.line > span {
+  display: block;
+}
+
+/* Interaction details: the marks spread and the arrow nudges on hover. */
+.spread:hover [data-frame-mark="tl"] {
+  transform: translate(-0.1875rem, -0.1875rem);
+}
+.spread:hover [data-frame-mark="tr"] {
+  transform: translate(0.1875rem, -0.1875rem);
+}
+.spread:hover [data-frame-mark="bl"] {
+  transform: translate(-0.1875rem, 0.1875rem);
+}
+.spread:hover [data-frame-mark="br"] {
+  transform: translate(0.1875rem, 0.1875rem);
+}
+.spread:hover .arrow {
+  transform: translateX(0.25rem);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .grid {
+    animation: drift 9s linear infinite;
+  }
+  .scanline {
+    animation: scan 7s cubic-bezier(0.45, 0, 0.55, 1) 1.6s infinite backwards;
+  }
+  .rise {
+    animation: rise 0.8s var(--ease-out) backwards;
+  }
+  .line > span {
+    animation: lineUp 1s var(--ease-out) backwards;
+  }
+  .frame {
+    animation: frameIn 0.8s var(--ease-out) backwards;
+  }
+  .frame > [data-frame-mark] {
+    animation: markIn 0.7s var(--ease-out) backwards;
+  }
+  .cell {
+    animation:
+      frameIn 0.7s var(--ease-out) backwards,
+      cellScan 4s linear infinite;
+  }
+  .cursor {
+    animation: blink 1s steps(1) infinite;
+  }
+
+  .d1 {
+    animation-delay: 0.1s;
+  }
+  .d2 {
+    animation-delay: 0.25s;
+  }
+  .d3 {
+    animation-delay: 0.4s;
+  }
+  .d4 {
+    animation-delay: 0.55s;
+  }
+  .d5 {
+    animation-delay: 0.7s;
+  }
+  .d6 {
+    animation-delay: 0.85s;
+  }
+  .d7 {
+    animation-delay: 1s;
+  }
+  .d8 {
+    animation-delay: 1.15s;
+  }
+  .frame.d1 > [data-frame-mark] {
+    animation-delay: 0.5s;
+  }
+  .frame.d5 > [data-frame-mark] {
+    animation-delay: 1.1s;
+  }
+  .cell.c1 {
+    animation-delay: 0.9s, 1.8s;
+  }
+  .cell.c2 {
+    animation-delay: 1s, 2.8s;
+  }
+  .cell.c3 {
+    animation-delay: 1.1s, 3.8s;
+  }
+  .cell.c4 {
+    animation-delay: 1.2s, 4.8s;
+  }
+  .cell > [data-frame-mark] {
+    animation-delay: 1.3s;
+  }
+  /* The sign-in button's marks are the last beat of the load sequence. */
+  .frame.spread > [data-frame-mark] {
+    animation-delay: 1.5s;
+  }
+
+  .spread [data-frame-mark] {
+    transition: transform 0.35s var(--ease-out);
+  }
+  .spread .arrow {
+    transition: transform 0.35s var(--ease-out);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.875rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes lineUp {
+  from {
+    transform: translateY(105%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes markIn {
+  from {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.3);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes frameIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes drift {
+  from {
+    background-position:
+      0 0,
+      0 0;
+  }
+  to {
+    background-position:
+      0 1.7rem,
+      1.7rem 0;
+  }
+}
+@keyframes scan {
+  0% {
+    top: -2%;
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  100% {
+    top: 102%;
+    opacity: 0;
+  }
+}
+@keyframes cellScan {
+  0%,
+  20% {
+    background: color-mix(in oklch, var(--primary) 38%, transparent);
+  }
+  30%,
+  100% {
+    background: transparent;
+  }
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}

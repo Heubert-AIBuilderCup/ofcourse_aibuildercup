@@ -1,0 +1,22 @@
+# Postgres for development only, on host port 5433 so a Postgres already on 5432 is left alone.
+# No container_name: Compose names the container and volume after this folder, so two projects
+# made from the starter never share a database.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pg-data:

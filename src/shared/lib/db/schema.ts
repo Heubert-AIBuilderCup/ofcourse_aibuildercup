@@ -1,0 +1,119 @@
+import { type SQL, sql } from 'drizzle-orm'
+import {
+  type AnyPgColumn,
+  boolean,
+  check,
+  index,
+  pgTable,
+  text,
+  timestamp,
+} from 'drizzle-orm/pg-core'
+import { INVITE_ROLES, ROLES } from '../auth/access'
+
+/**
+ * The schema. Field keys are camelCase (Better Auth's adapter maps by key); column names are
+ * snake_case. Every timestamp is timestamptz. Add your feature's tables below the access section,
+ * then run `bun run db:generate`.
+ */
+
+const tz = (name: string) => timestamp(name, { withTimezone: true })
+
+// A CHECK that a text column holds one of a fixed list of the app's own constants.
+const oneOf = (column: AnyPgColumn, values: readonly string[]): SQL =>
+  sql`${column} in (${sql.raw(values.map((v) => `'${v}'`).join(', '))})`
+
+// ── Better Auth ─────────────────────────────────────────────────────────────────────────────
+
+export const user = pgTable(
+  'user',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    email: text('email').notNull().unique(),
+    emailVerified: boolean('email_verified').notNull().default(false),
+    image: text('image'),
+    // User, admin or superadmin (auth/access.ts): set at sign-up, then only by a superadmin;
+    // never accepted from the client.
+    role: text('role', { enum: ROLES }).notNull().default('user'),
+    // A suspension by an admin, with their reason; both null while the account is active.
+    suspendedAt: tz('suspended_at'),
+    suspendReason: text('suspend_reason'),
+    lastSeenAt: tz('last_seen_at'),
+    createdAt: tz('created_at').notNull().defaultNow(),
+    updatedAt: tz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [check('user_role_check', oneOf(t.role, ROLES))],
+)
+
+export const session = pgTable(
+  'session',
+  {
+    id: text('id').primaryKey(),
+    expiresAt: tz('expires_at').notNull(),
+    token: text('token').notNull().unique(),
+    createdAt: tz('created_at').notNull().defaultNow(),
+    updatedAt: tz('updated_at').notNull().defaultNow(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+  },
+  (t) => [index('session_user_id_idx').on(t.userId)],
+)
+
+export const account = pgTable(
+  'account',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    // OAuth tokens, encrypted by Better Auth (account.encryptOAuthTokens).
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    idToken: text('id_token'),
+    accessTokenExpiresAt: tz('access_token_expires_at'),
+    refreshTokenExpiresAt: tz('refresh_token_expires_at'),
+    scope: text('scope'),
+    password: text('password'),
+    createdAt: tz('created_at').notNull().defaultNow(),
+    updatedAt: tz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [index('account_user_id_idx').on(t.userId)],
+)
+
+export const verification = pgTable(
+  'verification',
+  {
+    id: text('id').primaryKey(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: tz('expires_at').notNull(),
+    createdAt: tz('created_at').notNull().defaultNow(),
+    updatedAt: tz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [index('verification_identifier_idx').on(t.identifier)],
+)
+
+// ── Access ──────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A role waiting for an address's first sign-in, named by a superadmin. The email is stored
+ * trimmed and lowercased, and the row is used up when that account is created. Personal data
+ * (an email address): for the admin pages only.
+ */
+export const roleInvite = pgTable(
+  'role_invite',
+  {
+    email: text('email').primaryKey(),
+    role: text('role', { enum: INVITE_ROLES }).notNull(),
+    createdByUserId: text('created_by_user_id').references(() => user.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: tz('created_at').notNull().defaultNow(),
+  },
+  (t) => [check('role_invite_role_check', oneOf(t.role, INVITE_ROLES))],
+)

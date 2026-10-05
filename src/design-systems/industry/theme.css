@@ -1,0 +1,175 @@
+/*
+ * Industry (Claude Design: https://claude.ai/artifact/Dtp9Gw4cZP9Kt2hRYc8Mec): steel blue on a light
+ * technical ground, Barlow Condensed over Barlow, square hairline-framed objects with "+" marks.
+ * Its tokens, converted to OKLCH, mapped onto the shadcn variables every component reads.
+ * Industry ships a light theme only; the dark theme is derived from its own ramps.
+ */
+
+:root {
+  --ds-font-body: var(--font-industry-body), system-ui, sans-serif;
+  --ds-font-heading: var(--font-industry-heading), system-ui, sans-serif;
+  --ds-heading-weight: 600;
+  --ds-text-overline: 0.6875rem;
+  /* Industry's body size is 15px (p2), fixed; its lead and caption are the roles below. */
+  --ds-text-body: 0.9375rem;
+  --ds-text-body-leading: 1.55;
+  --ds-text-overline-tracking: 0.08em;
+  /* The smallest role: card kickers, cell labels, the crosshair readout. 10px, wide tracking. */
+  --ds-text-micro: 0.625rem;
+  --ds-text-micro-tracking: 0.1em;
+  /* Type roles on Industry's fixed scale at 1440 (h1 42, h2 32, h3 25, h4 20, lead 17, caption 13; display is the sign-in hero at 56). Fluid between a 360px phone and a 1440px desktop; body text stays fixed. */
+  --ds-text-display: clamp(3rem, 2.429rem + 1.19vw, 3.5rem);
+  --ds-text-display-leading: 1.04;
+  --ds-text-h1: clamp(2rem, 1.792rem + 0.926vw, 2.625rem);
+  --ds-text-h1-leading: 1.12;
+  --ds-text-h2: 2rem;
+  --ds-text-h2-leading: 1.12;
+  --ds-text-h3: clamp(1.312rem, 1.229rem + 0.37vw, 1.562rem);
+  --ds-text-h3-leading: 1.12;
+  --ds-text-h4: clamp(1.125rem, 1.083rem + 0.185vw, 1.25rem);
+  --ds-text-h4-leading: 1.12;
+  --ds-text-lead: clamp(0.9375rem, 0.809rem + 0.529vw, 1.062rem);
+  --ds-text-lead-leading: 1.55;
+  --ds-text-caption: clamp(0.75rem, 0.7292rem + 0.0926vw, 0.8125rem);
+  --ds-text-caption-leading: 1.55;
+  /* Spacing roles, fluid between a 768px tablet and a 1440px desktop (the design's values at both); the ≤560px layout sets its own compact values. */
+  --ds-space-gutter: clamp(3rem, 2.429rem + 1.19vw, 3.5rem);
+  --ds-space-section: clamp(2.5rem, 1.929rem + 1.19vw, 3rem);
+  --ds-space-block: clamp(2rem, 1.429rem + 1.19vw, 2.5rem);
+  --ds-space-stack: 1.7rem;
+  /* DESIGN.md: icons at 1.5, never thicker. */
+  --ds-icon-stroke: 1.5;
+  --ds-frame-marks: block;
+  /* accent-700: the primary fill where a 14px label must pass 4.5:1 (the design's "aa" button) */
+  --primary-strong: oklch(0.481 0.063 248.5);
+  --primary-strong-foreground: oklch(0.961 0 0);
+  /* accent-800 hover, accent-900 pressed, as the design's primary button */
+  --primary-strong-hover: oklch(0.381 0.052 248.3);
+  --primary-strong-active: oklch(0.291 0.036 249.2);
+  /* accent-900: the one full steel field, with type reversed to color-bg; accent-300 for its kickers */
+  --panel: oklch(0.291 0.036 249.2);
+  --panel-foreground: oklch(0.961 0 0);
+  --panel-accent: oklch(0.871 0.063 248.6);
+
+  /* Industry's accent ramp, 100 light to 900 dark (bg-accent-500, text-accent-700 …) */
+  --accent-100: oklch(0.97 0.015 251.2);
+  --accent-200: oklch(0.931 0.035 246.9);
+  --accent-300: oklch(0.871 0.063 248.6);
+  --accent-400: oklch(0.78 0.071 248.1);
+  --accent-500: oklch(0.681 0.073 247.7);
+  --accent-600: oklch(0.58 0.071 249.1);
+  --accent-700: oklch(0.481 0.063 248.5);
+  --accent-800: oklch(0.381 0.052 248.3);
+  --accent-900: oklch(0.291 0.036 249.2);
+  /* Industry's neutral ramp */
+  --neutral-100: oklch(0.971 0.004 286.3);
+  --neutral-200: oklch(0.929 0.004 286.3);
+  --neutral-300: oklch(0.871 0.004 286.3);
+  --neutral-400: oklch(0.78 0.004 286.3);
+  --neutral-500: oklch(0.681 0.004 286.3);
+  --neutral-600: oklch(0.58 0.005 286.3);
+  --neutral-700: oklch(0.479 0.005 286.2);
+  --neutral-800: oklch(0.38 0.003 286.2);
+  --neutral-900: oklch(0.29 0.004 286.2);
+
+  /* color-bg, color-text, color-surface */
+  --background: oklch(0.961 0 0);
+  --foreground: oklch(0.238 0.004 229);
+  /* Cards are transparent line drawings; popovers and menus need a solid ground. */
+  --card: transparent;
+  --card-foreground: oklch(0.238 0.004 229);
+  --popover: oklch(0.961 0 0);
+  --popover-foreground: oklch(0.238 0.004 229);
+  /* color-accent: the one steel accent, with color-bg as its label */
+  --primary: oklch(0.586 0.073 248.5);
+  --primary-foreground: oklch(0.961 0 0);
+  /* neutral-200 fill, neutral-700 for secondary text that must pass 4.5:1 */
+  --secondary: oklch(0.929 0.004 286.3);
+  --secondary-foreground: oklch(0.238 0.004 229);
+  --muted: oklch(0.934 0 0);
+  --muted-foreground: oklch(0.479 0.005 286.2);
+  /* hover tint: accent-200 */
+  --accent: oklch(0.931 0.035 246.9);
+  --accent-foreground: oklch(0.381 0.052 248.3);
+  /* Industry has no red; errors still need one, kept muted beside the steel. */
+  --destructive: oklch(0.52 0.13 25);
+  --destructive-foreground: oklch(0.961 0 0);
+  /* color-divider: color-text at 16% draws every hairline */
+  --border: oklch(0.238 0.004 229 / 16%);
+  --input: oklch(0.238 0.004 229 / 16%);
+  --ring: oklch(0.586 0.073 248.5);
+  /* Every framed object is square. */
+  --radius: 0rem;
+  /* The accent ramp, 300 to 800, for charts */
+  --chart-1: oklch(0.586 0.073 248.5);
+  --chart-2: oklch(0.481 0.063 248.5);
+  --chart-3: oklch(0.78 0.071 248.1);
+  --chart-4: oklch(0.381 0.052 248.3);
+  --chart-5: oklch(0.871 0.063 248.6);
+  --sidebar: oklch(0.961 0 0);
+  --sidebar-foreground: oklch(0.238 0.004 229);
+  --sidebar-primary: oklch(0.586 0.073 248.5);
+  --sidebar-primary-foreground: oklch(0.961 0 0);
+  --sidebar-accent: oklch(0.931 0.035 246.9);
+  --sidebar-accent-foreground: oklch(0.381 0.052 248.3);
+  --sidebar-border: oklch(0.238 0.004 229 / 16%);
+  --sidebar-ring: oklch(0.586 0.073 248.5);
+}
+
+/* Derived dark theme: accent-900 depth for the ground, the 500 step as the accent so it keeps contrast. */
+[data-theme="dark"] {
+  --background: oklch(0.2 0.012 249);
+  --foreground: oklch(0.934 0 0);
+  --card: transparent;
+  --card-foreground: oklch(0.934 0 0);
+  --popover: oklch(0.24 0.016 249);
+  --popover-foreground: oklch(0.934 0 0);
+  --primary: oklch(0.681 0.073 247.7);
+  --primary-foreground: oklch(0.2 0.012 249);
+  --secondary: oklch(0.291 0.036 249.2);
+  --secondary-foreground: oklch(0.934 0 0);
+  --muted: oklch(0.26 0.02 249);
+  --muted-foreground: oklch(0.78 0.01 249);
+  --accent: oklch(0.291 0.036 249.2);
+  --accent-foreground: oklch(0.931 0.035 246.9);
+  --destructive: oklch(0.68 0.13 25);
+  --destructive-foreground: oklch(0.2 0.012 249);
+  --border: oklch(0.934 0 0 / 16%);
+  --input: oklch(0.934 0 0 / 16%);
+  --ring: oklch(0.681 0.073 247.7);
+  --chart-1: oklch(0.681 0.073 247.7);
+  --chart-2: oklch(0.78 0.071 248.1);
+  --chart-3: oklch(0.586 0.073 248.5);
+  --chart-4: oklch(0.871 0.063 248.6);
+  --chart-5: oklch(0.481 0.063 248.5);
+  --sidebar: oklch(0.2 0.012 249);
+  --sidebar-foreground: oklch(0.934 0 0);
+  --sidebar-primary: oklch(0.681 0.073 247.7);
+  --sidebar-primary-foreground: oklch(0.2 0.012 249);
+  --sidebar-accent: oklch(0.291 0.036 249.2);
+  --sidebar-accent-foreground: oklch(0.931 0.035 246.9);
+  --sidebar-border: oklch(0.934 0 0 / 16%);
+  --sidebar-ring: oklch(0.681 0.073 247.7);
+}
+
+@layer components {
+  /* Table heads read as overlines: small uppercase, muted. */
+  [data-slot="table-head"] {
+    font-size: var(--ds-text-overline);
+    letter-spacing: var(--ds-text-overline-tracking);
+    text-transform: uppercase;
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 30%, transparent);
+  }
+}
+
+/*
+ * Cards and dialogs are line drawings: a hairline, no fill, no shadow. This rule sits outside
+ * every layer on purpose: the components' shadow utilities live in Tailwind's utilities layer,
+ * which beats @layer components, and unlayered styles beat them all.
+ */
+[data-slot="card"],
+[data-slot="dialog-content"] {
+  box-shadow: none;
+}

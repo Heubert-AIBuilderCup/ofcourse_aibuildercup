@@ -1,0 +1,6 @@
+#!/bin/sh
+echo "🧪 Running tests..."
+bun run test:run || exit 1
+
+echo "🏗  Build (next build)..."
+bun run build || exit 1

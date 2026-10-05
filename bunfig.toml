@@ -1,0 +1,7 @@
+[install]
+# Refuse to install if Node or Bun versions don't match the floors declared in
+# package.json `engines`. Without this, bun ignores the engines block.
+engineStrict = true
+
+[test]
+preload = ["./test/setup/happydom.ts"]

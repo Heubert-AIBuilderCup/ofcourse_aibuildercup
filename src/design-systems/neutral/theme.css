@@ -1,0 +1,140 @@
+/*
+ * Neutral: shadcn's default neutral palette with the system font. The starter's plain look,
+ * and the template for a new design system: every variable here must be set by each system.
+ */
+
+:root {
+  --ds-font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ds-font-heading: var(--ds-font-body);
+  --ds-heading-weight: 600;
+  /* The overline role: kickers, cell labels, table heads (globals.css maps it to text-overline). */
+  --ds-text-overline: 0.6875rem;
+  /* Body text: 16px, Tailwind's default. */
+  --ds-text-body: 1rem;
+  --ds-text-body-leading: 1.55;
+  --ds-text-overline-tracking: 0.08em;
+  /* The smallest role: card kickers, cell labels, the crosshair readout. 10px, wide tracking. */
+  --ds-text-micro: 0.625rem;
+  --ds-text-micro-tracking: 0.1em;
+  /* Type roles: a plain scale for the system font. Fluid between a 360px phone and a 1440px desktop; body text stays fixed. */
+  --ds-text-display: clamp(2.25rem, 1.833rem + 1.85vw, 3.5rem);
+  --ds-text-display-leading: 1.04;
+  --ds-text-h1: clamp(1.875rem, 1.667rem + 0.926vw, 2.5rem);
+  --ds-text-h1-leading: 1.12;
+  --ds-text-h2: clamp(1.5rem, 1.333rem + 0.741vw, 2rem);
+  --ds-text-h2-leading: 1.12;
+  --ds-text-h3: clamp(1.25rem, 1.167rem + 0.37vw, 1.5rem);
+  --ds-text-h3-leading: 1.12;
+  --ds-text-h4: clamp(1.125rem, 1.083rem + 0.185vw, 1.25rem);
+  --ds-text-h4-leading: 1.12;
+  --ds-text-lead: clamp(1rem, 0.9375rem + 0.278vw, 1.188rem);
+  --ds-text-lead-leading: 1.55;
+  --ds-text-caption: clamp(0.75rem, 0.7292rem + 0.0926vw, 0.8125rem);
+  --ds-text-caption-leading: 1.55;
+  /* Spacing roles, fluid between a 768px tablet and a 1440px desktop (the design's values at both); the ≤560px layout sets its own compact values. */
+  --ds-space-gutter: clamp(3rem, 2.429rem + 1.19vw, 3.5rem);
+  --ds-space-section: clamp(2.5rem, 1.929rem + 1.19vw, 3rem);
+  --ds-space-block: clamp(2rem, 1.429rem + 1.19vw, 2.5rem);
+  --ds-space-stack: 1.7rem;
+  /* Lucide's stroke width for every icon. */
+  --ds-icon-stroke: 2;
+  /* none hides the corner marks of framed objects; block shows them. */
+  --ds-frame-marks: none;
+  /* A stronger primary for labels that must pass 4.5:1; the same as primary here. */
+  --primary-strong: oklch(0.205 0 0);
+  --primary-strong-foreground: oklch(0.985 0 0);
+  --primary-strong-hover: oklch(0.269 0 0);
+  --primary-strong-active: oklch(0.371 0 0);
+  /* A dark full-bleed panel (the sign-in page's left side) and the type on it. */
+  --panel: oklch(0.205 0 0);
+  --panel-foreground: oklch(0.985 0 0);
+  --panel-accent: oklch(0.708 0 0);
+  /* A grey stand-in for the accent ramp, so bg-accent-500 and friends resolve */
+  --accent-100: oklch(0.97 0 0);
+  --accent-200: oklch(0.922 0 0);
+  --accent-300: oklch(0.87 0 0);
+  --accent-400: oklch(0.715 0 0);
+  --accent-500: oklch(0.556 0 0);
+  --accent-600: oklch(0.439 0 0);
+  --accent-700: oklch(0.371 0 0);
+  --accent-800: oklch(0.269 0 0);
+  --accent-900: oklch(0.205 0 0);
+  /* The neutral ramp */
+  --neutral-100: oklch(0.97 0 0);
+  --neutral-200: oklch(0.922 0 0);
+  --neutral-300: oklch(0.87 0 0);
+  --neutral-400: oklch(0.715 0 0);
+  --neutral-500: oklch(0.556 0 0);
+  --neutral-600: oklch(0.439 0 0);
+  --neutral-700: oklch(0.371 0 0);
+  --neutral-800: oklch(0.269 0 0);
+  --neutral-900: oklch(0.205 0 0);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+[data-theme="dark"] {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}

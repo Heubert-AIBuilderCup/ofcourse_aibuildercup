@@ -1,0 +1,17 @@
+#!/bin/sh
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+
+# Whitelist main, master, dev, staging + topic-branch prefixes + detached HEAD.
+# Wider than pre-commit/pre-push on purpose — you can visit main to pull, but
+# you can't commit/push from it.
+valid_pattern="^(main|master|dev|staging|feat\/|feature\/|fix\/|hotfix\/|refactor\/|docs\/|chore\/|test\/|perf\/|ci\/|release\/|HEAD)"
+
+# Only run on branch switches ($3 = 1). File checkouts pass $3 = 0.
+if [ "$3" = "1" ]; then
+  if ! echo "$current_branch" | grep -Eq "$valid_pattern"; then
+    printf '\n\033[1;31m❌ Error: Non-standard branch name: "%s"\033[0m\n' "$current_branch"
+    printf '\033[0;31mYou must use a valid branch type (e.g., feat/my-feature, fix/bug-fix).\033[0m\n'
+    printf '\033[0;33mAllowed types: feat/, feature/, fix/, hotfix/, refactor/, docs/, chore/, test/, perf/, ci/, release/\033[0m\n\n'
+    exit 1
+  fi
+fi

@@ -1,0 +1,6 @@
+#!/bin/sh
+echo "🧹 Lint (biome)..."
+bun run lint-staged || exit 1
+
+echo "🧼 Type-check (tsc --noEmit)..."
+bun run type-check || exit 1
