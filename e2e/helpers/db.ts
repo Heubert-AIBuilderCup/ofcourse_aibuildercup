@@ -44,6 +44,67 @@ export async function accountState(
   return row ?? null
 }
 
+// The email-code plugin's stored code for an address: one row keyed `sign-in-otp-<email>`, its
+// value `<code>:<wrong tries>`.
+const codeKey = (email: string) => `sign-in-otp-${email.toLowerCase()}`
+
+/** The six-digit code last sent to `email` (read straight from the database, as no mail is sent). */
+export async function latestSignInCode(email: string): Promise<string> {
+  const [row] = await sql<{ value: string }[]>`
+    select value from verification where identifier = ${codeKey(email)}
+    order by created_at desc limit 1`
+  if (!row) throw new Error(`No sign-in code stored for ${email}`)
+  return row.value.slice(0, row.value.lastIndexOf(':'))
+}
+
+/** Make the code sent to `email` a minute past its expiry. */
+export async function expireSignInCode(email: string): Promise<void> {
+  await sql`update verification set expires_at = now() - interval '1 minute'
+    where identifier = ${codeKey(email)}`
+}
+
+/** Move the code sent to `email` `seconds` into the past, as if it had been sent that much earlier. */
+export async function ageSignInCode(email: string, seconds: number): Promise<void> {
+  await sql`update verification set expires_at = expires_at - make_interval(secs => ${seconds})
+    where identifier = ${codeKey(email)}`
+}
+
+/** Delete the codes stored for e2e addresses: an unused or voided code stays in the table. */
+export async function deleteSignInCodes(emails: string[]): Promise<void> {
+  const own = emails.filter((e) => e.endsWith(`@${E2E_DOMAIN}`)).map(codeKey)
+  if (own.length > 0) await sql`delete from verification where identifier in ${sql(own)}`
+}
+
+/** Suspend an e2e account straight in the database (user-management.e2e.ts covers the UI). */
+export async function suspend(email: string): Promise<void> {
+  if (!email.endsWith(`@${E2E_DOMAIN}`)) throw new Error(`Not an e2e account: ${email}`)
+  await sql`update "user" set suspended_at = now() where email = ${email}`
+}
+
+export type ProfileRow = {
+  persona: string | null
+  answers: Record<string, { value: unknown; state: string }>
+  relative: {
+    placeId: string | null
+    place: string
+    relationship: string
+    name: string | null
+  } | null
+  coins: { state: 'later' } | { state: 'spent'; piles: number[]; assumed: boolean } | null
+  reminders: { futureId: string; courseId: string; text: string; at: string }[]
+  lastStep: string
+  seenFutures: boolean
+}
+
+/** A student's saved profile (student_profile), as stored; null when she has none yet. */
+export async function profileOf(email: string): Promise<ProfileRow | null> {
+  const [row] = await sql<ProfileRow[]>`
+    select p.persona, p.answers, p.relative, p.coins, p.reminders,
+      p.last_step as "lastStep", p.seen_futures as "seenFutures"
+    from student_profile p join "user" u on u.id = p.user_id where u.email = ${email}`
+  return row ?? null
+}
+
 /** Delete the roles waiting on e2e addresses. */
 export async function deleteRoleInvites(emails: string[]): Promise<void> {
   const own = emails.filter((e) => e.endsWith(`@${E2E_DOMAIN}`))

@@ -91,6 +91,18 @@
   /* hover tint: accent-200 */
   --accent: oklch(0.931 0.035 246.9);
   --accent-foreground: oklch(0.381 0.052 248.3);
+  /* Industry's danger ramp (#fef2f0 … #4c1814; danger is 600), for validation states only:
+     the invalid field and its message, the form's error block. */
+  --danger: oklch(0.582 0.17 27.1);
+  --danger-100: oklch(0.97 0.013 28.9);
+  --danger-200: oklch(0.93 0.034 26.8);
+  --danger-300: oklch(0.871 0.069 26.3);
+  --danger-400: oklch(0.78 0.128 26.7);
+  --danger-500: oklch(0.681 0.161 26.7);
+  --danger-600: oklch(0.582 0.17 27.1);
+  --danger-700: oklch(0.482 0.151 26.9);
+  --danger-800: oklch(0.382 0.12 27.1);
+  --danger-900: oklch(0.291 0.08 27.5);
   /* Industry has no red; errors still need one, kept muted beside the steel. */
   --destructive: oklch(0.52 0.13 25);
   --destructive-foreground: oklch(0.961 0 0);

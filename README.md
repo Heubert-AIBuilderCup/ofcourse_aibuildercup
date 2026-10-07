@@ -15,7 +15,7 @@ A full-stack Next.js starter with Google sign-in, roles and a users admin, ready
 
 ## What you get
 
-- **Google sign-in** with a sign-in page at `/`, a signed-in dashboard at `/dashboard`, and a proxy that sends signed-out visitors to sign in and back.
+- **Sign-in:** students sign in at `/` (Google or a six-digit email code) and land on `/start`; admins sign in with Google at `/admin/sign-in`. A proxy sends signed-out visitors to sign in and back.
 - **Roles:** user, admin and superadmin. The first account to sign in on a fresh database becomes superadmin; every other role is given in the admin.
   - Sign in immediately after the first deployment: the first account on an empty database becomes superadmin, whoever it is.
   - Never expose `DEV_LOGIN_SECRET` where strangers can reach the server; with it, anyone can create that first account.
@@ -40,7 +40,7 @@ bun run dev                 # Postgres, migrations, then http://localhost:3000
 Without Google keys, sign in from the browser console on `http://localhost:3000`:
 
 ```js
-await fetch('/api/dev-login', { method: 'POST', headers: { 'content-type': 'application/json', 'x-dev-login-secret': '<DEV_LOGIN_SECRET>' }, body: JSON.stringify({ email: 'you@example.com', name: 'You' }) }); location.href = '/dashboard'
+await fetch('/api/dev-login', { method: 'POST', headers: { 'content-type': 'application/json', 'x-dev-login-secret': '<DEV_LOGIN_SECRET>' }, body: JSON.stringify({ email: 'you@example.com', name: 'You' }) }); location.href = '/start'
 ```
 
 ## Claude Code plugins

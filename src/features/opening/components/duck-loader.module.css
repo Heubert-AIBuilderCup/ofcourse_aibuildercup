@@ -1,0 +1,56 @@
+/*
+ * The loader's motion. The overlay is invisible for its first 400 ms (it starts at opacity 0 and
+ * becomes visible after a 400 ms delay), so a short wait shows nothing at all. The duck drifts
+ * across the river from left to right, only when motion is welcome; otherwise it rests where it
+ * starts. Keyframes and delays have no Tailwind utility, so they live here; colours still come
+ * from the tokens. The grid lines are hairlines: 1px on purpose.
+ */
+
+.loader {
+  opacity: 0;
+  animation: reveal 0.2s ease-out 0.4s forwards;
+  background-image:
+    linear-gradient(
+      color-mix(in oklch, var(--primary-strong-foreground) 9%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in oklch, var(--primary-strong-foreground) 9%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 2.5rem 2.5rem;
+}
+
+.river {
+  container-type: inline-size;
+}
+
+.duck {
+  position: absolute;
+  bottom: 0.25rem;
+  left: 0;
+  width: 4rem;
+  transform: translateX(1rem);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .duck {
+    animation: drift 6s linear infinite;
+  }
+}
+
+@keyframes reveal {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes drift {
+  from {
+    transform: translateX(-4rem);
+  }
+  to {
+    transform: translateX(100cqw);
+  }
+}

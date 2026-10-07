@@ -2,18 +2,27 @@ import { getSessionCookie } from 'better-auth/cookies'
 import { type NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/shared/lib/auth'
 import { canUseAdmin } from '@/shared/lib/auth/access'
-import { HOME_PATH, isAdminPath, SUSPENDED_PATH, welcomeUrl } from '@/shared/lib/auth/gate'
+import {
+  HOME_PATH,
+  isAdminPath,
+  isAdminSignInPath,
+  SUSPENDED_PATH,
+  welcomeUrl,
+} from '@/shared/lib/auth/gate'
 
 /**
- * Route protection. Signed-out visitors to the app or the admin pages go to the sign-in page at
- * /; /admin also needs an admin role on an account that is not suspended. /, /suspended,
- * /signin-error and /api are not matched: public.
+ * Route protection. Signed-out visitors to the student app go to the sign-in page at /, to the
+ * admin to the admin sign-in page, each remembering the page asked for; /admin also needs an
+ * admin role on an account that is not suspended. The admin sign-in page, /, /suspended,
+ * /signin-error and /api are public.
  *
- * The app check reads only the session cookie (the proxy runs on every matched and prefetched
- * request, so no database there). /admin, which only admins visit, validates the session and its
- * role in full. Neither replaces the checks in each page and server action (auth/session.ts).
+ * The student app check reads only the session cookie (the proxy runs on every matched and
+ * prefetched request, so no database there); its layout checks the role. /admin, which only
+ * admins visit, validates the session and its role in full. Neither replaces the checks in each
+ * page and server action (auth/session.ts).
  */
 export default async function proxy(req: NextRequest) {
+  if (isAdminSignInPath(req.nextUrl.pathname)) return NextResponse.next()
   if (!getSessionCookie(req)) {
     return NextResponse.redirect(welcomeUrl(req.nextUrl))
   }
@@ -29,5 +38,12 @@ export default async function proxy(req: NextRequest) {
 
 // Keep in step with APP_PATHS in auth/gate.ts. Matchers must be literals.
 export const config = {
-  matcher: ['/dashboard/:path*', '/admin/:path*'],
+  matcher: [
+    '/start/:path*',
+    '/picture/:path*',
+    '/opening/:path*',
+    '/futures/:path*',
+    '/attention/:path*',
+    '/admin/:path*',
+  ],
 }

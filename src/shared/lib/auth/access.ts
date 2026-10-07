@@ -68,6 +68,54 @@ export function settleFirstAccountRole(i: {
   return resolveSignupRole(false, i.invitedRole)
 }
 
+/** Which sign-in page a request came from: the student page at / or the admin page. */
+export const SURFACES = ['student', 'admin'] as const
+
+export type Surface = (typeof SURFACES)[number]
+
+export function isSurface(value: unknown): value is Surface {
+  return typeof value === 'string' && (SURFACES as readonly string[]).includes(value)
+}
+
+/** The codes a sign-in refused by its page carries (Better Auth's APIError body.code). */
+export const SURFACE_ERRORS = {
+  studentPageOnly: 'STUDENT_PAGE_ONLY',
+  notAdmin: 'NOT_ADMIN',
+} as const
+
+/**
+ * A first sign-in on a page: the role the new account gets, or the code to refuse it with (no
+ * account is created then). The student page always makes a user, even on an empty database, so
+ * nobody becomes superadmin by signing up as a student; an address an admin role is waiting for
+ * belongs on the admin page. The admin page makes the first account ever a superadmin, applies a
+ * waiting role, and refuses everyone else.
+ */
+export function surfaceSignup(i: {
+  surface: Surface
+  firstAccount: boolean
+  invitedRole: InviteRole | null
+}): { role: Role } | { refuse: string } {
+  if (i.surface === 'student') {
+    return i.invitedRole ? { refuse: SURFACE_ERRORS.studentPageOnly } : { role: 'user' }
+  }
+  if (i.firstAccount) return { role: 'superadmin' }
+  return i.invitedRole ? { role: i.invitedRole } : { refuse: SURFACE_ERRORS.notAdmin }
+}
+
+/** A session about to open on a page: the code to refuse it with, or null. */
+export function surfaceSessionError(
+  surface: Surface,
+  role: string | null | undefined,
+): string | null {
+  if (surface === 'student') return role === 'user' ? null : SURFACE_ERRORS.studentPageOnly
+  return canUseAdmin(role) ? null : SURFACE_ERRORS.notAdmin
+}
+
+/** The student app (the opening and the futures): accounts with role user only. */
+export function canUseStudentApp(role: string | null | undefined): boolean {
+  return role === 'user'
+}
+
 export type AccountAction = 'suspend' | 'reactivate' | 'signOut'
 
 export const ACCESS_ERRORS = {

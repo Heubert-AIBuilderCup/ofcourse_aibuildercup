@@ -4,10 +4,19 @@ import {
   boolean,
   check,
   index,
+  jsonb,
   pgTable,
   text,
   timestamp,
 } from 'drizzle-orm/pg-core'
+import {
+  type Coins,
+  PERSONAS,
+  type Relative,
+  type Reminder,
+  STEPS,
+  type StoredAnswers,
+} from '@/shared/types/student'
 import { INVITE_ROLES, ROLES } from '../auth/access'
 
 /**
@@ -116,4 +125,38 @@ export const roleInvite = pgTable(
     createdAt: tz('created_at').notNull().defaultNow(),
   },
   (t) => [check('role_invite_role_check', oneOf(t.role, INVITE_ROLES))],
+)
+
+// ── Student opening ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * One student's opening: her picture, answers, relative, coins, reminders and where she left off.
+ * The JSON columns follow the contract in shared/types/student.ts and are parsed by its
+ * schemas on every read and write. Personal data (her circumstances, a relative's name and place):
+ * read and written only for the signed-in student herself, by features/opening/server/profile.ts.
+ */
+export const studentProfile = pgTable(
+  'student_profile',
+  {
+    userId: text('user_id')
+      .primaryKey()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    // Null until the picture question is answered or skipped.
+    persona: text('persona', { enum: PERSONAS }),
+    answers: jsonb('answers').$type<StoredAnswers>().notNull().default({}),
+    relative: jsonb('relative').$type<Relative>(),
+    coins: jsonb('coins').$type<Coins>(),
+    reminders: jsonb('reminders').$type<Reminder[]>().notNull().default([]),
+    lastStep: text('last_step', { enum: STEPS }).notNull().default('picture'),
+    seenFutures: boolean('seen_futures').notNull().default(false),
+    createdAt: tz('created_at').notNull().defaultNow(),
+    updatedAt: tz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      'student_profile_persona_check',
+      sql`${t.persona} is null or ${oneOf(t.persona, PERSONAS)}`,
+    ),
+    check('student_profile_last_step_check', oneOf(t.lastStep, STEPS)),
+  ],
 )

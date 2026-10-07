@@ -11,6 +11,10 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: 'border border-primary bg-primary text-primary-foreground hover:bg-primary/90',
+        // The solid button in the shade of primary that passes 4.5:1 with a 14px label
+        // (DESIGN.md: plain primary is for large text only).
+        strong:
+          'border border-primary-strong bg-primary-strong text-primary-strong-foreground hover:border-primary-strong-hover hover:bg-primary-strong-hover active:bg-primary-strong-active',
         destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
         outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
@@ -41,7 +45,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, children, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button'
     // Framed objects in the design system: the solid and outlined buttons carry corner marks.
-    const framed = !asChild && (variant == null || variant === 'default' || variant === 'outline')
+    const framed =
+      !asChild &&
+      (variant == null || variant === 'default' || variant === 'strong' || variant === 'outline')
     return (
       <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props}>
         {framed ? <FrameMarks /> : null}

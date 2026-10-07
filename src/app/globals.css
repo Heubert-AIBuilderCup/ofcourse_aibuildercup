@@ -93,6 +93,17 @@
   --color-panel: var(--panel);
   --color-panel-foreground: var(--panel-foreground);
   --color-panel-accent: var(--panel-accent);
+  /* Industry's danger ramp, for validation: field errors (700), the error block (100/300/800). */
+  --color-danger: var(--danger);
+  --color-danger-100: var(--danger-100);
+  --color-danger-200: var(--danger-200);
+  --color-danger-300: var(--danger-300);
+  --color-danger-400: var(--danger-400);
+  --color-danger-500: var(--danger-500);
+  --color-danger-600: var(--danger-600);
+  --color-danger-700: var(--danger-700);
+  --color-danger-800: var(--danger-800);
+  --color-danger-900: var(--danger-900);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -104,6 +115,15 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+ * The splash's ground (DS-R9): OfCourse's own blue (#0077ed) and its white ink. A brand colour of
+ * the student app, not of the design system, so it is set here rather than in a theme.css.
+ */
+@theme {
+  --color-splash: oklch(0.583 0.199 256);
+  --color-splash-foreground: oklch(1 0 0);
 }
 
 /*

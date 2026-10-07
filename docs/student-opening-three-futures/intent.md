@@ -243,3 +243,4 @@ Not designed, built from the Industry system and the nearest frame: the Google b
 ## Changes
 
 - 5 Oct 2026, Jenish, before planning: criteria 32, 33, 41 and 49 corrected to match the frozen design (relationship options, flight-time distances to other cities, chips list every answer a future rests on, the inline chip editor). Open question 10 and the Design reference section added from the design check.
+- 6 Oct 2026, review fixes: criterion 32 refined in the build, its wording unchanged. A future in another city less than 300 km from her person's city (Melbourne to Geelong, Sydney to Wollongong) reads "<city>: about N min by road from <name, or else the relationship> in <their city> · estimate" instead of a flight; 300 km or more stays a flight.

@@ -1,7 +1,7 @@
 'use client'
 
 import { Layers } from 'lucide-react'
-import { type MouseEvent, useRef, useState } from 'react'
+import { type MouseEvent, useEffect, useRef } from 'react'
 import { Blueprint } from '@/shared/components/Blueprint'
 import { cn } from '@/shared/lib/utils'
 import styles from './sign-in.module.css'
@@ -17,53 +17,94 @@ const pad = (n: number) => String(Math.max(0, n)).padStart(4, '0')
 
 /**
  * The sign-in page's left side: the brand mark, the headline and four blueprint cells on a dark
- * grid, with a scanline and a crosshair that follows the pointer and reads out its position.
+ * grid, with a scanline and a crosshair that follows the pointer and reads out its position. It is
+ * where the splash lands (data-splash-target).
  *
  * As the artboard's stylesheet says: the layout follows the page's own width (the page is the
  * container); the cells hide under 560px, and the crosshair hides on touch screens, which have no
- * pointer to follow.
+ * pointer to follow. Its loops hold still while the tab is hidden.
  */
-export function SignInPanel({ productName, lede }: { productName: string; lede: string }) {
-  // Only shown/hidden is React state. The position changes at pointer-event rate, so it is written
-  // straight to the DOM: --mx/--my on the section place the lines and the label, and the readout's
-  // text is set through a ref. The offsets are pointer coordinates, so they are in px by nature.
-  const [shown, setShown] = useState(false)
+export function SignInPanel({
+  productName,
+  overline = 'Workspace access',
+  lede,
+}: {
+  productName: string
+  overline?: string
+  lede: string
+}) {
+  // The crosshair never goes through React state: the pointer's latest position is kept, and one
+  // animation frame writes it as --mx/--my on the section (the lines and the label move by
+  // transform) and as the readout's text. The offsets are pointer coordinates, so px by nature.
+  const section = useRef<HTMLElement>(null)
+  const cross = useRef<HTMLDivElement>(null)
   const readout = useRef<HTMLDivElement>(null)
+  const pointer = useRef({ x: 0, y: 0 })
+  const frame = useRef(0)
+
+  useEffect(() => {
+    const onVisibility = () => section.current?.toggleAttribute('data-paused', document.hidden)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      cancelAnimationFrame(frame.current)
+    }
+  }, [])
+
+  const draw = () => {
+    frame.current = 0
+    const el = section.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const x = Math.round(pointer.current.x - r.left)
+    const y = Math.round(pointer.current.y - r.top)
+    el.style.setProperty('--mx', `${x}px`)
+    el.style.setProperty('--my', `${y}px`)
+    if (readout.current) readout.current.textContent = `X ${pad(x)} · Y ${pad(y)}`
+    cross.current?.setAttribute('data-on', '')
+  }
 
   const track = (e: MouseEvent<HTMLElement>) => {
-    const r = e.currentTarget.getBoundingClientRect()
-    const x = Math.round(e.clientX - r.left)
-    const y = Math.round(e.clientY - r.top)
-    e.currentTarget.style.setProperty('--mx', `${x}px`)
-    e.currentTarget.style.setProperty('--my', `${y}px`)
-    if (readout.current) readout.current.textContent = `X ${pad(x)} · Y ${pad(y)}`
-    if (!shown) setShown(true)
+    pointer.current = { x: e.clientX, y: e.clientY }
+    if (!frame.current) frame.current = requestAnimationFrame(draw)
+  }
+
+  const untrack = () => {
+    cancelAnimationFrame(frame.current)
+    frame.current = 0
+    cross.current?.removeAttribute('data-on')
   }
 
   return (
     <section
+      ref={section}
       aria-label="About"
+      data-splash-target
       onMouseMove={track}
-      onMouseLeave={() => setShown(false)}
+      onMouseLeave={untrack}
       className={cn(
         styles.grid,
+        styles.paused,
         'relative flex flex-col justify-between gap-block overflow-hidden px-gutter py-section text-panel-foreground @max-[60rem]:justify-start @max-[60rem]:pb-11 @max-[35rem]:gap-6 @max-[35rem]:px-5 @max-[35rem]:pt-6 @max-[35rem]:pb-8',
       )}
     >
       <div
         aria-hidden="true"
-        className={cn(styles.scanline, 'pointer-events-none absolute inset-x-0 -top-[2%] h-px')}
-      />
+        className={cn(styles.scanArea, 'pointer-events-none absolute inset-0')}
+      >
+        <div className={cn(styles.scanline, 'absolute inset-x-0 top-0 h-px')} />
+      </div>
 
       <div
+        ref={cross}
         aria-hidden="true"
-        className={cn('pointer-events-none absolute inset-0 no-hover:hidden', !shown && 'hidden')}
+        className="pointer-events-none invisible absolute inset-0 data-on:visible no-hover:hidden"
       >
-        <div className="absolute inset-y-0 left-(--mx) w-px bg-panel-foreground/22" />
-        <div className="absolute inset-x-0 top-(--my) h-px bg-panel-foreground/22" />
+        <div className="absolute inset-y-0 left-0 w-px translate-x-(--mx) bg-panel-foreground/22" />
+        <div className="absolute inset-x-0 top-0 h-px translate-y-(--my) bg-panel-foreground/22" />
         <div
           ref={readout}
-          className="absolute top-[calc(var(--my)+0.5rem)] left-[calc(var(--mx)+0.625rem)] whitespace-nowrap text-micro text-panel-accent"
+          className="absolute top-0 left-0 translate-x-[calc(var(--mx)+0.625rem)] translate-y-[calc(var(--my)+0.5rem)] whitespace-nowrap text-micro text-panel-accent"
         >
           X 0000 · Y 0000
         </div>
@@ -93,7 +134,7 @@ export function SignInPanel({ productName, lede }: { productName: string; lede: 
             'text-overline tracking-widest uppercase text-panel-accent',
           )}
         >
-          Workspace access
+          {overline}
           <span aria-hidden="true" className={cn(styles.cursor, 'ml-1')}>
             _
           </span>
@@ -107,7 +148,7 @@ export function SignInPanel({ productName, lede }: { productName: string; lede: 
             <span className={styles.d4}>you left off.</span>
           </span>
         </h1>
-        <p className={cn(styles.rise, styles.d5, 'm-0 text-lead text-panel-foreground/80')}>
+        <p className={cn(styles.rise, styles.d5, 'm-0 text-lead text-panel-foreground/78')}>
           {lede}
         </p>
       </div>

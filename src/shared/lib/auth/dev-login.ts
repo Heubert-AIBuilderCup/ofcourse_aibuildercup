@@ -4,6 +4,7 @@
 
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
+import { SURFACES } from './access'
 
 export const DEV_LOGIN_HEADER = 'x-dev-login-secret'
 
@@ -21,8 +22,9 @@ export function devLoginAllowed(
   return timingSafeEqual(digest(secret), digest(provided))
 }
 
-/** The request body: who to sign in as. */
+/** The request body: who to sign in as, and optionally on which sign-in page. */
 export const devLoginInput = z.object({
   email: z.string().trim().toLowerCase().max(254).pipe(z.email()),
   name: z.string().trim().min(1).max(80).optional(),
+  surface: z.enum(SURFACES).optional(),
 })

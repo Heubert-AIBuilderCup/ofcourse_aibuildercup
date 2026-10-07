@@ -1,0 +1,645 @@
+import { describe, expect, it } from 'bun:test'
+import { CITIES, PLACES } from '@/features/engine'
+import type { QuestionKey, Relative, StoredAnswer, StoredAnswers } from '@/shared/types/student'
+import { impactLine, notSureLine } from './impact'
+import { DEFAULTS, NOT_SURE, parseAnswer, type Question, SCREENS } from './questions'
+
+const s = (value: StoredAnswer['value']): StoredAnswer => ({ value, state: 'stated' })
+/** What tapping "Not sure" stores: the default, marked assumed. */
+const notSure = (key: QuestionKey): StoredAnswer => {
+  const value = DEFAULTS[key]
+  if (value === undefined) throw new Error(`${key} has no default`)
+  return { value, state: 'assumed' }
+}
+
+const anjali: Relative = {
+  placeId: 'cannington',
+  place: 'Cannington',
+  relationship: 'Cousin',
+  name: 'Anjali',
+}
+
+describe('notSureLine', () => {
+  it('says what is assumed and that it shows as a chip she can change', () => {
+    expect(notSureLine('amount')).toBe(
+      "Not sure: I'll assume “AUD 30k” and show it as a chip you can change.",
+    )
+    expect(notSureLine('where')).toBe(
+      "Not sure: I'll assume “Nepal” and show it as a chip you can change.",
+    )
+    expect(notSureLine('earn')).toBe(
+      "Not sure: I'll assume “Helpful” and show it as a chip you can change.",
+    )
+  })
+})
+
+describe('impactLine: nothing answered', () => {
+  it('is null for every item', () => {
+    for (const screen of SCREENS) {
+      for (const item of screen.items) expect(impactLine(item.id, {}, null)).toBeNull()
+    }
+  })
+
+  it('is null for an id that is not an item', () => {
+    expect(impactLine('nonsense', { where: s('Nepal') }, null)).toBeNull()
+  })
+
+  it('is null when only a part of the item with no line of its own is answered', () => {
+    expect(impactLine('budget', { covers: s('Fees only'), who: s('Loan') }, null)).toBeNull()
+    expect(impactLine('timing', { earliest: s('Feb 2027') }, null)).toBeNull()
+  })
+})
+
+describe('impactLine: every item', () => {
+  it('has a line once a valid answer is given to each of its questions', () => {
+    for (const screen of SCREENS) {
+      for (const item of screen.items) {
+        const answers: StoredAnswers = {}
+        for (const question of item.questions) {
+          const first = question.options[0]
+          answers[question.key] = s(question.control === 'multi' ? [String(first)] : first)
+        }
+        const line = impactLine(item.id, answers, null)
+        expect(line, item.id).toBeString()
+        expect(line?.length, item.id).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('says Not sure with the question’s own assumption, wherever Not sure is offered', () => {
+    // field and knows only show after the question that opens them.
+    const opens: Partial<Record<QuestionKey, StoredAnswers>> = {
+      field: { know: s('Something particular') },
+      knows: { community: s('Yes') },
+    }
+    let offered = 0
+    for (const screen of SCREENS) {
+      for (const item of screen.items) {
+        for (const question of item.questions.filter((x) => x.notSure)) {
+          offered++
+          const answers = { ...opens[question.key], [question.key]: notSure(question.key) }
+          expect(impactLine(item.id, answers, null), question.key).toBe(notSureLine(question.key))
+        }
+      }
+    }
+    expect(offered).toBeGreaterThan(15)
+  })
+
+  it('never says an empty assumption', () => {
+    for (const screen of SCREENS) {
+      for (const question of screen.items.flatMap((item) => item.questions)) {
+        if (question.notSure) expect(notSureLine(question.key), question.key).not.toContain('“”')
+      }
+    }
+  })
+})
+
+describe('where', () => {
+  it('differs for a student already in Australia, which she may apply from onshore (criterion 24)', () => {
+    const onshore = impactLine('where', { where: s('Australia (on a visa)') }, null)
+    const nepal = impactLine('where', { where: s('Nepal') }, null)
+    expect(onshore).not.toBe(nepal)
+    expect(onshore).toContain('onshore')
+    expect(onshore).toBe(
+      "In Australia: you may apply onshore · your current visa's conditions still apply",
+    )
+  })
+
+  it('names the country for an offshore one', () => {
+    expect(impactLine('where', { where: s('Nepal') }, null)).toBe(
+      'Nepal: visa required · study fees apply',
+    )
+    expect(impactLine('where', { where: s('India') }, null)).toBe(
+      'India: visa required · study fees apply',
+    )
+  })
+
+  it('checks the rules for where she is when she says another country', () => {
+    expect(impactLine('where', { where: s('Another country') }, null)).toBe(
+      "Another country: we'll check the visa rules for where you are · study fees apply",
+    )
+  })
+})
+
+describe('budget', () => {
+  it('asks whether the amount is a hard limit while only the amount is known', () => {
+    expect(impactLine('budget', { amount: s(36) }, null)).toBe(
+      "About AUD 36k a year. Tell me if it's a hard limit.",
+    )
+  })
+
+  it('seals the cities whose cheapest course is over a hard limit, dearest first', () => {
+    const line = impactLine('budget', { amount: s(24), hard: s('Hard limit') }, null)
+    expect(line).toStartWith('Hard limit at 24k:')
+    expect(line).toContain('Sydney')
+    // Perth's TAFE diploma (AUD 15k) is the only course under 24k.
+    expect(line).toBe(
+      'Hard limit at 24k: Sydney, Melbourne, Wollongong, Geelong, Hobart and Adelaide seal; Perth stays open.',
+    )
+  })
+
+  it('keeps the first two cities within a hard limit open', () => {
+    expect(impactLine('budget', { amount: s(30), hard: s('Hard limit') }, null)).toBe(
+      'Hard limit at 30k: Sydney, Melbourne, Wollongong and Geelong seal; Hobart and Adelaide stay open.',
+    )
+  })
+
+  it('says seals for one city', () => {
+    expect(impactLine('budget', { amount: s(42), hard: s('Hard limit') }, null)).toBe(
+      'Hard limit at 42k: Sydney seals; Melbourne and Wollongong stay open.',
+    )
+  })
+
+  it('says nothing seals when the limit is above every city', () => {
+    expect(impactLine('budget', { amount: s(50), hard: s('Hard limit') }, null)).toBe(
+      'Hard limit at 50k: nothing seals; Sydney and Melbourne stay open.',
+    )
+  })
+
+  it('says nothing fits when the limit is below every city', () => {
+    expect(impactLine('budget', { amount: s(10), hard: s('Hard limit') }, null)).toBe(
+      'Hard limit at 10k: Sydney, Melbourne, Wollongong, Geelong, Hobart, Adelaide and Perth seal; nothing in this preview fits yet.',
+    )
+  })
+
+  it('marks the cities up to 6k over a rough budget as a stretch', () => {
+    expect(impactLine('budget', { amount: s(24), hard: s('Roughly') }, null)).toBe(
+      'Roughly 24k: Hobart and Adelaide stay open, marked as a stretch.',
+    )
+    expect(impactLine('budget', { amount: s(30), hard: s('Roughly') }, null)).toBe(
+      'Roughly 30k: Geelong stays open, marked as a stretch.',
+    )
+  })
+
+  it('says everything up to 6k over stays open when no city is a stretch', () => {
+    expect(impactLine('budget', { amount: s(50), hard: s('Roughly') }, null)).toBe(
+      'Roughly 50k: everything up to about 56k stays open.',
+    )
+  })
+
+  it('assumes the default amount when only the limit is known', () => {
+    expect(impactLine('budget', { hard: s('Roughly') }, null)).toBe(
+      'Roughly 30k: Geelong stays open, marked as a stretch.',
+    )
+  })
+
+  it('says the amount is assumed when she is not sure of it', () => {
+    const line = impactLine('budget', { amount: notSure('amount') }, null)
+    expect(line).toBe(notSureLine('amount'))
+    expect(line).toBe("Not sure: I'll assume “AUD 30k” and show it as a chip you can change.")
+  })
+
+  it('says the limit is assumed when she is not sure of it, even after an amount', () => {
+    expect(impactLine('budget', { amount: s(36), hard: notSure('hard') }, null)).toBe(
+      notSureLine('hard'),
+    )
+  })
+
+  it('says so when any question of the item is Not sure, the first one winning', () => {
+    expect(
+      impactLine('budget', { amount: s(36), who: notSure('who'), hard: notSure('hard') }, null),
+    ).toBe(notSureLine('who'))
+  })
+})
+
+describe('timing', () => {
+  it('counts the intakes open up to the latest start', () => {
+    expect(impactLine('timing', { latest: s('Feb 2027') }, null)).toBe(
+      'Latest Feb 2027: 3 intakes open · mock',
+    )
+    expect(impactLine('timing', { latest: s('Jul 2027') }, null)).toBe(
+      'Latest Jul 2027: 5 intakes open · mock',
+    )
+    expect(impactLine('timing', { latest: s('Feb 2028') }, null)).toBe(
+      'Latest Feb 2028: 7 intakes open · mock',
+    )
+  })
+
+  it('adds the two-year note when two years is the most she would give', () => {
+    expect(impactLine('timing', { latest: s('Jul 2027'), years: s('2') }, null)).toBe(
+      'Latest Jul 2027: 5 intakes open. Two years at most: 18-month and 2-year courses only · mock',
+    )
+    expect(impactLine('timing', { latest: s('Jul 2027'), years: s('3') }, null)).toBe(
+      'Latest Jul 2027: 5 intakes open · mock',
+    )
+  })
+})
+
+describe('dep', () => {
+  it('says costs are for her alone when no one comes', () => {
+    expect(impactLine('dep', { dep: s('No one') }, null)).toBe(
+      'Just you: single living costs on every route.',
+    )
+  })
+
+  it('says family is not covered yet for a partner, or a partner and children (criterion 27)', () => {
+    const family =
+      "Family isn't covered in this preview yet, so every route shows costs for you alone."
+    expect(impactLine('dep', { dep: s('Partner') }, null)).toBe(family)
+    expect(impactLine('dep', { dep: s('Partner and children') }, null)).toBe(family)
+  })
+})
+
+describe('quals', () => {
+  it('says an IELTS of 6.5 or more meets every course in the preview', () => {
+    for (const eng of ['IELTS 6.5', 'IELTS 7.0', 'IELTS 7.5 or more']) {
+      expect(impactLine('quals', { eng: s(eng) }, null)).toBe(
+        `${eng}: meets the English requirement of every course in this preview.`,
+      )
+    }
+  })
+
+  it('says an IELTS of 6.0 falls short of some courses', () => {
+    expect(impactLine('quals', { eng: s('IELTS 6.0') }, null)).toBe(
+      'IELTS 6.0: some courses ask for 6.5 · mock',
+    )
+  })
+
+  it('marks routes unconfirmed until she sits the test', () => {
+    expect(impactLine('quals', { eng: s('Not taken yet') }, null)).toBe(
+      'Not taken yet: routes are marked unconfirmed until you sit it.',
+    )
+  })
+
+  it('notes the qualification alone for entry requirements', () => {
+    expect(impactLine('quals', { qual: s("Bachelor's") }, null)).toBe(
+      "Bachelor's: noted for entry requirements.",
+    )
+  })
+
+  it('speaks of the English test first when both are answered', () => {
+    expect(impactLine('quals', { qual: s("Bachelor's"), eng: s('IELTS 6.0') }, null)).toBe(
+      'IELTS 6.0: some courses ask for 6.5 · mock',
+    )
+  })
+})
+
+describe('know', () => {
+  it('starts wide for "Suggest me"', () => {
+    expect(impactLine('know', { know: s('Suggest me') }, null)).toBe(
+      "Suggest me: we'll start wide, with futures from every field in this preview.",
+    )
+  })
+
+  it('uses the field she names', () => {
+    expect(
+      impactLine('know', { know: s('Something particular'), field: s('Cyber security') }, null),
+    ).toBe(
+      'Particular: your futures use Cyber security courses; you can change the field on each one.',
+    )
+  })
+
+  it('asks for the field until she picks one', () => {
+    expect(impactLine('know', { know: s('Something particular') }, null)).toBe(
+      'Particular: pick the field.',
+    )
+  })
+
+  it('lists the areas side by side', () => {
+    expect(
+      impactLine(
+        'know',
+        { know: s("A few areas I'm drawn to"), areas: s(['Data', 'Business']) },
+        null,
+      ),
+    ).toBe('Data and Business: courses across them show side by side.')
+    expect(
+      impactLine(
+        'know',
+        { know: s("A few areas I'm drawn to"), areas: s(['IT and computing', 'Data', 'Design']) },
+        null,
+      ),
+    ).toBe('IT and computing, Data and Design: courses across them show side by side.')
+  })
+
+  it('asks for the areas until she picks some', () => {
+    expect(impactLine('know', { know: s("A few areas I'm drawn to") }, null)).toBe(
+      'Pick up to three areas.',
+    )
+  })
+
+  it('ignores an answer to a question that is no longer shown', () => {
+    // she switched from "Something particular" to "Suggest me"; her old Not sure on the field stays stored
+    const line = impactLine('know', { know: s('Suggest me'), field: notSure('field') }, null)
+    expect(line).toStartWith('Suggest me:')
+  })
+})
+
+describe('choices with one line each', () => {
+  const cases: [string, QuestionKey, string, string][] = [
+    [
+      'level',
+      'level',
+      'Diploma',
+      "Diploma: 1–2 years; some give credit towards a bachelor's · mock",
+    ],
+    ['level', 'level', "Bachelor's", "Bachelor's: 3 years; a second degree at your level · mock"],
+    [
+      'level',
+      'level',
+      "Master's",
+      "Master's: 18 months to 2 years, building on your degree · mock",
+    ],
+    [
+      'learn',
+      'learn',
+      'Hands-on with placements',
+      'Placements: noted; it shapes what each future is drawn around.',
+    ],
+    [
+      'learn',
+      'learn',
+      'Mostly classroom and research',
+      "Classroom and research: noted; it doesn't change your futures in this preview.",
+    ],
+    [
+      'learn',
+      'learn',
+      'No preference',
+      "No preference: placements shown, but they don't move anything.",
+    ],
+    [
+      'length',
+      'length',
+      'As short as possible',
+      'Short: noted; it shapes what each future is drawn around. 18-month courses can lose the 2-year work-rights bonus · mock',
+    ],
+    [
+      'length',
+      'length',
+      'Fine with longer if it opens more',
+      'Longer is fine: 2-year courses keep full post-study work rights · mock',
+    ],
+    [
+      'place',
+      'place',
+      'City',
+      'City: more part-time jobs and bigger markets; higher rent, no regional points.',
+    ],
+    [
+      'place',
+      'place',
+      'Suburban',
+      'Suburban: rent between the two; usually still metro for migration.',
+    ],
+    ['place', 'place', 'Regional', 'Regional: more PR points, cheaper rent, fewer part-time jobs.'],
+    ['focus', 'focus', 'Career-focused', 'Career-focused: your futures weigh career heavily.'],
+    ['focus', 'focus', 'Academic', 'Academic: your futures weigh career lightly.'],
+    [
+      'earn',
+      'earn',
+      'Yes',
+      'Yes: your futures weigh work heavily; part-time rules shown on every route.',
+    ],
+    ['earn', 'earn', 'Helpful', 'Helpful: part-time rules shown on every route.'],
+    ['earn', 'earn', 'No', 'No: your futures weigh work lightly.'],
+  ]
+  for (const [id, key, choice, expected] of cases) {
+    it(`${key}: ${choice}`, () => {
+      expect(impactLine(id, { [key]: s(choice) }, null)).toBe(expected)
+    })
+  }
+})
+
+describe('dest', () => {
+  it('counts the cities in the preview for Australia', () => {
+    expect(impactLine('dest', { dest: s('Australia') }, null)).toBe(
+      `Australia: ${CITIES.length} cities in this preview · mock`,
+    )
+  })
+
+  it('says only Australia is covered when she is open to others (criterion 28)', () => {
+    expect(impactLine('dest', { dest: s('Open to others') }, null)).toBe(
+      'Only Australia is covered in this preview, so your futures will be Australian.',
+    )
+  })
+})
+
+describe('community', () => {
+  it('says what each answer does', () => {
+    expect(impactLine('community', { community: s('Yes') }, null)).toBe(
+      'Yes: noted; it shapes what each future is drawn around.',
+    )
+    expect(impactLine('community', { community: s('A little') }, null)).toBe(
+      'A little: noted; it shapes what each future is drawn around.',
+    )
+    expect(impactLine('community', { community: s('No') }, null)).toBe(
+      "No: noted; it won't change your futures.",
+    )
+  })
+
+  describe('with a relative', () => {
+    const knows = { community: s('Yes'), knows: s('Yes') }
+
+    it('names the two nearest campuses in her city with the minutes to each (criterion 32)', () => {
+      const line = impactLine('community', knows, anjali)
+      expect(line).toContain('Every route shows its distance from Anjali.')
+      // Perth has three campuses; ECU Joondalup, about 75 min out, is the one left off.
+      expect(line).toBe(
+        'Anjali in Cannington, Perth: Curtin Bentley is about 20 min away, TAFE Perth about 30 min · estimate. Every route shows its distance from Anjali.',
+      )
+    })
+
+    it('measures from the place to every campus of the city, so each place has a line', () => {
+      for (const place of PLACES) {
+        const relative: Relative = { ...anjali, placeId: place.id, place: place.name }
+        expect(impactLine('community', knows, relative), place.id).toMatch(
+          /^Anjali in .+: .+ is about \d+ min away/,
+        )
+      }
+    })
+
+    it('names the one campus of a city that has only one', () => {
+      const sandyBay: Relative = {
+        placeId: 'sandy-bay',
+        place: 'Sandy Bay',
+        relationship: 'Friend',
+        name: 'Maya',
+      }
+      expect(impactLine('community', knows, sandyBay)).toBe(
+        'Maya in Sandy Bay, Hobart: UTAS Sandy Bay is about 10 min away · estimate. Every route shows its distance from Maya.',
+      )
+    })
+
+    it('does not name the city twice when the place is the city', () => {
+      const hobart: Relative = { ...anjali, placeId: 'hobart', place: 'Hobart', name: 'Maya' }
+      expect(impactLine('community', knows, hobart)).toStartWith('Maya in Hobart: UTAS Sandy Bay')
+    })
+
+    it('calls her by relationship when she gave no name', () => {
+      const line = impactLine('community', knows, {
+        ...anjali,
+        relationship: 'Aunt or uncle',
+        name: null,
+      })
+      expect(line).toStartWith('Your aunt or uncle in Cannington, Perth: ')
+      expect(line).toContain('Every route shows its distance from your aunt or uncle.')
+    })
+
+    it('promises the distances for a place the preview cannot measure (criterion 33)', () => {
+      const elsewhere: Relative = {
+        placeId: null,
+        place: 'Darwin',
+        relationship: 'Cousin',
+        name: 'Anjali',
+      }
+      expect(impactLine('community', knows, elsewhere)).toBe(
+        "We'll show distances from Anjali in Darwin once we can work them out.",
+      )
+    })
+
+    it('treats a place that has left the catalogue as somewhere else', () => {
+      const gone: Relative = { ...anjali, placeId: 'no-such-place', place: 'Atlantis' }
+      expect(impactLine('community', knows, gone)).toBe(
+        "We'll show distances from Anjali in Atlantis once we can work them out.",
+      )
+    })
+
+    it('is left out when she does not know anyone, or has not said', () => {
+      const yes = 'Yes: noted; it shapes what each future is drawn around.'
+      expect(impactLine('community', { community: s('Yes'), knows: s('No') }, anjali)).toBe(yes)
+      expect(impactLine('community', { community: s('Yes') }, anjali)).toBe(yes)
+      // she said she knows someone but has not added them yet
+      expect(impactLine('community', knows, null)).toBe(yes)
+    })
+
+    it('is left out when community does not matter to her, as the question is then not shown', () => {
+      expect(impactLine('community', { community: s('No'), knows: s('Yes') }, anjali)).toBe(
+        "No: noted; it won't change your futures.",
+      )
+    })
+
+    it('says so when she is not sure whether she knows someone', () => {
+      expect(
+        impactLine('community', { community: s('Yes'), knows: notSure('knows') }, anjali),
+      ).toBe(notSureLine('knows'))
+    })
+  })
+})
+
+describe('climate', () => {
+  it('is noted but changes nothing in this preview', () => {
+    expect(impactLine('climate', { climate: s('Mild') }, null)).toBe(
+      "Mild: noted; climate doesn't change your futures in this preview.",
+    )
+    expect(impactLine('climate', { climate: s('No preference') }, null)).toBe(
+      "No preference: noted; climate doesn't change your futures in this preview.",
+    )
+  })
+
+  it('does not promise that any city rises', () => {
+    for (const choice of ['Mild', 'Warm', 'No preference']) {
+      expect(impactLine('climate', { climate: s(choice) }, null)).not.toMatch(/\brise\b/)
+    }
+  })
+})
+
+describe('stay', () => {
+  it('says what each answer does to PR', () => {
+    expect(impactLine('stay', { stay: s('Yes') }, null)).toBe(
+      'Yes: courses off the occupation list seal; regional study gains points.',
+    )
+    expect(impactLine('stay', { stay: s('No') }, null)).toBe(
+      'No: PR stops counting in your futures.',
+    )
+  })
+
+  it('says Not sure is a real answer here: PR counts but no route seals', () => {
+    expect(impactLine('stay', { stay: s('Not sure') }, null)).toBe(
+      'Not sure: PR counts, but no route seals.',
+    )
+  })
+})
+
+describe('settle', () => {
+  it('is noted as shaping what she sees later', () => {
+    expect(impactLine('settle', { settle: s('Settle long-term') }, null)).toBe(
+      'Settle long-term: noted; it shapes what we show you later.',
+    )
+    expect(impactLine('settle', { settle: s('Come home eventually') }, null)).toBe(
+      'Come home eventually: noted; it shapes what we show you later.',
+    )
+  })
+})
+
+// ── Every line she can see ──────────────────────────────────────────────────────────────────
+
+/** Every answer a question can store: each option, "Not sure" where offered, and unanswered. */
+function storedOf(question: Question): (StoredAnswer | undefined)[] {
+  const raws: unknown[] =
+    question.control === 'multi'
+      ? [...question.options.map((o) => [o]), question.options.slice(0, 3)]
+      : [...question.options, ...(question.notSure ? [NOT_SURE] : [])]
+  return [undefined, ...raws.map((raw) => parseAnswer(question.key, raw) ?? undefined)]
+}
+
+const unmeasured: Relative = {
+  placeId: null,
+  place: 'Darwin',
+  relationship: 'Friend',
+  name: null,
+}
+
+/** Every item with every combination of its answers, and every kind of relative. */
+const CASES: { itemId: string; answers: StoredAnswers; relative: Relative | null }[] =
+  SCREENS.flatMap((screen) =>
+    screen.items.flatMap((item) => {
+      let combos: StoredAnswers[] = [{}]
+      for (const question of item.questions) {
+        combos = combos.flatMap((answers) =>
+          storedOf(question).map((stored) =>
+            stored ? { ...answers, [question.key]: stored } : answers,
+          ),
+        )
+      }
+      return combos.flatMap((answers) =>
+        [null, anjali, unmeasured].map((relative) => ({ itemId: item.id, answers, relative })),
+      )
+    }),
+  )
+
+/**
+ * The line with her own answers to the item taken out (an unanswered one counts as its default,
+ * which is what she sees assumed): what is left is the preview's to say. A figure goes only where
+ * it stands alone, so her "3" never hides a "3 intakes".
+ */
+function withoutHerAnswers(line: string, itemId: string, answers: StoredAnswers): string {
+  const item = SCREENS.flatMap((screen) => screen.items).find((x) => x.id === itemId)
+  const own = (item?.questions ?? [])
+    .flatMap(({ key }) => [answers[key]?.value ?? DEFAULTS[key]].flat())
+    .filter((value) => value !== undefined)
+    .map(String)
+    .sort((a, b) => b.length - a.length)
+  const literal = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return own.reduce(
+    (rest, value) => rest.replace(new RegExp(`(?<![\\d.])${literal(value)}(?![\\d.])`, 'g'), ''),
+    line,
+  )
+}
+
+describe('impactLine: every line she can see', () => {
+  it('covers every item', () => {
+    expect(new Set(CASES.map((c) => c.itemId)).size).toBe(
+      SCREENS.flatMap((screen) => screen.items).length,
+    )
+  })
+
+  it('labels every figure that is not her own answer as mock or an estimate (criterion 3)', () => {
+    for (const { itemId, answers, relative } of CASES) {
+      const line = impactLine(itemId, answers, relative)
+      if (line === null || !/\d/.test(withoutHerAnswers(line, itemId, answers))) continue
+      expect(line, JSON.stringify(answers)).toMatch(/mock|estimate|Source:/)
+    }
+  })
+
+  it('promises nothing this preview does not do: nothing rises, leads, ranks or sorts', () => {
+    const promises =
+      /\b(rise|rises|lead|leads|rank|sort)\b|profile|type or pick|offered later|community size/
+    for (const { itemId, answers, relative } of CASES) {
+      const line = impactLine(itemId, answers, relative) ?? ''
+      expect(line, JSON.stringify(answers)).not.toMatch(promises)
+      // A hard limit and staying do seal routes in the engine; nothing else does.
+      if (itemId !== 'budget' && itemId !== 'stay') expect(line).not.toMatch(/\bseal\b/)
+    }
+  })
+})

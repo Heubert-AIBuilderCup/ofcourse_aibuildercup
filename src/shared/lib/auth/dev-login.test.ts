@@ -37,6 +37,13 @@ describe('devLoginInput', () => {
     })
   })
 
+  it('takes an optional sign-in page: student or admin, nothing else', () => {
+    expect(devLoginInput.parse({ email: 'a@b.test', surface: 'admin' }).surface).toBe('admin')
+    expect(devLoginInput.parse({ email: 'a@b.test', surface: 'student' }).surface).toBe('student')
+    expect(devLoginInput.safeParse({ email: 'a@b.test', surface: 'staff' }).success).toBe(false)
+    expect(devLoginInput.parse({ email: 'a@b.test' }).surface).toBeUndefined()
+  })
+
   it('refuses anything that is not an email', () => {
     expect(devLoginInput.safeParse({ email: 'nope' }).success).toBe(false)
     expect(devLoginInput.safeParse({}).success).toBe(false)
