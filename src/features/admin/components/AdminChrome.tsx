@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { SignOutButton } from '@/features/auth/components/SignOutButton'
+import { ThemeToggle } from '@/shared/components/ThemeToggle'
 import { ADMIN_SIGNIN_PATH } from '@/shared/lib/auth/gate'
 import { SITE_NAME } from '@/shared/lib/site'
 import { AdminNav } from './AdminNav'
@@ -14,7 +15,10 @@ export function AdminChrome({ children }: { children: ReactNode }) {
           <Link href="/admin/users" className="font-semibold">
             {SITE_NAME} <span className="text-muted-foreground">Admin</span>
           </Link>
-          <SignOutButton redirectTo={ADMIN_SIGNIN_PATH} />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <SignOutButton redirectTo={ADMIN_SIGNIN_PATH} />
+          </div>
         </div>
       </header>
       <AdminNav />

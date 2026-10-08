@@ -1,28 +1,11 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
-import { signOut } from '@/shared/lib/auth/client'
 import { WELCOME_PATH } from '@/shared/lib/auth/gate'
+import { useSignOut } from '../hooks/useSignOut'
 
-/**
- * Ends the session on the server (Better Auth clears the cookie), then leaves for `redirectTo`:
- * the sign-in page at / unless told otherwise.
- */
 export function SignOutButton({ redirectTo = WELCOME_PATH }: { redirectTo?: string }) {
-  const router = useRouter()
-  const [pending, setPending] = useState(false)
-
-  async function leave() {
-    setPending(true)
-    try {
-      await signOut()
-    } finally {
-      router.replace(redirectTo)
-      router.refresh()
-    }
-  }
+  const { leave, pending } = useSignOut(redirectTo)
 
   return (
     <Button variant="ghost" size="sm" disabled={pending} onClick={() => void leave()}>

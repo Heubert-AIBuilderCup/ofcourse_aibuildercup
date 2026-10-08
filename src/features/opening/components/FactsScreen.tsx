@@ -4,7 +4,6 @@ import { ArrowLeft, ArrowRight, Check, CircleAlert, Info, LoaderCircle } from 'l
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useId, useRef, useState } from 'react'
-import { SignOutButton } from '@/features/auth'
 import { Button } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
 import type { AnswerValue, Relative, StoredAnswers } from '@/shared/types/student'
@@ -32,11 +31,14 @@ const NOTES: Record<Exclude<SaveStatus, 'failed'>, string> = {
   saved: 'Saved. Tap another answer to change it.',
 }
 const NOTE_ICONS = {
-  idle: <Info aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />,
+  idle: <Info aria-hidden="true" className="icon-on-line-sm size-icon-sm shrink-0" />,
   saving: (
-    <LoaderCircle aria-hidden="true" className={cn(picture.spin, 'mt-0.5 size-3.5 shrink-0')} />
+    <LoaderCircle
+      aria-hidden="true"
+      className={cn(picture.spin, 'icon-on-line-sm size-icon-sm shrink-0')}
+    />
   ),
-  saved: <Check aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />,
+  saved: <Check aria-hidden="true" className="icon-on-line-sm size-icon-sm shrink-0" />,
 }
 
 /**
@@ -98,14 +100,13 @@ export function FactsScreen({
 
   return (
     <div ref={root} className="mx-auto flex w-full max-w-2xl flex-col gap-5 @max-xl:gap-4">
-      <div className={cn(shell.rise, shell.d2, 'flex min-h-11 items-center justify-between gap-4')}>
+      <div className={cn(shell.rise, shell.d2, 'flex min-h-11 items-center')}>
         <p className="m-0 text-overline uppercase text-accent-700">
           Facts about you ·{' '}
           <b className="font-medium text-muted-foreground">
             {index + 1} of {FACT_QUESTIONS.length}
           </b>
         </p>
-        <SignOutButton />
       </div>
 
       <div key={item.key} className={cn(styles.question, 'flex flex-col gap-5 @max-xl:gap-4')}>
@@ -145,11 +146,14 @@ export function FactsScreen({
                 {impact.kind === 'plain' ? (
                   <ArrowRight
                     aria-hidden="true"
-                    className="mt-1 size-3.5 shrink-0 text-accent-700"
+                    className="icon-on-line-sm size-icon-sm shrink-0 text-accent-700"
                   />
                 ) : null}
                 {impact.kind === 'limit' ? (
-                  <Info aria-hidden="true" className="mt-1 size-3.5 shrink-0 text-neutral-700" />
+                  <Info
+                    aria-hidden="true"
+                    className="icon-on-line-sm size-icon-sm shrink-0 text-neutral-700"
+                  />
                 ) : null}
                 <p className="m-0">
                   <span className="sr-only">What this does: </span>
@@ -191,7 +195,7 @@ export function FactsScreen({
               'flex flex-wrap items-center gap-x-2.5 gap-y-2 border border-danger-300 bg-danger-100 px-3.5 py-2.5 text-caption text-danger-800',
             )}
           >
-            <CircleAlert aria-hidden="true" className="size-4 shrink-0 text-danger-700" />
+            <CircleAlert aria-hidden="true" className="size-icon shrink-0 text-danger-700" />
             <span className="min-w-45 flex-1">{ANSWER_SAVE_FAILED}</span>
             <Button
               type="button"
@@ -238,7 +242,7 @@ export function FactsScreen({
           onClick={() => (index === 0 ? leave(PICTURE_PATH) : go(index - 1))}
           className="min-w-33 @max-xl:min-w-24 @max-xl:flex-none"
         >
-          <ArrowLeft aria-hidden="true" className="size-3.5" />
+          <ArrowLeft aria-hidden="true" className="size-icon-sm" />
           Back
         </Button>
         <Button
@@ -249,7 +253,7 @@ export function FactsScreen({
           className="min-w-33 @max-xl:min-w-0 @max-xl:flex-1"
         >
           {last ? NEXT : answered ? 'Continue' : 'Skip'}
-          <ArrowRight aria-hidden="true" className="size-3.5" />
+          <ArrowRight aria-hidden="true" className="size-icon-sm" />
         </Button>
       </div>
     </div>

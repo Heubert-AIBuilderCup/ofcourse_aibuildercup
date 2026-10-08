@@ -79,6 +79,8 @@ export function SignInPanel({
     <section
       ref={section}
       aria-label="About"
+      // Marked light: the hero keeps its look in a dark page (Industry's light tokens).
+      data-theme="light"
       data-splash-target
       onMouseMove={track}
       onMouseLeave={untrack}
@@ -119,7 +121,7 @@ export function SignInPanel({
             'flex size-9 items-center justify-center',
           )}
         >
-          <Layers aria-hidden="true" className="size-4.5" />
+          <Layers aria-hidden="true" className="size-icon-md" />
         </Blueprint>
         <span className="font-heading text-xl font-semibold tracking-[-0.015em]">
           {productName}

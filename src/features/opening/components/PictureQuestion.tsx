@@ -145,7 +145,7 @@ export function PictureQuestion({
                   'absolute top-2.5 right-2.5 flex size-5.5 items-center justify-center bg-accent-700 text-background @max-xl:static @max-xl:ml-auto',
                 )}
               >
-                <Check className="size-3.5" />
+                <Check className="size-icon-sm" />
               </span>
             </Blueprint>
           )
@@ -159,7 +159,7 @@ export function PictureQuestion({
           'm-0 flex items-start gap-2 text-caption text-muted-foreground',
         )}
       >
-        <Info aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+        <Info aria-hidden="true" className="icon-on-line-sm size-icon-sm shrink-0" />
         <span>{choice ? CLEAR : OPTIONAL}</span>
       </p>
 
@@ -171,7 +171,10 @@ export function PictureQuestion({
             'flex items-start gap-2 border border-danger-300 bg-danger-100 px-3.5 py-2.5 text-caption text-danger-800',
           )}
         >
-          <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-danger-700" />
+          <CircleAlert
+            aria-hidden="true"
+            className="icon-on-line size-icon shrink-0 text-danger-700"
+          />
           <span>{ANSWER_SAVE_FAILED}</span>
         </div>
       ) : null}
@@ -204,13 +207,13 @@ export function PictureQuestion({
         >
           {saving ? (
             <>
-              <LoaderCircle aria-hidden="true" className={cn(styles.spin, 'size-3.5')} />
+              <LoaderCircle aria-hidden="true" className={cn(styles.spin, 'size-icon-sm')} />
               Saving…
             </>
           ) : (
             <>
               {status === 'failed' ? 'Try again' : 'Start'}
-              <ArrowRight aria-hidden="true" className="size-3.5" />
+              <ArrowRight aria-hidden="true" className="size-icon-sm" />
             </>
           )}
         </Button>

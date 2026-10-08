@@ -61,6 +61,14 @@ it('on step 01 marks step 00 done and counts the question she is on', () => {
   )
 })
 
+it('stays light in a dark page: the panel is marked data-theme="light"', () => {
+  renderAt('/onboarding/character')
+  expect(screen.getByRole('complementary', { name: 'Getting started' })).toHaveAttribute(
+    'data-theme',
+    'light',
+  )
+})
+
 it('on step 01 with no question reads as the first', () => {
   renderAt('/onboarding/facts')
   expect(steps()[1]).toHaveTextContent('Now · 1/11')

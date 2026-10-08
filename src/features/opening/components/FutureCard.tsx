@@ -93,7 +93,9 @@ function Line({ line, changed }: { line: FutureLine; changed: boolean }) {
               aria-current={feel === line.feel ? 'true' : undefined}
               className={cn(
                 'border px-2',
-                feel === line.feel ? 'border-foreground bg-foreground text-background' : '',
+                feel === line.feel
+                  ? 'border-foreground bg-foreground text-background dark:border-accent-700 dark:bg-accent-100 dark:text-accent-800'
+                  : '',
               )}
             >
               {feel}
@@ -148,7 +150,11 @@ export function FutureCard({
       <h3 className="m-0 font-heading text-h3">{future.route}</h3>
       {future.distance ? (
         <p className="m-0 flex items-start gap-2 text-caption">
-          <House aria-hidden="true" strokeWidth={1.5} className="mt-0.5 size-3.5 shrink-0" />
+          <House
+            aria-hidden="true"
+            strokeWidth={1.5}
+            className="icon-on-line-sm size-icon-sm shrink-0"
+          />
           {future.distance}
         </p>
       ) : null}

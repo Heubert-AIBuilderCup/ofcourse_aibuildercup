@@ -55,7 +55,7 @@ export function GoogleSignIn({
         onClick={() => void start()}
         className={cn(styles.frame, styles.spread, 'w-full bg-transparent')}
       >
-        <LogIn aria-hidden="true" className="size-3.5" />
+        <LogIn aria-hidden="true" className="size-icon-sm" />
         Continue with Google
       </Button>
       {failed ? (

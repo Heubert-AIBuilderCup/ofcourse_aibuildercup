@@ -48,6 +48,13 @@
      the page's rem: 90rem is 1440px at 1440 and 1920px from 1920, so below 1920 it never binds and
      above it content stays in a centred 1920 frame (split-page below). */
   --container-cap: 90rem;
+  /* Icon sizes in px on purpose: icons do not scale with the root (DESIGN.md: 14 beside a label,
+     16 in an icon button, 20 alone; 12 for the panel's Done tick, 18 for the brand mark). */
+  --spacing-icon-xs: 12px;
+  --spacing-icon-sm: 14px;
+  --spacing-icon: 16px;
+  --spacing-icon-md: 18px;
+  --spacing-icon-lg: 20px;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -244,4 +251,34 @@
 @utility split-panel {
   padding-inline: --theme(--spacing-gutter);
   padding-inline-start: calc(var(--bleed) + --theme(--spacing-gutter));
+}
+/*
+ * The hairline where the light steel panel meets the dark ground, drawn on the main column's own
+ * edge: on its left side by side (split-divider-x), on its top when stacked (split-divider-y).
+ * Used under dark: only; in light the panel's colour is edge enough.
+ */
+@utility split-divider-x {
+  box-shadow: inset 1px 0 0 var(--border);
+}
+@utility split-divider-y {
+  box-shadow: inset 0 1px 0 var(--border);
+}
+/*
+ * The header action's place in the page's top right corner: --corner from the frame's right edge
+ * (3.5rem unless the placement sets it per breakpoint), so above the cap it stays inside the
+ * centred frame instead of at the screen's edge. Below the cap --bleed is 0.
+ */
+@utility split-corner {
+  right: calc(var(--bleed, 0rem) + var(--corner, 3.5rem));
+}
+
+/*
+ * An icon beside running text: centred on the first line of text (1lh), whatever the root size,
+ * instead of a fixed top nudge that drifts as the design scales. -sm for the 14px icon.
+ */
+@utility icon-on-line {
+  margin-top: calc((1lh - 16px) / 2);
+}
+@utility icon-on-line-sm {
+  margin-top: calc((1lh - 14px) / 2);
 }

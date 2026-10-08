@@ -1,11 +1,27 @@
 'use client'
 
-import { type ReactNode, useEffect, useState } from 'react'
+import { createContext, type ReactNode, useContext, useEffect, useState } from 'react'
 import { Toaster } from '@/shared/components/ui/sonner'
 import { resolveTheme, type Theme, type ThemeChoice } from '@/shared/lib/theme'
-import { rememberSystemTheme } from '@/shared/lib/theme-actions'
+import { rememberSystemTheme, setThemeChoice } from '@/shared/lib/theme-actions'
 
 const DARK_QUERY = '(prefers-color-scheme: dark)'
+
+type ThemeContextValue = {
+  choice: ThemeChoice
+  /** The theme on screen: the choice, or the device's scheme while the choice is system. */
+  theme: Theme
+  setChoice: (choice: ThemeChoice) => void
+}
+
+const ThemeContext = createContext<ThemeContextValue | null>(null)
+
+/** The theme on screen and the way to change it; for the header actions. */
+export function useThemeChoice(): ThemeContextValue {
+  const value = useContext(ThemeContext)
+  if (!value) throw new Error('useThemeChoice must be used inside <Providers>')
+  return value
+}
 
 type ProvidersProps = {
   /** What the person picked (a cookie): light, dark, or system (follow the phone). */
@@ -18,7 +34,16 @@ type ProvidersProps = {
 /** App-wide client state: the theme that follows the device, and the toaster. */
 export function Providers({ initialChoice, systemTheme, children }: ProvidersProps) {
   const [system, setSystem] = useState<Theme | null>(systemTheme)
-  const theme = resolveTheme(initialChoice, system)
+  const [choice, setChoiceState] = useState<ThemeChoice>(initialChoice)
+  const theme = resolveTheme(choice, system)
+
+  // The page shows the theme at once; the cookie is a convenience, so a failed save is not shown.
+  const setChoice = (next: ThemeChoice) => {
+    setChoiceState(next)
+    setThemeChoice(next).catch((error: unknown) => {
+      if (process.env.NODE_ENV === 'development') console.warn('Could not store the theme', error)
+    })
+  }
 
   // Subscribe to the device's colour scheme; when it differs from what the server knows, store it
   // so the next page renders in it without a flash.
@@ -44,9 +69,9 @@ export function Providers({ initialChoice, systemTheme, children }: ProvidersPro
   }, [theme])
 
   return (
-    <>
+    <ThemeContext.Provider value={{ choice, theme, setChoice }}>
       {children}
       <Toaster theme={theme} position="top-center" />
-    </>
+    </ThemeContext.Provider>
   )
 }

@@ -23,6 +23,11 @@ it('is the place the splash lands, with the page’s own copy', () => {
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Pick up whereyou left off.')
 })
 
+it('stays light in a dark page: the hero is marked data-theme="light"', () => {
+  render(<SignInPanel productName="OfCourse" lede="Three futures." />)
+  expect(panel()).toHaveAttribute('data-theme', 'light')
+})
+
 it('moves the crosshair once per frame, not once per pointer event', () => {
   const frames: FrameRequestCallback[] = []
   window.requestAnimationFrame = (cb) => {

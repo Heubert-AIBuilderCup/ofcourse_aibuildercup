@@ -86,7 +86,8 @@ it('asks one question, with its place, its group, why it asks and the ways on', 
   expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument()
   expect(screen.getByRole('link', { name: LEAVE })).toHaveAttribute('href', '/onboarding/study')
-  expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
+  // Sign out lives in the shell's header menu now, not on the step.
+  expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull()
   expect(screen.getByText(IDLE)).toBeInTheDocument()
   expect(screen.queryByText(/a year/)).not.toBeInTheDocument()
 })

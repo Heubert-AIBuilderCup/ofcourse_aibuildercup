@@ -123,7 +123,7 @@ export function AnswerCards({
                 'motion-safe:transition-[scale] motion-safe:duration-300 motion-safe:ease-(--spring)',
               )}
             >
-              <Check className="size-3.5" />
+              <Check className="size-icon-sm" />
             </span>
           </button>
         )

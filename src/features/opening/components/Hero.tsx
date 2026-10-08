@@ -4,7 +4,11 @@
  */
 export function Hero({ overline, title, sub }: { overline: string; title: string; sub?: string }) {
   return (
-    <header className="bg-primary-strong px-gutter py-section text-primary-strong-foreground @max-[35rem]:px-5 @max-[35rem]:py-8">
+    // Marked light: the band keeps its steel in a dark page, as the steel panels do.
+    <header
+      data-theme="light"
+      className="bg-primary-strong px-gutter py-section text-primary-strong-foreground @max-[35rem]:px-5 @max-[35rem]:py-8"
+    >
       <div className="flex max-w-2xl flex-col gap-2">
         <p className="m-0 text-overline uppercase">{overline}</p>
         <h1 className="m-0 font-heading text-h1 font-semibold">{title}</h1>

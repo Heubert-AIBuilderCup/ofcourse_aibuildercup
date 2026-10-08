@@ -1,7 +1,14 @@
 import { expect, type Page, test } from '@playwright/test'
 import { deleteUsers, profileOf, sql, userIdByEmail } from '../helpers/db'
 import { devLogin } from '../helpers/login'
-import { answerFact, answerOpening, card, factUrl, newStudent } from '../helpers/student'
+import {
+  answerFact,
+  answerOpening,
+  card,
+  factUrl,
+  newStudent,
+  signOutViaMenu,
+} from '../helpers/student'
 
 // Onboarding steps 00 (Your comic character) and 01 (Facts about you), one question per screen:
 // criteria 2, 3, 4, 14, 22, 23, 24, 25, 26, 27, 30 and 60 of
@@ -478,7 +485,7 @@ test.describe('on a phone', () => {
       await answerFact(page, ['It covers', 'Fees and living'])
       await openFact(page, 'Who pays')
 
-      await page.getByRole('button', { name: 'Sign out' }).click()
+      await signOutViaMenu(page)
       await expect(page).toHaveURL((url) => url.pathname === '/')
       await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
 

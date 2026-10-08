@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/shared/lib/utils'
+import { AccountMenu } from './AccountMenu'
 import { OnboardingPanel } from './OnboardingPanel'
 import styles from './onboarding.module.css'
 
@@ -13,10 +14,12 @@ import styles from './onboarding.module.css'
 export function OnboardingShell({ children }: { children: ReactNode }) {
   return (
     <div className={cn(styles.page, '@container min-h-dvh bg-background text-foreground')}>
-      <div className="split-page min-h-dvh [--split-panel:5/12] @max-5xl:grid-cols-1 @max-5xl:grid-rows-[auto_1fr]">
+      <div className="split-page relative min-h-dvh [--split-panel:5/12] @max-5xl:grid-cols-1 @max-5xl:grid-rows-[auto_1fr]">
         <OnboardingPanel />
+        {/* The header action (the design's .hdr): on the page side by side, in the band below. */}
+        <AccountMenu className="split-corner absolute top-11 z-20 @max-5xl:top-6 @max-5xl:[--corner:2.5rem] @max-xl:top-1.5 @max-xl:[--corner:1rem]" />
 
-        <div className="flex flex-col justify-center px-gutter py-section @max-5xl:justify-start @max-5xl:px-10 @max-5xl:pt-10 @max-5xl:pb-14 @max-xl:px-4 @max-xl:pt-6 @max-xl:pb-0">
+        <div className="flex flex-col justify-center px-gutter dark:@5xl:split-divider-x dark:@max-5xl:split-divider-y py-section @max-5xl:justify-start @max-5xl:px-10 @max-5xl:pt-10 @max-5xl:pb-14 @max-xl:px-4 @max-xl:pt-6 @max-xl:pb-0">
           {children}
         </div>
       </div>

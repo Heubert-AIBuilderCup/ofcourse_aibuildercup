@@ -42,8 +42,10 @@ export function OnboardingPanel() {
   const badge = step === 0 ? 'Now · optional' : `Now · ${index + 1}/${FACT_QUESTIONS.length}`
 
   return (
+    // Marked light: the steel panel keeps its look in a dark page (Industry's light tokens).
     <aside
       aria-label="Getting started"
+      data-theme="light"
       className={cn(
         styles.grid,
         'split-panel relative flex flex-col justify-between gap-block overflow-hidden py-section text-panel-foreground',
@@ -62,7 +64,7 @@ export function OnboardingPanel() {
         <Blueprint
           className={cn(styles.onPanel, 'flex size-9 items-center justify-center @max-xl:size-8')}
         >
-          <Layers aria-hidden="true" className="size-4.5" />
+          <Layers aria-hidden="true" className="size-icon-md" />
         </Blueprint>
         <span>{SITE_NAME}</span>
       </div>
@@ -109,7 +111,7 @@ export function OnboardingPanel() {
             <span>{name}</span>
             {n < step ? (
               <span className="inline-flex items-center gap-1 text-micro uppercase text-panel-foreground/70">
-                <Check aria-hidden="true" className="size-3" />
+                <Check aria-hidden="true" className="size-icon-xs" />
                 Done
               </span>
             ) : n === step ? (
@@ -158,7 +160,8 @@ export function OnboardingPanel() {
           styles.d5,
           'relative flex h-18 items-end gap-3',
           '@max-5xl:absolute @max-5xl:right-10 @max-5xl:bottom-3 @max-5xl:h-14',
-          '@max-xl:relative @max-xl:right-auto @max-xl:bottom-auto @max-xl:h-9',
+          // The phone band gives the duck's place to the header menu.
+          '@max-xl:hidden',
         )}
       >
         <span
@@ -171,7 +174,7 @@ export function OnboardingPanel() {
           width={64}
           height={59}
           loading="eager"
-          className={cn(styles.duck, 'block h-auto w-16 @max-5xl:w-14 @max-xl:w-9.5')}
+          className={cn(styles.duck, 'block h-auto w-16 @max-5xl:w-14')}
         />
         <span className="pb-3.5 text-caption text-panel-foreground/70 @max-5xl:hidden">
           From off course to “Of Course!”

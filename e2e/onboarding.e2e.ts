@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { deleteUsers, profileOf, sql, userIdByEmail } from './helpers/db'
 import { devLogin } from './helpers/login'
-import { answerFact, card, newStudent, skipSplash } from './helpers/student'
+import { answerFact, card, newStudent, signOutViaMenu, skipSplash } from './helpers/student'
 
 // The onboarding shell around step 01: its answer cards by keyboard alone, Sign out and coming
 // back to her first unanswered question, the refusal of a signed-out visitor, the panel marking
@@ -50,7 +50,7 @@ test('Sign out on step 01 leaves for the sign-in page; signing in again resumes 
     await answerFact(page, ['Where are you right now?', 'Nepal'])
     await answerFact(page, ['Amount', 'AUD 36k'])
 
-    await page.getByRole('button', { name: 'Sign out' }).click()
+    await signOutViaMenu(page)
     await expect(page).toHaveURL((url) => url.pathname === '/' && url.search === '')
     await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
 
@@ -182,6 +182,66 @@ test('at 1920 wide the 1440 design scales up: the question is 56px', async ({ pa
     // The fluid type role computes to 55.9999px here: 56px to the nearest half pixel.
     const size = await heading.evaluate((h) => Number.parseFloat(getComputedStyle(h).fontSize))
     expect(size).toBeCloseTo(56, 0)
+  } finally {
+    await deleteUsers([email])
+  }
+})
+
+test('at 1920 wide icons keep their pixel size while the button around them scales', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 900 })
+  const size = (svg: Element) => {
+    const { width, height } = svg.getBoundingClientRect()
+    return { width, height }
+  }
+  await skipSplash(page)
+  await page.goto('/')
+  const toggle = page.getByRole('button', { name: /^Switch to (dark|light) theme$/ })
+  await expect(toggle).toBeVisible()
+  // The entrance animation zooms the icon in; measure it once it has settled.
+  await page.waitForTimeout(1500)
+  expect(await toggle.locator('svg').evaluate(size)).toEqual({ width: 16, height: 16 })
+  expect((await toggle.boundingBox())?.width).toBeGreaterThanOrEqual(58)
+
+  const email = await newStudent(page, 'onboarding-icons')
+  try {
+    await page.goto('/onboarding/character')
+    await page.getByRole('button', { name: 'Menu: theme and sign out' }).click()
+    const menu = page.getByRole('menu', { name: 'Menu' })
+    await expect(menu).toBeVisible()
+    await page.waitForTimeout(1500)
+    for (const item of await menu
+      .getByRole('menuitemcheckbox')
+      .or(menu.getByRole('menuitem'))
+      .all()) {
+      expect(await item.locator('svg').first().evaluate(size)).toEqual({ width: 16, height: 16 })
+    }
+    await page.keyboard.press('Escape')
+    const start = page.getByRole('button', { name: 'Start' })
+    await expect(start).toBeVisible()
+    expect(await start.locator('svg').evaluate(size)).toEqual({ width: 14, height: 14 })
+  } finally {
+    await deleteUsers([email])
+  }
+})
+
+test('at 2560 wide the header action stays inside the centred 1920 frame', async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1440 })
+  const insideFrame = (el: Element) =>
+    el.getBoundingClientRect().right <= (window.innerWidth + 1920) / 2
+  await skipSplash(page)
+  await page.goto('/')
+  const toggle = page.getByRole('button', { name: /^Switch to (dark|light) theme$/ })
+  await expect(toggle).toBeVisible()
+  expect(await toggle.evaluate(insideFrame)).toBe(true)
+
+  const email = await newStudent(page, 'onboarding-corner')
+  try {
+    await page.goto('/onboarding/facts/where')
+    const menu = page.getByRole('button', { name: 'Menu: theme and sign out' })
+    await expect(menu).toBeVisible()
+    expect(await menu.evaluate(insideFrame)).toBe(true)
   } finally {
     await deleteUsers([email])
   }

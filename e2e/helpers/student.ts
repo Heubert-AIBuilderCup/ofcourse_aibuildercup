@@ -28,6 +28,12 @@ export async function newStudent(page: Page, label: string): Promise<string> {
   return email
 }
 
+/** Sign out from an onboarding screen: open the header menu and pick Sign out. */
+export async function signOutViaMenu(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Menu: theme and sign out' }).click()
+  await page.getByRole('menu', { name: 'Menu' }).getByRole('menuitem', { name: 'Sign out' }).click()
+}
+
 /** A question (or a relative-form field) by its visible name, and the option to give it. */
 export type Tap = readonly [question: string, option: string]
 export type OpeningAnswers = Partial<Record<'facts' | 'study' | 'living' | 'after', readonly Tap[]>>

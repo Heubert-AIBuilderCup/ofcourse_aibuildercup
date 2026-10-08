@@ -80,7 +80,7 @@ function FieldError({ id, children }: { id: string; children: ReactNode }) {
         'm-0 flex items-start gap-1.5 text-xs leading-snug font-medium text-danger-700',
       )}
     >
-      <CircleAlert aria-hidden="true" className="mt-px size-3.5 shrink-0 text-danger" />
+      <CircleAlert aria-hidden="true" className="mt-px size-icon-sm shrink-0 text-danger" />
       <span>{children}</span>
     </p>
   )
@@ -96,7 +96,7 @@ function Alert({ children }: { children: ReactNode }) {
         'flex items-start gap-2 border border-danger-300 bg-danger-100 px-3.5 py-2.5 text-caption text-danger-800',
       )}
     >
-      <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-danger-700" />
+      <CircleAlert aria-hidden="true" className="icon-on-line size-icon shrink-0 text-danger-700" />
       <span>{children}</span>
     </div>
   )
@@ -261,18 +261,18 @@ export function StudentSignIn({ next, notice }: { next: string; notice?: string 
       >
         {done ? (
           <>
-            <Check aria-hidden="true" className="size-3.5" />
+            <Check aria-hidden="true" className="size-icon-sm" />
             Signed in
           </>
         ) : working ? (
           <>
-            <LoaderCircle aria-hidden="true" className={cn(styles.spin, 'size-3.5')} />
+            <LoaderCircle aria-hidden="true" className={cn(styles.spin, 'size-icon-sm')} />
             {working}
           </>
         ) : (
           <>
             {label}
-            <ArrowRight aria-hidden="true" className={cn(styles.arrow, 'size-3.5')} />
+            <ArrowRight aria-hidden="true" className={cn(styles.arrow, 'size-icon-sm')} />
           </>
         )}
       </Button>

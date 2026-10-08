@@ -1,6 +1,6 @@
 # Industry
 
-Source: the Industry design system in Claude Design (https://claude.ai/artifact/Dtp9Gw4cZP9Kt2hRYc8Mec). A wireframe look: steel blue on a light technical ground, Barlow Condensed headings over Barlow, a modular grid, and cards, dialogs and buttons drawn as blueprint objects. The dark theme is derived from its ramps; Industry itself ships light only.
+Source: the Industry design system in Claude Design (https://claude.ai/artifact/Dtp9Gw4cZP9Kt2hRYc8Mec). A wireframe look: steel blue on a light technical ground, Barlow Condensed headings over Barlow, a modular grid, and cards, dialogs and buttons drawn as blueprint objects. Industry ships both themes; `theme.css` carries the light set on `:root, [data-theme="light"]` and the dark set on `[data-theme="dark"]`, so a steel panel marked `data-theme="light"` keeps its look inside a dark page.
 
 ## How it reaches the code
 
@@ -15,10 +15,11 @@ Source: the Industry design system in Claude Design (https://claude.ai/artifact/
 - One accent, steel blue (`primary`). Don't add decorative colour. `destructive` is only for errors.
 - Separate sections with whitespace (`gap-6`, `gap-8`), not rules or boxes.
 - Status is one word in a tag: "Live", "In review", "Draft".
-- Icons: Lucide at `strokeWidth={1.5}`, 14px beside a button label, 16px in an icon button, 20px alone. Never thicker.
+- Icons: Lucide at `strokeWidth={1.5}`, 14px beside a button label, 16px in an icon button, 20px alone. Never thicker. Sized with `size-icon-sm` (14), `size-icon` (16), `size-icon-lg` (20): px on purpose, they stay the same at every width while the design scales.
 - Photographs: duotone into the accent, square and hairline-framed.
 - Copy: short, plain, sentence case. Buttons are verbs ("Save changes"). A dialog asks one question and says what will and won't change. No exclamation marks or emoji.
 - Contrast: `primary` on the background is 3.7:1, fine for icons, borders, large text and the focus ring, not for small text. Use `text-muted-foreground` for secondary text; it passes 4.5:1.
+- Dark mode: the steel panel and the login hero are the same in both themes (`data-theme="light"` on them); a hairline (`--border`) marks where they meet the dark ground. Never a `dark:` class inside the panel.
 
 ## Sizing
 
