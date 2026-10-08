@@ -21,7 +21,7 @@ const pad = (n: number) => String(Math.max(0, n)).padStart(4, '0')
  * where the splash lands (data-splash-target).
  *
  * As the artboard's stylesheet says: the layout follows the page's own width (the page is the
- * container); the cells hide under 560px, and the crosshair hides on touch screens, which have no
+ * container); the cells hide on phones (below @xl, 36rem), and the crosshair hides on touch screens, which have no
  * pointer to follow. Its loops hold still while the tab is hidden.
  */
 export function SignInPanel({
@@ -85,7 +85,7 @@ export function SignInPanel({
       className={cn(
         styles.grid,
         styles.paused,
-        'relative flex flex-col justify-between gap-block overflow-hidden px-gutter py-section text-panel-foreground @max-[60rem]:justify-start @max-[60rem]:pb-11 @max-[35rem]:gap-6 @max-[35rem]:px-5 @max-[35rem]:pt-6 @max-[35rem]:pb-8',
+        'split-panel relative flex flex-col justify-between gap-block overflow-hidden py-section text-panel-foreground @max-5xl:justify-start @max-5xl:pb-11 @max-xl:gap-6 @max-xl:px-5 @max-xl:pt-6 @max-xl:pb-8',
       )}
     >
       <div
@@ -126,7 +126,7 @@ export function SignInPanel({
         </span>
       </div>
 
-      <div className="relative flex max-w-130 flex-col gap-stack @max-[60rem]:max-w-150 @max-[35rem]:gap-4">
+      <div className="relative flex max-w-130 flex-col gap-stack @max-5xl:max-w-150 @max-xl:gap-4">
         <div
           className={cn(
             styles.rise,
@@ -140,7 +140,7 @@ export function SignInPanel({
           </span>
         </div>
         {/* 48 to 56px from tablet to desktop; the design's compact layout drops to 38px. */}
-        <h1 className="m-0 font-heading text-display font-semibold text-panel-foreground @max-[35rem]:text-[2.375rem]">
+        <h1 className="m-0 font-heading text-display font-semibold text-panel-foreground @max-xl:text-[2.375rem]">
           <span className={styles.line}>
             <span className={styles.d3}>Pick up where</span>
           </span>
@@ -155,7 +155,7 @@ export function SignInPanel({
 
       <div
         aria-hidden="true"
-        className="relative grid max-w-130 grid-cols-4 gap-5 @max-[60rem]:max-w-90 @max-[60rem]:gap-4 @max-[35rem]:hidden"
+        className="relative grid max-w-130 grid-cols-4 gap-5 @max-5xl:max-w-90 @max-5xl:gap-4 @max-xl:hidden"
       >
         {CELLS.map(([label, position]) => (
           <Blueprint

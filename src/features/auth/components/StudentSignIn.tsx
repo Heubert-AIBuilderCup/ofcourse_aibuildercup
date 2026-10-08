@@ -293,7 +293,7 @@ export function StudentSignIn({ next, notice }: { next: string; notice?: string 
         styles.d5,
         shake === 'a' && styles.shakeA,
         shake === 'b' && styles.shakeB,
-        'flex w-full max-w-100 flex-col gap-5 bg-card p-stack text-card-foreground @max-[35rem]:p-5',
+        'flex w-full max-w-sm flex-col gap-5 bg-card p-stack text-card-foreground @max-xl:p-5',
       )}
     >
       <div className={cn(styles.rise, styles.d6)}>

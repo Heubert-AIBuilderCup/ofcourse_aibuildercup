@@ -142,7 +142,7 @@ test('chips change the routes, and the edge states say why', async ({ page }) =>
       .toEqual({ value: 'No', state: 'stated' })
 
     // An area the preview lacks: the nearest field, said on each card (criterion 44).
-    await page.goto('/opening/study')
+    await page.goto('/onboarding/study')
     await tap(page, ['Do you know what you want to study?', "A few areas I'm drawn to"])
     await tap(page, ['Pick up to three', 'Health'])
     await expect

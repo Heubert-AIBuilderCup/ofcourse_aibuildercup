@@ -1,0 +1,299 @@
+import { expect, test } from '@playwright/test'
+import { deleteUsers, profileOf, sql, userIdByEmail } from './helpers/db'
+import { devLogin } from './helpers/login'
+import { answerFact, card, newStudent, skipSplash } from './helpers/student'
+
+// The onboarding shell around step 01: its answer cards by keyboard alone, Sign out and coming
+// back to her first unanswered question, the refusal of a signed-out visitor, the panel marking
+// step 00 Done, and the 1440 design scaled up at 1920.
+
+test('step 01 answers by keyboard alone: arrows, Home and End pick as they move', async ({
+  page,
+}) => {
+  const email = await newStudent(page, 'onboarding-keys')
+  try {
+    await page.goto('/onboarding/facts/covers')
+    const heading = page.getByRole('heading', { level: 1, name: 'It covers' })
+    await expect(heading).toBeVisible()
+    await heading.focus()
+    await page.keyboard.press('Tab')
+    await expect(card(page, 'It covers', 'Fees only')).toBeFocused()
+
+    await page.keyboard.press('ArrowRight')
+    await expect(card(page, 'It covers', 'Fees and living')).toBeFocused()
+    await expect(card(page, 'It covers', 'Fees and living')).toHaveAttribute('aria-checked', 'true')
+    await expect
+      .poll(async () => (await profileOf(email))?.answers.covers)
+      .toEqual({ value: 'Fees and living', state: 'stated' })
+
+    await page.keyboard.press('End')
+    await expect(card(page, 'It covers', 'Not sure')).toHaveAttribute('aria-checked', 'true')
+    await page.keyboard.press('Home')
+    await expect(card(page, 'It covers', 'Fees only')).toHaveAttribute('aria-checked', 'true')
+    await expect(card(page, 'It covers', 'Not sure')).toHaveAttribute('aria-checked', 'false')
+    await expect
+      .poll(async () => (await profileOf(email))?.answers.covers)
+      .toEqual({ value: 'Fees only', state: 'stated' })
+  } finally {
+    await deleteUsers([email])
+  }
+})
+
+test('Sign out on step 01 leaves for the sign-in page; signing in again resumes her', async ({
+  page,
+}) => {
+  const email = await newStudent(page, 'onboarding-signout')
+  try {
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Skip' }).click()
+    await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
+    await answerFact(page, ['Where are you right now?', 'Nepal'])
+    await answerFact(page, ['Amount', 'AUD 36k'])
+
+    await page.getByRole('button', { name: 'Sign out' }).click()
+    await expect(page).toHaveURL((url) => url.pathname === '/' && url.search === '')
+    await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
+
+    await devLogin(page, email, 'E2E Student', { surface: 'student' })
+    await page.goto('/')
+    await expect(page).toHaveURL(/\/onboarding\/facts\/covers$/)
+    await expect(page.getByRole('heading', { level: 1, name: 'It covers' })).toBeVisible()
+    await page.goto('/onboarding/facts/where')
+    await expect(card(page, 'Where are you right now?', 'Nepal')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    await page.goto('/onboarding/facts/amount')
+    await expect(card(page, 'Amount', 'AUD 36k')).toHaveAttribute('aria-checked', 'true')
+  } finally {
+    await deleteUsers([email])
+  }
+})
+
+test('a signed-out visit to step 01 gets the sign-in page instead', async ({ page }) => {
+  await skipSplash(page)
+  await page.goto('/onboarding/facts/where')
+  await expect(page).toHaveURL((url) => url.pathname === '/')
+  await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
+  await expect(page.getByRole('radiogroup')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Where are you right now?' })).toHaveCount(0)
+})
+
+test("step 00's Start opens step 01, the panel marking step 00 Done", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 })
+  const email = await newStudent(page, 'onboarding-panel')
+  try {
+    await page.goto('/')
+    await expect(page).toHaveURL(/\/onboarding\/character$/)
+    await page.getByRole('button', { name: 'Start' }).click()
+    await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
+
+    const steps = page.getByRole('list', { name: 'Your steps' }).getByRole('listitem')
+    await expect(steps).toHaveCount(7)
+    await expect(steps.nth(0)).toContainText('Your comic character')
+    await expect(steps.nth(0)).toContainText('Done')
+    await expect(steps.nth(1)).toHaveAttribute('aria-current', 'step')
+    await expect(steps.nth(1)).toContainText('Now · 1/11')
+  } finally {
+    await deleteUsers([email])
+  }
+})
+
+test('Start on step 00 opens question 1 even after she has answered it and come back', async ({
+  page,
+}) => {
+  const email = await newStudent(page, 'onboarding-restart')
+  try {
+    await page.goto('/')
+    await expect(page).toHaveURL(/\/onboarding\/character$/)
+    await page.getByRole('button', { name: 'Skip' }).click()
+    await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
+    await answerFact(page, ['Where are you right now?', 'Nepal'])
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await expect(page).toHaveURL(/\/onboarding\/facts\/amount$/)
+
+    await page.getByRole('button', { name: 'Back', exact: true }).click()
+    await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
+    await page.getByRole('button', { name: 'Back', exact: true }).click()
+    await expect(page).toHaveURL(/\/onboarding\/character$/)
+
+    await page.getByRole('button', { name: 'Start' }).click()
+    await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
+    await expect(page.getByText('Facts about you · 1 of 11', { exact: true })).toBeVisible()
+  } finally {
+    await deleteUsers([email])
+  }
+})
+
+test('a slow step 01 after Start shows the duck loader beside the panel', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 })
+  const email = await newStudent(page, 'onboarding-loader')
+  const id = await userIdByEmail(email)
+  // A slow server: once step 01 is requested, her profile row stays locked until the loader has
+  // been seen, so the page's write (markStep) waits; a fixed delay could end first on a loaded
+  // machine. Holding the request itself would hold the loader with it.
+  let release = () => {}
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  let lock: Promise<unknown> | null = null
+  try {
+    await page.goto('/')
+    await expect(page).toHaveURL(/\/onboarding\/character$/)
+    await page.route(/\/onboarding\/facts\/where(\?|$)/, async (route) => {
+      if (!lock) {
+        let locked = () => {}
+        const taken = new Promise<void>((resolve) => {
+          locked = resolve
+        })
+        lock = sql.begin(async (tx) => {
+          await tx`select 1 from student_profile where user_id = ${id} for update`
+          locked()
+          await held
+        })
+        await taken
+      }
+      await route.continue()
+    })
+    await page.getByRole('button', { name: 'Start' }).click()
+
+    await expect(page.getByText('Keep floating.')).toBeVisible()
+    await expect(page.getByRole('complementary', { name: 'Getting started' })).toBeVisible()
+    release()
+    await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Where are you right now?' }),
+    ).toBeVisible()
+    await expect(page.getByText('Keep floating.')).toHaveCount(0)
+  } finally {
+    release()
+    await lock
+    await deleteUsers([email])
+  }
+})
+
+test('at 1920 wide the 1440 design scales up: the question is 56px', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 })
+  const email = await newStudent(page, 'onboarding-wide')
+  try {
+    await page.goto('/onboarding/facts/where')
+    const heading = page.getByRole('heading', { level: 1, name: 'Where are you right now?' })
+    await expect(heading).toBeVisible()
+    // The fluid type role computes to 55.9999px here: 56px to the nearest half pixel.
+    const size = await heading.evaluate((h) => Number.parseFloat(getComputedStyle(h).fontSize))
+    expect(size).toBeCloseTo(56, 0)
+  } finally {
+    await deleteUsers([email])
+  }
+})
+
+test('in a window shorter than the panel, scrolling to the end reveals the panel bottom', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 600 })
+  const email = await newStudent(page, 'onboarding-short')
+  try {
+    for (const path of ['/onboarding/facts/where', '/onboarding/character']) {
+      await page.goto(path)
+      await expect(page.getByRole('complementary', { name: 'Getting started' })).toBeVisible()
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+      await expect(page.getByText('From off course to “Of Course!”')).toBeInViewport({ ratio: 1 })
+    }
+  } finally {
+    await deleteUsers([email])
+  }
+})
+
+test('in a tall window the panel stays put at the top while the step scrolls', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const email = await newStudent(page, 'onboarding-sticky')
+  try {
+    await page.goto('/onboarding/facts/where')
+    const panel = page.getByRole('complementary', { name: 'Getting started' })
+    await expect(panel).toBeVisible()
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+    expect(await panel.evaluate((p) => p.getBoundingClientRect().top)).toBe(0)
+  } finally {
+    await deleteUsers([email])
+  }
+})
+
+test('the retired paths redirect permanently to their /onboarding screens', async ({ request }) => {
+  for (const [from, to] of [
+    ['/picture', '/onboarding/character'],
+    ['/opening/facts?q=hard', '/onboarding/facts?q=hard'],
+    ['/opening/study', '/onboarding/study'],
+    ['/opening/living', '/onboarding/living'],
+    ['/opening/after', '/onboarding/after'],
+  ]) {
+    const response = await request.get(from, { maxRedirects: 0 })
+    expect(response.status(), from).toBe(308)
+    expect(response.headers().location, from).toBe(to)
+  }
+})
+
+test('a retired link lands on its screen; an unknown question is not a page', async ({ page }) => {
+  const email = await newStudent(page, 'onboarding-retired')
+  try {
+    // The old ?q is dropped: /onboarding/facts resumes at her first unanswered question.
+    await page.goto('/opening/facts?q=hard')
+    await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Where are you right now?' }),
+    ).toBeVisible()
+
+    await page.goto('/opening/study')
+    await expect(page).toHaveURL(/\/onboarding\/study$/)
+    await expect(page.getByRole('heading', { level: 1, name: "What you'd study" })).toBeVisible()
+
+    // notFound() inside the (app) loading boundary: the page streams as a 200 with Next's
+    // not-found screen (a soft 404, marked noindex), as /opening/<step> did.
+    for (const path of ['/onboarding/facts/nope', '/onboarding/facts/hard', '/onboarding/nope']) {
+      await page.goto(path)
+      await expect(page.getByText('This page could not be found.'), path).toBeVisible()
+      await expect(page.getByRole('radiogroup'), path).toHaveCount(0)
+    }
+  } finally {
+    await deleteUsers([email])
+  }
+})
+
+test('/onboarding resumes: step 00 for a new student, then her first unanswered question', async ({
+  page,
+}) => {
+  const email = await newStudent(page, 'onboarding-resume')
+  try {
+    await page.goto('/onboarding')
+    await expect(page).toHaveURL(/\/onboarding\/character$/)
+    await page.getByRole('button', { name: 'Skip' }).click()
+    await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
+    await answerFact(page, ['Where are you right now?', 'Nepal'])
+
+    await page.goto('/onboarding')
+    await expect(page).toHaveURL(/\/onboarding\/facts\/amount$/)
+    await expect(page.getByRole('heading', { level: 1, name: 'Amount' })).toBeVisible()
+    await page.goto('/onboarding/facts')
+    await expect(page).toHaveURL(/\/onboarding\/facts\/amount$/)
+  } finally {
+    await deleteUsers([email])
+  }
+})
+
+test('/onboarding reopens step 02 when she left from there, as / does', async ({ page }) => {
+  const email = await newStudent(page, 'onboarding-resume-study')
+  try {
+    await page.goto('/onboarding')
+    await expect(page).toHaveURL(/\/onboarding\/character$/)
+    await page.getByRole('button', { name: 'Skip' }).click()
+    await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
+    await page.getByRole('link', { name: 'Leave the rest for now' }).click()
+    await expect(page).toHaveURL(/\/onboarding\/study$/)
+    await expect(page.getByRole('heading', { level: 1, name: "What you'd study" })).toBeVisible()
+
+    await page.goto('/onboarding')
+    await expect(page).toHaveURL(/\/onboarding\/study$/)
+    await expect(page.getByRole('heading', { level: 1, name: "What you'd study" })).toBeVisible()
+  } finally {
+    await deleteUsers([email])
+  }
+})

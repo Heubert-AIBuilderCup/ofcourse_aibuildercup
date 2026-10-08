@@ -1,19 +1,15 @@
 import { type Browser, expect, type Page, test } from '@playwright/test'
 import { deleteUsers, profileOf } from './helpers/db'
 import { devLogin } from './helpers/login'
-import { answerOpening, newStudent, skipSplash, tap } from './helpers/student'
+import { answerFact, answerOpening, card, newStudent, skipSplash } from './helpers/student'
 
 // The coins (ten over eight piles, five a pile, Done only at ten, "Not sure", "Spend them
-// later"), which never change the futures; and coming back: on the screen she left, on her
-// futures once seen, Back from them to change an answer, and the same on a second device.
+// later"), which never change the futures; and coming back: on her first unanswered question,
+// on her futures once seen, Back from them to change an answer, and the same on a second device.
 
 const add = (page: Page, value: string) =>
   page.getByRole('button', { name: `Add a coin to ${value}` })
 const cards = (page: Page) => page.getByRole('article')
-const option = (page: Page, question: string, name: string) =>
-  page
-    .getByRole('group', { name: question, exact: true })
-    .getByRole('button', { name, exact: true })
 
 /** The same student on another device: a new browser context, signed in on the student page. */
 async function secondDevice(browser: Browser, email: string): Promise<Page> {
@@ -92,7 +88,7 @@ test('"Not sure" spreads the coins; "Spend them later" leaves them for later', a
   }
 })
 
-test('coming back partway opens the screen she left, with her answers', async ({
+test('coming back partway opens her first unanswered question, with her answers', async ({
   page,
   browser,
 }) => {
@@ -100,21 +96,54 @@ test('coming back partway opens the screen she left, with her answers', async ({
   try {
     await page.goto('/')
     await page.getByRole('button', { name: 'Skip' }).click()
-    await expect(page.getByRole('heading', { name: 'Facts about you' })).toBeVisible()
-    await tap(page, ['Amount', 'AUD 36k'])
-    await tap(page, ['Who pays', 'Savings'])
-    await page.getByRole('link', { name: "Next: what you'd study" }).click()
-    await expect(page).toHaveURL(/\/opening\/study$/)
+    await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
+    await answerFact(page, ['Amount', 'AUD 36k'])
+    await answerFact(page, ['Who pays', 'Savings'])
+    await expect.poll(async () => (await profileOf(email))?.lastStep).toBe('facts')
+
+    const again = await secondDevice(browser, email)
+    try {
+      await again.goto('/')
+      await expect(again).toHaveURL(/\/onboarding\/facts\/where$/)
+      await expect(
+        again.getByRole('heading', { level: 1, name: 'Where are you right now?' }),
+      ).toBeVisible()
+      await again.goto('/onboarding/facts/amount')
+      await expect(card(again, 'Amount', 'AUD 36k')).toHaveAttribute('aria-checked', 'true')
+      await again.goto('/onboarding/facts/who-pays')
+      await expect(card(again, 'Who pays', 'Savings')).toHaveAttribute('aria-checked', 'true')
+    } finally {
+      await again.context().close()
+    }
+  } finally {
+    await deleteUsers([email])
+  }
+})
+
+test('coming back after leaving step 01 early opens step 02, and Back finds her answer', async ({
+  page,
+  browser,
+}) => {
+  const email = await newStudent(page, 'return-study')
+  try {
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Skip' }).click()
+    await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
+    await answerFact(page, ['Amount', 'AUD 36k'])
+    await page.getByRole('link', { name: "Leave the rest for now: go to What you'd study" }).click()
+    await expect(page).toHaveURL(/\/onboarding\/study$/)
     await expect.poll(async () => (await profileOf(email))?.lastStep).toBe('study')
 
     const again = await secondDevice(browser, email)
     try {
       await again.goto('/')
-      await expect(again).toHaveURL(/\/opening\/study$/)
+      await expect(again).toHaveURL(/\/onboarding\/study$/)
+      await expect(again.getByRole('heading', { level: 1, name: "What you'd study" })).toBeVisible()
       await again.getByRole('link', { name: 'Back', exact: true }).click()
-      await expect(again.getByRole('heading', { name: 'Facts about you' })).toBeVisible()
-      await expect(option(again, 'Amount', 'AUD 36k')).toHaveAttribute('aria-pressed', 'true')
-      await expect(option(again, 'Who pays', 'Savings')).toHaveAttribute('aria-pressed', 'true')
+      await expect(again).toHaveURL(/\/onboarding\/facts\/english$/)
+      await expect(again.getByRole('heading', { level: 1, name: 'English test' })).toBeVisible()
+      await again.goto('/onboarding/facts/amount')
+      await expect(card(again, 'Amount', 'AUD 36k')).toHaveAttribute('aria-checked', 'true')
     } finally {
       await again.context().close()
     }
@@ -144,20 +173,21 @@ test('after the futures, she comes back to them, on any device, and Back lets he
       await expect(cards(again)).toHaveCount(3)
       expect(await cards(again).allInnerTexts()).toEqual(futures)
 
-      // Back to screen 1, change the budget, return: the futures show the new budget.
+      // Back to step 01, change the budget, return: the futures show the new budget.
       for (const title of [
         'After you graduate',
         "Where and how you'd live",
         "What you'd study",
-        'Facts about you',
+        'English test',
       ]) {
         await again.getByRole('link', { name: 'Back', exact: true }).click()
         await expect(again.getByRole('heading', { level: 1, name: title })).toBeVisible()
       }
-      await expect(option(again, 'Amount', 'AUD 36k')).toHaveAttribute('aria-pressed', 'true')
-      await tap(again, ['Amount', 'AUD 42k'])
+      await again.goto('/onboarding/facts/amount')
+      await expect(card(again, 'Amount', 'AUD 36k')).toHaveAttribute('aria-checked', 'true')
+      await answerFact(again, ['Amount', 'AUD 42k'])
       for (const next of [
-        "Next: what you'd study",
+        "Leave the rest for now: go to What you'd study",
         "Next: where and how you'd live",
         'Next: after you graduate',
         'Show me three futures',

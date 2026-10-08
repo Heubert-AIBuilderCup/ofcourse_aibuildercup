@@ -18,8 +18,10 @@ import {
   DRAWN_TO_AREAS,
   display,
   effective,
+  type Item,
   isVisible,
   PARTICULAR,
+  type Question,
   SCREENS,
   SUGGEST_ME,
 } from './questions'
@@ -80,8 +82,11 @@ const namesWhere = (test: (feeK: number) => boolean): string[] =>
 const budgetLine: LineFn = (answers) => {
   if (answers.hard === undefined) {
     const amount = answers.amount?.value
-    return typeof amount === 'number'
-      ? `About AUD ${amount}k a year. Tell me if it's a hard limit.`
+    if (typeof amount === 'number') {
+      return `About AUD ${amount}k a year. Tell me if it's a hard limit.`
+    }
+    return answers.covers || answers.who
+      ? "Add an amount and I'll show which cities stay open."
       : null
   }
   const limit = effective(answers, 'amount')
@@ -115,9 +120,29 @@ const INTAKES: Readonly<Record<string, number>> = {
   'Feb 2028': 7,
 }
 
+/**
+ * Until the latest start is answered: what the earliest start and the most years already say,
+ * both named when both are answered.
+ */
+function beforeLatestLine(answers: StoredAnswers): string | null {
+  const earliest = textOf(answers, 'earliest')
+  const years = textOf(answers, 'years')
+  const most = years === '4 or more' ? '4 or more years' : `up to ${years} years`
+  if (earliest !== undefined) {
+    const from = earliest === 'Later' ? 'Later is fine' : `From ${earliest}`
+    const both = years === undefined ? from : `${from}, ${most}`
+    return `${both}. Tell me the latest you'd accept.`
+  }
+  if (years === undefined) return null
+  return years === '4 or more'
+    ? '4 or more years: every course length stays open.'
+    : `Up to ${years} years: longer courses stay out.`
+}
+
 const timingLine: LineFn = (answers) => {
   const latest = textOf(answers, 'latest')
-  if (latest === undefined || !Object.hasOwn(INTAKES, latest)) return null
+  if (latest === undefined) return beforeLatestLine(answers)
+  if (!Object.hasOwn(INTAKES, latest)) return null
   const note =
     textOf(answers, 'years') === '2' ? '. Two years at most: 18-month and 2-year courses only' : ''
   return `Latest ${latest}: ${INTAKES[latest]} intakes open${note}${MOCK}`
@@ -277,6 +302,17 @@ const LINES: Readonly<Record<string, LineFn>> = {
   settle: settleLine,
 }
 
+/** The item's visible questions she answered "Not sure", in the item's order. */
+function unsureQuestions(item: Item, answers: StoredAnswers): Question[] {
+  // A Not sure on a question she is no longer shown (the field after "Suggest me") stays quiet.
+  return item.questions.filter(
+    (question) =>
+      question.notSure &&
+      isVisible(question.key, answers) &&
+      answers[question.key]?.state === 'assumed',
+  )
+}
+
 /**
  * The one line under an item, or null when nothing in it is answered yet. A question she
  * answered "Not sure" (the first one, in the item's order) takes the line for the whole item.
@@ -289,13 +325,31 @@ export function impactLine(
 ): string | null {
   const item = ITEMS.get(itemId)
   if (!item) return null
-  // A Not sure on a question she is no longer shown (the field after "Suggest me") stays quiet.
-  const unsure = item.questions.find(
-    (question) =>
-      question.notSure &&
-      isVisible(question.key, answers) &&
-      answers[question.key]?.state === 'assumed',
-  )
+  const [unsure] = unsureQuestions(item, answers)
   if (unsure) return notSureLine(unsure.key)
   return LINES[itemId]?.(answers, relative) ?? null
+}
+
+export type ImpactKind = 'plain' | 'assume' | 'limit'
+export type ImpactView = { text: string; kind: ImpactKind; mock: boolean; chips: string[] }
+
+/** `impactLine` for the screen: the same text, with its kind, the mock tag apart, and chips. */
+export function impactView(
+  itemId: string,
+  answers: StoredAnswers,
+  relative: Relative | null,
+): ImpactView | null {
+  const item = ITEMS.get(itemId)
+  const line = impactLine(itemId, answers, relative)
+  if (!item || line === null) return null
+  const [first, ...others] = unsureQuestions(item, answers)
+  const mock = line.endsWith(MOCK)
+  const text = mock ? line.slice(0, -MOCK.length) : line
+  if (first) {
+    const chips = others.map((question) => assumedText(question.key, DEFAULTS[question.key]))
+    return { text, kind: 'assume', mock, chips }
+  }
+  const dep = textOf(answers, 'dep')
+  const limited = itemId === 'dep' && (dep === 'Partner' || dep === 'Partner and children')
+  return { text, kind: limited ? 'limit' : 'plain', mock, chips: [] }
 }

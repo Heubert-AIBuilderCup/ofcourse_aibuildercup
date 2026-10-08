@@ -6,7 +6,7 @@ import { expect, type Page } from '@playwright/test'
 import { freshEmail } from './accounts'
 import { devLogin } from './login'
 
-export const STUDENT_APP_URL = /\/(start|picture|opening\/[a-z]+|futures|attention)$/
+export const STUDENT_APP_URL = /\/(start|onboarding(\/[a-z-]+)*|futures|attention)$/
 
 /**
  * Mark the splash as already seen in this tab (SPLASH_SEEN_KEY in
@@ -32,8 +32,8 @@ export async function newStudent(page: Page, label: string): Promise<string> {
 export type Tap = readonly [question: string, option: string]
 export type OpeningAnswers = Partial<Record<'facts' | 'study' | 'living' | 'after', readonly Tap[]>>
 
+// Opening screens 2–4; step 01 asks one question per screen (answerFact).
 const SCREENS = [
-  { step: 'facts', title: 'Facts about you', next: "Next: what you'd study" },
   { step: 'study', title: "What you'd study", next: "Next: where and how you'd live" },
   { step: 'living', title: "Where and how you'd live", next: 'Next: after you graduate' },
   { step: 'after', title: 'After you graduate', next: 'Show me three futures' },
@@ -62,9 +62,53 @@ export async function tap(page: Page, [question, option]: Tap): Promise<void> {
   await expect(button).toHaveAttribute('aria-pressed', 'true')
 }
 
-/** Walk screens 1–4 from the first, giving each the taps listed for it, and open the futures. */
+// Step 01's questions as the screen asks them, to their slugs as PRODUCT.md lists them: each has
+// its own screen at /onboarding/facts/<slug>. Written out, not imported, so a slug renamed in the
+// product breaks these tests instead of being followed by them.
+const FACT_SLUGS: Readonly<Record<string, string>> = {
+  'Where are you right now?': 'where',
+  Amount: 'amount',
+  'It covers': 'covers',
+  'Who pays': 'who-pays',
+  'Is this a hard limit, or roughly?': 'limit',
+  'Earliest start': 'earliest',
+  "Latest you'd accept": 'latest',
+  "Most years you'd give it": 'years',
+  'Anyone coming with you?': 'coming',
+  'Last qualification': 'qualification',
+  'English test': 'english',
+}
+
+/** The URL of a step 01 question's screen, by the question it asks. */
+export function factUrl(question: string): string {
+  const slug = FACT_SLUGS[question]
+  if (!slug) throw new Error(`Not a step 01 question: ${question}`)
+  return `/onboarding/facts/${slug}`
+}
+
+/** A step 01 answer card, in the radiogroup its question's h1 names. */
+export const card = (page: Page, question: string, name: string) =>
+  page.getByRole('radiogroup', { name: question }).getByRole('radio', { name, exact: true })
+
+/**
+ * Answer a step 01 question on its own screen: open it by URL, tap the option's card in the
+ * question's radiogroup, and wait until the screen says the answer is saved.
+ */
+export async function answerFact(page: Page, [question, option]: Tap): Promise<void> {
+  await page.goto(factUrl(question))
+  const chosen = card(page, question, option)
+  await chosen.click()
+  await expect(chosen).toHaveAttribute('aria-checked', 'true')
+  await expect(page.getByText('Saved. Tap another answer to change it.')).toBeVisible()
+}
+
+/**
+ * Answer step 01's listed questions one screen each, then walk screens 2–4 from the first, giving
+ * each the taps listed for it, and open the futures.
+ */
 export async function answerOpening(page: Page, answers: OpeningAnswers): Promise<void> {
-  await page.goto('/opening/facts')
+  for (const answer of answers.facts ?? []) await answerFact(page, answer)
+  await page.goto('/onboarding/study')
   for (const screen of SCREENS) {
     await expect(page.getByRole('heading', { level: 1, name: screen.title })).toBeVisible()
     for (const answer of answers[screen.step] ?? []) await tap(page, answer)

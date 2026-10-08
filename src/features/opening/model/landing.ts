@@ -1,16 +1,33 @@
 import { OPENING_STEPS, type OpeningStep, type Profile } from '@/shared/types/student'
+import { factPath, firstUnanswered, ONBOARDING_PATH, PICTURE_PATH } from './onboarding'
+
+type Resumable = Pick<Profile, 'persona' | 'lastStep' | 'seenFutures' | 'answers'>
 
 const isOpeningStep = (step: string): step is OpeningStep =>
   (OPENING_STEPS as readonly string[]).includes(step)
 
+const pastOnboarding = (p: Resumable) =>
+  p.seenFutures || p.lastStep === 'futures' || p.lastStep === 'attention'
+
 /**
- * Where a signed-in student lands: the picture question until she has answered it, her futures
- * once she has seen them, else the opening screen she left (screen 1 if she has not started).
+ * Where /onboarding resumes: step 00 until she has answered it; step 04, the last onboarding
+ * step, once she has reached the futures; else the step 02–04 screen she left, or her first
+ * unanswered step 01 question.
  */
-export function landingPath(p: Pick<Profile, 'persona' | 'lastStep' | 'seenFutures'>): string {
-  if (p.persona === null) return '/picture'
-  if (p.seenFutures) return '/futures'
-  if (isOpeningStep(p.lastStep)) return `/opening/${p.lastStep}`
-  if (p.lastStep === 'futures' || p.lastStep === 'attention') return '/futures'
-  return '/opening/facts'
+export function onboardingResumePath(p: Resumable): string {
+  if (p.persona === null) return PICTURE_PATH
+  if (pastOnboarding(p)) return `${ONBOARDING_PATH}/after`
+  if (isOpeningStep(p.lastStep) && p.lastStep !== 'facts') {
+    return `${ONBOARDING_PATH}/${p.lastStep}`
+  }
+  return factPath(firstUnanswered(p.answers))
+}
+
+/**
+ * Where a signed-in student lands: her futures once she has reached them (step 00 answered),
+ * else where onboarding resumes.
+ */
+export function landingPath(p: Resumable): string {
+  if (p.persona !== null && pastOnboarding(p)) return '/futures'
+  return onboardingResumePath(p)
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { CITIES, PLACES } from '@/features/engine'
 import type { QuestionKey, Relative, StoredAnswer, StoredAnswers } from '@/shared/types/student'
-import { impactLine, notSureLine } from './impact'
+import { impactLine, impactView, notSureLine } from './impact'
 import { DEFAULTS, NOT_SURE, parseAnswer, type Question, SCREENS } from './questions'
 
 const s = (value: StoredAnswer['value']): StoredAnswer => ({ value, state: 'stated' })
@@ -45,8 +45,9 @@ describe('impactLine: nothing answered', () => {
   })
 
   it('is null when only a part of the item with no line of its own is answered', () => {
-    expect(impactLine('budget', { covers: s('Fees only'), who: s('Loan') }, null)).toBeNull()
-    expect(impactLine('timing', { earliest: s('Feb 2027') }, null)).toBeNull()
+    expect(impactLine('budget', { covers: s('Fees only') }, null)).not.toBeNull()
+    expect(impactLine('budget', {}, null)).toBeNull()
+    expect(impactLine('timing', {}, null)).toBeNull()
   })
 })
 
@@ -177,6 +178,35 @@ describe('budget', () => {
     )
   })
 
+  it('asks for the amount when it is unanswered and covers or who is stated', () => {
+    const ask = "Add an amount and I'll show which cities stay open."
+    expect(impactLine('budget', { covers: s('Fees only') }, null)).toBe(ask)
+    expect(impactLine('budget', { covers: s('Fees and living') }, null)).toBe(ask)
+    expect(impactLine('budget', { who: s('Loan') }, null)).toBe(ask)
+    expect(impactLine('budget', { covers: s('Fees only'), who: s('Family') }, null)).toBe(ask)
+  })
+
+  it('keeps the limit line when the limit is stated and the amount is not', () => {
+    // the default amount stands in for it; this line already existed
+    expect(impactLine('budget', { hard: s('Hard limit') }, null)).toStartWith('Hard limit at 30k:')
+  })
+
+  it('keeps the existing lines once the amount is answered', () => {
+    expect(impactLine('budget', { amount: s(36), covers: s('Fees only') }, null)).toBe(
+      "About AUD 36k a year. Tell me if it's a hard limit.",
+    )
+    expect(impactLine('budget', { amount: s(30), who: s('Loan'), hard: s('Roughly') }, null)).toBe(
+      'Roughly 30k: Geelong stays open, marked as a stretch.',
+    )
+  })
+
+  it('still says Not sure first when the amount is unanswered', () => {
+    expect(impactLine('budget', { covers: notSure('covers') }, null)).toBe(notSureLine('covers'))
+    expect(impactLine('budget', { who: s('Loan'), hard: notSure('hard') }, null)).toBe(
+      notSureLine('hard'),
+    )
+  })
+
   it('assumes the default amount when only the limit is known', () => {
     expect(impactLine('budget', { hard: s('Roughly') }, null)).toBe(
       'Roughly 30k: Geelong stays open, marked as a stretch.',
@@ -221,6 +251,62 @@ describe('timing', () => {
     )
     expect(impactLine('timing', { latest: s('Jul 2027'), years: s('3') }, null)).toBe(
       'Latest Jul 2027: 5 intakes open · mock',
+    )
+  })
+})
+
+describe('timing: latest unanswered', () => {
+  it('names the earliest start and asks for the latest', () => {
+    expect(impactLine('timing', { earliest: s('Feb 2027') }, null)).toBe(
+      "From Feb 2027. Tell me the latest you'd accept.",
+    )
+    expect(impactLine('timing', { earliest: s('Jul 2027') }, null)).toBe(
+      "From Jul 2027. Tell me the latest you'd accept.",
+    )
+    expect(impactLine('timing', { earliest: s('Later') }, null)).toBe(
+      "Later is fine. Tell me the latest you'd accept.",
+    )
+  })
+
+  it('says what the most years she would give does, and asks for the latest', () => {
+    expect(impactLine('timing', { years: s('2') }, null)).toBe(
+      'Up to 2 years: longer courses stay out.',
+    )
+    expect(impactLine('timing', { years: s('3') }, null)).toBe(
+      'Up to 3 years: longer courses stay out.',
+    )
+    expect(impactLine('timing', { years: s('4 or more') }, null)).toBe(
+      '4 or more years: every course length stays open.',
+    )
+  })
+
+  it('names the earliest start and the most years when both are answered', () => {
+    expect(impactLine('timing', { earliest: s('Feb 2027'), years: s('2') }, null)).toBe(
+      "From Feb 2027, up to 2 years. Tell me the latest you'd accept.",
+    )
+    expect(impactLine('timing', { earliest: s('Feb 2027'), years: s('4 or more') }, null)).toBe(
+      "From Feb 2027, 4 or more years. Tell me the latest you'd accept.",
+    )
+    expect(impactLine('timing', { earliest: s('Later'), years: s('3') }, null)).toBe(
+      "Later is fine, up to 3 years. Tell me the latest you'd accept.",
+    )
+  })
+
+  it('keeps the existing lines once the latest is answered', () => {
+    expect(impactLine('timing', { earliest: s('Feb 2027'), latest: s('Jul 2027') }, null)).toBe(
+      'Latest Jul 2027: 5 intakes open · mock',
+    )
+    expect(impactLine('timing', { years: s('2'), latest: s('Jul 2027') }, null)).toBe(
+      'Latest Jul 2027: 5 intakes open. Two years at most: 18-month and 2-year courses only · mock',
+    )
+  })
+
+  it('still says Not sure first', () => {
+    expect(impactLine('timing', { earliest: notSure('earliest') }, null)).toBe(
+      notSureLine('earliest'),
+    )
+    expect(impactLine('timing', { years: s('2'), earliest: notSure('earliest') }, null)).toBe(
+      notSureLine('earliest'),
     )
   })
 })
@@ -612,7 +698,8 @@ function withoutHerAnswers(line: string, itemId: string, answers: StoredAnswers)
     .sort((a, b) => b.length - a.length)
   const literal = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   return own.reduce(
-    (rest, value) => rest.replace(new RegExp(`(?<![\\d.])${literal(value)}(?![\\d.])`, 'g'), ''),
+    (rest, value) =>
+      rest.replace(new RegExp(`(?<![\\d.])${literal(value)}(?!\\d|\\.\\d)`, 'g'), ''),
     line,
   )
 }
@@ -640,6 +727,79 @@ describe('impactLine: every line she can see', () => {
       expect(line, JSON.stringify(answers)).not.toMatch(promises)
       // A hard limit and staying do seal routes in the engine; nothing else does.
       if (itemId !== 'budget' && itemId !== 'stay') expect(line).not.toMatch(/\bseal\b/)
+    }
+  })
+})
+
+describe('impactView', () => {
+  it('is the line as plain text, with no chips', () => {
+    expect(impactView('budget', { amount: s(36) }, null)).toEqual({
+      text: "About AUD 36k a year. Tell me if it's a hard limit.",
+      kind: 'plain',
+      mock: false,
+      chips: [],
+    })
+  })
+
+  it('is an assume line for a Not sure', () => {
+    expect(impactView('budget', { amount: notSure('amount') }, null)).toEqual({
+      text: "Not sure: I'll assume “AUD 30k” and show it as a chip you can change.",
+      kind: 'assume',
+      mock: false,
+      chips: [],
+    })
+  })
+
+  it('offers the other Not sure answers of the item as chips, in the item order', () => {
+    const view = impactView(
+      'budget',
+      { amount: notSure('amount'), covers: notSure('covers') },
+      null,
+    )
+    expect(view?.kind).toBe('assume')
+    expect(view?.text).toBe(notSureLine('amount'))
+    expect(view?.chips).toEqual(['Fees only'])
+  })
+
+  it('has no chips for a Not sure on a question she is no longer shown', () => {
+    const view = impactView('know', { know: s('Suggest me'), field: notSure('field') }, null)
+    expect(view?.kind).toBe('plain')
+    expect(view?.chips).toEqual([])
+  })
+
+  it('limits for a partner, or a partner and children, and not for no one (criterion 27)', () => {
+    const text =
+      "Family isn't covered in this preview yet, so every route shows costs for you alone."
+    for (const dep of ['Partner', 'Partner and children']) {
+      expect(impactView('dep', { dep: s(dep) }, null)).toEqual({
+        text,
+        kind: 'limit',
+        mock: false,
+        chips: [],
+      })
+    }
+    expect(impactView('dep', { dep: s('No one') }, null)?.kind).toBe('plain')
+  })
+
+  it('strips the mock tag into mock: true (criterion 3)', () => {
+    expect(impactView('level', { level: s("Master's") }, null)).toEqual({
+      text: "Master's: 18 months to 2 years, building on your degree",
+      kind: 'plain',
+      mock: true,
+      chips: [],
+    })
+  })
+
+  it('is null when there is no line', () => {
+    expect(impactView('where', {}, null)).toBeNull()
+    expect(impactView('nope', {}, null)).toBeNull()
+  })
+
+  it('never changes a line: the text plus the mock tag is the line', () => {
+    for (const { itemId, answers, relative } of CASES) {
+      const view = impactView(itemId, answers, relative)
+      const line = impactLine(itemId, answers, relative)
+      expect(view === null ? null : view.text + (view.mock ? ' · mock' : ''), itemId).toBe(line)
     }
   })
 })

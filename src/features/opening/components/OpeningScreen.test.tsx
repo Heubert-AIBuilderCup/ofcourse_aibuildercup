@@ -277,21 +277,32 @@ it('asks about staying with yes, not sure and no', () => {
 
 it('links back to the screen before and on to the next', () => {
   show(0)
-  expect(screen.queryByRole('link', { name: 'Back' })).not.toBeInTheDocument()
-  expect(screen.getByRole('link', { name: FACTS.next })).toHaveAttribute('href', '/opening/study')
+  expect(screen.getByRole('link', { name: FACTS.next })).toHaveAttribute(
+    'href',
+    '/onboarding/study',
+  )
   cleanup()
 
   show(1)
-  expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/opening/facts')
-  expect(screen.getByRole('link', { name: STUDY.next })).toHaveAttribute('href', '/opening/living')
+  expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute(
+    'href',
+    '/onboarding/facts/english',
+  )
+  expect(screen.getByRole('link', { name: STUDY.next })).toHaveAttribute(
+    'href',
+    '/onboarding/living',
+  )
   cleanup()
 
   show(2)
-  expect(screen.getByRole('link', { name: LIVING.next })).toHaveAttribute('href', '/opening/after')
+  expect(screen.getByRole('link', { name: LIVING.next })).toHaveAttribute(
+    'href',
+    '/onboarding/after',
+  )
   cleanup()
 
   show(3)
-  expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/opening/living')
+  expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/onboarding/living')
   expect(screen.getByRole('link', { name: 'Show me three futures' })).toHaveAttribute(
     'href',
     '/futures',

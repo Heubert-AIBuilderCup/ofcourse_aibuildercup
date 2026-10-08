@@ -40,8 +40,7 @@ export default async function proxy(req: NextRequest) {
 export const config = {
   matcher: [
     '/start/:path*',
-    '/picture/:path*',
-    '/opening/:path*',
+    '/onboarding/:path*',
     '/futures/:path*',
     '/attention/:path*',
     '/admin/:path*',

@@ -1,0 +1,330 @@
+/*
+ * Step 00's own motion and figures, from the design's pq.css: the error easing in, the busy
+ * spinner, and the three choice figures from the motion study: drawn line by line on arrival, then
+ * a quiet loop (breathing, a head tilt, hair sway, a blink), a small warm smile on hover or
+ * keyboard focus, a hop and a full smile when chosen, and "Prefer not to say" puzzled rather than
+ * pleased, with a "?" beside the head. The easings (--ease-out, --spring), the rise sequence and
+ * the pause behind the splash are the onboarding shell's (onboarding.module.css).
+ *
+ * The base styles are the final frame: the figures drawn, the faces visible. Every animation and
+ * transition is declared only under prefers-reduced-motion: no-preference, so under reduce
+ * nothing moves. Keyframes, delays and the SVG's own styles have no Tailwind utility, so they live
+ * here; layout, sizes and colours stay on the elements. Inside the figures' SVG, px are drawing
+ * units of the 72 × 72 viewBox (transform-box: view-box), not screen pixels.
+ */
+
+/* A chosen card's corner marks take the accent with its border. */
+.choice[aria-pressed="true"] [data-frame-mark] {
+  color: var(--accent-700);
+}
+
+/* ── The figures ── */
+
+/* Each choice starts its draw-in and its loops a beat after the one before. */
+.choice:nth-child(2) {
+  --t: 1;
+}
+.choice:nth-child(3) {
+  --t: 2;
+}
+/* The order a figure's strokes are drawn in. */
+.i1 {
+  --i: 1;
+}
+.i2 {
+  --i: 2;
+}
+.i3 {
+  --i: 3;
+}
+.i4 {
+  --i: 4;
+}
+
+.art .s {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--sw);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.art .m {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--sw);
+  stroke-linecap: round;
+}
+.art .dot {
+  fill: currentColor;
+  stroke: none;
+}
+.head,
+.hair,
+.body,
+.eyes,
+.brows,
+.qmark {
+  transform-box: view-box;
+}
+.head {
+  transform-origin: 36px 44px;
+}
+.hair {
+  transform-origin: 36px 16px;
+}
+.body {
+  transform-origin: 36px 66px;
+}
+.eyes {
+  transform-origin: 36px 29px;
+}
+.qmark {
+  transform-origin: 52px 20px;
+}
+
+/* Faces: eyes always; brows on hover only; three mouths, flat until hovered or chosen. */
+.mouthSoft,
+.mouthSmile,
+.browsQ,
+.mouthWavy,
+.qmark {
+  opacity: 0;
+}
+.brows {
+  transform-origin: 36px 26px;
+  opacity: 0;
+  transform: translateY(0.8px);
+}
+
+/* Hover or keyboard focus: lean in, lift the brows, a small warm smile. */
+.choice[aria-pressed="false"]:is(:hover, :focus-visible) .art {
+  transform: translateY(-0.1875rem) scale(1.04);
+}
+.choice[aria-pressed="false"]:is(:hover, :focus-visible) .mouthFlat {
+  opacity: 0;
+}
+.choice[aria-pressed="false"]:is(:hover, :focus-visible) .mouthSoft {
+  opacity: 1;
+  transition-delay: 0.05s;
+}
+.choice[aria-pressed="false"]:is(:hover, :focus-visible) .brows {
+  opacity: 1;
+  transform: translateY(-0.5px);
+}
+
+/* Chosen: the full smile. */
+.choice[aria-pressed="true"] .mouthFlat {
+  opacity: 0;
+}
+.choice[aria-pressed="true"] .mouthSmile {
+  opacity: 1;
+  transition-delay: 0.1s;
+}
+
+/*
+ * "Prefer not to say": puzzled rather than pleased. Hovered, the head tilts and holds, one brow
+ * goes up, the mouth goes wavy and a "?" pops up beside the head; chosen, it stays that way.
+ */
+.choice.none[aria-pressed="false"]:is(:hover, :focus-visible) .art {
+  transform: translateY(-0.1875rem) rotate(-7deg) scale(1.04);
+}
+.choice.none[aria-pressed="true"] .art {
+  transform: rotate(-7deg);
+}
+.choice.none:is([aria-pressed="false"]:is(:hover, :focus-visible), [aria-pressed="true"])
+  :is(.brows, .mouthFlat, .mouthSoft, .mouthSmile) {
+  opacity: 0;
+}
+.choice.none:is([aria-pressed="false"]:is(:hover, :focus-visible), [aria-pressed="true"])
+  :is(.browsQ, .mouthWavy, .qmark) {
+  opacity: 1;
+}
+
+/* The tick on a chosen card. */
+.tick {
+  transform: scale(0);
+}
+.choice[aria-pressed="true"] .tick {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .errorIn {
+    animation: errorIn 0.3s var(--ease-out) both;
+  }
+  .spin {
+    animation: spin 0.8s linear infinite;
+  }
+
+  /* Arrival: each figure drawn line by line, one after the other, then its face appears. */
+  .art .s {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: draw 0.9s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+    animation-delay: calc(0.75s + var(--t, 0) * 0.15s + var(--i, 0) * 0.1s);
+  }
+  .art .face {
+    opacity: 0;
+    animation: fade 0.35s ease-out forwards;
+    animation-delay: calc(1.45s + var(--t, 0) * 0.15s);
+  }
+  /* Always: a quiet loop, each figure on its own rhythm. */
+  .art .body {
+    animation: breathe 4.8s ease-in-out infinite;
+    animation-delay: calc(var(--t, 0) * -1.6s);
+  }
+  .art .head {
+    animation: tilt 4.8s ease-in-out infinite;
+    animation-delay: calc(var(--t, 0) * -1.6s);
+  }
+  .art .hairLong {
+    animation: sway 4.8s ease-in-out infinite;
+    animation-delay: calc(var(--t, 0) * -1.6s - 0.35s);
+  }
+  .art .eyes {
+    animation: blink 5.2s ease-in-out infinite;
+    animation-delay: calc(var(--t, 0) * -1.9s);
+  }
+  /* Chosen: a small hop. */
+  .choice[aria-pressed="true"] .art svg {
+    animation: hop 0.6s var(--spring);
+  }
+  .choice.none:is([aria-pressed="false"]:is(:hover, :focus-visible), [aria-pressed="true"]) .qmark {
+    animation:
+      qPop 0.45s var(--spring) both,
+      qWobble 2.4s ease-in-out 0.45s infinite;
+  }
+
+  .art {
+    transition: transform 0.35s var(--spring);
+  }
+  .mouthFlat,
+  .mouthSoft,
+  .mouthSmile,
+  .browsQ,
+  .mouthWavy,
+  .qmark {
+    transition: opacity 0.2s ease;
+  }
+  .brows {
+    transition:
+      opacity 0.25s ease,
+      transform 0.35s var(--spring);
+  }
+  .tick {
+    transition: transform 0.3s var(--spring);
+  }
+}
+
+@keyframes errorIn {
+  from {
+    opacity: 0;
+    transform: translateY(-0.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes draw {
+  99% {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes fade {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02, 1.035);
+  }
+}
+@keyframes tilt {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(-4deg);
+  }
+  75% {
+    transform: rotate(3deg);
+  }
+}
+@keyframes sway {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(-3.5deg);
+  }
+  75% {
+    transform: rotate(2.5deg);
+  }
+}
+@keyframes blink {
+  0%,
+  93%,
+  100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.1);
+  }
+}
+@keyframes hop {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  25% {
+    transform: translateY(0) scale(1.04, 0.95);
+  }
+  55% {
+    transform: translateY(-0.5rem) scale(0.98, 1.03);
+  }
+  80% {
+    transform: translateY(0) scale(1.02, 0.98);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes qPop {
+  0% {
+    opacity: 0;
+    transform: translateY(3px) scale(0.4) rotate(-20deg);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes qWobble {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  30% {
+    transform: rotate(10deg);
+  }
+  60% {
+    transform: rotate(-6deg);
+  }
+}

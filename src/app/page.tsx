@@ -21,10 +21,11 @@ const first = (value: string | string[] | undefined) => (Array.isArray(value) ? 
 
 /**
  * Public: the student sign-in page, the Industry login design. The layout follows the page's own
- * width (a container query): above 960px the dark panel is on the left and the framed card on the
- * right; below, the panel is a band on top and the form fills the rest; under 560px both go
- * compact. The splash (root layout) lands on the panel. Signed in: an admin on to the admin, a
- * student on to the page asked for, else the student app's home.
+ * width (a container query): from @5xl (64rem) the dark panel is on the left and the framed card on
+ * the right; below, the panel is a band on top and the form fills the rest; below @xl (36rem) both
+ * go compact; above 120rem both stay in a centred frame while their colours fill (split-page). The
+ * splash (root layout) lands on the panel. Signed in: an admin on to the admin, a student on to the
+ * page asked for, else the student app's home.
  */
 export default async function SignInPage({ searchParams }: PageProps<'/'>) {
   const [params, session] = await Promise.all([searchParams, getSession()])
@@ -40,7 +41,7 @@ export default async function SignInPage({ searchParams }: PageProps<'/'>) {
     // The outer div is the container the layout queries; a container query never applies to the
     // container itself, so the grid is a separate child.
     <div className={cn(styles.page, '@container min-h-dvh bg-background text-foreground')}>
-      <div className="grid min-h-dvh grid-cols-2 @max-[60rem]:grid-cols-1 @max-[60rem]:grid-rows-[auto_1fr]">
+      <div className="split-page min-h-dvh @max-5xl:grid-cols-1 @max-5xl:grid-rows-[auto_1fr]">
         <SignInPanel
           productName={SITE_NAME}
           overline="Student access"
@@ -48,7 +49,7 @@ export default async function SignInPage({ searchParams }: PageProps<'/'>) {
         />
 
         {/* The design's form column: 48/24 at desktop, 48/40/56 on a tablet, 28/16/36 on a phone. */}
-        <main className="flex flex-col items-center justify-center gap-stack px-6 py-12 @max-[60rem]:justify-start @max-[60rem]:px-10 @max-[60rem]:pb-14 @max-[35rem]:gap-5 @max-[35rem]:px-4 @max-[35rem]:pt-7 @max-[35rem]:pb-9">
+        <main className="flex flex-col items-center justify-center gap-stack px-6 py-12 @max-5xl:justify-start @max-5xl:px-10 @max-5xl:pb-14 @max-xl:gap-5 @max-xl:px-4 @max-xl:pt-7 @max-xl:pb-9">
           <StudentSignIn next={next} notice={message} />
 
           <div

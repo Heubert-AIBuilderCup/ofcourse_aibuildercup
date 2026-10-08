@@ -44,18 +44,18 @@ export default async function AdminSignInPage({ searchParams }: PageProps<'/admi
     // The outer div is the container the layout queries; a container query never applies to the
     // container itself, so the grid is a separate child.
     <div className={cn(styles.page, '@container min-h-dvh bg-background text-foreground')}>
-      <div className="grid min-h-dvh grid-cols-2 @max-[60rem]:grid-cols-1 @max-[60rem]:grid-rows-[auto_1fr]">
+      <div className="split-page min-h-dvh @max-5xl:grid-cols-1 @max-5xl:grid-rows-[auto_1fr]">
         <SignInPanel
           productName={`${SITE_NAME} Admin`}
           lede={`Content, reviews and accounts for ${SITE_NAME}.`}
         />
 
-        <main className="flex flex-col items-center justify-center gap-stack px-6 py-12 @max-[60rem]:justify-start @max-[60rem]:px-10 @max-[60rem]:pb-14 @max-[35rem]:gap-5 @max-[35rem]:px-4 @max-[35rem]:pt-7 @max-[35rem]:pb-9">
+        <main className="flex flex-col items-center justify-center gap-stack px-6 py-12 @max-5xl:justify-start @max-5xl:px-10 @max-5xl:pb-14 @max-xl:gap-5 @max-xl:px-4 @max-xl:pt-7 @max-xl:pb-9">
           <Blueprint
             className={cn(
               styles.frame,
               styles.d5,
-              'flex w-full max-w-100 flex-col gap-5 bg-card p-stack text-card-foreground @max-[35rem]:p-5',
+              'flex w-full max-w-sm flex-col gap-5 bg-card p-stack text-card-foreground @max-xl:p-5',
             )}
           >
             <div className={cn(styles.rise, styles.d6)}>

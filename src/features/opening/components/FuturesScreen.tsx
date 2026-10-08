@@ -28,6 +28,7 @@ import type {
   StoredAnswers,
 } from '@/shared/types/student'
 import { SAVE_FAILED } from '../model/messages'
+import { ONBOARDING_PATH } from '../model/onboarding'
 import { chipText, DEFAULTS, PARTICULAR, parseAnswer, SUGGEST_ME } from '../model/questions'
 import { ChipList } from './ChipEditor'
 import { FutureCard } from './FutureCard'
@@ -38,7 +39,7 @@ import { WeightsPlaque } from './WeightsPlaque'
 
 const ATTENTION_PATH = '/attention'
 const FUTURES_STEP = 5
-const BACK_PATH = '/opening/after'
+const BACK_PATH = `${ONBOARDING_PATH}/after`
 const REMINDER_SAVED = "Reminder saved. You'll see it in your feed once it's ready."
 const SEALED_CHIPS: readonly QuestionKey[] = ['amount', 'hard']
 

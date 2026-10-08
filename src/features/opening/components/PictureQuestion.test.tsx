@@ -1,9 +1,10 @@
 /// <reference lib="dom" />
 /// <reference path="../../../../node_modules/@testing-library/jest-dom/types/bun.d.ts" />
 import { afterAll, afterEach, beforeAll, expect, it, mock } from 'bun:test'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import * as navigation from 'next/navigation'
 import type { ActionResult } from '@/shared/types/action-result'
+import type { Persona } from '@/shared/types/student'
 
 const saved = async (_persona: unknown): Promise<ActionResult> => ({ ok: true })
 const savePersonaAction = mock(saved)
@@ -30,94 +31,192 @@ afterEach(() => {
   push.mockClear()
 })
 
+const QUESTION = 'How would you like your comic character drawn?'
+const OPTIONAL =
+  "Optional. Skip, and we'll draw a neutral character. We never guess this from your name or photo."
+const CLEAR = 'Press your choice again to clear it.'
+const FAILED =
+  "We couldn't save that. Your answer is still here. Check your connection and try again."
+
+const renderQuestion = (firstName = 'Sita', persona: Persona | null = null) =>
+  render(
+    <PictureQuestion
+      savePersonaAction={savePersonaAction}
+      firstName={firstName}
+      persona={persona}
+    />,
+  )
+
+const choice = (name: string) =>
+  within(screen.getByRole('group', { name: QUESTION })).getByRole('button', { name })
+
 const press = (name: string) =>
   act(async () => {
     fireEvent.click(screen.getByRole('button', { name }))
   })
 
-it('asks the question with three choices, none pressed', () => {
-  render(<PictureQuestion savePersonaAction={savePersonaAction} />)
-  expect(screen.getByText('Optional · one tap')).toBeInTheDocument()
-  expect(screen.getByRole('heading', { name: 'How should we picture you?' })).toBeInTheDocument()
+/** A save that waits until the test lets it answer. */
+function heldSave() {
+  let answer: (result: ActionResult) => void = () => {}
+  savePersonaAction.mockImplementation(
+    () =>
+      new Promise<ActionResult>((resolve) => {
+        answer = resolve
+      }),
+  )
+  return (result: ActionResult) => act(async () => answer(result))
+}
+
+it('asks the question with three choices, none pressed, and says why', () => {
+  renderQuestion()
+  expect(screen.getByRole('heading', { level: 1, name: QUESTION })).toBeInTheDocument()
   expect(
     screen.getByText(
-      'Used only to pick the character in your comics. Nothing else reads it. Skip it and the character is neutral.',
+      (_, el) =>
+        el?.tagName === 'P' &&
+        el.textContent ===
+          'Later, short comics walk through each route with one student in them. This only sets how that student is drawn. Nothing else reads your answer.',
     ),
   ).toBeInTheDocument()
+  expect(screen.getByText('This only sets how that student is drawn.').tagName).toBe('STRONG')
   for (const name of ['Male', 'Female', 'Prefer not to say']) {
-    expect(screen.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'false')
+    expect(choice(name)).toHaveAttribute('aria-pressed', 'false')
   }
+  expect(screen.getByText(OPTIONAL)).toBeInTheDocument()
+  expect(screen.queryByText(/Settings/)).not.toBeInTheDocument()
 })
 
-it('saves neutral when Start is pressed with nothing chosen, then opens screen 1', async () => {
-  render(<PictureQuestion savePersonaAction={savePersonaAction} />)
+it('greets her by her first name, or just welcomes her when there is none', () => {
+  renderQuestion('Sita')
+  expect(screen.getByText('Welcome, Sita.')).toBeInTheDocument()
+  cleanup()
+  renderQuestion('')
+  expect(screen.getByText('Welcome.')).toBeInTheDocument()
+})
+
+it('comes back (Back from screen 1) with her saved choice pressed, and saves a change', async () => {
+  renderQuestion('Sita', 'female')
+  expect(choice('Female')).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByText(CLEAR)).toBeInTheDocument()
+  await press('Male')
+  await press('Start')
+  expect(savePersonaAction).toHaveBeenCalledWith('male')
+  expect(push).toHaveBeenCalledWith('/onboarding/facts/where')
+})
+
+it('comes back with nothing pressed after a neutral answer, since Skip saves the same', () => {
+  renderQuestion('Sita', 'neutral')
+  for (const name of ['Male', 'Female', 'Prefer not to say']) {
+    expect(choice(name)).toHaveAttribute('aria-pressed', 'false')
+  }
+  expect(screen.getByText(OPTIONAL)).toBeInTheDocument()
+})
+
+it('saves neutral when Start is pressed with nothing chosen, then opens screen 1 at once', async () => {
+  renderQuestion()
   await press('Start')
   expect(savePersonaAction).toHaveBeenCalledWith('neutral')
-  expect(push).toHaveBeenCalledWith('/opening/facts')
+  expect(push).toHaveBeenCalledWith('/onboarding/facts/where')
+  expect(screen.queryByText(/You're in/)).not.toBeInTheDocument()
+  expect(screen.queryByText(/Saved\./)).not.toBeInTheDocument()
 })
 
-it('saves the choice she pressed', async () => {
-  render(<PictureQuestion savePersonaAction={savePersonaAction} />)
+it('saves female for Female', async () => {
+  renderQuestion()
   await press('Female')
-  expect(screen.getByRole('button', { name: 'Female' })).toHaveAttribute('aria-pressed', 'true')
+  expect(choice('Female')).toHaveAttribute('aria-pressed', 'true')
   await press('Start')
   expect(savePersonaAction).toHaveBeenCalledWith('female')
-  expect(screen.getByText('Your comic character is female.')).toBeInTheDocument()
-})
-
-it('keeps one choice at a time, and a second press takes it back', async () => {
-  render(<PictureQuestion savePersonaAction={savePersonaAction} />)
-  await press('Male')
-  await press('Female')
-  expect(screen.getByRole('button', { name: 'Male' })).toHaveAttribute('aria-pressed', 'false')
-  expect(screen.getByRole('button', { name: 'Female' })).toHaveAttribute('aria-pressed', 'true')
-  await press('Female')
-  expect(screen.getByRole('button', { name: 'Female' })).toHaveAttribute('aria-pressed', 'false')
+  expect(push).toHaveBeenCalledWith('/onboarding/facts/where')
 })
 
 it('saves neutral for "Prefer not to say"', async () => {
-  render(<PictureQuestion savePersonaAction={savePersonaAction} />)
+  renderQuestion()
   await press('Prefer not to say')
   await press('Start')
   expect(savePersonaAction).toHaveBeenCalledWith('neutral')
 })
 
 it('saves neutral on Skip, whatever was pressed', async () => {
-  render(<PictureQuestion savePersonaAction={savePersonaAction} />)
+  renderQuestion()
   await press('Male')
   await press('Skip')
   expect(savePersonaAction).toHaveBeenCalledWith('neutral')
-  expect(push).toHaveBeenCalledWith('/opening/facts')
+  expect(push).toHaveBeenCalledWith('/onboarding/facts/where')
 })
 
-it("says she's in once the choice is saved", async () => {
-  render(<PictureQuestion savePersonaAction={savePersonaAction} />)
-  await press('Start')
-  expect(
-    screen.getByRole('heading', { name: "You're in. The first screen opens in a moment." }),
-  ).toBeInTheDocument()
-  expect(screen.getByText('Your comic character is neutral.')).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'Start' })).not.toBeInTheDocument()
+it('keeps one choice at a time, and pressing the chosen one again clears it', async () => {
+  renderQuestion()
+  await press('Male')
+  await press('Female')
+  expect(choice('Male')).toHaveAttribute('aria-pressed', 'false')
+  expect(choice('Female')).toHaveAttribute('aria-pressed', 'true')
+  await press('Female')
+  expect(choice('Female')).toHaveAttribute('aria-pressed', 'false')
 })
 
-it('shows a refused save and stays', async () => {
-  savePersonaAction.mockImplementation(async () => ({
-    ok: false,
-    error: 'Please sign in again.',
-  }))
-  render(<PictureQuestion savePersonaAction={savePersonaAction} />)
+it('says how to clear a choice while one is chosen', async () => {
+  renderQuestion()
+  await press('Male')
+  expect(screen.getByText(CLEAR)).toBeInTheDocument()
+  expect(screen.queryByText(OPTIONAL)).not.toBeInTheDocument()
+  await press('Male')
+  expect(screen.getByText(OPTIONAL)).toBeInTheDocument()
+  expect(screen.queryByText(CLEAR)).not.toBeInTheDocument()
+})
+
+it('says it is saving and holds the choices and a second Start while it saves', async () => {
+  const answer = heldSave()
+  renderQuestion()
+  await press('Female')
   await press('Start')
-  expect(screen.getByRole('alert')).toHaveTextContent('Please sign in again.')
+  const start = screen.getByRole('button', { name: 'Saving…' })
+  expect(start).toHaveAttribute('aria-disabled', 'true')
+  expect(screen.getByRole('status')).toHaveTextContent('Saving your answer')
+  expect(choice('Male')).toHaveAttribute('aria-disabled', 'true')
+
+  await act(async () => {
+    fireEvent.click(start)
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }))
+    fireEvent.click(choice('Male'))
+  })
+  expect(savePersonaAction).toHaveBeenCalledTimes(1)
+  expect(choice('Female')).toHaveAttribute('aria-pressed', 'true')
+
+  await answer({ ok: true })
+  expect(push).toHaveBeenCalledTimes(1)
+  expect(push).toHaveBeenCalledWith('/onboarding/facts/where')
+})
+
+it('keeps her answer and offers to try again when the save is refused', async () => {
+  savePersonaAction.mockImplementation(async () => ({ ok: false, error: 'Please sign in again.' }))
+  renderQuestion()
+  await press('Female')
+  await press('Start')
+  expect(screen.getByRole('alert')).toHaveTextContent(FAILED)
+  expect(choice('Female')).toHaveAttribute('aria-pressed', 'true')
+  expect(choice('Male')).not.toHaveAttribute('aria-disabled', 'true')
+  expect(screen.getByRole('button', { name: 'Try again' })).not.toHaveAttribute(
+    'aria-disabled',
+    'true',
+  )
   expect(push).not.toHaveBeenCalled()
-  expect(screen.getByRole('button', { name: 'Start' })).toBeEnabled()
+
+  savePersonaAction.mockImplementation(saved)
+  await press('Try again')
+  expect(savePersonaAction).toHaveBeenLastCalledWith('female')
+  expect(push).toHaveBeenCalledWith('/onboarding/facts/where')
 })
 
-it('says so when the save never reaches the server, and stays', async () => {
+it('keeps her answer and offers to try again when the save never reaches the server', async () => {
   savePersonaAction.mockImplementation(async () => {
     throw new Error('offline')
   })
-  render(<PictureQuestion savePersonaAction={savePersonaAction} />)
-  await press('Skip')
-  expect(screen.getByRole('alert')).toHaveTextContent('Could not save. Please try again.')
+  renderQuestion()
+  await press('Male')
+  await press('Start')
+  expect(screen.getByRole('alert')).toHaveTextContent(FAILED)
+  expect(choice('Male')).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
   expect(push).not.toHaveBeenCalled()
 })

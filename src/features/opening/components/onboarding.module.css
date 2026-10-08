@@ -1,0 +1,125 @@
+/*
+ * The onboarding shell's motion, from the design's pq.css (and the login design's shared motion):
+ * the page's easings, the steel panel's grid paper with its drift, the rise sequence (d1–d8) the
+ * panel and each step's content arrive in, and the duck bobbing. A step's own motion (step 00's
+ * figures, for one) is in its own module and reads the easings from the page.
+ *
+ * The base styles are the final frame. Every animation is declared only under
+ * prefers-reduced-motion: no-preference, so under reduce nothing moves.
+ */
+
+.page {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/*
+ * The steel panel's grid paper, on its own layer one cell larger than the panel, so its drift is
+ * a transform. The grid lines are hairlines: 1px on purpose, so they stay one device pixel.
+ */
+.grid {
+  background-color: var(--panel);
+}
+.grid::before {
+  content: "";
+  position: absolute;
+  inset: -1.7rem 0 0 -1.7rem;
+  pointer-events: none;
+  background-image:
+    linear-gradient(
+      color-mix(in oklch, var(--panel-foreground) 6%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in oklch, var(--panel-foreground) 6%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 1.7rem 1.7rem;
+}
+
+/* On the steel panel the mark's hairline and corners are drawn in the panel's foreground. */
+.onPanel {
+  border-color: color-mix(in oklch, var(--panel-foreground) 18%, transparent);
+}
+.onPanel [data-frame-mark] {
+  color: color-mix(in oklch, var(--panel-foreground) 45%, transparent);
+}
+
+/* The duck faces left; mirrored, it faces the question. */
+.duck {
+  transform: scaleX(-1);
+}
+
+/*
+ * Held still while the splash plays in front of the page (the root layout's), so the sequence
+ * starts as it lands.
+ */
+:global(html:has([data-splash="play"])) .page *,
+:global(html:has([data-splash="play"])) .page *::before {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .grid::before {
+    animation: drift 9s linear infinite;
+  }
+  .rise {
+    animation: rise 0.8s var(--ease-out) backwards;
+  }
+  .d1 {
+    animation-delay: 0.1s;
+  }
+  .d2 {
+    animation-delay: 0.25s;
+  }
+  .d3 {
+    animation-delay: 0.4s;
+  }
+  .d4 {
+    animation-delay: 0.55s;
+  }
+  .d5 {
+    animation-delay: 0.7s;
+  }
+  .d6 {
+    animation-delay: 0.85s;
+  }
+  .d7 {
+    animation-delay: 1s;
+  }
+  .d8 {
+    animation-delay: 1.15s;
+  }
+  .duck {
+    animation: bob 2.6s ease-in-out infinite;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.875rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes drift {
+  from {
+    transform: none;
+  }
+  to {
+    transform: translate(1.7rem, 1.7rem);
+  }
+}
+@keyframes bob {
+  0%,
+  100% {
+    transform: scaleX(-1) translateY(0) rotate(0);
+  }
+  50% {
+    transform: scaleX(-1) translateY(-0.1875rem) rotate(-3deg);
+  }
+}

@@ -42,6 +42,12 @@
   --spacing-section: var(--ds-space-section);
   --spacing-stack: var(--ds-space-stack);
   --spacing-block: var(--ds-space-block);
+  /* Layout: Tailwind's own container sizes on the page's width (container queries): phones below
+     @xl (36rem), stacked to @5xl (64rem), side by side from it. From 1440 the whole design scales
+     with the screen (the root font-size, below) up to 1920. The cap is the 1440 design's width in
+     the page's rem: 90rem is 1440px at 1440 and 1920px from 1920, so below 1920 it never binds and
+     above it content stays in a centred 1920 frame (split-page below). */
+  --container-cap: 90rem;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -138,7 +144,13 @@
   }
   html {
     font-family: var(--font-sans);
-    font-size: 100%;
+    /* The design is drawn at 1440. Up to there rem is the browser's own size; from 1440 to 1920 it
+       grows with the screen (to 4/3), so type, spacing and widths all scale together and 1920 shows
+       the 1440 design larger, not just wider. Never below the browser's size, so its zoom and
+       font setting still apply. A container query's rem resolves against this scaled size, so
+       the thresholds scale too; but scaling starts at 1440, where the page is already wider than
+       every threshold (64rem tops out near 1365px at 1920), so the breakpoints hold. */
+    font-size: clamp(100%, 100% + (100vw - 90rem) / 90, 133.333%);
   }
   body {
     font-size: var(--text-base);
@@ -210,4 +222,26 @@
     bottom: -0.375rem;
     right: -0.375rem;
   }
+}
+
+/*
+ * The split page (the sign-in pages, onboarding): the steel panel beside the main column. Up to the
+ * cap they share the page, the panel taking --split-panel of it (½ unless set); above the cap their
+ * colours still run to the screen's edges while their content stays in a centred frame of the
+ * cap's width. --bleed is the width outside that frame on each side: the panel's padding grows by
+ * it on the left, and an empty last track takes it on the right. `split-page` goes on the grid,
+ * the child of the page's @container; `split-panel` gives the panel its side padding. Below @5xl
+ * the page stacks (@max-5xl:grid-cols-1) and the frame plays no part.
+ */
+@utility split-page {
+  --bleed: max(0rem, (100cqi - --theme(--container-cap)) / 2);
+  display: grid;
+  grid-template-columns:
+    minmax(0, calc(var(--bleed) + min(100cqi, --theme(--container-cap)) * var(--split-panel, 0.5)))
+    minmax(0, 1fr)
+    var(--bleed);
+}
+@utility split-panel {
+  padding-inline: --theme(--spacing-gutter);
+  padding-inline-start: calc(var(--bleed) + --theme(--spacing-gutter));
 }

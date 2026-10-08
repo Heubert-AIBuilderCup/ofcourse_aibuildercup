@@ -1,10 +1,11 @@
 import { expect, type Page, test } from '@playwright/test'
 import { deleteUsers, profileOf } from './helpers/db'
-import { newStudent, tap } from './helpers/student'
+import { answerFact, card, newStudent, tap } from './helpers/student'
 
-// The picture question and opening screens 1–4, on a phone and on desktop: the character is
-// never set from the account, screen 1 opens fast, every tap has its impact line at once, "Not
-// sure" becomes an assumption, Back keeps answers, the relative's form, and on to the futures.
+// The picture question, step 01's questions one per screen, and opening screens 2–4, on a phone
+// and on desktop: the character is never set from the account, step 01 opens fast, every tap has
+// its impact line at once, "Not sure" becomes an assumption, Back keeps answers, the relative's
+// form, and on to the futures.
 
 const SIZES = [
   { width: 390, height: 844 },
@@ -14,6 +15,7 @@ const SIZES = [
 const group = (page: Page, name: string) => page.getByRole('group', { name, exact: true })
 const option = (page: Page, question: string, name: string) =>
   group(page, question).getByRole('button', { name, exact: true })
+const LEAVE = "Leave the rest for now: go to What you'd study"
 
 for (const size of SIZES) {
   test(`a new student answers the opening at ${size.width}×${size.height}`, async ({ page }) => {
@@ -22,39 +24,62 @@ for (const size of SIZES) {
     try {
       // A new student lands on the picture question; the character is not set from the account.
       await page.goto('/')
-      await expect(page).toHaveURL(/\/picture$/)
-      await expect(page.getByRole('heading', { name: 'How should we picture you?' })).toBeVisible()
+      await expect(page).toHaveURL(/\/onboarding\/character$/)
+      await expect(
+        page.getByRole('heading', { name: 'How would you like your comic character drawn?' }),
+      ).toBeVisible()
       expect((await profileOf(email))?.persona ?? null).toBeNull()
 
-      // Start opens screen 1 within 3 s.
+      // Start opens step 01's first question within 3 s.
       await page.getByRole('button', { name: 'Female' }).click()
       const t0 = Date.now()
       await page.getByRole('button', { name: 'Start' }).click()
-      await expect(page.getByRole('heading', { name: 'Facts about you' })).toBeVisible()
+      await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
+      await expect(
+        page.getByRole('heading', { level: 1, name: 'Where are you right now?' }),
+      ).toBeVisible()
       expect(Date.now() - t0).toBeLessThan(3000)
       expect((await profileOf(email))?.persona).toBe('female')
-      await expect(page.getByLabel('Step 1 of 6')).toBeVisible()
+      await expect(page.getByText('Facts about you · 1 of 11', { exact: true })).toBeVisible()
+      // The panel: the step list side by side (from 1024 wide), the band's "Step 1 of 6." below.
+      if (size.width >= 1024) {
+        await expect(
+          page.getByRole('list', { name: 'Your steps' }).locator('[aria-current="step"]'),
+        ).toContainText('Facts about you')
+      } else {
+        await expect(page.getByText('Step 1 of 6.', { exact: true })).toBeVisible()
+      }
 
-      // An impact line within 300 ms of a tap.
-      await option(page, 'Amount', 'AUD 36k').click()
+      // Back from the first question reopens the picture question with her choice; Start returns.
+      await page.getByRole('button', { name: 'Back', exact: true }).click()
+      await expect(page).toHaveURL(/\/onboarding\/character$/)
+      await expect(page.getByRole('button', { name: 'Female' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+      await page.getByRole('button', { name: 'Start' }).click()
+      await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
+
+      // An impact line within 300 ms of a tap; onshore and offshore read differently.
+      await card(page, 'Where are you right now?', 'Nepal').click()
+      await expect(page.getByText('Nepal: visa required · study fees apply')).toBeVisible({
+        timeout: 300,
+      })
+      await card(page, 'Where are you right now?', 'Australia (on a visa)').click()
+      await expect(page.getByText(/^In Australia: you may apply onshore/)).toBeVisible({
+        timeout: 300,
+      })
+      await expect(page.getByText('Nepal: visa required · study fees apply')).toHaveCount(0)
+
+      await page.getByRole('button', { name: 'Continue' }).click()
+      await expect(page).toHaveURL(/\/onboarding\/facts\/amount$/)
+      await card(page, 'Amount', 'AUD 36k').click()
       await expect(
         page.getByText("About AUD 36k a year. Tell me if it's a hard limit."),
       ).toBeVisible({ timeout: 300 })
 
-      // Onshore and offshore read differently.
-      const where = page.getByRole('combobox', { name: 'Where are you right now?' })
-      await where.selectOption({ label: 'Australia (on a visa)' })
-      await expect(page.getByText(/^In Australia: you may apply onshore/)).toBeVisible({
-        timeout: 300,
-      })
-      await where.selectOption({ label: 'Nepal' })
-      await expect(page.getByText('Nepal: visa required · study fees apply')).toBeVisible({
-        timeout: 300,
-      })
-      await expect(page.getByText(/^In Australia:/)).toHaveCount(0)
-
       // "Not sure" stores the default, assumed, and the line says so.
-      await option(page, 'Amount', 'Not sure').click()
+      await card(page, 'Amount', 'Not sure').click()
       await expect(
         page.getByText("Not sure: I'll assume “AUD 30k” and show it as a chip you can change."),
       ).toBeVisible({ timeout: 300 })
@@ -63,31 +88,28 @@ for (const size of SIZES) {
         .toEqual({ value: 30, state: 'assumed' })
 
       // Partner: saved, no follow-up form, and family isn't covered yet.
-      await option(page, 'Anyone coming with you?', 'Partner').click()
+      await answerFact(page, ['Anyone coming with you?', 'Partner'])
       await expect(
         page.getByText(
           "Family isn't covered in this preview yet, so every route shows costs for you alone.",
         ),
-      ).toBeVisible({ timeout: 300 })
+      ).toBeVisible()
       await expect(page.getByRole('textbox')).toHaveCount(0)
       await expect
         .poll(async () => (await profileOf(email))?.answers.dep)
         .toEqual({ value: 'Partner', state: 'stated' })
 
-      // Back keeps answers.
-      await page.getByRole('link', { name: "Next: what you'd study" }).click()
+      // Back keeps answers: step 02's Back lands on step 01's last question.
+      await page.getByRole('link', { name: LEAVE }).click()
       await expect(page.getByRole('heading', { name: "What you'd study" })).toBeVisible()
       await expect(page.getByLabel('Step 2 of 6')).toBeVisible()
       await tap(page, ['Do you know what you want to study?', 'Suggest me'])
       await page.getByRole('link', { name: 'Back', exact: true }).click()
-      await expect(page.getByRole('heading', { name: 'Facts about you' })).toBeVisible()
-      await expect(option(page, 'Amount', 'Not sure')).toHaveAttribute('aria-pressed', 'true')
-      await expect(option(page, 'Anyone coming with you?', 'Partner')).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      )
-      await expect(where).toHaveValue('Nepal')
-      await page.getByRole('link', { name: "Next: what you'd study" }).click()
+      await expect(page).toHaveURL(/\/onboarding\/facts\/english$/)
+      await expect(page.getByRole('heading', { level: 1, name: 'English test' })).toBeVisible()
+      await page.goto('/onboarding/facts/amount')
+      await expect(card(page, 'Amount', 'Not sure')).toHaveAttribute('aria-checked', 'true')
+      await page.getByRole('link', { name: LEAVE }).click()
       await expect(
         option(page, 'Do you know what you want to study?', 'Suggest me'),
       ).toHaveAttribute('aria-pressed', 'true')

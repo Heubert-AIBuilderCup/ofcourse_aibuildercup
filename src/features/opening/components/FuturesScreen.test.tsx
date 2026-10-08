@@ -340,7 +340,7 @@ describe('sealed at a hard limit', () => {
 describe('the way on', () => {
   it('goes back to screen 4 (criteria 30 and 62)', () => {
     show()
-    expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/opening/after')
+    expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/onboarding/after')
   })
 
   it('offers the coins as optional before she has seen them', () => {

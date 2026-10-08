@@ -19,8 +19,22 @@ describe('HOME_PATH', () => {
 
 describe('isAppPath', () => {
   it('covers the student pages and their sub-pages', () => {
-    for (const path of ['/start', '/picture', '/opening/facts', '/futures', '/attention']) {
+    for (const path of [
+      '/start',
+      '/onboarding',
+      '/onboarding/character',
+      '/onboarding/facts/who-pays',
+      '/onboarding/study',
+      '/futures',
+      '/attention',
+    ]) {
       expect(isAppPath(path)).toBe(true)
+    }
+  })
+
+  it('no longer covers the retired onboarding paths, which next.config redirects first', () => {
+    for (const path of ['/picture', '/opening/facts', '/opening/study']) {
+      expect(isAppPath(path)).toBe(false)
     }
   })
 
@@ -97,6 +111,10 @@ describe('safeNextPath', () => {
 
   it('never loops back to the admin sign-in page', () => {
     expect(safeNextPath('/admin/sign-in')).toBeNull()
+  })
+
+  it('accepts an onboarding screen', () => {
+    expect(safeNextPath('/onboarding/facts/who-pays')).toBe('/onboarding/facts/who-pays')
   })
 
   it('refuses the retired dashboard', () => {

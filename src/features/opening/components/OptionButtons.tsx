@@ -31,7 +31,7 @@ export function OptionToggle({
 }
 
 /** "AUD 24k" for an amount (the only numbers); any other option reads as itself. */
-const labelOf = (option: AnswerValue): string =>
+export const labelOf = (option: AnswerValue): string =>
   typeof option === 'number' ? `AUD ${option}k` : String(option)
 
 /**

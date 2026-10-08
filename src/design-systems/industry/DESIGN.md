@@ -23,4 +23,13 @@ Source: the Industry design system in Claude Design (https://claude.ai/artifact/
 ## Sizing
 
 - Type comes from the roles, which scale with the viewport on their own: `text-display` (a hero), `text-h1` to `text-h4`, `text-lead`, body (the default), `text-caption`, `text-overline`, `text-micro`. Never set a size per breakpoint (`text-3xl sm:text-5xl`) or an arbitrary one.
-- Page spacing comes from the roles too: `px-gutter` for the page's sides, `py-section` for a page's top and bottom, `gap-block` between blocks, `gap-stack` between groups; `@max-[35rem]:` overrides where the design's phone layout differs. Component-internal spacing (a card's padding, a button's height) stays on the fixed scale.
+- Page spacing comes from the roles too: `px-gutter` for the page's sides, `py-section` for a page's top and bottom, `gap-block` between blocks, `gap-stack` between groups; `@max-xl:` overrides where the design's phone layout differs. Component-internal spacing (a card's padding, a button's height) stays on the fixed scale.
+
+## Layout
+
+- A page is an `@container` and responds to its own width, as the login design does, at Tailwind's own container sizes (they match Material 3's window classes and Bootstrap's breakpoints closely). Two breakpoints: phones below `@xl` (36rem/576px; `@max-xl:`: one column, a 1rem side gutter, actions within thumb reach), stacked from 36 to 64rem (the steel panel becomes a band on top, one content column), side by side from `@5xl` (64rem/1024px; `@max-5xl:` for what differs below it).
+- From 1024 no breakpoint: the page keeps growing. Industry's type and spacing are fluid up to 1440; from 1440 to 1920 the whole design scales with the screen instead (the root font-size grows from 100% to 133%, globals.css), so type, spacing and widths grow together and 1920 shows the 1440 design at 4/3. Above 1920 (`--container-cap`, 90 of those scaled rem) content stays in a centred frame while backgrounds and the steel panel fill the screen. Sizes in rem scale; px (hairlines) do not.
+- A split page (sign-in, onboarding) puts `split-page` on its grid and `split-panel` on the steel panel (globals.css): above the cap the panel's colour runs to the left edge and the ground to the right, while both columns' content stays in the centred frame. `[--split-panel:5/12]` sets the panel's share (½ by default).
+- Content widths are Tailwind's: `max-w-sm` (24rem) for a form card, `max-w-2xl` (42rem) for a question screen, `max-w-7xl` (80rem) for wide content such as the futures, `max-w-prose` for running text.
+- Grids inside content size themselves (`repeat(auto-fit, minmax(…, 1fr))`) instead of adding breakpoints.
+- Designs are drawn at 390, 768, 1440 and 1920 and checked at 360, 390, 768, 1024, 1280, 1366, 1440, 1536, 1920 and 2560.

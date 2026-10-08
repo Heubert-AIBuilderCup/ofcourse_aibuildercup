@@ -17,7 +17,7 @@
   /* The smallest role: card kickers, cell labels, the crosshair readout. 10px, wide tracking. */
   --ds-text-micro: 0.625rem;
   --ds-text-micro-tracking: 0.1em;
-  /* Type roles on Industry's fixed scale at 1440 (h1 42, h2 32, h3 25, h4 20, lead 17, caption 13; display is the sign-in hero at 56). Fluid between a 360px phone and a 1440px desktop; body text stays fixed. */
+  /* Type roles on Industry's fixed scale at 1440 (h1 42, h2 32, h3 25, h4 20, lead 17, caption 13; display is the sign-in hero at 56). Fluid between a 360px phone and a 1440px desktop; body text stays fixed. Above 1440 the whole design scales with the root font-size (globals.css). */
   --ds-text-display: clamp(3rem, 2.429rem + 1.19vw, 3.5rem);
   --ds-text-display-leading: 1.04;
   --ds-text-h1: clamp(2rem, 1.792rem + 0.926vw, 2.625rem);
@@ -32,7 +32,7 @@
   --ds-text-lead-leading: 1.55;
   --ds-text-caption: clamp(0.75rem, 0.7292rem + 0.0926vw, 0.8125rem);
   --ds-text-caption-leading: 1.55;
-  /* Spacing roles, fluid between a 768px tablet and a 1440px desktop (the design's values at both); the ≤560px layout sets its own compact values. */
+  /* Spacing roles, fluid between a 768px tablet and a 1440px desktop (the design's values at both); the phone layout sets its own compact values. Above 1440 they scale with the root font-size (globals.css). */
   --ds-space-gutter: clamp(3rem, 2.429rem + 1.19vw, 3.5rem);
   --ds-space-section: clamp(2.5rem, 1.929rem + 1.19vw, 3rem);
   --ds-space-block: clamp(2rem, 1.429rem + 1.19vw, 2.5rem);

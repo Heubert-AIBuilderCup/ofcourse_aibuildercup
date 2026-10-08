@@ -16,6 +16,7 @@ import {
 } from '@/shared/types/student'
 import { impactLine } from '../model/impact'
 import { SAVE_FAILED } from '../model/messages'
+import { factPath, ONBOARDING_PATH } from '../model/onboarding'
 import { type Item, isVisible, parseAnswer, type Screen } from '../model/questions'
 import { Hero } from './Hero'
 import { OptionButtons } from './OptionButtons'
@@ -23,8 +24,10 @@ import { Progress, SCREEN_COUNT } from './Progress'
 import { RelativeForm } from './RelativeForm'
 
 const FUTURES_PATH = '/futures'
+// Screen 2's Back: step 01's last question, so she lands on her answers.
+const FACTS_BACK_PATH = factPath('eng')
 
-const stepPath = (index: number) => `/opening/${OPENING_STEPS[index]}`
+const stepPath = (index: number) => `${ONBOARDING_PATH}/${OPENING_STEPS[index]}`
 
 /** One item: its title, each question she is shown, and the line on what her answers do. */
 function ItemBlock({
@@ -126,7 +129,7 @@ export function OpeningScreen({
   }
 
   const index = screen.number - 1
-  const back = index > 0 ? stepPath(index - 1) : null
+  const back = index > 1 ? stepPath(index - 1) : FACTS_BACK_PATH
   const next = index < OPENING_STEPS.length - 1 ? stepPath(index + 1) : FUTURES_PATH
   const asksWho = isVisible('knows', answers) && answers.knows?.value === 'Yes'
 
