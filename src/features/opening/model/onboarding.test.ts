@@ -14,6 +14,8 @@ import {
   PICTURE_PATH,
   STUDY_PATH,
   stepOfPath,
+  WELCOME_MINUTES,
+  WELCOME_PATH,
 } from './onboarding'
 
 const KEYS = [
@@ -147,6 +149,13 @@ describe('stepOfPath', () => {
     expect(stepOfPath('/onboarding/facts/who-pays')).toBe(1)
   })
 
+  it('knows the welcome, before step 00', () => {
+    expect(WELCOME_PATH).toBe('/onboarding/welcome')
+    expect(WELCOME_MINUTES).toBe(10)
+    expect(stepOfPath('/onboarding/welcome')).toBe('welcome')
+    expect(stepOfPath('/onboarding/character')).toBe(0)
+  })
+
   it('knows nothing of the others, nor of the retired paths', () => {
     expect(stepOfPath('/onboarding/study')).toBeNull()
     expect(stepOfPath('/onboarding')).toBeNull()
@@ -183,13 +192,17 @@ describe('the panel', () => {
   })
 
   it('has its copy per step', () => {
-    expect(PANEL_COPY[0]).toEqual({
-      title: 'Before we start',
-      lead: 'One optional question, then six short steps. Each step says why it asks, and “Not sure” is always a fine answer.',
-    })
+    expect(PANEL_COPY[0]).toEqual(PANEL_COPY[1])
     expect(PANEL_COPY[1]).toEqual({
       title: 'Six short steps',
       lead: 'Each step says why it asks. Nothing is ranked: at the end you see three futures side by side.',
+    })
+  })
+
+  it('has the welcome its own copy', () => {
+    expect(PANEL_COPY.welcome).toEqual({
+      title: 'Before we start',
+      lead: "Here's the whole way through. Each step says why it asks.",
     })
   })
 

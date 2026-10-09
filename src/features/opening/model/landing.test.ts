@@ -9,12 +9,12 @@ const twoAnswered: StoredAnswers = {
 }
 
 describe('landingPath', () => {
-  it('asks how to picture her before anything else', () => {
+  it('welcomes her before anything else', () => {
     expect(
       landingPath({ persona: null, lastStep: 'picture', seenFutures: false, answers: {} }),
-    ).toBe('/onboarding/character')
+    ).toBe('/onboarding/welcome')
     expect(landingPath({ persona: null, lastStep: 'living', seenFutures: true, answers: {} })).toBe(
-      '/onboarding/character',
+      '/onboarding/welcome',
     )
   })
 
@@ -60,13 +60,11 @@ describe('onboardingResumePath', () => {
       Pick<Parameters<typeof onboardingResumePath>[0], 'lastStep'>,
   ) => onboardingResumePath({ persona: 'neutral', seenFutures: false, answers: twoAnswered, ...p })
 
-  it('opens step 00 until she has answered it, whatever else is stored', () => {
-    expect(resume({ persona: null, lastStep: 'picture', answers: {} })).toBe(
-      '/onboarding/character',
-    )
-    expect(resume({ persona: null, lastStep: 'living' })).toBe('/onboarding/character')
+  it('opens the welcome until she has answered step 00, whatever else is stored', () => {
+    expect(resume({ persona: null, lastStep: 'picture', answers: {} })).toBe('/onboarding/welcome')
+    expect(resume({ persona: null, lastStep: 'living' })).toBe('/onboarding/welcome')
     expect(resume({ persona: null, lastStep: 'futures', seenFutures: true })).toBe(
-      '/onboarding/character',
+      '/onboarding/welcome',
     )
   })
 

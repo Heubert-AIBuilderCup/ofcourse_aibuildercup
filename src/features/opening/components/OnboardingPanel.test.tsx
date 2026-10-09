@@ -30,9 +30,43 @@ function renderAt(path: string) {
 const steps = () =>
   within(screen.getByRole('list', { name: 'Your steps' })).getAllByRole('listitem')
 
+/** The band's seven segments, and how many of them are lit (done or current). */
+function segments(container: HTMLElement) {
+  return {
+    all: container.querySelectorAll('[data-lit]').length,
+    lit: container.querySelectorAll('[data-lit="true"]').length,
+  }
+}
+
+it('on the welcome lists every step, none current, step 00 optional, nothing lit', () => {
+  const { container } = renderAt('/onboarding/welcome')
+  expect(screen.getByRole('heading', { level: 2, name: 'Before we start' })).toBeInTheDocument()
+  expect(
+    screen.getByText("Here's the whole way through. Each step says why it asks."),
+  ).toBeInTheDocument()
+  const items = steps()
+  expect(items).toHaveLength(7)
+  for (const item of items) {
+    expect(item).not.toHaveAttribute('aria-current')
+    expect(item).not.toHaveTextContent('Done')
+    expect(item).not.toHaveTextContent('Now')
+  }
+  expect(items[0]).toHaveTextContent('00Your comic characterOptional')
+  expect(screen.getByText('Not started.')).toBeInTheDocument()
+  expect(screen.getByText('Not started yet · about 10 min')).toBeInTheDocument()
+  expect(screen.getByText('First: Your comic character')).toBeInTheDocument()
+  expect(segments(container)).toEqual({ all: 7, lit: 0 })
+})
+
+it('lights the segments up to the current step', () => {
+  expect(segments(renderAt('/onboarding/character').container)).toEqual({ all: 7, lit: 1 })
+  cleanup()
+  expect(segments(renderAt('/onboarding/facts/amount').container)).toEqual({ all: 7, lit: 2 })
+})
+
 it('on step 00 shows where she is: step 00 now, six short steps next', () => {
   renderAt('/onboarding/character')
-  expect(screen.getByRole('heading', { level: 2, name: 'Before we start' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { level: 2, name: 'Six short steps' })).toBeInTheDocument()
   expect(screen.getByText(PANEL_COPY[0].lead)).toBeInTheDocument()
   const items = steps()
   expect(items).toHaveLength(7)

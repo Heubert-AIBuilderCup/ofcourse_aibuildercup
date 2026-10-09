@@ -10,15 +10,21 @@ import {
   FACT_QUESTIONS,
   factIndexOfPath,
   ONBOARDING_STEPS,
-  type OnboardingStep,
   PANEL_COPY,
+  type PanelState,
   stepOfPath,
+  WELCOME_MINUTES,
 } from '../model/onboarding'
 import styles from './onboarding.module.css'
 
-/** What the band (below @5xl) says is now and next, per step. */
-function progress(step: OnboardingStep, question: number) {
-  if (step === 0)
+/** What the band (below @5xl) says is now and next, per step, and before step 00 on the welcome. */
+function progress(state: PanelState, question: number) {
+  if (state === 'welcome')
+    return {
+      now: `Not started yet · about ${WELCOME_MINUTES} min`,
+      next: 'First: Your comic character',
+    }
+  if (state === 0)
     return { now: 'Now: Your comic character · optional', next: 'Next: Facts about you' }
   return {
     now: `Now: 01 Facts about you · ${question} of ${FACT_QUESTIONS.length}`,
@@ -30,15 +36,19 @@ function progress(step: OnboardingStep, question: number) {
  * The steel panel beside every onboarding step: the brand, the step's title and lead, the steps
  * (the full list side by side, seven segments with Now and Next as a band) and the duck. The step
  * comes from the URL; on step 01 so does the question (its slug, the first when missing or unknown).
- * Steps before the current one are marked Done (criterion 22). Side by side it stays in view
- * while the step scrolls.
+ * Steps before the current one are marked Done (criterion 22). On the welcome, before step 00,
+ * every step is listed with none current, step 00 tagged Optional and no segment lit. Side by
+ * side it stays in view while the step scrolls.
  */
 export function OnboardingPanel() {
   const pathname = usePathname()
-  const step = stepOfPath(pathname) ?? 0
+  const state = stepOfPath(pathname) ?? 0
+  const welcome = state === 'welcome'
+  // On the welcome no step is done or current: every comparison with -1 reads "later".
+  const step = welcome ? -1 : state
   const index = Math.max(factIndexOfPath(pathname), 0)
-  const copy = PANEL_COPY[step]
-  const { now, next } = progress(step, index + 1)
+  const copy = PANEL_COPY[state]
+  const { now, next } = progress(state, index + 1)
   const badge = step === 0 ? 'Now · optional' : `Now · ${index + 1}/${FACT_QUESTIONS.length}`
 
   return (
@@ -96,7 +106,7 @@ export function OnboardingPanel() {
             aria-current={n === step ? 'step' : undefined}
             className={cn(
               'grid min-h-9.5 grid-cols-[2.25rem_1fr_auto] items-center gap-2 border-t border-panel-foreground/12 text-caption text-panel-foreground/72 last:border-b',
-              n < step && 'text-panel-foreground/82',
+              (welcome || n < step) && 'text-panel-foreground/82',
               n === step && 'font-medium text-panel-foreground',
             )}
           >
@@ -118,6 +128,8 @@ export function OnboardingPanel() {
               <span className="border border-panel-accent/60 px-2 py-0.5 text-micro uppercase text-panel-accent">
                 {badge}
               </span>
+            ) : welcome && n === 0 ? (
+              <span className="text-micro uppercase text-panel-foreground/62">Optional</span>
             ) : (
               <span />
             )}
@@ -136,6 +148,7 @@ export function OnboardingPanel() {
           {ONBOARDING_STEPS.map((name, n) => (
             <span
               key={name}
+              data-lit={n <= step}
               className={cn(
                 'h-1',
                 n < step && 'bg-panel-accent/55',
@@ -147,7 +160,9 @@ export function OnboardingPanel() {
         </div>
         <p className="m-0 flex flex-wrap justify-between gap-x-4 gap-y-1 text-caption text-panel-foreground/78">
           <span className="font-medium text-panel-foreground">
-            <span className="sr-only">{`Step ${step} of ${ONBOARDING_STEPS.length - 1}. `}</span>
+            <span className="sr-only">
+              {welcome ? 'Not started. ' : `Step ${step} of ${ONBOARDING_STEPS.length - 1}. `}
+            </span>
             {now}
           </span>
           <span>{next}</span>

@@ -38,14 +38,8 @@ const CLEAR = 'Press your choice again to clear it.'
 const FAILED =
   "We couldn't save that. Your answer is still here. Check your connection and try again."
 
-const renderQuestion = (firstName = 'Sita', persona: Persona | null = null) =>
-  render(
-    <PictureQuestion
-      savePersonaAction={savePersonaAction}
-      firstName={firstName}
-      persona={persona}
-    />,
-  )
+const renderQuestion = (persona: Persona | null = null) =>
+  render(<PictureQuestion savePersonaAction={savePersonaAction} persona={persona} />)
 
 const choice = (name: string) =>
   within(screen.getByRole('group', { name: QUESTION })).getByRole('button', { name })
@@ -86,26 +80,25 @@ it('asks the question with three choices, none pressed, and says why', () => {
   expect(screen.queryByText(/Settings/)).not.toBeInTheDocument()
 })
 
-it('greets her by her first name, or just welcomes her when there is none', () => {
-  renderQuestion('Sita')
-  expect(screen.getByText('Welcome, Sita.')).toBeInTheDocument()
-  cleanup()
-  renderQuestion('')
-  expect(screen.getByText('Welcome.')).toBeInTheDocument()
+it('opens on its kicker, not a greeting (the welcome greets her), with focus on the question', () => {
+  renderQuestion()
+  expect(screen.getByText('Your comic character ·', { exact: false })).toBeInTheDocument()
+  expect(screen.queryByText(/Welcome/)).not.toBeInTheDocument()
+  expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1, name: QUESTION }))
 })
 
 it('comes back (Back from screen 1) with her saved choice pressed, and saves a change', async () => {
-  renderQuestion('Sita', 'female')
+  renderQuestion('female')
   expect(choice('Female')).toHaveAttribute('aria-pressed', 'true')
   expect(screen.getByText(CLEAR)).toBeInTheDocument()
   await press('Male')
-  await press('Start')
+  await press('Continue')
   expect(savePersonaAction).toHaveBeenCalledWith('male')
   expect(push).toHaveBeenCalledWith('/onboarding/facts/where')
 })
 
 it('comes back with nothing pressed after a neutral answer, since Skip saves the same', () => {
-  renderQuestion('Sita', 'neutral')
+  renderQuestion('neutral')
   for (const name of ['Male', 'Female', 'Prefer not to say']) {
     expect(choice(name)).toHaveAttribute('aria-pressed', 'false')
   }
@@ -114,7 +107,7 @@ it('comes back with nothing pressed after a neutral answer, since Skip saves the
 
 it('saves neutral when Start is pressed with nothing chosen, then opens screen 1 at once', async () => {
   renderQuestion()
-  await press('Start')
+  await press('Continue')
   expect(savePersonaAction).toHaveBeenCalledWith('neutral')
   expect(push).toHaveBeenCalledWith('/onboarding/facts/where')
   expect(screen.queryByText(/You're in/)).not.toBeInTheDocument()
@@ -125,7 +118,7 @@ it('saves female for Female', async () => {
   renderQuestion()
   await press('Female')
   expect(choice('Female')).toHaveAttribute('aria-pressed', 'true')
-  await press('Start')
+  await press('Continue')
   expect(savePersonaAction).toHaveBeenCalledWith('female')
   expect(push).toHaveBeenCalledWith('/onboarding/facts/where')
 })
@@ -133,7 +126,7 @@ it('saves female for Female', async () => {
 it('saves neutral for "Prefer not to say"', async () => {
   renderQuestion()
   await press('Prefer not to say')
-  await press('Start')
+  await press('Continue')
   expect(savePersonaAction).toHaveBeenCalledWith('neutral')
 })
 
@@ -169,7 +162,7 @@ it('says it is saving and holds the choices and a second Start while it saves', 
   const answer = heldSave()
   renderQuestion()
   await press('Female')
-  await press('Start')
+  await press('Continue')
   const start = screen.getByRole('button', { name: 'Saving…' })
   expect(start).toHaveAttribute('aria-disabled', 'true')
   expect(screen.getByRole('status')).toHaveTextContent('Saving your answer')
@@ -192,7 +185,7 @@ it('keeps her answer and offers to try again when the save is refused', async ()
   savePersonaAction.mockImplementation(async () => ({ ok: false, error: 'Please sign in again.' }))
   renderQuestion()
   await press('Female')
-  await press('Start')
+  await press('Continue')
   expect(screen.getByRole('alert')).toHaveTextContent(FAILED)
   expect(choice('Female')).toHaveAttribute('aria-pressed', 'true')
   expect(choice('Male')).not.toHaveAttribute('aria-disabled', 'true')
@@ -214,7 +207,7 @@ it('keeps her answer and offers to try again when the save never reaches the ser
   })
   renderQuestion()
   await press('Male')
-  await press('Start')
+  await press('Continue')
   expect(screen.getByRole('alert')).toHaveTextContent(FAILED)
   expect(choice('Male')).toHaveAttribute('aria-pressed', 'true')
   expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()

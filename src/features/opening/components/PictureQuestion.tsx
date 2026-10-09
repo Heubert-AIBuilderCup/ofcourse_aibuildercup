@@ -2,7 +2,7 @@
 
 import { ArrowRight, Check, CircleAlert, Info, LoaderCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Blueprint } from '@/shared/components/Blueprint'
 import { Button } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
@@ -29,25 +29,29 @@ type Status = 'idle' | 'saving' | 'failed'
 /**
  * Onboarding step 00, "Your comic character" (the design's PictureQ), the step's own column in the
  * onboarding shell, whose panel says where she is and what comes next. The question offers three
- * figures, one at a time, and pressing the chosen one again clears it. Start saves the choice
+ * figures, one at a time, and pressing the chosen one again clears it. Continue saves the choice
  * (neutral when none) and Skip saves neutral; while it saves the choices hold, and once saved
  * screen 1 opens at once. A failed save keeps her choice and offers to try again. Nothing else
- * sets the character, not her name or photo (criterion 15). `firstName` is empty when the account
- * has no name (email-code sign-ins). `persona` is her saved answer when she comes back from
+ * sets the character, not her name or photo (criterion 15). The welcome greets her, so this step
+ * opens on its kicker, and focus moves to the question. `persona` is her saved answer when she comes back from
  * screen 1: male or female is pressed again; neutral shows nothing pressed, since Skip and
  * "nothing chosen" save it too. On a phone (below @xl) the actions sit in a bar within thumb reach.
  */
 export function PictureQuestion({
   savePersonaAction,
-  firstName,
   persona,
 }: {
   savePersonaAction: (persona: Persona) => Promise<ActionResult>
-  firstName: string
   persona: Persona | null
 }) {
   const router = useRouter()
   const questionId = useId()
+  const question = useRef<HTMLHeadingElement>(null)
+
+  // Arriving (from the welcome's Start, or Back from screen 1): focus on the question.
+  useEffect(() => {
+    question.current?.focus({ preventScroll: true })
+  }, [])
   const [choice, setChoice] = useState<Persona | null>(persona === 'neutral' ? null : persona)
   const [status, setStatus] = useState<Status>('idle')
   const saving = status === 'saving'
@@ -73,15 +77,17 @@ export function PictureQuestion({
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 @max-xl:gap-4.5">
-      <p className={cn(shell.rise, shell.d2, 'm-0 text-lead text-muted-foreground')}>
-        {firstName ? `Welcome, ${firstName}.` : 'Welcome.'}
+      <p className={cn(shell.rise, shell.d2, 'm-0 text-overline uppercase text-accent-700')}>
+        Your comic character · <b className="font-medium text-muted-foreground">optional</b>
       </p>
       <h1
+        ref={question}
         id={questionId}
+        tabIndex={-1}
         className={cn(
           shell.rise,
           shell.d3,
-          'm-0 font-heading text-h1 font-semibold tracking-[-0.015em]',
+          'm-0 font-heading text-h1 font-semibold tracking-[-0.015em] outline-none',
         )}
       >
         How would you like your comic character drawn?
@@ -212,7 +218,7 @@ export function PictureQuestion({
             </>
           ) : (
             <>
-              {status === 'failed' ? 'Try again' : 'Start'}
+              {status === 'failed' ? 'Try again' : 'Continue'}
               <ArrowRight aria-hidden="true" className="size-icon-sm" />
             </>
           )}
@@ -303,6 +309,17 @@ function Figure({ persona }: { persona: Persona }) {
             d="M49.2 11.6c0-2 1.6-3.4 3.5-3.4s3.4 1.3 3.4 3.1c0 2.7-3.4 2.6-3.4 5.3"
           />
           <circle className={styles.dot} cx="52.7" cy="20.4" r="1.2" />
+        </g>
+      ) : null}
+      {persona === 'neutral' ? (
+        <g className={styles.thumb}>
+          <g transform="translate(45 2.5) scale(.6)">
+            <path className={styles.m} d="M7 10v12" />
+            <path
+              className={styles.m}
+              d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"
+            />
+          </g>
         </g>
       ) : null}
     </svg>

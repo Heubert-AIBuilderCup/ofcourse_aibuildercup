@@ -1,6 +1,6 @@
 import { expect, type Page, test } from '@playwright/test'
 import { deleteUsers, profileOf } from './helpers/db'
-import { answerFact, card, newStudent, tap } from './helpers/student'
+import { answerFact, card, newStudent, startOnboarding, tap } from './helpers/student'
 
 // The picture question, step 01's questions one per screen, and opening screens 2–4, on a phone
 // and on desktop: the character is never set from the account, step 01 opens fast, every tap has
@@ -22,9 +22,9 @@ for (const size of SIZES) {
     await page.setViewportSize(size)
     const email = await newStudent(page, 'opening')
     try {
-      // A new student lands on the picture question; the character is not set from the account.
-      await page.goto('/')
-      await expect(page).toHaveURL(/\/onboarding\/character$/)
+      // A new student reaches the picture question through the welcome; the character is not set
+      // from the account.
+      await startOnboarding(page)
       await expect(
         page.getByRole('heading', { name: 'How would you like your comic character drawn?' }),
       ).toBeVisible()
@@ -33,7 +33,7 @@ for (const size of SIZES) {
       // Start opens step 01's first question within 3 s.
       await page.getByRole('button', { name: 'Female' }).click()
       const t0 = Date.now()
-      await page.getByRole('button', { name: 'Start' }).click()
+      await page.getByRole('button', { name: 'Continue' }).click()
       await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
       await expect(
         page.getByRole('heading', { level: 1, name: 'Where are you right now?' }),
@@ -57,7 +57,7 @@ for (const size of SIZES) {
         'aria-pressed',
         'true',
       )
-      await page.getByRole('button', { name: 'Start' }).click()
+      await page.getByRole('button', { name: 'Continue' }).click()
       await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
 
       // An impact line within 300 ms of a tap; onshore and offshore read differently.

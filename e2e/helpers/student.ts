@@ -28,6 +28,18 @@ export async function newStudent(page: Page, label: string): Promise<string> {
   return email
 }
 
+/**
+ * From / to step 00 as a new student goes: / lands on the welcome, and its Start opens step 00
+ * (Your comic character).
+ */
+export async function startOnboarding(page: Page): Promise<void> {
+  await page.goto('/')
+  await expect(page).toHaveURL(/\/onboarding\/welcome$/)
+  await expect(page.getByRole('heading', { level: 1, name: /About \d+ minutes/ })).toBeVisible()
+  await page.getByRole('link', { name: 'Start' }).click()
+  await expect(page).toHaveURL(/\/onboarding\/character$/)
+}
+
 /** Sign out from an onboarding screen: open the header menu and pick Sign out. */
 export async function signOutViaMenu(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Menu: theme and sign out' }).click()

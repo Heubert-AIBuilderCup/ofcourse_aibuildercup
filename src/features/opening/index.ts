@@ -11,8 +11,15 @@ export { OnboardingShell } from './components/OnboardingShell'
 export { OpeningScreen } from './components/OpeningScreen'
 export { PictureQuestion } from './components/PictureQuestion'
 export { Splash } from './components/Splash'
+export { WelcomeScreen } from './components/WelcomeScreen'
 export { landingPath, onboardingResumePath } from './model/landing'
-export { factKey, factPath, firstUnanswered, PICTURE_PATH } from './model/onboarding'
+export {
+  factKey,
+  factPath,
+  firstUnanswered,
+  PICTURE_PATH,
+  WELCOME_PATH,
+} from './model/onboarding'
 export {
   activeRelative,
   effective,

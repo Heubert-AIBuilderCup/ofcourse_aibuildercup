@@ -63,7 +63,8 @@
 .body,
 .eyes,
 .brows,
-.qmark {
+.qmark,
+.thumb {
   transform-box: view-box;
 }
 .head {
@@ -81,13 +82,22 @@
 .qmark {
   transform-origin: 52px 20px;
 }
+.thumb {
+  transform-origin: 52px 15px;
+}
+/* The thumbs-up is a 24-unit icon drawn at 0.6: a heavier stroke keeps it the figure's weight. */
+.thumb .m {
+  stroke-width: calc(var(--sw) * 1.6);
+  stroke-linejoin: round;
+}
 
 /* Faces: eyes always; brows on hover only; three mouths, flat until hovered or chosen. */
 .mouthSoft,
 .mouthSmile,
 .browsQ,
 .mouthWavy,
-.qmark {
+.qmark,
+.thumb {
   opacity: 0;
 }
 .brows {
@@ -122,21 +132,20 @@
 }
 
 /*
- * "Prefer not to say": puzzled rather than pleased. Hovered, the head tilts and holds, one brow
- * goes up, the mouth goes wavy and a "?" pops up beside the head; chosen, it stays that way.
+ * "Prefer not to say": puzzled rather than pleased while she considers it. Hovered, the head tilts
+ * and holds, one brow goes up, the mouth goes wavy and a "?" pops up beside the head. Chosen, it is
+ * settled: the "?" goes, the full smile comes as on the others, and a small thumbs-up pops in.
  */
 .choice.none[aria-pressed="false"]:is(:hover, :focus-visible) .art {
   transform: translateY(-0.1875rem) rotate(-7deg) scale(1.04);
 }
-.choice.none[aria-pressed="true"] .art {
-  transform: rotate(-7deg);
-}
-.choice.none:is([aria-pressed="false"]:is(:hover, :focus-visible), [aria-pressed="true"])
-  :is(.brows, .mouthFlat, .mouthSoft, .mouthSmile) {
+.choice.none[aria-pressed="false"]:is(:hover, :focus-visible) :is(.brows, .mouthFlat, .mouthSoft) {
   opacity: 0;
 }
-.choice.none:is([aria-pressed="false"]:is(:hover, :focus-visible), [aria-pressed="true"])
-  :is(.browsQ, .mouthWavy, .qmark) {
+.choice.none[aria-pressed="false"]:is(:hover, :focus-visible) :is(.browsQ, .mouthWavy, .qmark) {
+  opacity: 1;
+}
+.choice.none[aria-pressed="true"] .thumb {
   opacity: 1;
 }
 
@@ -189,10 +198,15 @@
   .choice[aria-pressed="true"] .art svg {
     animation: hop 0.6s var(--spring);
   }
-  .choice.none:is([aria-pressed="false"]:is(:hover, :focus-visible), [aria-pressed="true"]) .qmark {
+  .choice.none[aria-pressed="false"]:is(:hover, :focus-visible) .qmark {
     animation:
       qPop 0.45s var(--spring) both,
       qWobble 2.4s ease-in-out 0.45s infinite;
+  }
+  .choice.none[aria-pressed="true"] .thumb {
+    animation:
+      thumbPop 0.5s var(--spring) 0.1s both,
+      thumbNod 0.7s ease-in-out 0.65s 1;
   }
 
   .art {
@@ -203,7 +217,8 @@
   .mouthSmile,
   .browsQ,
   .mouthWavy,
-  .qmark {
+  .qmark,
+  .thumb {
     transition: opacity 0.2s ease;
   }
   .brows {
@@ -216,6 +231,28 @@
   }
 }
 
+@keyframes thumbPop {
+  0% {
+    opacity: 0;
+    transform: translateY(0.25rem) scale(0.3) rotate(-25deg);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes thumbNod {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  35% {
+    transform: rotate(-12deg);
+  }
+  70% {
+    transform: rotate(5deg);
+  }
+}
 @keyframes errorIn {
   from {
     opacity: 0;

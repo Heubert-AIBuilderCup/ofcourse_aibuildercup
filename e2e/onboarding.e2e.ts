@@ -1,7 +1,14 @@
 import { expect, test } from '@playwright/test'
 import { deleteUsers, profileOf, sql, userIdByEmail } from './helpers/db'
 import { devLogin } from './helpers/login'
-import { answerFact, card, newStudent, signOutViaMenu, skipSplash } from './helpers/student'
+import {
+  answerFact,
+  card,
+  newStudent,
+  signOutViaMenu,
+  skipSplash,
+  startOnboarding,
+} from './helpers/student'
 
 // The onboarding shell around step 01: its answer cards by keyboard alone, Sign out and coming
 // back to her first unanswered question, the refusal of a signed-out visitor, the panel marking
@@ -44,7 +51,7 @@ test('Sign out on step 01 leaves for the sign-in page; signing in again resumes 
 }) => {
   const email = await newStudent(page, 'onboarding-signout')
   try {
-    await page.goto('/')
+    await startOnboarding(page)
     await page.getByRole('button', { name: 'Skip' }).click()
     await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
     await answerFact(page, ['Where are you right now?', 'Nepal'])
@@ -83,9 +90,8 @@ test("step 00's Start opens step 01, the panel marking step 00 Done", async ({ p
   await page.setViewportSize({ width: 1280, height: 800 })
   const email = await newStudent(page, 'onboarding-panel')
   try {
-    await page.goto('/')
-    await expect(page).toHaveURL(/\/onboarding\/character$/)
-    await page.getByRole('button', { name: 'Start' }).click()
+    await startOnboarding(page)
+    await page.getByRole('button', { name: 'Continue' }).click()
     await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
 
     const steps = page.getByRole('list', { name: 'Your steps' }).getByRole('listitem')
@@ -104,8 +110,7 @@ test('Start on step 00 opens question 1 even after she has answered it and come 
 }) => {
   const email = await newStudent(page, 'onboarding-restart')
   try {
-    await page.goto('/')
-    await expect(page).toHaveURL(/\/onboarding\/character$/)
+    await startOnboarding(page)
     await page.getByRole('button', { name: 'Skip' }).click()
     await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
     await answerFact(page, ['Where are you right now?', 'Nepal'])
@@ -117,7 +122,7 @@ test('Start on step 00 opens question 1 even after she has answered it and come 
     await page.getByRole('button', { name: 'Back', exact: true }).click()
     await expect(page).toHaveURL(/\/onboarding\/character$/)
 
-    await page.getByRole('button', { name: 'Start' }).click()
+    await page.getByRole('button', { name: 'Continue' }).click()
     await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
     await expect(page.getByText('Facts about you · 1 of 11', { exact: true })).toBeVisible()
   } finally {
@@ -138,8 +143,7 @@ test('a slow step 01 after Start shows the duck loader beside the panel', async 
   })
   let lock: Promise<unknown> | null = null
   try {
-    await page.goto('/')
-    await expect(page).toHaveURL(/\/onboarding\/character$/)
+    await startOnboarding(page)
     await page.route(/\/onboarding\/facts\/where(\?|$)/, async (route) => {
       if (!lock) {
         let locked = () => {}
@@ -155,7 +159,7 @@ test('a slow step 01 after Start shows the duck loader beside the panel', async 
       }
       await route.continue()
     })
-    await page.getByRole('button', { name: 'Start' }).click()
+    await page.getByRole('button', { name: 'Continue' }).click()
 
     await expect(page.getByText('Keep floating.')).toBeVisible()
     await expect(page.getByRole('complementary', { name: 'Getting started' })).toBeVisible()
@@ -218,7 +222,7 @@ test('at 1920 wide icons keep their pixel size while the button around them scal
       expect(await item.locator('svg').first().evaluate(size)).toEqual({ width: 16, height: 16 })
     }
     await page.keyboard.press('Escape')
-    const start = page.getByRole('button', { name: 'Start' })
+    const start = page.getByRole('button', { name: 'Continue' })
     await expect(start).toBeVisible()
     expect(await start.locator('svg').evaluate(size)).toEqual({ width: 14, height: 14 })
   } finally {
@@ -318,12 +322,14 @@ test('a retired link lands on its screen; an unknown question is not a page', as
   }
 })
 
-test('/onboarding resumes: step 00 for a new student, then her first unanswered question', async ({
+test('/onboarding resumes: the welcome for a new student, then her first unanswered question', async ({
   page,
 }) => {
   const email = await newStudent(page, 'onboarding-resume')
   try {
     await page.goto('/onboarding')
+    await expect(page).toHaveURL(/\/onboarding\/welcome$/)
+    await page.getByRole('link', { name: 'Start' }).click()
     await expect(page).toHaveURL(/\/onboarding\/character$/)
     await page.getByRole('button', { name: 'Skip' }).click()
     await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
@@ -343,6 +349,8 @@ test('/onboarding reopens step 02 when she left from there, as / does', async ({
   const email = await newStudent(page, 'onboarding-resume-study')
   try {
     await page.goto('/onboarding')
+    await expect(page).toHaveURL(/\/onboarding\/welcome$/)
+    await page.getByRole('link', { name: 'Start' }).click()
     await expect(page).toHaveURL(/\/onboarding\/character$/)
     await page.getByRole('button', { name: 'Skip' }).click()
     await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)

@@ -19,10 +19,18 @@ export const ONBOARDING_STEPS: readonly string[] = [
 /** The steps built on the onboarding shell so far. */
 export type OnboardingStep = 0 | 1
 
-export const PANEL_COPY: Readonly<Record<OnboardingStep, { title: string; lead: string }>> = {
-  0: {
+/** What the panel can show: a step, or the welcome before step 00 (every step listed, none current). */
+export type PanelState = OnboardingStep | 'welcome'
+
+export const PANEL_COPY: Readonly<Record<PanelState, { title: string; lead: string }>> = {
+  welcome: {
     title: 'Before we start',
-    lead: 'One optional question, then six short steps. Each step says why it asks, and “Not sure” is always a fine answer.',
+    lead: "Here's the whole way through. Each step says why it asks.",
+  },
+  // The welcome says "Before we start"; from step 00 on, the panel speaks of the six steps.
+  0: {
+    title: 'Six short steps',
+    lead: 'Each step says why it asks. Nothing is ranked: at the end you see three futures side by side.',
   },
   1: {
     title: 'Six short steps',
@@ -98,6 +106,9 @@ export const FACT_SLUGS: Readonly<Record<FactKey, string>> = {
 }
 
 export const ONBOARDING_PATH = '/onboarding'
+export const WELCOME_PATH = `${ONBOARDING_PATH}/welcome`
+/** The canvas's placeholder until steps 04–06 are designed and timed. */
+export const WELCOME_MINUTES = 10
 export const PICTURE_PATH = `${ONBOARDING_PATH}/character`
 export const FACTS_PATH = `${ONBOARDING_PATH}/facts`
 export const STUDY_PATH = `${ONBOARDING_PATH}/study`
@@ -126,7 +137,8 @@ export function firstUnanswered(answers: StoredAnswers): QuestionKey {
   return (open ?? FACT_QUESTIONS[FACT_QUESTIONS.length - 1])?.key ?? 'where'
 }
 
-export function stepOfPath(pathname: string): OnboardingStep | null {
+export function stepOfPath(pathname: string): PanelState | null {
+  if (pathname === WELCOME_PATH) return 'welcome'
   if (pathname === PICTURE_PATH) return 0
   if (pathname === FACTS_PATH || pathname.startsWith(`${FACTS_PATH}/`)) return 1
   return null

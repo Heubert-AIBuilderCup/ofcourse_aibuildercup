@@ -8,6 +8,7 @@ import {
   factUrl,
   newStudent,
   signOutViaMenu,
+  startOnboarding,
 } from '../helpers/student'
 
 // Onboarding steps 00 (Your comic character) and 01 (Facts about you), one question per screen:
@@ -52,18 +53,17 @@ async function openFact(page: Page, name: string): Promise<void> {
 }
 
 /**
- * From step 00, pick a character (or skip it), and press Start: step 01 opens on its first
- * question. Returns how long that took, from the press to the question showing.
+ * From / through the welcome to step 00, pick a character (or skip it), and press Start: step 01
+ * opens on its first question. Returns how long that took, from the press to the question showing.
  */
 async function leaveStep00(page: Page, choice: 'Female' | 'Male' | null): Promise<number> {
-  await page.goto('/')
-  await expect(page).toHaveURL(/\/onboarding\/character$/)
+  await startOnboarding(page)
   await expect(
     page.getByRole('heading', { name: 'How would you like your comic character drawn?' }),
   ).toBeVisible()
   if (choice) await page.getByRole('button', { name: choice, exact: true }).click()
   const t0 = Date.now()
-  await page.getByRole('button', { name: choice ? 'Start' : 'Skip', exact: true }).click()
+  await page.getByRole('button', { name: choice ? 'Continue' : 'Skip', exact: true }).click()
   await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
   await expect(question(page, 'Where are you right now?')).toBeVisible()
   return Date.now() - t0
@@ -115,8 +115,7 @@ test.describe('on a phone', () => {
     const email = await newStudent(page, 'qa-ac2')
     try {
       const texts: string[] = []
-      await page.goto('/')
-      await expect(page).toHaveURL(/\/onboarding\/character$/)
+      await startOnboarding(page)
       texts.push(await page.locator('body').innerText())
       await page.getByRole('button', { name: 'Female', exact: true }).click()
       texts.push(await page.locator('body').innerText())
@@ -159,10 +158,9 @@ test.describe('on a phone', () => {
     const email = await newStudent(page, 'qa-ac4-slow')
     let done = async () => {}
     try {
-      await page.goto('/')
-      await expect(page).toHaveURL(/\/onboarding\/character$/)
+      await startOnboarding(page)
       done = await slowStep01(page, email)
-      await page.getByRole('button', { name: 'Start', exact: true }).click()
+      await page.getByRole('button', { name: 'Continue', exact: true }).click()
       await expect(page.getByText('Keep floating.')).toBeVisible()
       await done()
       await expect(question(page, 'Where are you right now?')).toBeVisible()
@@ -181,7 +179,7 @@ test.describe('on a phone', () => {
       // Compile step 01 first, so the dev server's first build is not the wait being measured.
       await openFact(page, 'Where are you right now?')
       await page.goto('/onboarding/character')
-      await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeVisible()
       await page.evaluate(() => {
         const w = window as unknown as { clickAt?: number; loaderAt?: number; shownAt?: number }
         document.addEventListener(
@@ -213,7 +211,7 @@ test.describe('on a phone', () => {
         }
         requestAnimationFrame(tick)
       })
-      await page.getByRole('button', { name: 'Start', exact: true }).click()
+      await page.getByRole('button', { name: 'Continue', exact: true }).click()
       await expect(question(page, 'Where are you right now?')).toBeVisible()
       const { clickAt, loaderAt, shownAt } = await page.evaluate(() => {
         const w = window as unknown as { clickAt?: number; loaderAt?: number; shownAt?: number }
@@ -235,10 +233,9 @@ test.describe('on a phone', () => {
     const email = await newStudent(page, 'qa-ac4-still')
     let done = async () => {}
     try {
-      await page.goto('/')
-      await expect(page).toHaveURL(/\/onboarding\/character$/)
+      await startOnboarding(page)
       done = await slowStep01(page, email)
-      await page.getByRole('button', { name: 'Start', exact: true }).click()
+      await page.getByRole('button', { name: 'Continue', exact: true }).click()
       const loader = page.getByRole('status').filter({ hasText: 'Keep floating.' })
       await expect(loader).toBeVisible()
       // The duck is decorative, hidden from the accessibility tree. Sitting still: nothing in the
@@ -266,7 +263,7 @@ test.describe('on a phone', () => {
     }
   })
 
-  test('AC14: her pick is her comic character, and step 01 opens within 3 s of Start [Female]', async ({
+  test('AC14: her pick is her comic character, and step 01 opens within 3 s of Continue [Female]', async ({
     page,
   }) => {
     const email = await newStudent(page, 'qa-ac14-pick')
@@ -298,8 +295,7 @@ test.describe('on a phone', () => {
   }) => {
     const email = await newStudent(page, 'qa-ac22-phone')
     try {
-      await page.goto('/')
-      await expect(page).toHaveURL(/\/onboarding\/character$/)
+      await startOnboarding(page)
       await expect(page.getByText('Step 0 of 6.', { exact: true })).toBeAttached()
       await page.getByRole('button', { name: 'Skip', exact: true }).click()
       await expect(question(page, 'Where are you right now?')).toBeVisible()
@@ -606,13 +602,12 @@ test.describe('on desktop', () => {
   }) => {
     const email = await newStudent(page, 'qa-ac22-desktop')
     try {
-      await page.goto('/')
-      await expect(page).toHaveURL(/\/onboarding\/character$/)
+      await startOnboarding(page)
       const steps = page.getByRole('list', { name: 'Your steps' }).getByRole('listitem')
       await expect(steps).toHaveCount(7)
       await expect(steps.nth(0)).toHaveAttribute('aria-current', 'step')
 
-      await page.getByRole('button', { name: 'Start', exact: true }).click()
+      await page.getByRole('button', { name: 'Continue', exact: true }).click()
       await expect(question(page, 'Where are you right now?')).toBeVisible()
       await expect(steps).toHaveCount(7)
       await expect(steps.nth(0)).toContainText('Done')

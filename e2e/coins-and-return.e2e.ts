@@ -1,7 +1,14 @@
 import { type Browser, expect, type Page, test } from '@playwright/test'
 import { deleteUsers, profileOf } from './helpers/db'
 import { devLogin } from './helpers/login'
-import { answerFact, answerOpening, card, newStudent, skipSplash } from './helpers/student'
+import {
+  answerFact,
+  answerOpening,
+  card,
+  newStudent,
+  skipSplash,
+  startOnboarding,
+} from './helpers/student'
 
 // The coins (ten over eight piles, five a pile, Done only at ten, "Not sure", "Spend them
 // later"), which never change the futures; and coming back: on her first unanswered question,
@@ -94,7 +101,7 @@ test('coming back partway opens her first unanswered question, with her answers'
 }) => {
   const email = await newStudent(page, 'return-partway')
   try {
-    await page.goto('/')
+    await startOnboarding(page)
     await page.getByRole('button', { name: 'Skip' }).click()
     await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
     await answerFact(page, ['Amount', 'AUD 36k'])
@@ -126,7 +133,7 @@ test('coming back after leaving step 01 early opens step 02, and Back finds her 
 }) => {
   const email = await newStudent(page, 'return-study')
   try {
-    await page.goto('/')
+    await startOnboarding(page)
     await page.getByRole('button', { name: 'Skip' }).click()
     await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
     await answerFact(page, ['Amount', 'AUD 36k'])
@@ -158,7 +165,7 @@ test('after the futures, she comes back to them, on any device, and Back lets he
 }) => {
   const email = await newStudent(page, 'return-futures')
   try {
-    await page.goto('/')
+    await startOnboarding(page)
     await page.getByRole('button', { name: 'Skip' }).click()
     await answerOpening(page, { facts: [['Amount', 'AUD 36k']] })
     await expect(cards(page)).toHaveCount(3)
