@@ -2,18 +2,23 @@
 /// <reference path="../../../node_modules/@testing-library/jest-dom/types/bun.d.ts" />
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { THEME_COOKIE_MAX_AGE } from '@/shared/lib/theme'
 
-const rememberSystemTheme = mock(async (_theme: unknown) => {})
 const setThemeChoice = mock(async (_choice: unknown) => {})
-mock.module('@/shared/lib/theme-actions', () => ({ rememberSystemTheme, setThemeChoice }))
+mock.module('@/shared/lib/theme-actions', () => ({ setThemeChoice }))
 
 const { Providers, useThemeChoice } = await import('./Providers')
+
+/** happy-dom's page address; the document keeps cookies only on a real one (not about:blank). */
+const setPageUrl = (url: string) =>
+  (window as unknown as { happyDOM: { setURL: (url: string) => void } }).happyDOM.setURL(url)
 
 // A device whose colour scheme the test controls.
 let deviceDark = false
 let listeners: Array<() => void> = []
 const realMatchMedia = window.matchMedia
 beforeEach(() => {
+  setPageUrl('http://localhost:3000/')
   deviceDark = false
   listeners = []
   window.matchMedia = ((query: string) => ({
@@ -31,9 +36,10 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   window.matchMedia = realMatchMedia
-  rememberSystemTheme.mockClear()
   setThemeChoice.mockClear()
   delete document.documentElement.dataset.theme
+  // biome-ignore lint/suspicious/noDocumentCookie: clearing the cookie the component set
+  document.cookie = 'theme-os=; path=/; max-age=0'
 })
 
 function Probe() {
@@ -114,6 +120,63 @@ describe('Providers', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'go dark' }))
     expect(shown()).toBe('dark')
+  })
+
+  describe('the device scheme the server hears about', () => {
+    // The cookie is set in the browser: a server action that sets one refreshes the route.
+    it('is written as a cookie on a first visit, with no server action', () => {
+      deviceDark = true
+      render(
+        <Providers initialChoice="system" systemTheme={null}>
+          <Probe />
+        </Providers>,
+      )
+      expect(document.cookie).toContain('theme-os=dark')
+      expect(setThemeChoice).not.toHaveBeenCalled()
+    })
+
+    it('is written again when the device changes, and not while it matches what the server knows', () => {
+      render(
+        <Providers initialChoice="system" systemTheme="light">
+          <Probe />
+        </Providers>,
+      )
+      expect(document.cookie).not.toContain('theme-os')
+
+      flipDevice(true)
+      expect(document.cookie).toContain('theme-os=dark')
+      flipDevice(false)
+      expect(document.cookie).toContain('theme-os=light')
+    })
+
+    it('is a year-long lax cookie for the whole site, secure only over https', () => {
+      const written: string[] = []
+      Object.defineProperty(document, 'cookie', {
+        configurable: true,
+        get: () => '',
+        set: (value: string) => void written.push(value),
+      })
+      try {
+        deviceDark = true
+        const view = render(
+          <Providers initialChoice="system" systemTheme={null}>
+            <Probe />
+          </Providers>,
+        )
+        view.unmount()
+        setPageUrl('https://example.test/')
+        render(
+          <Providers initialChoice="system" systemTheme={null}>
+            <Probe />
+          </Providers>,
+        )
+      } finally {
+        delete (document as { cookie?: string }).cookie
+        setPageUrl('http://localhost:3000/')
+      }
+      const base = `theme-os=dark; path=/; max-age=${THEME_COOKIE_MAX_AGE}; samesite=lax`
+      expect(written).toEqual([base, `${base}; secure`])
+    })
   })
 
   it('refuses useThemeChoice outside a Provider with a clear error', () => {

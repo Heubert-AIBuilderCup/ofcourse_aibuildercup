@@ -2,10 +2,28 @@
 
 import { createContext, type ReactNode, useContext, useEffect, useState } from 'react'
 import { Toaster } from '@/shared/components/ui/sonner'
-import { resolveTheme, type Theme, type ThemeChoice } from '@/shared/lib/theme'
-import { rememberSystemTheme, setThemeChoice } from '@/shared/lib/theme-actions'
+import {
+  resolveTheme,
+  SYSTEM_THEME_COOKIE,
+  THEME_COOKIE_MAX_AGE,
+  type Theme,
+  type ThemeChoice,
+} from '@/shared/lib/theme'
+import { setThemeChoice } from '@/shared/lib/theme-actions'
 
 const DARK_QUERY = '(prefers-color-scheme: dark)'
+
+/**
+ * Tells the server the device's scheme, from the browser: a server action that sets a cookie
+ * refreshes the route, which on a first visit raced the streamed page. It is a display preference
+ * the root layout only reads through parseTheme, so it needs no httpOnly (which the browser cannot
+ * set anyway).
+ */
+function rememberSystemTheme(theme: Theme) {
+  const secure = window.location.protocol === 'https:' ? '; secure' : ''
+  // biome-ignore lint/suspicious/noDocumentCookie: one plain display cookie; the Cookie Store API is not in every browser she may use
+  document.cookie = `${SYSTEM_THEME_COOKIE}=${theme}; path=/; max-age=${THEME_COOKIE_MAX_AGE}; samesite=lax${secure}`
+}
 
 type ThemeContextValue = {
   choice: ThemeChoice
@@ -46,7 +64,7 @@ export function Providers({ initialChoice, systemTheme, children }: ProvidersPro
   }
 
   // Subscribe to the device's colour scheme; when it differs from what the server knows, store it
-  // so the next page renders in it without a flash.
+  // (a cookie, set here) so the next page renders in it without a flash.
   useEffect(() => {
     const query = window.matchMedia(DARK_QUERY)
     let known = systemTheme
@@ -55,7 +73,7 @@ export function Providers({ initialChoice, systemTheme, children }: ProvidersPro
       setSystem(next)
       if (next !== known) {
         known = next
-        void rememberSystemTheme(next)
+        rememberSystemTheme(next)
       }
     }
     read()

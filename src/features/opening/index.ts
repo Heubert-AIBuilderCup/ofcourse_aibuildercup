@@ -4,20 +4,23 @@
 
 export { CoinsScreen } from './components/CoinsScreen'
 export { DuckLoader } from './components/DuckLoader'
-export { FactsScreen } from './components/FactsScreen'
 export { FuturesScreen } from './components/FuturesScreen'
 export { Hero } from './components/Hero'
 export { OnboardingShell } from './components/OnboardingShell'
 export { OpeningScreen } from './components/OpeningScreen'
 export { PictureQuestion } from './components/PictureQuestion'
+export { QuestionScreen } from './components/QuestionScreen'
 export { Splash } from './components/Splash'
 export { WelcomeScreen } from './components/WelcomeScreen'
 export { landingPath, onboardingResumePath } from './model/landing'
 export {
   factKey,
   factPath,
+  firstOpenQuestion,
   firstUnanswered,
   PICTURE_PATH,
+  questionBySlug,
+  questionPath,
   WELCOME_PATH,
 } from './model/onboarding'
 export {

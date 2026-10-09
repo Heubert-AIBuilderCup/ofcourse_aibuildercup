@@ -50,9 +50,9 @@ export async function signOutViaMenu(page: Page): Promise<void> {
 export type Tap = readonly [question: string, option: string]
 export type OpeningAnswers = Partial<Record<'facts' | 'study' | 'living' | 'after', readonly Tap[]>>
 
-// Opening screens 2–4; step 01 asks one question per screen (answerFact).
+// Opening screens 3–4, still the old screen; steps 01 and 02 ask one question per screen
+// (answerFact, answerStudy).
 const SCREENS = [
-  { step: 'study', title: "What you'd study", next: "Next: where and how you'd live" },
   { step: 'living', title: "Where and how you'd live", next: 'Next: after you graduate' },
   { step: 'after', title: 'After you graduate', next: 'Show me three futures' },
 ] as const
@@ -120,13 +120,58 @@ export async function answerFact(page: Page, [question, option]: Tap): Promise<v
   await expect(page.getByText('Saved. Tap another answer to change it.')).toBeVisible()
 }
 
+// Step 02's questions as the screen asks them, to their slugs as PRODUCT.md lists them: written
+// out, as FACT_SLUGS is, so a renamed slug breaks these tests.
+const STUDY_SLUGS: Readonly<Record<string, string>> = {
+  'Do you know what you want to study?': 'know',
+  'Which field?': 'field',
+  'Pick up to three': 'areas',
+  'Study level': 'level',
+  'How you like to learn': 'learning',
+  "Course length you'd prefer": 'length',
+}
+
+/** The URL of a step 02 question's screen, by the question it asks. */
+export function studyUrl(question: string): string {
+  const slug = STUDY_SLUGS[question]
+  if (!slug) throw new Error(`Not a step 02 question: ${question}`)
+  return `/onboarding/study/${slug}`
+}
+
+/** Step 02's one multi-select: the areas, checkboxes in the group its h1 names. */
+export const AREAS = 'Pick up to three'
+
+/** An area's checkbox: its name starts with the area (some add "Nearest field used for now"). */
+export const areaCheck = (page: Page, area: string) =>
+  page
+    .getByRole('group', { name: AREAS, exact: true })
+    .getByRole('checkbox', { name: new RegExp(`^${area}`) })
+
 /**
- * Answer step 01's listed questions one screen each, then walk screens 2–4 from the first, giving
- * each the taps listed for it, and open the futures.
+ * Answer a step 02 question on its own screen: open it by URL, tap the option (its card, or for
+ * the areas its checkbox), and wait until the screen says the answer is saved.
+ */
+export async function answerStudy(page: Page, [question, option]: Tap): Promise<void> {
+  await page.goto(studyUrl(question))
+  const areas = question === AREAS
+  const chosen = areas ? areaCheck(page, option) : card(page, question, option)
+  await chosen.click()
+  await expect(chosen).toHaveAttribute('aria-checked', 'true')
+  await expect(
+    page.getByText(
+      areas ? 'Saved. Tap an area again to remove it.' : 'Saved. Tap another answer to change it.',
+    ),
+  ).toBeVisible()
+}
+
+/**
+ * Answer step 01's and step 02's listed questions one screen each, then walk screens 3–4 from
+ * the first, giving each the taps listed for it, and open the futures.
  */
 export async function answerOpening(page: Page, answers: OpeningAnswers): Promise<void> {
   for (const answer of answers.facts ?? []) await answerFact(page, answer)
-  await page.goto('/onboarding/study')
+  for (const answer of answers.study ?? []) await answerStudy(page, answer)
+  await page.goto('/onboarding/living')
   for (const screen of SCREENS) {
     await expect(page.getByRole('heading', { level: 1, name: screen.title })).toBeVisible()
     for (const answer of answers[screen.step] ?? []) await tap(page, answer)

@@ -33,9 +33,11 @@ const MOCK = ' · mock'
 /** An answer that only adds weight alongside another one: what it does, and no more. */
 const SHAPES = 'noted; it shapes what each future is drawn around.'
 
-/** What the assumed value reads as: amounts as "AUD 30k", everything else as itself. */
-const assumedText = (key: QuestionKey, value: AnswerValue | undefined): string =>
-  key === 'amount' && value !== undefined ? `AUD ${value}k` : display(value)
+/** What the assumed value reads as: amounts as "AUD 30k", no field as "any field", else itself. */
+const assumedText = (key: QuestionKey, value: AnswerValue | undefined): string => {
+  if (key === 'amount' && value !== undefined) return `AUD ${value}k`
+  return key === 'field' ? 'any field' : display(value)
+}
 
 /** The line for a question she answered "Not sure": what is assumed, and that she can change it. */
 export function notSureLine(key: QuestionKey): string {
@@ -177,7 +179,7 @@ const knowLine: LineFn = (answers) => {
   if (know === DRAWN_TO_AREAS) {
     const areas = answers.areas?.value
     return Array.isArray(areas) && areas.length > 0
-      ? `${listJ(areas)}: courses across them show side by side.`
+      ? `${areas.join(' · ')}: courses across them show side by side.`
       : 'Pick up to three areas.'
   }
   return null

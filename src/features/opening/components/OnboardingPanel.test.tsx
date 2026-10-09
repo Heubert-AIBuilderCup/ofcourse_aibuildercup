@@ -3,7 +3,9 @@
 import { afterAll, afterEach, beforeAll, expect, it, mock } from 'bun:test'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import * as navigation from 'next/navigation'
+import type { StoredAnswers } from '@/shared/types/student'
 import { PANEL_COPY } from '../model/onboarding'
+import { OnboardingAnswersProvider } from '../model/onboarding-answers'
 
 let pathname = '/onboarding/character'
 mock.module('next/navigation', () => ({
@@ -22,9 +24,13 @@ afterAll(() => dom.setURL(startUrl))
 
 afterEach(cleanup)
 
-function renderAt(path: string) {
+function renderAt(path: string, answers: StoredAnswers = {}) {
   pathname = path
-  return render(<OnboardingPanel />)
+  return render(
+    <OnboardingAnswersProvider answers={answers}>
+      <OnboardingPanel />
+    </OnboardingAnswersProvider>,
+  )
 }
 
 const steps = () =>
@@ -106,4 +112,26 @@ it('stays light in a dark page: the panel is marked data-theme="light"', () => {
 it('on step 01 with no question reads as the first', () => {
   renderAt('/onboarding/facts')
   expect(steps()[1]).toHaveTextContent('Now · 1/11')
+})
+
+it('on step 02 marks steps 00 and 01 done and counts the question she is on', () => {
+  const { container } = renderAt('/onboarding/study/know')
+  expect(screen.getByRole('heading', { level: 2, name: 'Six short steps' })).toBeInTheDocument()
+  const items = steps()
+  expect(items[0]).toHaveTextContent('Done')
+  expect(items[1]).toHaveTextContent('Done')
+  expect(items[2]).toHaveAttribute('aria-current', 'step')
+  expect(items[2]).toHaveTextContent('Now · 1/4')
+  expect(screen.getByText('Step 2 of 6.')).toBeInTheDocument()
+  expect(screen.getByText("Now: 02 What you'd study · 1 of 4")).toBeInTheDocument()
+  expect(screen.getByText("Next: Where and how you'd live")).toBeInTheDocument()
+  expect(segments(container)).toEqual({ all: 7, lit: 3 })
+})
+
+it('on step 02 counts the questions her first answer asks', () => {
+  renderAt('/onboarding/study/areas', {
+    know: { value: "A few areas I'm drawn to", state: 'stated' },
+  })
+  expect(steps()[2]).toHaveTextContent('Now · 2/5')
+  expect(screen.getByText("Now: 02 What you'd study · 2 of 5")).toBeInTheDocument()
 })

@@ -628,8 +628,8 @@ test('AC10: nothing light-themed remains in dark [screens 2–4, futures, coins]
   test.setTimeout(240_000)
   const email = await newStudent(page, 'dm-ac10-later')
   try {
-    await openIn(page, '/onboarding/study', 'dark')
-    for (const path of ['/onboarding/study', '/onboarding/living', '/onboarding/after']) {
+    await openIn(page, '/onboarding/study/know', 'dark')
+    for (const path of ['/onboarding/study/know', '/onboarding/living', '/onboarding/after']) {
       await page.setViewportSize(DESKTOP)
       await page.goto(path)
       await noLightAtBothWidths(page, path)

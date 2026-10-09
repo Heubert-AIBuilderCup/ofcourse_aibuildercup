@@ -1,10 +1,15 @@
 import { OnboardingShell } from '@/features/opening'
+import { getProfile } from '@/features/opening/server/profile'
+import { requireStudent } from '@/shared/lib/auth/session'
 
 /**
  * The onboarding steps' one page: the steel panel beside the step. The (app) layout above already
  * requires a student. A layout persists across its pages, so moving between steps keeps the panel
- * as it is instead of replaying its entrance.
+ * as it is instead of replaying its entrance, and reads her answers once per load: the shell holds
+ * them from there, for the panel and the screen to share as she taps.
  */
-export default function OnboardingLayout({ children }: LayoutProps<'/onboarding'>) {
-  return <OnboardingShell>{children}</OnboardingShell>
+export default async function OnboardingLayout({ children }: LayoutProps<'/onboarding'>) {
+  const { user } = await requireStudent()
+  const { answers } = await getProfile(user.id)
+  return <OnboardingShell answers={answers}>{children}</OnboardingShell>
 }

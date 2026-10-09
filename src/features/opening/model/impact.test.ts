@@ -31,6 +31,12 @@ describe('notSureLine', () => {
       "Not sure: I'll assume “Helpful” and show it as a chip you can change.",
     )
   })
+
+  it('says "any field" for the field, not the stored "Any"', () => {
+    expect(notSureLine('field')).toBe(
+      "Not sure: I'll assume “any field” and show it as a chip you can change.",
+    )
+  })
 })
 
 describe('impactLine: nothing answered', () => {
@@ -388,14 +394,14 @@ describe('know', () => {
         { know: s("A few areas I'm drawn to"), areas: s(['Data', 'Business']) },
         null,
       ),
-    ).toBe('Data and Business: courses across them show side by side.')
+    ).toBe('Data · Business: courses across them show side by side.')
     expect(
       impactLine(
         'know',
         { know: s("A few areas I'm drawn to"), areas: s(['IT and computing', 'Data', 'Design']) },
         null,
       ),
-    ).toBe('IT and computing, Data and Design: courses across them show side by side.')
+    ).toBe('IT and computing · Data · Design: courses across them show side by side.')
   })
 
   it('asks for the areas until she picks some', () => {

@@ -4,9 +4,8 @@ import { afterEach, beforeEach, expect, it, mock } from 'bun:test'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import * as navigation from 'next/navigation'
 
-const rememberSystemTheme = mock(async (_theme: unknown) => {})
 const setThemeChoice = mock(async (_choice: unknown) => {})
-mock.module('@/shared/lib/theme-actions', () => ({ rememberSystemTheme, setThemeChoice }))
+mock.module('@/shared/lib/theme-actions', () => ({ setThemeChoice }))
 
 const calls: string[] = []
 const signOut = mock(async () => {

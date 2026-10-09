@@ -2,7 +2,7 @@ import { expect, type Page, test } from '@playwright/test'
 import { deleteUsers, profileOf } from './helpers/db'
 import { answerFact, card, newStudent, startOnboarding, tap } from './helpers/student'
 
-// The picture question, step 01's questions one per screen, and opening screens 2–4, on a phone
+// The picture question, steps 01 and 02 one question per screen, and screens 3–4, on a phone
 // and on desktop: the character is never set from the account, step 01 opens fast, every tap has
 // its impact line at once, "Not sure" becomes an assumption, Back keeps answers, the relative's
 // form, and on to the futures.
@@ -13,9 +13,8 @@ const SIZES = [
 ]
 
 const group = (page: Page, name: string) => page.getByRole('group', { name, exact: true })
-const option = (page: Page, question: string, name: string) =>
-  group(page, question).getByRole('button', { name, exact: true })
 const LEAVE = "Leave the rest for now: go to What you'd study"
+const KNOW = 'Do you know what you want to study?'
 
 for (const size of SIZES) {
   test(`a new student answers the opening at ${size.width}×${size.height}`, async ({ page }) => {
@@ -99,23 +98,35 @@ for (const size of SIZES) {
         .poll(async () => (await profileOf(email))?.answers.dep)
         .toEqual({ value: 'Partner', state: 'stated' })
 
-      // Back keeps answers: step 02's Back lands on step 01's last question.
+      // Back keeps answers: step 02's Back on its first question lands on step 01's last question.
       await page.getByRole('link', { name: LEAVE }).click()
-      await expect(page.getByRole('heading', { name: "What you'd study" })).toBeVisible()
-      await expect(page.getByLabel('Step 2 of 6')).toBeVisible()
-      await tap(page, ['Do you know what you want to study?', 'Suggest me'])
-      await page.getByRole('link', { name: 'Back', exact: true }).click()
+      await expect(page).toHaveURL(/\/onboarding\/study\/know$/)
+      await expect(page.getByRole('heading', { level: 1, name: KNOW })).toBeVisible()
+      if (size.width >= 1024) {
+        await expect(
+          page.getByRole('list', { name: 'Your steps' }).locator('[aria-current="step"]'),
+        ).toContainText("What you'd study")
+      } else {
+        await expect(page.getByText('Step 2 of 6.', { exact: true })).toBeVisible()
+      }
+      await card(page, KNOW, 'Suggest me').click()
+      await expect(page.getByText('Saved. Tap another answer to change it.')).toBeVisible()
+      await page.getByRole('button', { name: 'Back', exact: true }).click()
       await expect(page).toHaveURL(/\/onboarding\/facts\/english$/)
       await expect(page.getByRole('heading', { level: 1, name: 'English test' })).toBeVisible()
       await page.goto('/onboarding/facts/amount')
       await expect(card(page, 'Amount', 'Not sure')).toHaveAttribute('aria-checked', 'true')
+      // Step 02 opens at her first open question; Back finds her answer.
       await page.getByRole('link', { name: LEAVE }).click()
-      await expect(
-        option(page, 'Do you know what you want to study?', 'Suggest me'),
-      ).toHaveAttribute('aria-pressed', 'true')
+      await expect(page).toHaveURL(/\/onboarding\/study\/level$/)
+      await page.getByRole('button', { name: 'Back', exact: true }).click()
+      await expect(page).toHaveURL(/\/onboarding\/study\/know$/)
+      await expect(card(page, KNOW, 'Suggest me')).toHaveAttribute('aria-checked', 'true')
 
       // Screen 3: "Do you know anyone…" only after community, and not with "No".
-      await page.getByRole('link', { name: "Next: where and how you'd live" }).click()
+      await page
+        .getByRole('link', { name: "Leave the rest for now: go to Where and how you'd live" })
+        .click()
       await expect(page.getByRole('heading', { name: "Where and how you'd live" })).toBeVisible()
       const community = 'Does a community of similar culture, or relatives nearby, matter?'
       const knows = group(page, 'Do you know anyone who lives in Australia?')

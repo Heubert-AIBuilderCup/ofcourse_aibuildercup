@@ -40,7 +40,7 @@ describe.skipIf(!enabled)('the student profile against the database', () => {
     orm = await import('drizzle-orm')
     await cleanUp()
     const base = (k: string) => ({ id: `${P}${k}`, name: `SP ${k}`, email: `${P}${k}@sp.e2e.test` })
-    await db.insert(schema.user).values([base('a'), base('b'), base('c')])
+    await db.insert(schema.user).values([base('a'), base('b'), base('c'), base('d')])
   })
 
   afterAll(async () => {
@@ -100,6 +100,36 @@ describe.skipIf(!enabled)('the student profile against the database', () => {
       .from(schema.studentProfile)
       .where(orm.eq(schema.studentProfile.userId, uid))
     expect(row?.empty).toBe(true)
+  })
+
+  test('clearing an answer removes that key and leaves the others', async () => {
+    const uid = `${P}d`
+    await server.saveAnswers(uid, {
+      areas: { value: ['Data'], state: 'stated' },
+      level: { value: "Master's", state: 'stated' },
+    })
+    await server.saveAnswers(uid, {}, ['areas'])
+    expect((await server.getProfile(uid)).answers).toEqual({
+      level: { value: "Master's", state: 'stated' },
+    })
+    // The key is gone from the stored JSON, not left behind as a null.
+    const [row] = await profileRows(uid)
+    expect(row?.answers).toEqual({ level: { value: "Master's", state: 'stated' } })
+
+    // A key that is not stored leaves the answers as they are.
+    await server.saveAnswers(uid, {}, ['areas'])
+    expect((await server.getProfile(uid)).answers).toEqual({
+      level: { value: "Master's", state: 'stated' },
+    })
+  })
+
+  test('sets and clears in one save, and clears several keys at once', async () => {
+    const uid = `${P}d`
+    await server.saveAnswers(uid, { level: { value: "Master's", state: 'stated' } })
+    await server.saveAnswers(uid, { amount: { value: 36, state: 'stated' } }, ['level', 'areas'])
+    expect((await server.getProfile(uid)).answers).toEqual({
+      amount: { value: 36, state: 'stated' },
+    })
   })
 
   test('keeps at most REMINDERS_MAX reminders, dropping the oldest', async () => {

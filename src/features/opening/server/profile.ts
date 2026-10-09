@@ -1,6 +1,7 @@
 import 'server-only'
 import { eq, sql } from 'drizzle-orm'
 import type { PgUpdateSetSource } from 'drizzle-orm/pg-core'
+import { cache } from 'react'
 import { COURSES } from '@/features/engine'
 import { db } from '@/shared/lib/db'
 import { studentProfile } from '@/shared/lib/db/schema'
@@ -10,6 +11,7 @@ import {
   FUTURE_IDS,
   type Persona,
   type Profile,
+  type QuestionKey,
   type Relative,
   type Reminder,
   relativeSchema,
@@ -36,7 +38,11 @@ async function write(userId: string, set: PgUpdateSetSource<typeof studentProfil
     .where(eq(studentProfile.userId, userId))
 }
 
-export async function getProfile(userId: string): Promise<Profile> {
+/**
+ * One read per request: the onboarding layout and its page both ask for the profile, and
+ * `cache` makes them share it (per request, keyed by the id).
+ */
+export const getProfile = cache(async (userId: string): Promise<Profile> => {
   await ensureRow(userId)
   const [row] = await db
     .select({
@@ -64,13 +70,24 @@ export async function getProfile(userId: string): Promise<Profile> {
     lastStep: row.lastStep,
     seenFutures: row.seenFutures,
   }
-}
+})
 
-/** Merges the patch into the stored answers, key by key (Postgres `jsonb || jsonb`). */
-export async function saveAnswers(userId: string, patch: StoredAnswers): Promise<void> {
+/**
+ * Merges the patch into the stored answers, key by key (Postgres `jsonb || jsonb`), then removes
+ * each cleared key (`jsonb - text`), so a key in both is cleared. A key that is not stored is left
+ * as it is.
+ */
+export async function saveAnswers(
+  userId: string,
+  patch: StoredAnswers,
+  cleared: readonly QuestionKey[] = [],
+): Promise<void> {
   const valid = storedAnswersSchema.parse(patch)
+  const merged = sql`${studentProfile.answers} || ${JSON.stringify(valid)}::jsonb`
+  // `-` binds tighter than `||`, so the merge is bracketed before the keys come off it.
+  const removed = sql.join(cleared.map((key) => sql` - ${key}::text`))
   await write(userId, {
-    answers: sql`${studentProfile.answers} || ${JSON.stringify(valid)}::jsonb`,
+    answers: cleared.length === 0 ? merged : sql`(${merged})${removed}`,
   })
 }
 

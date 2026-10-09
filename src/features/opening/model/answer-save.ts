@@ -8,15 +8,16 @@ import type { AnswerValue, QuestionKey } from '@/shared/types/student'
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'failed'
 export const SAVE_DEBOUNCE_MS = 300
+/** A `null` clears the answer, as if it was never given. */
 export type SaveAnswers = (
-  patch: Partial<Record<QuestionKey, AnswerValue>>,
+  patch: Partial<Record<QuestionKey, AnswerValue | null>>,
 ) => Promise<ActionResult>
 
 export function useAnswerSave(saveAnswersAction: SaveAnswers) {
   const [statuses, setStatuses] = useState<Partial<Record<QuestionKey, SaveStatus>>>({})
   const timers = useRef(new Map<QuestionKey, ReturnType<typeof setTimeout>>())
   const sequence = useRef(new Map<QuestionKey, number>())
-  const latest = useRef(new Map<QuestionKey, AnswerValue>())
+  const latest = useRef(new Map<QuestionKey, AnswerValue | null>())
   const action = useRef(saveAnswersAction)
   action.current = saveAnswersAction
 
@@ -62,7 +63,7 @@ export function useAnswerSave(saveAnswersAction: SaveAnswers) {
   )
 
   const save = useCallback(
-    (key: QuestionKey, raw: AnswerValue) => {
+    (key: QuestionKey, raw: AnswerValue | null) => {
       latest.current.set(key, raw)
       start(key, SAVE_DEBOUNCE_MS)
     },

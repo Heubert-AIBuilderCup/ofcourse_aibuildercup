@@ -1,7 +1,16 @@
 // The engine's public API: the three futures, the mock catalogue they are drawn from, and the
 // distance estimates. Pure, so the server and the browser import the same rules.
 
-export { CAMPUSES, CITIES, COURSES, cityById, cityOf, PLACES, placeById } from './catalogue'
+export {
+  AREA_FIELDS,
+  CAMPUSES,
+  CITIES,
+  COURSES,
+  cityById,
+  cityOf,
+  PLACES,
+  placeById,
+} from './catalogue'
 // Priya and her cousin: test data the opening's screen tests share with the engine's.
 export { ANJALI, PRIYA_ANSWERS } from './fixtures'
 export {

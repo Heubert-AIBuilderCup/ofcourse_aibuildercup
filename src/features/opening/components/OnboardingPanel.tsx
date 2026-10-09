@@ -7,35 +7,38 @@ import { Blueprint } from '@/shared/components/Blueprint'
 import { SITE_NAME } from '@/shared/lib/site'
 import { cn } from '@/shared/lib/utils'
 import {
-  FACT_QUESTIONS,
-  factIndexOfPath,
   ONBOARDING_STEPS,
   PANEL_COPY,
   type PanelState,
   stepOfPath,
+  stepProgress,
   WELCOME_MINUTES,
 } from '../model/onboarding'
+import { useOnboardingAnswers } from '../model/onboarding-answers'
 import styles from './onboarding.module.css'
 
-/** What the band (below @5xl) says is now and next, per step, and before step 00 on the welcome. */
-function progress(state: PanelState, question: number) {
+/**
+ * What the band (below @5xl) says is now and next, per step, and before step 00 on the welcome.
+ * On a question step the count is the question she is on and how many she is asked.
+ */
+function progress(state: PanelState, count: { question: number; total: number } | null) {
   if (state === 'welcome')
     return {
       now: `Not started yet · about ${WELCOME_MINUTES} min`,
       next: 'First: Your comic character',
     }
-  if (state === 0)
-    return { now: 'Now: Your comic character · optional', next: 'Next: Facts about you' }
+  if (!count) return { now: 'Now: Your comic character · optional', next: 'Next: Facts about you' }
   return {
-    now: `Now: 01 Facts about you · ${question} of ${FACT_QUESTIONS.length}`,
-    next: `Next: ${ONBOARDING_STEPS[2]}`,
+    now: `Now: ${String(state).padStart(2, '0')} ${ONBOARDING_STEPS[state]} · ${count.question} of ${count.total}`,
+    next: `Next: ${ONBOARDING_STEPS[state + 1]}`,
   }
 }
 
 /**
  * The steel panel beside every onboarding step: the brand, the step's title and lead, the steps
  * (the full list side by side, seven segments with Now and Next as a band) and the duck. The step
- * comes from the URL; on step 01 so does the question (its slug, the first when missing or unknown).
+ * comes from the URL; on steps 01 and 02 so does the question (its slug, the first when missing or
+ * unknown), counted among the questions her answers ask (step 02's number depends on her first).
  * Steps before the current one are marked Done (criterion 22). On the welcome, before step 00,
  * every step is listed with none current, step 00 tagged Optional and no segment lit. Side by
  * side it stays in view while the step scrolls.
@@ -46,10 +49,11 @@ export function OnboardingPanel() {
   const welcome = state === 'welcome'
   // On the welcome no step is done or current: every comparison with -1 reads "later".
   const step = welcome ? -1 : state
-  const index = Math.max(factIndexOfPath(pathname), 0)
+  const [answers] = useOnboardingAnswers()
+  const count = stepProgress(pathname, answers)
   const copy = PANEL_COPY[state]
-  const { now, next } = progress(state, index + 1)
-  const badge = step === 0 ? 'Now · optional' : `Now · ${index + 1}/${FACT_QUESTIONS.length}`
+  const { now, next } = progress(state, count)
+  const badge = count ? `Now · ${count.question}/${count.total}` : 'Now · optional'
 
   return (
     // Marked light: the steel panel keeps its look in a dark page (Industry's light tokens).

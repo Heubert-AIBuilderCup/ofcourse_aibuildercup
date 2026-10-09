@@ -17,7 +17,9 @@ mock.module('@/shared/lib/auth/session', () => ({
   },
 }))
 
-const saveAnswers = mock(async (_userId: string, _patch: unknown) => {})
+const saveAnswers = mock(
+  async (_userId: string, _patch: unknown, _cleared: readonly string[] = []) => {},
+)
 const savePersona = mock(async (_userId: string, _persona: unknown) => {})
 const saveRelative = mock(async (_userId: string, _relative: unknown) => {})
 const saveCoins = mock(async (_userId: string, _coins: unknown) => {})
@@ -106,9 +108,30 @@ describe('saveAnswersAction', () => {
       ok: true,
       answers: { amount: { value: 36, state: 'stated' } },
     })
-    expect(saveAnswers).toHaveBeenCalledWith('student-1', {
-      amount: { value: 36, state: 'stated' },
+    expect(saveAnswers).toHaveBeenCalledWith(
+      'student-1',
+      { amount: { value: 36, state: 'stated' } },
+      [],
+    )
+  })
+
+  it('clears an answer saved as null: nothing set, the key handed over to clear', async () => {
+    session = student()
+    expect(await saveAnswersAction({ areas: null })).toEqual({ ok: true, answers: {} })
+    expect(saveAnswers).toHaveBeenCalledWith('student-1', {}, ['areas'])
+  })
+
+  it('sets the answers that have a value and clears the ones that are null, in one save', async () => {
+    session = student()
+    expect(await saveAnswersAction({ amount: 36, areas: null })).toEqual({
+      ok: true,
+      answers: { amount: { value: 36, state: 'stated' } },
     })
+    expect(saveAnswers).toHaveBeenCalledWith(
+      'student-1',
+      { amount: { value: 36, state: 'stated' } },
+      ['areas'],
+    )
   })
 
   it('saves "Not sure" as the default, assumed, and takes back a stored answer (Undo)', async () => {
@@ -129,6 +152,8 @@ describe('saveAnswersAction', () => {
     for (const patch of [
       { amount: 37 },
       { nonsense: 1 },
+      { nonsense: null },
+      { amount: 36, nonsense: null },
       { amount: 36, dest: 'Canada' },
       { climate: 'Not sure' },
       null,

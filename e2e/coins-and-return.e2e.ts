@@ -138,15 +138,17 @@ test('coming back after leaving step 01 early opens step 02, and Back finds her 
     await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
     await answerFact(page, ['Amount', 'AUD 36k'])
     await page.getByRole('link', { name: "Leave the rest for now: go to What you'd study" }).click()
-    await expect(page).toHaveURL(/\/onboarding\/study$/)
+    await expect(page).toHaveURL(/\/onboarding\/study\/know$/)
     await expect.poll(async () => (await profileOf(email))?.lastStep).toBe('study')
 
     const again = await secondDevice(browser, email)
     try {
       await again.goto('/')
-      await expect(again).toHaveURL(/\/onboarding\/study$/)
-      await expect(again.getByRole('heading', { level: 1, name: "What you'd study" })).toBeVisible()
-      await again.getByRole('link', { name: 'Back', exact: true }).click()
+      await expect(again).toHaveURL(/\/onboarding\/study\/know$/)
+      await expect(
+        again.getByRole('heading', { level: 1, name: 'Do you know what you want to study?' }),
+      ).toBeVisible()
+      await again.getByRole('button', { name: 'Back', exact: true }).click()
       await expect(again).toHaveURL(/\/onboarding\/facts\/english$/)
       await expect(again.getByRole('heading', { level: 1, name: 'English test' })).toBeVisible()
       await again.goto('/onboarding/facts/amount')
@@ -180,14 +182,24 @@ test('after the futures, she comes back to them, on any device, and Back lets he
       await expect(cards(again)).toHaveCount(3)
       expect(await cards(again).allInnerTexts()).toEqual(futures)
 
-      // Back to step 01, change the budget, return: the futures show the new budget.
+      // Back to step 01, change the budget, return: the futures show the new budget. Back is a
+      // link on the futures and steps 03–04, a button on step 02's questions.
       for (const title of [
         'After you graduate',
         "Where and how you'd live",
-        "What you'd study",
-        'English test',
+        "Course length you'd prefer",
       ]) {
         await again.getByRole('link', { name: 'Back', exact: true }).click()
+        await expect(again.getByRole('heading', { level: 1, name: title })).toBeVisible()
+      }
+      await expect(again).toHaveURL(/\/onboarding\/study\/length$/)
+      for (const title of [
+        'How you like to learn',
+        'Study level',
+        'Do you know what you want to study?',
+        'English test',
+      ]) {
+        await again.getByRole('button', { name: 'Back', exact: true }).click()
         await expect(again.getByRole('heading', { level: 1, name: title })).toBeVisible()
       }
       await again.goto('/onboarding/facts/amount')
@@ -195,7 +207,7 @@ test('after the futures, she comes back to them, on any device, and Back lets he
       await answerFact(again, ['Amount', 'AUD 42k'])
       for (const next of [
         "Leave the rest for now: go to What you'd study",
-        "Next: where and how you'd live",
+        "Leave the rest for now: go to Where and how you'd live",
         'Next: after you graduate',
         'Show me three futures',
       ]) {

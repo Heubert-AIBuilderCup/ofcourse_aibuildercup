@@ -21,7 +21,7 @@ afterEach(() => {
   }
 })
 
-const [FACTS, STUDY, LIVING, AFTER] = SCREENS
+const [FACTS, , LIVING, AFTER] = SCREENS
 
 function show(
   screenIndex: 0 | 1 | 2 | 3,
@@ -171,21 +171,6 @@ it('keeps the answer and says so when the save is refused', async () => {
   ).toHaveAttribute('aria-pressed', 'true')
 })
 
-it('offers up to three areas once she is drawn to a few', async () => {
-  show(1)
-  expect(screen.queryByRole('group', { name: 'Pick up to three' })).not.toBeInTheDocument()
-  await tap('Do you know what you want to study?', "A few areas I'm drawn to")
-  await tap('Pick up to three', 'IT and computing')
-  await tap('Pick up to three', 'Business')
-  await tap('Pick up to three', 'Data')
-  expect(saveAnswersAction).toHaveBeenLastCalledWith({
-    areas: ['IT and computing', 'Business', 'Data'],
-  })
-  expect(within(group('Pick up to three')).getByRole('button', { name: 'Health' })).toBeDisabled()
-  await tap('Pick up to three', 'Business')
-  expect(saveAnswersAction).toHaveBeenLastCalledWith({ areas: ['IT and computing', 'Data'] })
-})
-
 it('asks whether she knows anyone only once community matters, then who and where', async () => {
   show(2)
   expect(screen.queryByText(KNOWS)).not.toBeInTheDocument()
@@ -283,18 +268,11 @@ it('links back to the screen before and on to the next', () => {
   )
   cleanup()
 
-  show(1)
+  show(2)
   expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute(
     'href',
-    '/onboarding/facts/english',
+    '/onboarding/study/length',
   )
-  expect(screen.getByRole('link', { name: STUDY.next })).toHaveAttribute(
-    'href',
-    '/onboarding/living',
-  )
-  cleanup()
-
-  show(2)
   expect(screen.getByRole('link', { name: LIVING.next })).toHaveAttribute(
     'href',
     '/onboarding/after',

@@ -3,9 +3,8 @@
 import { afterEach, beforeEach, expect, it, mock } from 'bun:test'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 
-const rememberSystemTheme = mock(async (_theme: unknown) => {})
 const setThemeChoice = mock(async (_choice: unknown) => {})
-mock.module('@/shared/lib/theme-actions', () => ({ rememberSystemTheme, setThemeChoice }))
+mock.module('@/shared/lib/theme-actions', () => ({ setThemeChoice }))
 
 const { Providers } = await import('./Providers')
 const { ThemeToggle } = await import('./ThemeToggle')

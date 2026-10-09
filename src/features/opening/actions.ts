@@ -55,8 +55,9 @@ async function asStudent<T extends object>(
 }
 
 /**
- * Saves answers: an object of question → an option, "Not sure", or a stored answer (Undo). Every
- * entry must parse, or nothing is saved. Returns the answers as stored.
+ * Saves answers: an object of question → an option, "Not sure", or a stored answer (Undo); a
+ * `null` clears that answer, as if it was never given. Every entry must parse, or nothing is
+ * saved. Returns the answers it set (a cleared one is not among them).
  */
 export async function saveAnswersAction(
   patch: unknown,
@@ -64,13 +65,18 @@ export async function saveAnswersAction(
   return asStudent('saveAnswers', async (userId) => {
     if (typeof patch !== 'object' || patch === null || Array.isArray(patch)) return fail(INVALID)
     const answers: StoredAnswers = {}
+    const cleared: QuestionKey[] = []
     for (const [key, raw] of Object.entries(patch)) {
       if (!isQuestionKey(key)) return fail(INVALID)
+      if (raw === null) {
+        cleared.push(key)
+        continue
+      }
       const answer = parseAnswer(key, raw)
       if (!answer) return fail(INVALID)
       answers[key] = answer
     }
-    await saveAnswers(userId, answers)
+    await saveAnswers(userId, answers, cleared)
     return { ok: true, answers }
   })
 }

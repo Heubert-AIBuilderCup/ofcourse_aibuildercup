@@ -14,6 +14,9 @@ import {
 // back to her first unanswered question, the refusal of a signed-out visitor, the panel marking
 // step 00 Done, and the 1440 design scaled up at 1920.
 
+/** Step 02's first question, where a new student opens it. */
+const STUDY_FIRST = 'Do you know what you want to study?'
+
 test('step 01 answers by keyboard alone: arrows, Home and End pick as they move', async ({
   page,
 }) => {
@@ -261,7 +264,11 @@ test('in a window shorter than the panel, scrolling to the end reveals the panel
       await page.goto(path)
       await expect(page.getByRole('complementary', { name: 'Getting started' })).toBeVisible()
       await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
-      await expect(page.getByText('From off course to “Of Course!”')).toBeInViewport({ ratio: 1 })
+      await expect(
+        page
+          .getByRole('complementary', { name: 'Getting started' })
+          .getByText('From off course to “Of Course!”'),
+      ).toBeInViewport({ ratio: 1 })
     }
   } finally {
     await deleteUsers([email])
@@ -307,12 +314,17 @@ test('a retired link lands on its screen; an unknown question is not a page', as
     ).toBeVisible()
 
     await page.goto('/opening/study')
-    await expect(page).toHaveURL(/\/onboarding\/study$/)
-    await expect(page.getByRole('heading', { level: 1, name: "What you'd study" })).toBeVisible()
+    await expect(page).toHaveURL(/\/onboarding\/study\/know$/)
+    await expect(page.getByRole('heading', { level: 1, name: STUDY_FIRST })).toBeVisible()
 
     // notFound() inside the (app) loading boundary: the page streams as a 200 with Next's
     // not-found screen (a soft 404, marked noindex), as /opening/<step> did.
-    for (const path of ['/onboarding/facts/nope', '/onboarding/facts/hard', '/onboarding/nope']) {
+    for (const path of [
+      '/onboarding/facts/nope',
+      '/onboarding/facts/hard',
+      '/onboarding/study/nope',
+      '/onboarding/nope',
+    ]) {
       await page.goto(path)
       await expect(page.getByText('This page could not be found.'), path).toBeVisible()
       await expect(page.getByRole('radiogroup'), path).toHaveCount(0)
@@ -355,12 +367,12 @@ test('/onboarding reopens step 02 when she left from there, as / does', async ({
     await page.getByRole('button', { name: 'Skip' }).click()
     await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
     await page.getByRole('link', { name: 'Leave the rest for now' }).click()
-    await expect(page).toHaveURL(/\/onboarding\/study$/)
-    await expect(page.getByRole('heading', { level: 1, name: "What you'd study" })).toBeVisible()
+    await expect(page).toHaveURL(/\/onboarding\/study\/know$/)
+    await expect(page.getByRole('heading', { level: 1, name: STUDY_FIRST })).toBeVisible()
 
     await page.goto('/onboarding')
-    await expect(page).toHaveURL(/\/onboarding\/study$/)
-    await expect(page.getByRole('heading', { level: 1, name: "What you'd study" })).toBeVisible()
+    await expect(page).toHaveURL(/\/onboarding\/study\/know$/)
+    await expect(page.getByRole('heading', { level: 1, name: STUDY_FIRST })).toBeVisible()
   } finally {
     await deleteUsers([email])
   }

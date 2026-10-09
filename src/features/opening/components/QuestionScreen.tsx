@@ -3,32 +3,41 @@
 import { ArrowLeft, ArrowRight, Check, CircleAlert, Info, LoaderCircle } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { Button } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
-import type { AnswerValue, Relative, StoredAnswers } from '@/shared/types/student'
+import type { AnswerValue, QuestionKey, Relative } from '@/shared/types/student'
 import { type SaveAnswers, type SaveStatus, useAnswerSave } from '../model/answer-save'
 import { impactView } from '../model/impact'
 import { ANSWER_SAVE_FAILED } from '../model/messages'
 import {
-  FACT_QUESTIONS,
-  factIndexOfPath,
-  factPath,
-  PICTURE_PATH,
-  STUDY_PATH,
+  askedQuestions,
+  forwardPath,
+  QUESTION_STEPS,
+  type QuestionStep,
+  questionOfPath,
+  questionPath,
+  shownQuestion,
 } from '../model/onboarding'
+import { useOnboardingAnswers } from '../model/onboarding-answers'
 import { parseAnswer, questionOf } from '../model/questions'
 import { AnswerCards } from './AnswerCards'
+import { AreaChecks } from './AreaChecks'
 import styles from './facts.module.css'
 import shell from './onboarding.module.css'
 import picture from './picture.module.css'
 
-const LEAVE = "Leave the rest for now: go to What you'd study"
-const NEXT = "Next: What you'd study"
-const NOTES: Record<Exclude<SaveStatus, 'failed'>, string> = {
+type Notes = Record<Exclude<SaveStatus, 'failed'>, string>
+const NOTES: Notes = {
   idle: "“Not sure” is a fine answer. Skip, and I'll assume a sensible default you can change later.",
   saving: 'Saving…',
   saved: 'Saved. Tap another answer to change it.',
+}
+/** The areas have no "Not sure", and a tap on a chosen area removes it. */
+const AREA_NOTES: Notes = {
+  idle: "Pick one, two or three. Skip, and I'll start wide, with every field in this preview.",
+  saving: 'Saving…',
+  saved: 'Saved. Tap an area again to remove it.',
 }
 const NOTE_ICONS = {
   idle: <Info aria-hidden="true" className="icon-on-line-sm size-icon-sm shrink-0" />,
@@ -42,49 +51,78 @@ const NOTE_ICONS = {
 }
 
 /**
- * Onboarding step 01, "Facts about you" (the design's Facts): one question per screen, the
- * question named by the URL's last segment, its slug. A tap shows what it does at once and saves in the background; a refused
- * save keeps the answer and offers to try again. Moving between questions changes only the URL
- * (history.pushState), so the screen and its saves stay; Skip stores nothing. Leaving the step
- * sends any save still waiting, so a quick tap is never lost.
+ * Onboarding step 01 or 02 (the design's Facts and Study): one question per screen, the question
+ * named by the URL's last segment, its slug. The questions asked follow her answers as she taps
+ * (the field or the areas only after "know"), so the count and the next question change at once;
+ * a URL naming a question not asked shows her first open one and is replaced with its URL.
+ * A tap shows what it does at once and saves in the background; a refused save keeps the answer
+ * and offers to try again; removing the last area clears it. Moving between questions changes
+ * only the URL (history.pushState, which Next.js syncs with usePathname: the linking guide's
+ * "window.history.pushState"), so the screen and its saves stay; Skip stores nothing. Leaving the
+ * step sends any save still waiting, so a quick tap is never lost.
  */
-export function FactsScreen({
-  answers: savedAnswers,
+export function QuestionScreen({
+  step,
   relative,
   saveAnswersAction,
 }: {
-  answers: StoredAnswers
+  step: QuestionStep
   relative: Relative | null
   saveAnswersAction: SaveAnswers
 }) {
   const router = useRouter()
-  const at = factIndexOfPath(usePathname())
-  const index = at < 0 ? 0 : at
-  const item = FACT_QUESTIONS[index] ?? FACT_QUESTIONS[0]
-  const last = index === FACT_QUESTIONS.length - 1
-  const [answers, setAnswers] = useState(savedAnswers)
+  const pathname = usePathname()
+  const [answers, setAnswers] = useOnboardingAnswers()
+  const { title, back, nextName } = QUESTION_STEPS[step]
+  const asked = askedQuestions(step, answers)
+  const named = questionOfPath(step, pathname)
+  // A question not asked for her answers on screen (the field without "Something particular") is
+  // never shown: her first open one is, and the URL follows. The server cannot judge this, as her
+  // last tap may not be saved yet. A router.refresh() in that window cannot send her back (the
+  // provider keeps her taps); a hard reload before the save lands (300 ms) still opens her first
+  // open question.
+  const item = shownQuestion(step, pathname, answers)
+  const replacement = named !== null && named.key !== item.key ? questionPath(step, item.key) : null
+  const index = Math.max(
+    asked.findIndex((q) => q.key === item.key),
+    0,
+  )
+  const last = index === asked.length - 1
+  const forward = forwardPath(step, answers)
   const { statusOf, save, retry, flush } = useAnswerSave(saveAnswersAction)
   const root = useRef<HTMLDivElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
-  const shown = useRef(index)
+  const shown = useRef(item.key)
   const headingId = useId()
+
+  // The URL follows the question shown, with no new history entry (Next.js syncs usePathname).
+  useEffect(() => {
+    if (replacement) window.history.replaceState(null, '', replacement)
+  }, [replacement])
 
   // A new question takes focus, so a screen reader reads it; not the first one she lands on.
   useEffect(() => {
-    if (shown.current === index) return
-    shown.current = index
+    if (shown.current === item.key) return
+    shown.current = item.key
     heading.current?.focus({ preventScroll: true })
-  }, [index])
+  }, [item.key])
 
-  function answer(raw: AnswerValue) {
-    const parsed = parseAnswer(item.key, raw)
+  /** A tap, or `null` when she removed the last area: the answer is cleared, as if never given. */
+  function answer(raw: AnswerValue | null) {
+    const { key } = item
+    if (raw === null) {
+      setAnswers(({ [key]: _cleared, ...rest }) => rest)
+      save(key, null)
+      return
+    }
+    const parsed = parseAnswer(key, raw)
     if (!parsed) return
-    setAnswers((current) => ({ ...current, [item.key]: parsed }))
-    save(item.key, raw)
+    setAnswers((current) => ({ ...current, [key]: parsed }))
+    save(key, raw)
   }
 
-  function go(to: number) {
-    window.history.pushState(null, '', factPath(FACT_QUESTIONS[to].key))
+  function go(key: QuestionKey) {
+    window.history.pushState(null, '', questionPath(step, key))
     const top = root.current?.getBoundingClientRect().top ?? 0
     if (top < 0) root.current?.scrollIntoView({ block: 'start' })
   }
@@ -94,17 +132,20 @@ export function FactsScreen({
     router.push(path)
   }
 
+  const question = questionOf(item.key)
+  const multi = question.control === 'multi'
   const answered = answers[item.key] !== undefined
-  const impact = answered ? impactView(item.itemId, answers, relative) : null
+  const impact = answered || item.opensWithLine ? impactView(item.itemId, answers, relative) : null
   const status = statusOf(item.key)
+  const notes = multi ? AREA_NOTES : NOTES
 
   return (
     <div ref={root} className="mx-auto flex w-full max-w-2xl flex-col gap-5 @max-xl:gap-4">
       <div className={cn(shell.rise, shell.d2, 'flex min-h-11 items-center')}>
         <p className="m-0 text-overline uppercase text-accent-700">
-          Facts about you ·{' '}
+          {title} ·{' '}
           <b className="font-medium text-muted-foreground">
-            {index + 1} of {FACT_QUESTIONS.length}
+            {index + 1} of {asked.length}
           </b>
         </p>
       </div>
@@ -121,12 +162,21 @@ export function FactsScreen({
         </h1>
         <p className="m-0 max-w-prose leading-relaxed text-muted-foreground">{item.why}</p>
         <div className={styles.cards}>
-          <AnswerCards
-            question={questionOf(item.key)}
-            labelledBy={headingId}
-            answer={answers[item.key]}
-            onAnswer={answer}
-          />
+          {multi ? (
+            <AreaChecks
+              question={question}
+              labelledBy={headingId}
+              answer={answers[item.key]}
+              onAnswer={answer}
+            />
+          ) : (
+            <AnswerCards
+              question={question}
+              labelledBy={headingId}
+              answer={answers[item.key]}
+              onAnswer={answer}
+            />
+          )}
         </div>
 
         {/* Empty, the live region leaves the flow (it stays rendered for screen readers), so it
@@ -212,18 +262,18 @@ export function FactsScreen({
             className="m-0 flex items-start gap-2 text-caption text-muted-foreground"
           >
             {NOTE_ICONS[status]}
-            <span>{NOTES[status]}</span>
+            <span>{notes[status]}</span>
           </p>
         )}
       </div>
 
       {last ? null : (
         <Link
-          href={STUDY_PATH}
+          href={forward}
           onClick={flush}
           className="inline-flex min-h-11 items-center self-start text-caption font-medium text-accent-700"
         >
-          {LEAVE}
+          {`Leave the rest for now: go to ${nextName}`}
         </Link>
       )}
 
@@ -239,7 +289,7 @@ export function FactsScreen({
           type="button"
           variant="outline"
           size="lg"
-          onClick={() => (index === 0 ? leave(PICTURE_PATH) : go(index - 1))}
+          onClick={() => (index === 0 ? leave(back) : go(asked[index - 1].key))}
           className="min-w-33 @max-xl:min-w-24 @max-xl:flex-none"
         >
           <ArrowLeft aria-hidden="true" className="size-icon-sm" />
@@ -249,10 +299,10 @@ export function FactsScreen({
           type="button"
           variant={last || answered ? 'strong' : 'outline'}
           size="lg"
-          onClick={() => (last ? leave(STUDY_PATH) : go(index + 1))}
+          onClick={() => (last ? leave(forward) : go(asked[index + 1].key))}
           className="min-w-33 @max-xl:min-w-0 @max-xl:flex-1"
         >
-          {last ? NEXT : answered ? 'Continue' : 'Skip'}
+          {last ? `Next: ${nextName}` : answered ? 'Continue' : 'Skip'}
           <ArrowRight aria-hidden="true" className="size-icon-sm" />
         </Button>
       </div>

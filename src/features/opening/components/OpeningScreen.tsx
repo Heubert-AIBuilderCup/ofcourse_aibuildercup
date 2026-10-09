@@ -16,7 +16,7 @@ import {
 } from '@/shared/types/student'
 import { impactLine } from '../model/impact'
 import { SAVE_FAILED } from '../model/messages'
-import { factPath, ONBOARDING_PATH } from '../model/onboarding'
+import { ONBOARDING_PATH, questionPath } from '../model/onboarding'
 import { type Item, isVisible, parseAnswer, type Screen } from '../model/questions'
 import { Hero } from './Hero'
 import { OptionButtons } from './OptionButtons'
@@ -24,8 +24,8 @@ import { Progress, SCREEN_COUNT } from './Progress'
 import { RelativeForm } from './RelativeForm'
 
 const FUTURES_PATH = '/futures'
-// Screen 2's Back: step 01's last question, so she lands on her answers.
-const FACTS_BACK_PATH = factPath('eng')
+// Screen 3's Back: step 02's last question, on the onboarding shell.
+const STUDY_BACK_PATH = questionPath(2, 'length')
 
 const stepPath = (index: number) => `${ONBOARDING_PATH}/${OPENING_STEPS[index]}`
 
@@ -83,7 +83,8 @@ function ItemBlock({
 }
 
 /**
- * Opening screens 1–4 (frames r1-1 to r1-4, desktop r1-10). A tap shows its answer and impact
+ * Opening screens 3–4, living and after (frames r1-3 and r1-4, desktop r1-10); steps 01 and 02 are
+ * on the onboarding shell. A tap shows its answer and impact
  * line at once, from local state, and saves in the background; a refused save is said in a toast
  * and the answer stays on the screen. The futures read what was saved.
  */
@@ -129,7 +130,7 @@ export function OpeningScreen({
   }
 
   const index = screen.number - 1
-  const back = index > 1 ? stepPath(index - 1) : FACTS_BACK_PATH
+  const back = index === 2 ? STUDY_BACK_PATH : stepPath(index - 1)
   const next = index < OPENING_STEPS.length - 1 ? stepPath(index + 1) : FUTURES_PATH
   const asksWho = isVisible('knows', answers) && answers.knows?.value === 'Yes'
 

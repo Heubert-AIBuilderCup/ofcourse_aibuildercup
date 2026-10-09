@@ -1,6 +1,6 @@
 import { expect, type Page, test } from '@playwright/test'
 import { deleteUsers, profileOf } from './helpers/db'
-import { answerOpening, newStudent, PRIYA, tap } from './helpers/student'
+import { answerOpening, answerStudy, newStudent, PRIYA } from './helpers/student'
 
 // The futures screen for Priya's answers at AUD 36k (helpers/student.ts): three unranked futures
 // with their marked lines, distances from Anjali, claims and sources, the plaque and Remind me;
@@ -142,9 +142,8 @@ test('chips change the routes, and the edge states say why', async ({ page }) =>
       .toEqual({ value: 'No', state: 'stated' })
 
     // An area the preview lacks: the nearest field, said on each card (criterion 44).
-    await page.goto('/onboarding/study')
-    await tap(page, ['Do you know what you want to study?', "A few areas I'm drawn to"])
-    await tap(page, ['Pick up to three', 'Health'])
+    await answerStudy(page, ['Do you know what you want to study?', "A few areas I'm drawn to"])
+    await answerStudy(page, ['Pick up to three', 'Health'])
     await expect
       .poll(async () => (await profileOf(email))?.answers.areas)
       .toEqual({ value: ['Health'], state: 'stated' })

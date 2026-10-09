@@ -68,6 +68,28 @@ describe('useAnswerSave', () => {
     await waitFor(() => expect(result.current.statusOf('amount')).toBe('saved'))
   })
 
+  it('saves null, an answer cleared, after the debounce and ends saved', async () => {
+    const { result, action } = setup()
+    act(() => result.current.save('areas', null))
+    expect(result.current.statusOf('areas')).toBe('saving')
+    expect(action).not.toHaveBeenCalled()
+    await waitFor(() => expect(result.current.statusOf('areas')).toBe('saved'))
+    expect(action).toHaveBeenCalledTimes(1)
+    expect(action).toHaveBeenCalledWith({ areas: null })
+  })
+
+  it('retries a failed clear by sending null again', async () => {
+    let answer: ActionResult = { ok: false, error: 'x' }
+    const { result, action } = setup(async () => answer)
+    act(() => result.current.save('areas', null))
+    await waitFor(() => expect(result.current.statusOf('areas')).toBe('failed'))
+    answer = { ok: true }
+    act(() => result.current.retry('areas'))
+    expect(action).toHaveBeenCalledTimes(2)
+    expect(action).toHaveBeenLastCalledWith({ areas: null })
+    await waitFor(() => expect(result.current.statusOf('areas')).toBe('saved'))
+  })
+
   it('fails when the action rejects', async () => {
     const { result } = setup(async () => {
       throw new Error('network')
