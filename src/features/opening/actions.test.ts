@@ -205,6 +205,39 @@ describe('saveRelativeAction', () => {
     expect(saveRelative).toHaveBeenLastCalledWith('student-1', null)
   })
 
+  it('saves a person with only a relationship, or only a place', async () => {
+    session = student()
+    const cousin = { placeId: null, place: null, relationship: 'Cousin', name: null }
+    expect(await saveRelativeAction(cousin)).toEqual({ ok: true })
+    expect(saveRelative).toHaveBeenLastCalledWith('student-1', cousin)
+    const placed = { placeId: 'cannington', place: 'Cannington', relationship: null, name: null }
+    expect(await saveRelativeAction(placed)).toEqual({ ok: true })
+    expect(saveRelative).toHaveBeenLastCalledWith('student-1', placed)
+  })
+
+  it('saves "Somewhere else" with nothing typed yet as a person', async () => {
+    session = student()
+    const elsewhere = { placeId: null, place: '', relationship: null, name: null }
+    expect(await saveRelativeAction(elsewhere)).toEqual({ ok: true })
+    expect(saveRelative).toHaveBeenLastCalledWith('student-1', elsewhere)
+  })
+
+  it('saves a person whose every part is blank as no person', async () => {
+    session = student()
+    const blank = { placeId: null, place: null, relationship: null, name: null }
+    expect(await saveRelativeAction(blank)).toEqual({ ok: true })
+    expect(saveRelative).toHaveBeenLastCalledWith('student-1', null)
+  })
+
+  it('refuses a name over 40 characters', async () => {
+    session = student()
+    expect(await saveRelativeAction({ ...relative, name: 'a'.repeat(41) })).toEqual({
+      ok: false,
+      error: INVALID,
+    })
+    expect(saveRelative).not.toHaveBeenCalled()
+  })
+
   it('refuses a relationship outside the list', async () => {
     session = student()
     expect(await saveRelativeAction({ ...relative, relationship: 'Neighbour' })).toEqual({

@@ -13,18 +13,21 @@ import { labelOf } from './OptionButtons'
  * checks its card; an assumed one ("Not sure" was tapped) checks "Not sure". One card is in the
  * tab order, the checked one (the first when none is), and the arrow keys, Home and End move to a
  * card and pick it as they go, wrapping at the ends. Pressing the checked card again does nothing.
- * `labelledBy` is the id of the h1 that asks the question.
+ * `labelledBy` is the id of the h1 that asks the question. `dense` draws smaller cards, for a
+ * choice inside a form (step 03's "They're your…").
  */
 export function AnswerCards({
   question,
   labelledBy,
   answer,
   onAnswer,
+  dense = false,
 }: {
-  question: Question
+  question: Pick<Question, 'options' | 'notSure'>
   labelledBy: string
   answer: StoredAnswer | undefined
   onAnswer: (raw: AnswerValue) => void
+  dense?: boolean
 }) {
   const cards = useRef<(HTMLButtonElement | null)[]>([])
   const options: readonly AnswerValue[] = question.notSure
@@ -102,6 +105,7 @@ export function AnswerCards({
               'focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-primary',
               'aria-checked:border-accent-700 aria-checked:bg-accent-100 aria-checked:text-accent-800 aria-checked:inset-ring aria-checked:inset-ring-accent-700',
               '@max-xl:min-h-14 @max-xl:py-2.5 @max-xl:pl-3.5',
+              dense && 'min-h-13 text-lead @max-xl:min-h-12 @max-xl:py-2 @max-xl:pr-9 @max-xl:pl-3',
               unsure &&
                 'border-dashed font-sans text-base font-medium text-muted-foreground aria-checked:border-solid',
             )}

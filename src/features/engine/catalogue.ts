@@ -805,6 +805,12 @@ export function cityOf(course: Course): City {
   return cityById(campusOf(course).cityId)
 }
 
+/** "Cannington, Perth"; a place already named for its city reads once ("Hobart", "Perth CBD"). */
+export function placeLabel(place: Place): string {
+  const city = cityById(place.cityId).name
+  return place.name.startsWith(city) ? place.name : `${place.name}, ${city}`
+}
+
 /** A place she picked; undefined for an id the preview does not have. */
 export function placeById(id: string): Place | undefined {
   return PLACE_BY_ID.get(id)

@@ -52,16 +52,22 @@ export const STEPS = ['picture', ...OPENING_STEPS, 'futures', 'attention'] as co
 export type Step = (typeof STEPS)[number]
 
 export const RELATIONSHIPS = ['Cousin', 'Sibling', 'Aunt or uncle', 'Friend', 'Other'] as const
+export type Relationship = (typeof RELATIONSHIPS)[number]
 /**
- * Someone she knows in Australia. `placeId` is a place in the catalogue, or null when she picked
- * "Somewhere else" and typed `place`.
+ * Someone she knows in Australia; any part may be blank. `placeId` set: a place in the catalogue,
+ * `place` its name. `placeId` null and `place` a string: "Somewhere else", typed (`''` while
+ * nothing is typed). Both null: no place yet.
  */
 export type Relative = {
   placeId: string | null
-  place: string
-  relationship: (typeof RELATIONSHIPS)[number]
+  place: string | null
+  relationship: Relationship | null
   name: string | null
 }
+
+/** Whether she gave her person a place: one from the catalogue, or "Somewhere else". */
+export const hasPlace = (relative: Relative): boolean =>
+  relative.placeId !== null || relative.place !== null
 
 export const LIFE_VALUES = [
   'Health',
@@ -125,8 +131,9 @@ export const storedAnswersSchema = z.pipe(
 
 export const relativeSchema = z.object({
   placeId: z.nullable(z.string().check(z.minLength(1), z.maxLength(80))),
-  place: z.string().check(z.trim(), z.minLength(1), z.maxLength(80)),
-  relationship: z.enum(RELATIONSHIPS),
+  // '' is "Somewhere else" before she types.
+  place: z.nullable(z.string().check(z.trim(), z.maxLength(80))),
+  relationship: z.nullable(z.enum(RELATIONSHIPS)),
   name: z.nullable(z.string().check(z.trim(), z.minLength(1), z.maxLength(40))),
 })
 

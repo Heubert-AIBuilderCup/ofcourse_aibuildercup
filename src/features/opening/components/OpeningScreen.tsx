@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { type ReactNode, useId, useState, useTransition } from 'react'
+import { useId, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { FrameMarks } from '@/shared/components/Blueprint'
 import { buttonVariants } from '@/shared/components/ui/button'
@@ -11,7 +11,6 @@ import {
   type AnswerValue,
   OPENING_STEPS,
   type QuestionKey,
-  type Relative,
   type StoredAnswers,
 } from '@/shared/types/student'
 import { impactLine } from '../model/impact'
@@ -21,11 +20,10 @@ import { type Item, isVisible, parseAnswer, type Screen } from '../model/questio
 import { Hero } from './Hero'
 import { OptionButtons } from './OptionButtons'
 import { Progress, SCREEN_COUNT } from './Progress'
-import { RelativeForm } from './RelativeForm'
 
 const FUTURES_PATH = '/futures'
-// Screen 3's Back: step 02's last question, on the onboarding shell.
-const STUDY_BACK_PATH = questionPath(2, 'length')
+// Screen 4's Back: step 03's last question, on the onboarding shell.
+const LIVING_BACK_PATH = questionPath(3, 'climate')
 
 const stepPath = (index: number) => `${ONBOARDING_PATH}/${OPENING_STEPS[index]}`
 
@@ -35,13 +33,11 @@ function ItemBlock({
   answers,
   line,
   onAnswer,
-  children,
 }: {
   item: Item
   answers: StoredAnswers
   line: string | null
   onAnswer: (key: QuestionKey, raw: AnswerValue) => void
-  children?: ReactNode
 }) {
   const id = useId()
   const titleId = `${id}-title`
@@ -71,7 +67,6 @@ function ItemBlock({
             </div>
           )
         })}
-      {children}
       {/* Always in the page, so a screen reader hears the line that appears after a tap. */}
       <div role="status">
         {line ? (
@@ -83,26 +78,21 @@ function ItemBlock({
 }
 
 /**
- * Opening screens 3–4, living and after (frames r1-3 and r1-4, desktop r1-10); steps 01 and 02 are
- * on the onboarding shell. A tap shows its answer and impact
+ * Opening screen 4, after (frames r1-4, desktop r1-10); steps 01 to 03 are on the onboarding
+ * shell. A tap shows its answer and impact
  * line at once, from local state, and saves in the background; a refused save is said in a toast
  * and the answer stays on the screen. The futures read what was saved.
  */
 export function OpeningScreen({
   screen,
   answers: savedAnswers,
-  relative: savedRelative,
   saveAnswersAction,
-  saveRelativeAction,
 }: {
   screen: Screen
   answers: StoredAnswers
-  relative: Relative | null
   saveAnswersAction: (patch: Partial<Record<QuestionKey, AnswerValue>>) => Promise<ActionResult>
-  saveRelativeAction: (relative: Relative | null) => Promise<ActionResult>
 }) {
   const [answers, setAnswers] = useState(savedAnswers)
-  const [relative, setRelative] = useState(savedRelative)
   const [, startTransition] = useTransition()
 
   const save = (write: () => Promise<ActionResult>) =>
@@ -115,24 +105,16 @@ export function OpeningScreen({
       }
     })
 
-  function saveRelative(next: Relative | null) {
-    setRelative(next)
-    save(() => saveRelativeAction(next))
-  }
-
   function answer(key: QuestionKey, raw: AnswerValue) {
     const parsed = parseAnswer(key, raw)
     if (!parsed) return
     setAnswers((current) => ({ ...current, [key]: parsed }))
     save(() => saveAnswersAction({ [key]: raw }))
-    // Her person goes with "Yes"; any other answer forgets them.
-    if (key === 'knows' && parsed.value !== 'Yes' && relative !== null) saveRelative(null)
   }
 
   const index = screen.number - 1
-  const back = index === 2 ? STUDY_BACK_PATH : stepPath(index - 1)
+  const back = index === 3 ? LIVING_BACK_PATH : stepPath(index - 1)
   const next = index < OPENING_STEPS.length - 1 ? stepPath(index + 1) : FUTURES_PATH
-  const asksWho = isVisible('knows', answers) && answers.knows?.value === 'Yes'
 
   return (
     // The container the phone layout (@max-[35rem]) and the two columns (@min-[48rem]) query.
@@ -150,13 +132,9 @@ export function OpeningScreen({
               key={item.id}
               item={item}
               answers={answers}
-              line={impactLine(item.id, answers, relative)}
+              line={impactLine(item.id, answers, null)}
               onAnswer={answer}
-            >
-              {item.id === 'community' && asksWho ? (
-                <RelativeForm relative={relative} onSave={saveRelative} />
-              ) : null}
-            </ItemBlock>
+            />
           ))}
         </div>
         <footer className="flex max-w-xl flex-col gap-3">

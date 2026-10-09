@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ActionResult } from '@/shared/types/action-result'
-import type { AnswerValue, QuestionKey } from '@/shared/types/student'
+import type { AnswerValue, QuestionKey, Relative } from '@/shared/types/student'
+import type { PERSON } from './onboarding'
 
-// Per-question saving for step 01: every tap is saved, a failure keeps the answer on screen and
-// can be retried. One timer and one sequence number per key, so a late reply to an older tap
-// never overwrites what a newer tap has since set.
+// Per-question saving for the onboarding steps: every tap (or every change to her person) is
+// saved, a failure keeps it on screen and can be retried. One timer and one sequence number per
+// key, so a late reply to an older change never overwrites what a newer one has since set.
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'failed'
 export const SAVE_DEBOUNCE_MS = 300
@@ -12,26 +13,29 @@ export const SAVE_DEBOUNCE_MS = 300
 export type SaveAnswers = (
   patch: Partial<Record<QuestionKey, AnswerValue | null>>,
 ) => Promise<ActionResult>
+/** Her person, or `null` for no one. */
+export type SaveRelative = (relative: Relative | null) => Promise<ActionResult>
 
-export function useAnswerSave(saveAnswersAction: SaveAnswers) {
-  const [statuses, setStatuses] = useState<Partial<Record<QuestionKey, SaveStatus>>>({})
-  const timers = useRef(new Map<QuestionKey, ReturnType<typeof setTimeout>>())
-  const sequence = useRef(new Map<QuestionKey, number>())
-  const latest = useRef(new Map<QuestionKey, AnswerValue | null>())
-  const action = useRef(saveAnswersAction)
-  action.current = saveAnswersAction
+/** Debounced saves, one stream per key, each sent with `send`. */
+function useKeyedSave<K extends string, V>(send: (key: K, value: V) => Promise<ActionResult>) {
+  const [statuses, setStatuses] = useState<Partial<Record<K, SaveStatus>>>({})
+  const timers = useRef(new Map<K, ReturnType<typeof setTimeout>>())
+  const sequence = useRef(new Map<K, number>())
+  const latest = useRef(new Map<K, V>())
+  const action = useRef(send)
+  action.current = send
 
-  const setStatus = useCallback((key: QuestionKey, status: SaveStatus) => {
+  const setStatus = useCallback((key: K, status: SaveStatus) => {
     setStatuses((prev) => ({ ...prev, [key]: status }))
   }, [])
 
   const run = useCallback(
-    async (key: QuestionKey, mine: number) => {
-      const value = latest.current.get(key)
-      if (value === undefined) return
+    async (key: K, mine: number) => {
+      if (!latest.current.has(key)) return
+      const value = latest.current.get(key) as V
       let status: SaveStatus
       try {
-        status = (await action.current({ [key]: value })).ok ? 'saved' : 'failed'
+        status = (await action.current(key, value)).ok ? 'saved' : 'failed'
       } catch {
         status = 'failed'
       }
@@ -41,7 +45,7 @@ export function useAnswerSave(saveAnswersAction: SaveAnswers) {
   )
 
   const start = useCallback(
-    (key: QuestionKey, delay: number) => {
+    (key: K, delay: number) => {
       const mine = (sequence.current.get(key) ?? 0) + 1
       sequence.current.set(key, mine)
       clearTimeout(timers.current.get(key))
@@ -63,15 +67,15 @@ export function useAnswerSave(saveAnswersAction: SaveAnswers) {
   )
 
   const save = useCallback(
-    (key: QuestionKey, raw: AnswerValue | null) => {
-      latest.current.set(key, raw)
+    (key: K, value: V) => {
+      latest.current.set(key, value)
       start(key, SAVE_DEBOUNCE_MS)
     },
     [start],
   )
 
   const retry = useCallback(
-    (key: QuestionKey) => {
+    (key: K) => {
       if (latest.current.has(key)) start(key, 0)
     },
     [start],
@@ -92,10 +96,20 @@ export function useAnswerSave(saveAnswersAction: SaveAnswers) {
   // Leaving by any way (browser Back, Sign out, a link) sends what is still waiting.
   useEffect(() => flush, [flush])
 
-  const statusOf = useCallback(
-    (key: QuestionKey): SaveStatus => statuses[key] ?? 'idle',
-    [statuses],
-  )
+  const statusOf = useCallback((key: K): SaveStatus => statuses[key] ?? 'idle', [statuses])
 
   return { statusOf, save, retry, flush }
+}
+
+export function useAnswerSave(saveAnswersAction: SaveAnswers) {
+  return useKeyedSave<QuestionKey, AnswerValue | null>((key, value) =>
+    saveAnswersAction({ [key]: value }),
+  )
+}
+
+/** Step 03's person, saved as the answers are, under the one key PERSON. */
+export function useRelativeSave(saveRelativeAction: SaveRelative) {
+  return useKeyedSave<typeof PERSON, Relative | null>((_person, relative) =>
+    saveRelativeAction(relative),
+  )
 }

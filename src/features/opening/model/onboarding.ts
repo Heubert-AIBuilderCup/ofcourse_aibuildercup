@@ -1,9 +1,9 @@
 // The onboarding shell's model: the seven steps, the panel's words per step, and the questions of
-// steps 01 and 02 one per screen. Pure and client-safe. The questions, their order and their texts
-// come from questions.ts (SCREENS[0] and SCREENS[1]); the "why" lines, the slugs and step 02's
-// groups are new here.
+// steps 01 to 03 one per screen. Pure and client-safe. The questions, their order and their texts
+// come from questions.ts (SCREENS[0] to SCREENS[2]); the "why" lines, the slugs, step 02's groups
+// and step 03's person screen are new here.
 
-import type { QuestionKey, StoredAnswers } from '@/shared/types/student'
+import type { QuestionKey, Relative, StoredAnswers } from '@/shared/types/student'
 import { DRAWN_TO_AREAS, isVisible, PARTICULAR, SCREENS } from './questions'
 
 /** Step 00 first; the panel shows all seven (criterion 22). */
@@ -18,13 +18,27 @@ export const ONBOARDING_STEPS: readonly string[] = [
 ]
 
 /** The steps built on the onboarding shell so far. */
-export type OnboardingStep = 0 | 1 | 2
+export type OnboardingStep = 0 | 1 | 2 | 3
 
 /** The steps that ask one question per screen. */
-export type QuestionStep = 1 | 2
+export type QuestionStep = 1 | 2 | 3
+
+/**
+ * Step 03's "Who, and where?": a step question that is not a stored answer. It reads and writes
+ * the stored person (`relative`).
+ */
+export const PERSON = 'person'
+/** What a step question asks: a stored answer, or her person. */
+export type StepKey = QuestionKey | typeof PERSON
 
 /** What the panel can show: a step, or the welcome before step 00 (every step listed, none current). */
 export type PanelState = OnboardingStep | 'welcome'
+
+/** The panel's words from step 00 to step 03. */
+const SIX_STEPS = {
+  title: 'Six short steps',
+  lead: 'Each step says why it asks. Nothing is ranked: at the end you see three futures side by side.',
+}
 
 export const PANEL_COPY: Readonly<Record<PanelState, { title: string; lead: string }>> = {
   welcome: {
@@ -32,22 +46,14 @@ export const PANEL_COPY: Readonly<Record<PanelState, { title: string; lead: stri
     lead: "Here's the whole way through. Each step says why it asks.",
   },
   // The welcome says "Before we start"; from step 00 on, the panel speaks of the six steps.
-  0: {
-    title: 'Six short steps',
-    lead: 'Each step says why it asks. Nothing is ranked: at the end you see three futures side by side.',
-  },
-  1: {
-    title: 'Six short steps',
-    lead: 'Each step says why it asks. Nothing is ranked: at the end you see three futures side by side.',
-  },
-  2: {
-    title: 'Six short steps',
-    lead: 'Each step says why it asks. Nothing is ranked: at the end you see three futures side by side.',
-  },
+  0: SIX_STEPS,
+  1: SIX_STEPS,
+  2: SIX_STEPS,
+  3: SIX_STEPS,
 }
 
 export type StepQuestion = {
-  key: QuestionKey
+  key: StepKey
   /** The Item.id in SCREENS whose impact line this question shows. */
   itemId: string
   /** Shown above the question, else ''. */
@@ -151,6 +157,37 @@ const STUDY: Readonly<
   },
 }
 
+type LivingKey = 'dest' | 'place' | 'community' | 'knows' | 'climate'
+
+/** What step 03 adds to each question of SCREENS[2]: its why and slug. */
+const LIVING: Readonly<Record<LivingKey, Pick<StepQuestion, 'why' | 'slug'>>> = {
+  dest: {
+    why: 'It sets the country each future is drawn in. This preview covers Australia.',
+    slug: 'destination',
+  },
+  place: {
+    why: 'It changes the rent, part-time work and migration points on each route.',
+    slug: 'place',
+  },
+  community: {
+    why: "It shapes where each future places you to live. It doesn't put one above another.",
+    slug: 'community',
+  },
+  knows: { why: 'If you do, each route can show how far it is from them.', slug: 'know-anyone' },
+  climate: { why: 'Some people settle better in one climate or another.', slug: 'climate' },
+}
+
+/** Step 03's person screen, asked after "Do you know anyone…" Yes. */
+const PERSON_QUESTION: StepQuestion = {
+  key: PERSON,
+  itemId: PERSON,
+  group: '',
+  question: 'Who, and where?',
+  why: 'Each route then shows its distance from them. Leave any part blank.',
+  slug: 'who-and-where',
+  opensWithLine: false,
+}
+
 export const ONBOARDING_PATH = '/onboarding'
 export const WELCOME_PATH = `${ONBOARDING_PATH}/welcome`
 /** The canvas's placeholder until steps 04–06 are designed and timed. */
@@ -159,6 +196,7 @@ export const PICTURE_PATH = `${ONBOARDING_PATH}/character`
 export const FACTS_PATH = `${ONBOARDING_PATH}/facts`
 export const STUDY_PATH = `${ONBOARDING_PATH}/study`
 export const LIVING_PATH = `${ONBOARDING_PATH}/living`
+const AFTER_PATH = `${ONBOARDING_PATH}/after`
 
 /** Per question step: the kicker's title, its questions in order, and its base path. */
 export const QUESTION_STEPS: Readonly<
@@ -208,16 +246,38 @@ export const QUESTION_STEPS: Readonly<
     back: `${FACTS_PATH}/${FACT_SLUGS.eng}`,
     nextName: "Where and how you'd live",
   },
+  3: {
+    title: "Where and how you'd live",
+    path: LIVING_PATH,
+    // The person screen follows "Do you know anyone…".
+    questions: (SCREENS[2]?.items ?? []).flatMap((item) =>
+      item.questions.flatMap((question): StepQuestion[] => {
+        const asked: StepQuestion = {
+          key: question.key,
+          itemId: item.id,
+          group: '',
+          question: question.label || item.title,
+          opensWithLine: false,
+          ...LIVING[question.key as LivingKey],
+        }
+        return question.key === 'knows' ? [asked, PERSON_QUESTION] : [asked]
+      }),
+    ),
+    back: `${STUDY_PATH}/${STUDY.length.slug}`,
+    nextName: 'After you graduate',
+  },
 }
 
-/** Step 01's questions, in the model order. */
-export const FACT_QUESTIONS: readonly StepQuestion[] = QUESTION_STEPS[1].questions
+/** Step 01's questions, in the model order: stored answers only, it never asks her person. */
+export const FACT_QUESTIONS = QUESTION_STEPS[1].questions as readonly (StepQuestion & {
+  key: QuestionKey
+})[]
 
 /**
  * The URL of a step's question. A key the step does not ask gives the step's own path, which
  * opens its first open question.
  */
-export function questionPath(step: QuestionStep, key: QuestionKey): string {
+export function questionPath(step: QuestionStep, key: StepKey): string {
   const { path, questions } = QUESTION_STEPS[step]
   const slug = questions.find((q) => q.key === key)?.slug
   return slug === undefined ? path : `${path}/${slug}`
@@ -237,26 +297,49 @@ export function questionOfPath(step: QuestionStep, pathname: string): StepQuesti
   return pathname.startsWith(prefix) ? questionBySlug(step, pathname.slice(prefix.length)) : null
 }
 
-/** The questions asked for these answers, in order: the field or the areas only after "know". */
+/** Her person is asked only after a stated Yes to "Do you know anyone…", while that is asked. */
+const asksPerson = (answers: StoredAnswers): boolean =>
+  isVisible('knows', answers) && answers.knows?.value === 'Yes' && answers.knows.state === 'stated'
+
+/**
+ * The questions asked for these answers, in order: the field or the areas only after "know";
+ * "Do you know anyone…" only after community is not No, her person only after its Yes.
+ */
 export function askedQuestions(step: QuestionStep, answers: StoredAnswers): StepQuestion[] {
-  return QUESTION_STEPS[step].questions.filter((q) => isVisible(q.key, answers))
+  return QUESTION_STEPS[step].questions.filter((q) =>
+    q.key === PERSON ? asksPerson(answers) : isVisible(q.key, answers),
+  )
 }
 
 /**
  * Her first asked question with no stored answer, else the last asked. A question left blank
  * (Skip) stores nothing and reads as its DS-D1 default everywhere downstream; an answer stored
- * for a question no longer asked is not counted.
+ * for a question no longer asked is not counted. Her person is open while none is stored.
  */
-export function firstOpenQuestion(step: QuestionStep, answers: StoredAnswers): QuestionKey {
+export function firstOpenQuestion(
+  step: QuestionStep,
+  answers: StoredAnswers,
+  relative: Relative | null = null,
+): StepKey {
   const asked = askedQuestions(step, answers)
-  const open = asked.find((q) => answers[q.key] === undefined)
+  const open = asked.find((q) =>
+    q.key === PERSON ? relative === null : answers[q.key] === undefined,
+  )
   return (open ?? asked[asked.length - 1])?.key ?? 'where'
 }
 
-/** Where leaving a step forward goes: step 01 to step 02's first open question; step 02 to step 03. */
+/**
+ * Where leaving a step forward goes: step 01 to step 02's first open question; step 02 to step 03
+ * (its page opens her first open question); step 03 to step 04.
+ */
 export function forwardPath(step: QuestionStep, answers: StoredAnswers): string {
-  return step === 1 ? questionPath(2, firstOpenQuestion(2, answers)) : LIVING_PATH
+  if (step === 1) return questionPath(2, firstOpenQuestion(2, answers))
+  return step === 2 ? LIVING_PATH : AFTER_PATH
 }
+
+/** Step 01 never asks her person: the one place its question keys meet the helpers below. */
+const questionKeyOf = (key: StepKey | undefined): QuestionKey | null =>
+  key === undefined || key === PERSON ? null : key
 
 export function factPath(key: QuestionKey): string {
   return questionPath(1, key)
@@ -264,12 +347,12 @@ export function factPath(key: QuestionKey): string {
 
 /** The step 01 question a URL slug names, else null (a key is not a slug). */
 export function factKey(slug: string | null | undefined): QuestionKey | null {
-  return questionBySlug(1, slug)?.key ?? null
+  return questionKeyOf(questionBySlug(1, slug)?.key)
 }
 
 /** Where a returning student lands in step 01: its first open question. */
 export function firstUnanswered(answers: StoredAnswers): QuestionKey {
-  return firstOpenQuestion(1, answers)
+  return questionKeyOf(firstOpenQuestion(1, answers)) ?? 'where'
 }
 
 export function stepOfPath(pathname: string): PanelState | null {
@@ -277,6 +360,7 @@ export function stepOfPath(pathname: string): PanelState | null {
   if (pathname === PICTURE_PATH) return 0
   if (pathname === FACTS_PATH || pathname.startsWith(`${FACTS_PATH}/`)) return 1
   if (pathname === STUDY_PATH || pathname.startsWith(`${STUDY_PATH}/`)) return 2
+  if (pathname === LIVING_PATH || pathname.startsWith(`${LIVING_PATH}/`)) return 3
   return null
 }
 
@@ -305,7 +389,7 @@ export function stepProgress(
   answers: StoredAnswers,
 ): { question: number; total: number } | null {
   const step = stepOfPath(pathname)
-  if (step !== 1 && step !== 2) return null
+  if (step === null || step === 'welcome' || step === 0) return null
   const asked = askedQuestions(step, answers)
   const { key } = shownQuestion(step, pathname, answers)
   return { question: asked.findIndex((q) => q.key === key) + 1, total: asked.length }

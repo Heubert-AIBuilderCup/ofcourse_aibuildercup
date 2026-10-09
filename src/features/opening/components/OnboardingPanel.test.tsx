@@ -135,3 +135,18 @@ it('on step 02 counts the questions her first answer asks', () => {
   expect(steps()[2]).toHaveTextContent('Now · 2/5')
   expect(screen.getByText("Now: 02 What you'd study · 2 of 5")).toBeInTheDocument()
 })
+
+it('on step 03 marks steps 00 to 02 done and counts the question she is on', () => {
+  const { container } = renderAt('/onboarding/living/know-anyone', {
+    community: { value: 'Yes', state: 'stated' },
+  })
+  expect(screen.getByRole('heading', { level: 2, name: 'Six short steps' })).toBeInTheDocument()
+  const items = steps()
+  for (const done of items.slice(0, 3)) expect(done).toHaveTextContent('Done')
+  expect(items[3]).toHaveAttribute('aria-current', 'step')
+  expect(items[3]).toHaveTextContent('Now · 4/5')
+  expect(screen.getByText('Step 3 of 6.')).toBeInTheDocument()
+  expect(screen.getByText("Now: 03 Where and how you'd live · 4 of 5")).toBeInTheDocument()
+  expect(screen.getByText('Next: After you graduate')).toBeInTheDocument()
+  expect(segments(container)).toEqual({ all: 7, lit: 4 })
+})

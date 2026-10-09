@@ -3,28 +3,37 @@
 import { ArrowLeft, ArrowRight, Check, CircleAlert, Info, LoaderCircle } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
 import type { AnswerValue, QuestionKey, Relative } from '@/shared/types/student'
-import { type SaveAnswers, type SaveStatus, useAnswerSave } from '../model/answer-save'
+import {
+  type SaveAnswers,
+  type SaveRelative,
+  type SaveStatus,
+  useAnswerSave,
+  useRelativeSave,
+} from '../model/answer-save'
 import { impactView } from '../model/impact'
 import { ANSWER_SAVE_FAILED } from '../model/messages'
 import {
   askedQuestions,
   forwardPath,
+  PERSON,
   QUESTION_STEPS,
   type QuestionStep,
   questionOfPath,
   questionPath,
+  type StepKey,
   shownQuestion,
 } from '../model/onboarding'
 import { useOnboardingAnswers } from '../model/onboarding-answers'
-import { parseAnswer, questionOf } from '../model/questions'
+import { parseAnswer, type Question, questionOf } from '../model/questions'
 import { AnswerCards } from './AnswerCards'
 import { AreaChecks } from './AreaChecks'
 import styles from './facts.module.css'
 import shell from './onboarding.module.css'
+import { PersonForm } from './PersonForm'
 import picture from './picture.module.css'
 
 type Notes = Record<Exclude<SaveStatus, 'failed'>, string>
@@ -39,6 +48,24 @@ const AREA_NOTES: Notes = {
   saving: 'Saving…',
   saved: 'Saved. Tap an area again to remove it.',
 }
+/** A single choice with no "Not sure" (climate): nothing is assumed when she skips. */
+const OPTIONAL_NOTES: Notes = { ...NOTES, idle: "Optional. Skip, and it's left out." }
+/** Step 03's person form, which saves as she types. */
+const PERSON_NOTES: Notes = {
+  ...NOTES,
+  idle: 'Every change saves as you go. Skip, and no one is added.',
+  saved: 'Saved. Every change saves as you go.',
+}
+const PERSON_SAVE_FAILED =
+  "We couldn't save that. What you entered is still here. Check your connection and try again."
+/** What the note under the question says, by what the question is. */
+function notesFor(question: Question | null): Notes {
+  if (question === null) return PERSON_NOTES
+  if (question.control === 'multi') return AREA_NOTES
+  return question.notSure ? NOTES : OPTIONAL_NOTES
+}
+/** Step 03's person is saved through this when the page passes no action (steps 01 and 02 never ask). */
+const NO_PERSON_SAVE: SaveRelative = async () => ({ ok: true })
 const NOTE_ICONS = {
   idle: <Info aria-hidden="true" className="icon-on-line-sm size-icon-sm shrink-0" />,
   saving: (
@@ -51,7 +78,7 @@ const NOTE_ICONS = {
 }
 
 /**
- * Onboarding step 01 or 02 (the design's Facts and Study): one question per screen, the question
+ * Onboarding steps 01 to 03 (the design's Facts, Study and Live): one question per screen, the question
  * named by the URL's last segment, its slug. The questions asked follow her answers as she taps
  * (the field or the areas only after "know"), so the count and the next question change at once;
  * a URL naming a question not asked shows her first open one and is replaced with its URL.
@@ -59,16 +86,23 @@ const NOTE_ICONS = {
  * and offers to try again; removing the last area clears it. Moving between questions changes
  * only the URL (history.pushState, which Next.js syncs with usePathname: the linking guide's
  * "window.history.pushState"), so the screen and its saves stay; Skip stores nothing. Leaving the
- * step sends any save still waiting, so a quick tap is never lost.
+ * step sends any save still waiting, so a quick tap is never lost. Step 03's "Who, and where?" is
+ * a form instead of cards: her person is held here from the one the page passed (a
+ * `router.refresh()` does not overwrite what she entered), so "Do you know anyone…" speaks of the
+ * person on screen, and each change saves as the answers do.
  */
 export function QuestionScreen({
   step,
   relative,
   saveAnswersAction,
+  saveRelativeAction,
 }: {
   step: QuestionStep
+  /** As stored when the page rendered. */
   relative: Relative | null
   saveAnswersAction: SaveAnswers
+  /** Step 03 only: the others never ask for her person. */
+  saveRelativeAction?: SaveRelative
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -89,7 +123,9 @@ export function QuestionScreen({
   )
   const last = index === asked.length - 1
   const forward = forwardPath(step, answers)
-  const { statusOf, save, retry, flush } = useAnswerSave(saveAnswersAction)
+  const [person, setPerson] = useState(relative)
+  const answerSave = useAnswerSave(saveAnswersAction)
+  const personSave = useRelativeSave(saveRelativeAction ?? NO_PERSON_SAVE)
   const root = useRef<HTMLDivElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   const shown = useRef(item.key)
@@ -107,24 +143,15 @@ export function QuestionScreen({
     heading.current?.focus({ preventScroll: true })
   }, [item.key])
 
-  /** A tap, or `null` when she removed the last area: the answer is cleared, as if never given. */
-  function answer(raw: AnswerValue | null) {
-    const { key } = item
-    if (raw === null) {
-      setAnswers(({ [key]: _cleared, ...rest }) => rest)
-      save(key, null)
-      return
-    }
-    const parsed = parseAnswer(key, raw)
-    if (!parsed) return
-    setAnswers((current) => ({ ...current, [key]: parsed }))
-    save(key, raw)
-  }
-
-  function go(key: QuestionKey) {
+  function go(key: StepKey) {
     window.history.pushState(null, '', questionPath(step, key))
     const top = root.current?.getBoundingClientRect().top ?? 0
     if (top < 0) root.current?.scrollIntoView({ block: 'start' })
+  }
+
+  function flush() {
+    answerSave.flush()
+    personSave.flush()
   }
 
   function leave(path: string) {
@@ -132,12 +159,40 @@ export function QuestionScreen({
     router.push(path)
   }
 
-  const question = questionOf(item.key)
-  const multi = question.control === 'multi'
-  const answered = answers[item.key] !== undefined
-  const impact = answered || item.opensWithLine ? impactView(item.itemId, answers, relative) : null
-  const status = statusOf(item.key)
-  const notes = multi ? AREA_NOTES : NOTES
+  /** A tap, or `null` when she removed the last area: the answer is cleared, as if never given. */
+  function answer(key: QuestionKey, raw: AnswerValue | null) {
+    if (raw === null) {
+      setAnswers(({ [key]: _cleared, ...rest }) => rest)
+      answerSave.save(key, null)
+      return
+    }
+    const parsed = parseAnswer(key, raw)
+    if (!parsed) return
+    setAnswers((current) => ({ ...current, [key]: parsed }))
+    answerSave.save(key, raw)
+    // Anything but a stated Yes to knowing someone (No, or Not sure, assumed No): her person is forgotten.
+    if (
+      key === 'knows' &&
+      person !== null &&
+      !(parsed.state === 'stated' && parsed.value === 'Yes')
+    ) {
+      changePerson(null)
+    }
+  }
+
+  function changePerson(next: Relative | null) {
+    setPerson(next)
+    personSave.save(PERSON, next)
+  }
+
+  const { key } = item
+  const question = key === PERSON ? null : questionOf(key)
+  const multi = question?.control === 'multi'
+  const answered = key === PERSON ? person !== null : answers[key] !== undefined
+  const impact = answered || item.opensWithLine ? impactView(item.itemId, answers, person) : null
+  const tagStop = impact?.tag?.after.startsWith('.') ? '.' : ''
+  const status = key === PERSON ? personSave.statusOf(key) : answerSave.statusOf(key)
+  const notes = notesFor(question)
 
   return (
     <div ref={root} className="mx-auto flex w-full max-w-2xl flex-col gap-5 @max-xl:gap-4">
@@ -162,19 +217,21 @@ export function QuestionScreen({
         </h1>
         <p className="m-0 max-w-prose leading-relaxed text-muted-foreground">{item.why}</p>
         <div className={styles.cards}>
-          {multi ? (
+          {question === null ? (
+            <PersonForm relative={person} onChange={changePerson} labelledBy={headingId} />
+          ) : multi ? (
             <AreaChecks
               question={question}
               labelledBy={headingId}
-              answer={answers[item.key]}
-              onAnswer={answer}
+              answer={answers[question.key]}
+              onAnswer={(raw) => answer(question.key, raw)}
             />
           ) : (
             <AnswerCards
               question={question}
               labelledBy={headingId}
-              answer={answers[item.key]}
-              onAnswer={answer}
+              answer={answers[question.key]}
+              onAnswer={(raw) => answer(question.key, raw)}
             />
           )}
         </div>
@@ -208,12 +265,17 @@ export function QuestionScreen({
                 <p className="m-0">
                   <span className="sr-only">What this does: </span>
                   <span>{impact.text}</span>
-                  {impact.mock ? (
+                  {impact.tag ? (
                     <>
-                      {' · '}
-                      <span className="border border-dashed border-neutral-500 px-1.5 text-overline uppercase tracking-[0.06em] text-muted-foreground">
-                        mock
+                      {/* The tag never starts a line, nor leaves its full stop behind. */}
+                      <span className="whitespace-nowrap">
+                        {' · '}
+                        <span className="border border-dashed border-neutral-500 px-1.5 text-overline uppercase tracking-[0.06em] text-muted-foreground">
+                          {impact.tag.text}
+                        </span>
+                        {tagStop}
                       </span>
+                      {impact.tag.after.slice(tagStop.length)}
                     </>
                   ) : null}
                 </p>
@@ -246,11 +308,13 @@ export function QuestionScreen({
             )}
           >
             <CircleAlert aria-hidden="true" className="size-icon shrink-0 text-danger-700" />
-            <span className="min-w-45 flex-1">{ANSWER_SAVE_FAILED}</span>
+            <span className="min-w-45 flex-1">
+              {key === PERSON ? PERSON_SAVE_FAILED : ANSWER_SAVE_FAILED}
+            </span>
             <Button
               type="button"
               variant="outline"
-              onClick={() => retry(item.key)}
+              onClick={() => (key === PERSON ? personSave.retry(key) : answerSave.retry(key))}
               className="h-11 border-danger-300 px-3.5 text-danger-800 hover:bg-danger-200 hover:text-danger-800"
             >
               Try again

@@ -4,37 +4,28 @@ import { afterEach, expect, it, mock } from 'bun:test'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { Toaster } from 'sonner'
 import type { ActionResult } from '@/shared/types/action-result'
-import type { Relative, StoredAnswers } from '@/shared/types/student'
+import type { StoredAnswers } from '@/shared/types/student'
 import { notSureLine } from '../model/impact'
 import { SCREENS } from '../model/questions'
 import { OpeningScreen } from './OpeningScreen'
 
 const saved = async (_: unknown): Promise<ActionResult> => ({ ok: true })
 const saveAnswersAction = mock(saved)
-const saveRelativeAction = mock(saved)
 
 afterEach(() => {
   cleanup()
-  for (const action of [saveAnswersAction, saveRelativeAction]) {
-    action.mockReset()
-    action.mockImplementation(saved)
-  }
+  saveAnswersAction.mockReset()
+  saveAnswersAction.mockImplementation(saved)
 })
 
-const [FACTS, , LIVING, AFTER] = SCREENS
+const [FACTS, , , AFTER] = SCREENS
 
-function show(
-  screenIndex: 0 | 1 | 2 | 3,
-  answers: StoredAnswers = {},
-  relative: Relative | null = null,
-) {
+function show(screenIndex: 0 | 3, answers: StoredAnswers = {}) {
   return render(
     <OpeningScreen
       screen={SCREENS[screenIndex]}
       answers={answers}
-      relative={relative}
       saveAnswersAction={saveAnswersAction}
-      saveRelativeAction={saveRelativeAction}
     />,
   )
 }
@@ -50,14 +41,6 @@ const tap = (groupName: string, option: string) =>
   act(async () => {
     fireEvent.click(button(groupName, option))
   })
-/** A pick or a keystroke, its save settled. */
-const change = (field: HTMLElement, value: string) =>
-  act(async () => {
-    fireEvent.change(field, { target: { value } })
-  })
-
-const COMMUNITY = 'Does a community of similar culture, or relatives nearby, matter?'
-const KNOWS = 'Do you know anyone who lives in Australia?'
 
 it('heads screen 1 with its title and the first of six steps', () => {
   show(0)
@@ -155,13 +138,7 @@ it('keeps the answer and says so when the save is refused', async () => {
   render(
     <>
       <Toaster />
-      <OpeningScreen
-        screen={FACTS}
-        answers={{}}
-        relative={null}
-        saveAnswersAction={saveAnswersAction}
-        saveRelativeAction={saveRelativeAction}
-      />
+      <OpeningScreen screen={FACTS} answers={{}} saveAnswersAction={saveAnswersAction} />
     </>,
   )
   await tap('Anyone coming with you?', 'Partner')
@@ -169,85 +146,6 @@ it('keeps the answer and says so when the save is refused', async () => {
   expect(
     within(group('Anyone coming with you?')).getByRole('button', { name: 'Partner' }),
   ).toHaveAttribute('aria-pressed', 'true')
-})
-
-it('asks whether she knows anyone only once community matters, then who and where', async () => {
-  show(2)
-  expect(screen.queryByText(KNOWS)).not.toBeInTheDocument()
-  await tap(COMMUNITY, 'A little')
-  expect(screen.getByText(KNOWS)).toBeInTheDocument()
-  expect(screen.queryByRole('heading', { name: 'Who, and where?' })).not.toBeInTheDocument()
-  await tap(KNOWS, 'Yes')
-  expect(screen.getByRole('heading', { name: 'Who, and where?' })).toBeInTheDocument()
-  await tap(COMMUNITY, 'No')
-  expect(screen.queryByText(KNOWS)).not.toBeInTheDocument()
-})
-
-it('saves her person once a place and a relationship are set, and the name on blur', async () => {
-  show(2, { community: { value: 'A little', state: 'stated' } })
-  await tap(KNOWS, 'Yes')
-  await change(screen.getByLabelText('City or suburb'), 'cannington')
-  expect(saveRelativeAction).not.toHaveBeenCalled()
-  await tap("They're your…", 'Cousin')
-  expect(saveRelativeAction).toHaveBeenLastCalledWith({
-    placeId: 'cannington',
-    place: 'Cannington',
-    relationship: 'Cousin',
-    name: null,
-  })
-  expect(screen.getByText(/^Your cousin in Cannington, Perth: /)).toBeInTheDocument()
-
-  const name = screen.getByLabelText('Name (optional)')
-  await change(name, ' Anjali ')
-  expect(saveRelativeAction).toHaveBeenCalledTimes(1)
-  await act(async () => {
-    fireEvent.blur(name)
-  })
-  expect(saveRelativeAction).toHaveBeenLastCalledWith({
-    placeId: 'cannington',
-    place: 'Cannington',
-    relationship: 'Cousin',
-    name: 'Anjali',
-  })
-  expect(screen.getByText(/^Anjali in Cannington, Perth: /)).toBeInTheDocument()
-})
-
-it('takes a place outside the preview, typed', async () => {
-  show(2, {
-    community: { value: 'Yes', state: 'stated' },
-    knows: { value: 'Yes', state: 'stated' },
-  })
-  const place = screen.getByLabelText('City or suburb')
-  expect(within(place).getByRole('option', { name: 'Cannington, Perth' })).toBeInTheDocument()
-  expect(screen.queryByLabelText('Where?')).not.toBeInTheDocument()
-  await change(place, 'elsewhere')
-  await change(screen.getByLabelText('Where?'), 'Darwin')
-  await tap("They're your…", 'Friend')
-  expect(saveRelativeAction).toHaveBeenLastCalledWith({
-    placeId: null,
-    place: 'Darwin',
-    relationship: 'Friend',
-    name: null,
-  })
-})
-
-it('forgets her person when she says she knows no one', async () => {
-  const relative: Relative = {
-    placeId: 'cannington',
-    place: 'Cannington',
-    relationship: 'Cousin',
-    name: 'Anjali',
-  }
-  show(
-    2,
-    { community: { value: 'A little', state: 'stated' }, knows: { value: 'Yes', state: 'stated' } },
-    relative,
-  )
-  expect(screen.getByLabelText('City or suburb')).toHaveValue('cannington')
-  expect(screen.getByLabelText('Name (optional)')).toHaveValue('Anjali')
-  await tap(KNOWS, 'No')
-  expect(saveRelativeAction).toHaveBeenCalledWith(null)
-  expect(screen.queryByRole('heading', { name: 'Who, and where?' })).not.toBeInTheDocument()
 })
 
 it('asks about staying with yes, not sure and no', () => {
@@ -268,19 +166,11 @@ it('links back to the screen before and on to the next', () => {
   )
   cleanup()
 
-  show(2)
+  show(3)
   expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute(
     'href',
-    '/onboarding/study/length',
+    '/onboarding/living/climate',
   )
-  expect(screen.getByRole('link', { name: LIVING.next })).toHaveAttribute(
-    'href',
-    '/onboarding/after',
-  )
-  cleanup()
-
-  show(3)
-  expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/onboarding/living')
   expect(screen.getByRole('link', { name: 'Show me three futures' })).toHaveAttribute(
     'href',
     '/futures',

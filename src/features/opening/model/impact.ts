@@ -11,9 +11,19 @@ import {
   cityOf,
   minutesBetween,
   placeById,
+  placeLabel,
+  whoOf,
 } from '@/features/engine'
-import type { AnswerValue, QuestionKey, Relative, StoredAnswers } from '@/shared/types/student'
 import {
+  type AnswerValue,
+  hasPlace,
+  type QuestionKey,
+  type Relative,
+  type StoredAnswers,
+} from '@/shared/types/student'
+import { PERSON } from './onboarding'
+import {
+  activeRelative,
   DEFAULTS,
   DRAWN_TO_AREAS,
   display,
@@ -208,12 +218,30 @@ const destLine: LineFn = (answers) => {
   return null
 }
 
-/** Her campuses in the place's city, nearest first, as minutes by road (estimates). */
-function relativeLine(relative: Relative): string {
-  const who = relative.name ?? `your ${relative.relationship.toLowerCase()}`
+/** A line in two parts around its tag: what comes before, and the tag with what goes on after it. */
+type LineParts = { text: string; tag: ImpactTag | null }
+
+/**
+ * The line on her person (criterion 10), in parts, so the tag is never searched for in text she
+ * typed: with a place in the preview, her campuses in its city, nearest first, as minutes by road
+ * (estimates); with "Somewhere else", a promise; with no place, a request for one. Null with no person.
+ */
+function personParts(relative: Relative | null): LineParts | null {
+  if (!relative) return null
+  const who = whoOf(relative)
+  if (!hasPlace(relative)) {
+    return {
+      text: `Pick a city or suburb, and each route shows its distance from ${who}.`,
+      tag: null,
+    }
+  }
   const place = relative.placeId === null ? undefined : placeById(relative.placeId)
   if (!place) {
-    return `We'll show distances from ${who} in ${relative.place} once we can work them out.`
+    const where = relative.place ? ` in ${relative.place}` : ''
+    return {
+      text: `We'll show distances from ${who}${where} once we can work them out.`,
+      tag: null,
+    }
   }
   const city = cityById(place.cityId)
   const [first, second] = CAMPUSES.filter((campus) => campus.cityId === city.id)
@@ -223,21 +251,34 @@ function relativeLine(relative: Relative): string {
     `${first.name} is about ${first.minutes} min away`,
     ...(second ? [`${second.name} about ${second.minutes} min`] : []),
   ].join(', ')
-  const where = place.name === city.name ? place.name : `${place.name}, ${city.name}`
-  return `${capital(who)} in ${where}: ${campuses} · estimate. Every route shows its distance from ${who}.`
+  return {
+    text: `${capital(who)} in ${placeLabel(place)}: ${campuses}`,
+    tag: { text: 'estimate', after: `. Every route shows its distance from ${who}.` },
+  }
 }
 
-const communityLines = choice('community', {
+/** The line on her person as one string; see `personParts`. */
+export function personLine(relative: Relative | null): string | null {
+  const parts = personParts(relative)
+  return parts && (parts.tag ? `${parts.text} · ${parts.tag.text}${parts.tag.after}` : parts.text)
+}
+
+const communityLine = choice('community', {
   Yes: `Yes: ${SHAPES}`,
   'A little': `A little: ${SHAPES}`,
   No: "No: noted; it won't change your futures.",
 })
 
-/** The relative speaks once she has said she knows someone and added them. */
-const communityLine: LineFn = (answers, relative) =>
-  relative && isVisible('knows', answers) && textOf(answers, 'knows') === 'Yes'
-    ? relativeLine(relative)
-    : communityLines(answers, relative)
+/** After a Yes, her person speaks once they have a place; until then, the line asks for them. */
+const knowsLine: LineFn = (answers, relative) => {
+  const knows = textOf(answers, 'knows')
+  if (knows === 'No') return "No: noted; it won't change your futures."
+  if (knows !== 'Yes') return null
+  const person = activeRelative(answers, relative)
+  return person && hasPlace(person)
+    ? personLine(person)
+    : 'Yes: next, tell me who and where. Every route can then show its distance from them.'
+}
 
 const climateLine: LineFn = (answers) => {
   const climate = textOf(answers, 'climate')
@@ -286,6 +327,7 @@ const LINES: Readonly<Record<string, LineFn>> = {
     Regional: 'Regional: more PR points, cheaper rent, fewer part-time jobs.',
   }),
   community: communityLine,
+  knows: knowsLine,
   climate: climateLine,
   stay: choice('stay', {
     Yes: 'Yes: courses off the occupation list seal; regional study gains points.',
@@ -318,13 +360,15 @@ function unsureQuestions(item: Item, answers: StoredAnswers): Question[] {
 /**
  * The one line under an item, or null when nothing in it is answered yet. A question she
  * answered "Not sure" (the first one, in the item's order) takes the line for the whole item.
- * `itemId` is an Item.id from SCREENS; any other id has no line.
+ * `itemId` is an Item.id from SCREENS, or PERSON (step 03's "Who, and where?": her person line);
+ * any other id has no line.
  */
 export function impactLine(
   itemId: string,
   answers: StoredAnswers,
   relative: Relative | null,
 ): string | null {
+  if (itemId === PERSON) return personLine(relative)
   const item = ITEMS.get(itemId)
   if (!item) return null
   const [unsure] = unsureQuestions(item, answers)
@@ -333,25 +377,57 @@ export function impactLine(
 }
 
 export type ImpactKind = 'plain' | 'assume' | 'limit'
-export type ImpactView = { text: string; kind: ImpactKind; mock: boolean; chips: string[] }
+/**
+ * A line's tag, shown apart: the line reads `text`, " · ", the tag, then `after` (a mock line
+ * ends at its tag; an estimate goes on: ". Every route shows its distance from …").
+ */
+export type ImpactTag = { text: 'mock' | 'estimate'; after: string }
+export type ImpactView = { text: string; kind: ImpactKind; tag: ImpactTag | null; chips: string[] }
 
-/** `impactLine` for the screen: the same text, with its kind, the mock tag apart, and chips. */
+/** A line that ends at its mock tag, split there; any other line has none (the estimate tag comes from `personParts`). */
+function splitMock(line: string): LineParts {
+  return line.endsWith(MOCK)
+    ? { text: line.slice(0, -MOCK.length), tag: { text: 'mock', after: '' } }
+    : { text: line, tag: null }
+}
+
+/**
+ * The person whose line this item shows (the person screen's own, or "Do you know anyone…" once
+ * she said Yes), else null. Mirrors `knowsLine`.
+ */
+function personShown(
+  itemId: string,
+  answers: StoredAnswers,
+  relative: Relative | null,
+): Relative | null {
+  if (itemId === PERSON) return relative
+  if (itemId !== 'knows' || textOf(answers, 'knows') !== 'Yes') return null
+  const person = activeRelative(answers, relative)
+  return person && hasPlace(person) ? person : null
+}
+
+/** An answer the preview cannot follow: said in the calm limit style. */
+function isLimit(itemId: string, answers: StoredAnswers): boolean {
+  const dep = textOf(answers, 'dep')
+  if (itemId === 'dep') return dep === 'Partner' || dep === 'Partner and children'
+  return itemId === 'dest' && textOf(answers, 'dest') === 'Open to others'
+}
+
+/** `impactLine` for the screen: the same text, with its kind, its tag apart, and chips. */
 export function impactView(
   itemId: string,
   answers: StoredAnswers,
   relative: Relative | null,
 ): ImpactView | null {
-  const item = ITEMS.get(itemId)
   const line = impactLine(itemId, answers, relative)
-  if (!item || line === null) return null
-  const [first, ...others] = unsureQuestions(item, answers)
-  const mock = line.endsWith(MOCK)
-  const text = mock ? line.slice(0, -MOCK.length) : line
+  if (line === null) return null
+  const item = ITEMS.get(itemId)
+  const [first, ...others] = item ? unsureQuestions(item, answers) : []
+  const { text, tag } =
+    (!first && personParts(personShown(itemId, answers, relative))) || splitMock(line)
   if (first) {
     const chips = others.map((question) => assumedText(question.key, DEFAULTS[question.key]))
-    return { text, kind: 'assume', mock, chips }
+    return { text, kind: 'assume', tag, chips }
   }
-  const dep = textOf(answers, 'dep')
-  const limited = itemId === 'dep' && (dep === 'Partner' || dep === 'Partner and children')
-  return { text, kind: limited ? 'limit' : 'plain', mock, chips: [] }
+  return { text, kind: isLimit(itemId, answers) ? 'limit' : 'plain', tag, chips: [] }
 }

@@ -87,10 +87,19 @@ describe('relativeSchema', () => {
     expect(relativeSchema.safeParse({ ...relative, relationship: 'Neighbour' }).success).toBe(false)
   })
 
-  it('refuses an 81-character place, and an empty one', () => {
+  it('refuses an 81-character place', () => {
     expect(relativeSchema.safeParse({ ...relative, place: 'x'.repeat(81) }).success).toBe(false)
     expect(relativeSchema.safeParse({ ...relative, place: 'x'.repeat(80) }).success).toBe(true)
-    expect(relativeSchema.safeParse({ ...relative, place: '   ' }).success).toBe(false)
+  })
+
+  it('accepts "Somewhere else" with nothing typed, trimmed to empty', () => {
+    const blank = { placeId: null, place: '   ', relationship: null, name: null }
+    expect(relativeSchema.parse(blank)).toEqual({ ...blank, place: '' })
+  })
+
+  it('accepts every part blank', () => {
+    const none: Relative = { placeId: null, place: null, relationship: null, name: null }
+    expect(relativeSchema.parse(none)).toEqual(none)
   })
 
   it('refuses a name over forty characters', () => {

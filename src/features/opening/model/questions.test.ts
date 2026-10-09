@@ -63,6 +63,21 @@ describe('SCREENS', () => {
     ])
   })
 
+  it('ask on screen 3 one question per item, so community and knowing someone each have a line', () => {
+    expect(SCREENS[2].items.map((item) => [item.id, item.title])).toEqual([
+      ['dest', 'Destination'],
+      ['place', 'Kind of place'],
+      ['community', 'Does a community of similar culture, or relatives nearby, matter?'],
+      ['knows', 'Do you know anyone who lives in Australia?'],
+      ['climate', 'Climate (optional)'],
+    ])
+    for (const item of SCREENS[2].items) {
+      expect(item.questions.map((q): string => q.key)).toEqual([item.id])
+    }
+    expect(questionOf('knows').options).toEqual(['Yes', 'No'])
+    expect(editLabel('knows')).toBe('Do you know anyone who lives in Australia?')
+  })
+
   it('offer every country, ending with a visa in Australia and another country', () => {
     const where = questionOf('where')
     expect(where.control).toBe('select')

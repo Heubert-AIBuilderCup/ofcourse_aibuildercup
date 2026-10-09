@@ -5,12 +5,13 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import * as navigation from 'next/navigation'
 import type { ReactNode } from 'react'
 import type { ActionResult } from '@/shared/types/action-result'
-import type { StoredAnswers } from '@/shared/types/student'
+import type { Relative, StoredAnswers } from '@/shared/types/student'
 import type { QuestionStep } from '../model/onboarding'
 import { OnboardingAnswersProvider } from '../model/onboarding-answers'
 
 const saved = async (_patch: unknown): Promise<ActionResult> => ({ ok: true })
 const saveAnswersAction = mock(saved)
+const saveRelativeAction = mock(saved)
 
 let pathname = '/onboarding/facts/where'
 const push = mock((_: string) => {})
@@ -34,8 +35,10 @@ const replaceState = spyOn(window.history, 'replaceState').mockImplementation(()
 
 afterEach(() => {
   cleanup()
-  saveAnswersAction.mockReset()
-  saveAnswersAction.mockImplementation(saved)
+  for (const action of [saveAnswersAction, saveRelativeAction]) {
+    action.mockReset()
+    action.mockImplementation(saved)
+  }
   push.mockClear()
   pushState.mockClear()
   replaceState.mockClear()
@@ -50,12 +53,21 @@ const NEXT = "Next: What you'd study"
 const STUDY_LEAVE = "Leave the rest for now: go to Where and how you'd live"
 const STUDY_NEXT = "Next: Where and how you'd live"
 
-const STEP_PATHS: Record<QuestionStep, string> = { 1: '/onboarding/facts', 2: '/onboarding/study' }
+const STEP_PATHS: Record<QuestionStep, string> = {
+  1: '/onboarding/facts',
+  2: '/onboarding/study',
+  3: '/onboarding/living',
+}
 
 /** The step's screen with her answers in the shell's provider, as the (shell) layout gives them. */
-const view = (step: QuestionStep, answers: StoredAnswers) => (
+const view = (step: QuestionStep, answers: StoredAnswers, relative: Relative | null = null) => (
   <OnboardingAnswersProvider answers={answers}>
-    <QuestionScreen step={step} relative={null} saveAnswersAction={saveAnswersAction} />
+    <QuestionScreen
+      step={step}
+      relative={relative}
+      saveAnswersAction={saveAnswersAction}
+      saveRelativeAction={saveRelativeAction}
+    />
   </OnboardingAnswersProvider>
 )
 
@@ -331,4 +343,180 @@ it("goes on to step 03 from step 02's last question, with no way to leave the re
   expect(screen.queryByRole('link', { name: STUDY_LEAVE })).not.toBeInTheDocument()
   await press(STUDY_NEXT)
   expect(push).toHaveBeenCalledWith('/onboarding/living')
+})
+
+// Step 03, "Where and how you'd live": the same screen, with her person as a form.
+
+const LIVING_LEAVE = 'Leave the rest for now: go to After you graduate'
+const LIVING_NEXT = 'Next: After you graduate'
+const PERSON_IDLE = 'Every change saves as you go. Skip, and no one is added.'
+const PERSON_SAVED = 'Saved. Every change saves as you go.'
+const PERSON_FAILED =
+  "We couldn't save that. What you entered is still here. Check your connection and try again."
+
+/** Step 03's screen at a question's URL, with the person she has stored. */
+function livingAt(slug: string, answers: StoredAnswers = {}, relative: Relative | null = null) {
+  pathname = `${STEP_PATHS[3]}/${slug}`
+  return render(view(3, answers, relative))
+}
+
+const stated = (value: string) => ({ value, state: 'stated' as const })
+/** She knows someone: community matters and "Do you know anyone…" is Yes. */
+const KNOWS_YES: StoredAnswers = { community: stated('Yes'), knows: stated('Yes') }
+
+const pick = (label: string, value: string) =>
+  act(async () => {
+    fireEvent.change(screen.getByLabelText(label), { target: { value } })
+  })
+
+it('opens step 03 at its destination, with the ways back and on', async () => {
+  livingAt('destination')
+  expect(textOf("Where and how you'd live · 1 of 4")).toBeInTheDocument()
+  expect(screen.getByRole('heading', { level: 1, name: 'Destination' })).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: LIVING_LEAVE })).toHaveAttribute(
+    'href',
+    '/onboarding/after',
+  )
+  await press('Back')
+  expect(push).toHaveBeenCalledWith('/onboarding/study/length')
+})
+
+it('counts "Do you know anyone…" once community matters', async () => {
+  livingAt('community')
+  expect(textOf("Where and how you'd live · 3 of 4")).toBeInTheDocument()
+  await tap('Yes')
+  expect(textOf("Where and how you'd live · 3 of 5")).toBeInTheDocument()
+})
+
+it('asks who and where after a Yes to knowing someone', async () => {
+  livingAt('know-anyone', { community: stated('Yes') })
+  await tap('Yes')
+  expect(textOf("Where and how you'd live · 4 of 6")).toBeInTheDocument()
+  await press('Continue')
+  expect(pushState).toHaveBeenCalledWith(null, '', '/onboarding/living/who-and-where')
+})
+
+it('ends step 03 at the optional climate, on to step 04', async () => {
+  livingAt('climate')
+  expect(screen.queryByRole('radio', { name: 'Not sure' })).not.toBeInTheDocument()
+  expect(screen.getByText("Optional. Skip, and it's left out.")).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: LIVING_LEAVE })).not.toBeInTheDocument()
+  await press(LIVING_NEXT)
+  expect(push).toHaveBeenCalledWith('/onboarding/after')
+})
+
+it('saves her person after the debounce, and says what is missing', async () => {
+  livingAt('who-and-where', KNOWS_YES)
+  expect(screen.getByRole('heading', { level: 1, name: 'Who, and where?' })).toBeInTheDocument()
+  expect(screen.getByText(PERSON_IDLE)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument()
+  await tap('Cousin')
+  expect(
+    screen.getByText('Pick a city or suburb, and each route shows its distance from your cousin.'),
+  ).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
+  expect(saveRelativeAction).not.toHaveBeenCalled()
+  await waitFor(() => expect(screen.getByText(PERSON_SAVED)).toBeInTheDocument())
+  expect(saveRelativeAction).toHaveBeenCalledTimes(1)
+  expect(saveRelativeAction).toHaveBeenCalledWith({
+    placeId: null,
+    place: null,
+    relationship: 'Cousin',
+    name: null,
+  })
+})
+
+it('shows the distances from a place she picks, as an estimate', async () => {
+  livingAt('who-and-where', KNOWS_YES)
+  await tap('Cousin')
+  await pick('City or suburb', 'cannington')
+  expect(textOf('estimate')).toBeInTheDocument()
+  const line =
+    /^What this does: Your cousin in Cannington, Perth: .* min away.* · estimate\. Every route shows its distance from your cousin\.$/
+  expect(
+    screen.getByText((_, el) => el?.tagName === 'P' && line.test(el.textContent ?? '')),
+  ).toBeInTheDocument()
+})
+
+it('keeps what she entered and offers to send it again when the save fails', async () => {
+  saveRelativeAction.mockImplementation(async () => ({ ok: false, error: 'x' }))
+  livingAt('who-and-where', KNOWS_YES)
+  await tap('Sibling')
+  expect(await screen.findByRole('alert')).toHaveTextContent(PERSON_FAILED)
+  expect(screen.getByRole('radio', { name: 'Sibling' })).toHaveAttribute('aria-checked', 'true')
+  await press('Try again')
+  expect(saveRelativeAction).toHaveBeenCalledTimes(2)
+  expect(saveRelativeAction).toHaveBeenLastCalledWith({
+    placeId: null,
+    place: null,
+    relationship: 'Sibling',
+    name: null,
+  })
+})
+
+it('stores no one once she clears every part', async () => {
+  livingAt('who-and-where', KNOWS_YES, {
+    placeId: 'cannington',
+    place: 'Cannington',
+    relationship: null,
+    name: 'Anjali',
+  })
+  expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
+  await pick('City or suburb', '')
+  await pick('Name (optional)', '')
+  expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument()
+  await waitFor(() => expect(saveRelativeAction).toHaveBeenCalledWith(null))
+  expect(saveRelativeAction).toHaveBeenCalledTimes(1)
+})
+
+it('sends a waiting save of her person when she leaves', async () => {
+  const { unmount } = livingAt('who-and-where', KNOWS_YES)
+  await tap('Friend')
+  expect(saveRelativeAction).not.toHaveBeenCalled()
+  act(() => unmount())
+  expect(saveRelativeAction).toHaveBeenCalledWith({
+    placeId: null,
+    place: null,
+    relationship: 'Friend',
+    name: null,
+  })
+})
+
+it('keeps the person she entered on "Do you know anyone…", whatever a refresh brings', async () => {
+  const { rerender } = livingAt('who-and-where', KNOWS_YES)
+  await pick('City or suburb', 'cannington')
+  pathname = `${STEP_PATHS[3]}/know-anyone`
+  act(() => rerender(view(3, KNOWS_YES, null)))
+  expect(
+    screen.getByText(/^The person you know in Cannington, Perth: .* min away/),
+  ).toBeInTheDocument()
+})
+
+const ANJALI: Relative = {
+  placeId: 'cannington',
+  place: 'Cannington',
+  relationship: 'Cousin',
+  name: 'Anjali',
+}
+
+it.each(['No', 'Not sure'])(
+  'forgets her person when she answers "%s" to knowing anyone',
+  async (answer) => {
+    livingAt('know-anyone', KNOWS_YES, ANJALI)
+    expect(screen.getByText(/^Anjali in Cannington, Perth: .* min away/)).toBeInTheDocument()
+    await tap(answer)
+    await waitFor(() => expect(saveRelativeAction).toHaveBeenCalledWith(null))
+    expect(saveRelativeAction).toHaveBeenCalledTimes(1)
+    await tap('Yes')
+    expect(screen.queryByText(/Anjali/)).not.toBeInTheDocument()
+    expect(screen.getByText(/^Yes: next, tell me who and where/)).toBeInTheDocument()
+  },
+)
+
+it('keeps her person when she answers Yes to knowing anyone', async () => {
+  livingAt('know-anyone', { community: stated('Yes') }, ANJALI)
+  await tap('Yes')
+  await waitFor(() => expect(saveAnswersAction).toHaveBeenCalledTimes(1))
+  expect(saveRelativeAction).not.toHaveBeenCalled()
+  expect(screen.getByText(/^Anjali in Cannington, Perth/)).toBeInTheDocument()
 })

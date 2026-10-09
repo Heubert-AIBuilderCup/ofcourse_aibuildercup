@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import type { StoredAnswers } from '@/shared/types/student'
+import type { Relative, StoredAnswers } from '@/shared/types/student'
 import {
   askedQuestions,
   FACT_QUESTIONS,
@@ -13,6 +13,7 @@ import {
   LIVING_PATH,
   ONBOARDING_STEPS,
   PANEL_COPY,
+  PERSON,
   PICTURE_PATH,
   QUESTION_STEPS,
   questionBySlug,
@@ -54,6 +55,16 @@ const studyAnswered = (value: string): StoredAnswers => ({
   learn: { value: 'No preference', state: 'stated' },
   length: { value: 'As short as possible', state: 'stated' },
 })
+
+const yes = (value: string) => ({ value, state: 'stated' }) as const
+/** Step 03 answered up to "Do you know anyone…" Yes; the person and climate still open. */
+const knowsSomeone: StoredAnswers = {
+  dest: yes('Australia'),
+  place: yes('City'),
+  community: yes('Yes'),
+  knows: yes('Yes'),
+}
+const cousin: Relative = { placeId: null, place: null, relationship: 'Cousin', name: null }
 
 describe('FACT_QUESTIONS', () => {
   it('asks the eleven questions in the model order', () => {
@@ -181,8 +192,14 @@ describe('stepOfPath', () => {
     expect(stepOfPath('/onboarding/studyx')).toBeNull()
   })
 
+  it('knows step 03, the living step and every question under it', () => {
+    expect(stepOfPath('/onboarding/living')).toBe(3)
+    expect(stepOfPath('/onboarding/living/who-and-where')).toBe(3)
+    expect(stepOfPath('/onboarding/livingx')).toBeNull()
+  })
+
   it('knows nothing of the others, nor of the retired paths', () => {
-    expect(stepOfPath('/onboarding/living')).toBeNull()
+    expect(stepOfPath('/onboarding/after')).toBeNull()
     expect(stepOfPath('/onboarding')).toBeNull()
     expect(stepOfPath('/onboarding/factsx')).toBeNull()
     expect(stepOfPath('/picture')).toBeNull()
@@ -206,6 +223,7 @@ describe('the panel', () => {
   it('has its copy per step', () => {
     expect(PANEL_COPY[0]).toEqual(PANEL_COPY[1])
     expect(PANEL_COPY[2]).toEqual(PANEL_COPY[1])
+    expect(PANEL_COPY[3]).toEqual(PANEL_COPY[2])
     expect(PANEL_COPY[1]).toEqual({
       title: 'Six short steps',
       lead: 'Each step says why it asks. Nothing is ranked: at the end you see three futures side by side.',
@@ -312,6 +330,46 @@ describe('QUESTION_STEPS', () => {
   it('never ranks in a why line (criterion 2)', () => {
     for (const q of QUESTION_STEPS[2].questions) expect(q.why).not.toMatch(/recommended|best/i)
   })
+
+  it('describes step 03', () => {
+    const step = QUESTION_STEPS[3]
+    expect(step.title).toBe("Where and how you'd live")
+    expect(step.path).toBe(LIVING_PATH)
+    expect(step.back).toBe('/onboarding/study/length')
+    expect(step.nextName).toBe('After you graduate')
+  })
+
+  it('asks step 03 in order, each under its slug, the person under a key of its own', () => {
+    expect(PERSON).toBe('person')
+    expect(
+      QUESTION_STEPS[3].questions.map((q) => [q.key, q.itemId, q.slug, q.question, q.group]),
+    ).toEqual([
+      ['dest', 'dest', 'destination', 'Destination', ''],
+      ['place', 'place', 'place', 'Kind of place', ''],
+      [
+        'community',
+        'community',
+        'community',
+        'Does a community of similar culture, or relatives nearby, matter?',
+        '',
+      ],
+      ['knows', 'knows', 'know-anyone', 'Do you know anyone who lives in Australia?', ''],
+      [PERSON, PERSON, 'who-and-where', 'Who, and where?', ''],
+      ['climate', 'climate', 'climate', 'Climate (optional)', ''],
+    ])
+    for (const q of QUESTION_STEPS[3].questions) expect(q.opensWithLine).toBe(false)
+  })
+
+  it('says why each step 03 question is asked (criterion 3)', () => {
+    expect(QUESTION_STEPS[3].questions.map((q) => q.why)).toEqual([
+      'It sets the country each future is drawn in. This preview covers Australia.',
+      'It changes the rent, part-time work and migration points on each route.',
+      "It shapes where each future places you to live. It doesn't put one above another.",
+      'If you do, each route can show how far it is from them.',
+      'Each route then shows its distance from them. Leave any part blank.',
+      'Some people settle better in one climate or another.',
+    ])
+  })
 })
 
 describe('questionPath, questionBySlug and questionOfPath', () => {
@@ -328,6 +386,17 @@ describe('questionPath, questionBySlug and questionOfPath', () => {
     expect(questionBySlug(2, null)).toBeNull()
     expect(questionBySlug(2, undefined)).toBeNull()
     expect(questionBySlug(1, 'who-pays')?.key).toBe('who')
+  })
+
+  it('puts step 03 in the URL as its slugs, the person included', () => {
+    expect(questionPath(3, 'dest')).toBe('/onboarding/living/destination')
+    expect(questionPath(3, 'knows')).toBe('/onboarding/living/know-anyone')
+    expect(questionPath(3, PERSON)).toBe('/onboarding/living/who-and-where')
+    expect(questionBySlug(3, 'who-and-where')?.key).toBe(PERSON)
+    expect(questionBySlug(3, 'know-anyone')?.key).toBe('knows')
+    expect(questionBySlug(3, 'person')).toBeNull()
+    expect(questionBySlug(3, 'knows')).toBeNull()
+    expect(questionOfPath(3, '/onboarding/living/climate')?.key).toBe('climate')
   })
 
   it("does not read another step's slug", () => {
@@ -350,7 +419,7 @@ describe('questionPath, questionBySlug and questionOfPath', () => {
 })
 
 describe('askedQuestions', () => {
-  const keys = (step: 1 | 2, answers: StoredAnswers) =>
+  const keys = (step: 1 | 2 | 3, answers: StoredAnswers) =>
     askedQuestions(step, answers).map((q) => q.key)
 
   it('asks step 01 whole', () => {
@@ -373,6 +442,46 @@ describe('askedQuestions', () => {
     const four = ['know', 'level', 'learn', 'length'] as const
     expect(keys(2, know(SUGGEST_ME))).toEqual([...four])
     expect(keys(2, { know: { value: SUGGEST_ME, state: 'assumed' } })).toEqual([...four])
+  })
+
+  it('asks step 03 its four until community is answered', () => {
+    expect(keys(3, {})).toEqual(['dest', 'place', 'community', 'climate'])
+  })
+
+  it('asks whether she knows anyone once community is not No', () => {
+    expect(keys(3, { community: yes('Yes') })).toEqual([
+      'dest',
+      'place',
+      'community',
+      'knows',
+      'climate',
+    ])
+  })
+
+  it('asks who and where only after a stated Yes', () => {
+    expect(keys(3, { community: yes('A little'), knows: yes('Yes') })).toEqual([
+      'dest',
+      'place',
+      'community',
+      'knows',
+      PERSON,
+      'climate',
+    ])
+    expect(
+      keys(3, { community: yes('A little'), knows: { value: 'No', state: 'assumed' } }),
+    ).not.toContain(PERSON)
+    expect(
+      keys(3, { community: yes('A little'), knows: { value: 'Yes', state: 'assumed' } }),
+    ).not.toContain(PERSON)
+  })
+
+  it('asks neither once community turns No after a Yes', () => {
+    expect(keys(3, { community: yes('No'), knows: yes('Yes') })).toEqual([
+      'dest',
+      'place',
+      'community',
+      'climate',
+    ])
   })
 })
 
@@ -410,6 +519,24 @@ describe('firstOpenQuestion', () => {
     expect(firstOpenQuestion(2, { know: { value: SUGGEST_ME, state: 'assumed' } })).toBe('level')
   })
 
+  it('starts step 03 at the destination', () => {
+    expect(firstOpenQuestion(3, {})).toBe('dest')
+  })
+
+  it('opens the person while no person is stored, and counts a stored one as answered', () => {
+    expect(firstOpenQuestion(3, knowsSomeone)).toBe(PERSON)
+    expect(firstOpenQuestion(3, knowsSomeone, null)).toBe(PERSON)
+    expect(firstOpenQuestion(3, knowsSomeone, cousin)).toBe('climate')
+  })
+
+  it('does not open the person when it is not asked', () => {
+    expect(firstOpenQuestion(3, { ...knowsSomeone, knows: yes('No') })).toBe('climate')
+  })
+
+  it('stays on climate once every asked question is answered', () => {
+    expect(firstOpenQuestion(3, { ...knowsSomeone, climate: yes('Mild') }, cousin)).toBe('climate')
+  })
+
   it("is step 01's firstUnanswered for step 01", () => {
     expect(firstOpenQuestion(1, {})).toBe('where')
     expect(firstOpenQuestion(1, stated('where', 'amount'))).toBe('covers')
@@ -426,6 +553,11 @@ describe('forwardPath', () => {
   it('leaves step 02 for step 03', () => {
     expect(forwardPath(2, {})).toBe('/onboarding/living')
     expect(forwardPath(2, studyAnswered(PARTICULAR))).toBe(LIVING_PATH)
+  })
+
+  it('leaves step 03 for step 04', () => {
+    expect(forwardPath(3, {})).toBe('/onboarding/after')
+    expect(forwardPath(3, knowsSomeone)).toBe('/onboarding/after')
   })
 })
 
@@ -481,9 +613,21 @@ describe('stepProgress', () => {
     })
   })
 
+  it('counts a step 03 question among those asked, the person included', () => {
+    expect(stepProgress('/onboarding/living/destination', {})).toEqual({ question: 1, total: 4 })
+    expect(stepProgress('/onboarding/living/who-and-where', knowsSomeone)).toEqual({
+      question: 5,
+      total: 6,
+    })
+    expect(stepProgress('/onboarding/living/climate', knowsSomeone)).toEqual({
+      question: 6,
+      total: 6,
+    })
+  })
+
   it('counts nothing outside the question steps', () => {
     expect(stepProgress('/onboarding/character', {})).toBeNull()
     expect(stepProgress('/onboarding/welcome', {})).toBeNull()
-    expect(stepProgress('/onboarding/living', {})).toBeNull()
+    expect(stepProgress('/onboarding/after', {})).toBeNull()
   })
 })

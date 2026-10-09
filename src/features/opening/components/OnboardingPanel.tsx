@@ -37,7 +37,7 @@ function progress(state: PanelState, count: { question: number; total: number } 
 /**
  * The steel panel beside every onboarding step: the brand, the step's title and lead, the steps
  * (the full list side by side, seven segments with Now and Next as a band) and the duck. The step
- * comes from the URL; on steps 01 and 02 so does the question (its slug, the first when missing or
+ * comes from the URL; on steps 01 to 03 so does the question (its slug, the first when missing or
  * unknown), counted among the questions her answers ask (step 02's number depends on her first).
  * Steps before the current one are marked Done (criterion 22). On the welcome, before step 00,
  * every step is listed with none current, step 00 tagged Optional and no segment lit. Side by

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import type { Relative } from '@/shared/types/student'
 import { CAMPUSES, CITIES, COURSES, placeById } from './catalogue'
-import { distanceLine, flightHours, formatFlight, haversineKm, minutesBetween } from './geo'
+import { distanceLine, flightHours, formatFlight, haversineKm, minutesBetween, whoOf } from './geo'
 import type { Campus, City, Course, Place } from './types'
 
 const find = <T extends { id: string }>(list: readonly T[], id: string): T => {
@@ -124,5 +124,56 @@ describe('distanceLine', () => {
 
   it('is nothing without a relative', () => {
     expect(distanceLine(course('ecu-cyber'), null)).toBeNull()
+  })
+
+  it('is nothing for a person with no place yet', () => {
+    const noPlace: Relative = { placeId: null, place: null, relationship: 'Cousin', name: null }
+    expect(distanceLine(course('ecu-cyber'), noPlace)).toBeNull()
+  })
+
+  it('promises the distance without " in " for "Somewhere else" with nothing typed', () => {
+    const blank: Relative = { placeId: null, place: '', relationship: 'Sibling', name: null }
+    expect(distanceLine(course('ecu-cyber'), blank)).toBe(
+      'Distances from your sibling will show once we can work them out.',
+    )
+  })
+
+  it('calls a person with no name and no relationship, or Other, the person you know', () => {
+    const unnamed: Relative = { ...anjali, relationship: null, name: null }
+    expect(distanceLine(course('unisa-cyber'), unnamed)).toBe(
+      'Adelaide: a 3½-hour flight from the person you know in Perth · estimate',
+    )
+    expect(distanceLine(course('unisa-cyber'), { ...unnamed, relationship: 'Other' })).toBe(
+      'Adelaide: a 3½-hour flight from the person you know in Perth · estimate',
+    )
+  })
+})
+
+describe('whoOf', () => {
+  const person = (
+    relationship: Relative['relationship'],
+    name: string | null = null,
+  ): Relative => ({
+    placeId: null,
+    place: null,
+    relationship,
+    name,
+  })
+
+  it('is her name when she gave one', () => {
+    expect(whoOf(person('Cousin', 'Anjali'))).toBe('Anjali')
+    expect(whoOf(person(null, 'Anjali'))).toBe('Anjali')
+  })
+
+  it('is the relationship when she gave no name', () => {
+    expect(whoOf(person('Cousin'))).toBe('your cousin')
+    expect(whoOf(person('Sibling'))).toBe('your sibling')
+    expect(whoOf(person('Aunt or uncle'))).toBe('your aunt or uncle')
+    expect(whoOf(person('Friend'))).toBe('your friend')
+  })
+
+  it('is the person you know for Other or no relationship', () => {
+    expect(whoOf(person('Other'))).toBe('the person you know')
+    expect(whoOf(person(null))).toBe('the person you know')
   })
 })

@@ -91,7 +91,10 @@ export async function savePersonaAction(persona: unknown): Promise<ActionResult>
   })
 }
 
-/** Someone she knows in Australia, or null for nobody. */
+/**
+ * Someone she knows in Australia, any part blank, or null for nobody. A person whose every part
+ * is blank is nobody ("Somewhere else" with nothing typed, `place: ''`, is a place).
+ */
 export async function saveRelativeAction(relative: unknown): Promise<ActionResult> {
   return asStudent('saveRelative', async (userId) => {
     if (relative === null) {
@@ -100,7 +103,8 @@ export async function saveRelativeAction(relative: unknown): Promise<ActionResul
     }
     const parsed = relativeSchema.safeParse(relative)
     if (!parsed.success) return fail(INVALID)
-    await saveRelative(userId, parsed.data)
+    const blank = Object.values(parsed.data).every((part) => part === null)
+    await saveRelative(userId, blank ? null : parsed.data)
     return { ok: true }
   })
 }

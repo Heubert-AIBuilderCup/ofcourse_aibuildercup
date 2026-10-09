@@ -1,7 +1,7 @@
 // Distances from the person she knows in Australia: minutes by road within a city or to a nearby
 // one, flight hours between cities farther apart. Estimates from straight-line distance, never a maps service (out of scope).
 
-import type { Relative } from '@/shared/types/student'
+import { hasPlace, type Relationship, type Relative } from '@/shared/types/student'
 import { campusOf, cityById, cityOf, placeById } from './catalogue'
 import type { Course, Point } from './types'
 
@@ -45,16 +45,32 @@ export function formatFlight(hours: number): string {
   return `a ${whole}${hours > whole ? '½' : ''}-hour flight`
 }
 
+/** How a relationship names her contact; Other names no one in particular. */
+const RELATIONSHIP_WHO: Readonly<Record<Relationship, string | null>> = {
+  Cousin: 'your cousin',
+  Sibling: 'your sibling',
+  'Aunt or uncle': 'your aunt or uncle',
+  Friend: 'your friend',
+  Other: null,
+}
+
+/** Her contact, by the name, else the relationship, else "the person you know". */
+export function whoOf(relative: Relative): string {
+  if (relative.name) return relative.name
+  return (relative.relationship && RELATIONSHIP_WHO[relative.relationship]) || 'the person you know'
+}
+
 /**
  * The course's distance from her person, marked as an estimate (criteria 32 and 33); a promise
- * when the place is not one the preview can measure; null when she named no one.
+ * when the place is not one the preview can measure; null when she named no one or no place.
  */
 export function distanceLine(course: Course, relative: Relative | null): string | null {
-  if (!relative) return null
-  const who = relative.name ?? `your ${relative.relationship.toLowerCase()}`
+  if (!relative || !hasPlace(relative)) return null
+  const who = whoOf(relative)
   const place = relative.placeId === null ? undefined : placeById(relative.placeId)
   if (!place) {
-    return `Distances from ${who} in ${relative.place} will show once we can work them out.`
+    const where = relative.place ? ` in ${relative.place}` : ''
+    return `Distances from ${who}${where} will show once we can work them out.`
   }
   const campus = campusOf(course)
   if (campus.cityId === place.cityId) {

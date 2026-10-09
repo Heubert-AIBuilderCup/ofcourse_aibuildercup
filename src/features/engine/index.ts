@@ -10,6 +10,7 @@ export {
   cityOf,
   PLACES,
   placeById,
+  placeLabel,
 } from './catalogue'
 // Priya and her cousin: test data the opening's screen tests share with the engine's.
 export { ANJALI, PRIYA_ANSWERS } from './fixtures'
@@ -22,7 +23,7 @@ export {
   type Notice,
   type SealedRoute,
 } from './futures'
-export { minutesBetween } from './geo'
+export { minutesBetween, whoOf } from './geo'
 export {
   BANDS,
   DIMENSION_LABELS,

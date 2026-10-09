@@ -169,14 +169,12 @@ export const SCREENS: readonly Screen[] = [
     items: [
       single('dest', 'Destination', ['Australia', 'Open to others']),
       single('place', 'Kind of place', ['City', 'Suburban', 'Regional']),
-      {
-        id: 'community',
-        title: 'Does a community of similar culture, or relatives nearby, matter?',
-        questions: [
-          q('community', '', ['Yes', 'A little', 'No']),
-          q('knows', 'Do you know anyone who lives in Australia?', ['Yes', 'No']),
-        ],
-      },
+      single('community', 'Does a community of similar culture, or relatives nearby, matter?', [
+        'Yes',
+        'A little',
+        'No',
+      ]),
+      single('knows', 'Do you know anyone who lives in Australia?', ['Yes', 'No']),
       single('climate', 'Climate (optional)', ['Mild', 'Warm', 'No preference'], {
         notSure: false,
       }),

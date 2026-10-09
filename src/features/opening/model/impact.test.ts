@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { CITIES, PLACES } from '@/features/engine'
 import type { QuestionKey, Relative, StoredAnswer, StoredAnswers } from '@/shared/types/student'
-import { impactLine, impactView, notSureLine } from './impact'
+import { impactLine, impactView, notSureLine, personLine } from './impact'
 import { DEFAULTS, NOT_SURE, parseAnswer, type Question, SCREENS } from './questions'
 
 const s = (value: StoredAnswer['value']): StoredAnswer => ({ value, state: 'stated' })
@@ -520,92 +520,140 @@ describe('community', () => {
     )
   })
 
-  describe('with a relative', () => {
+  it('is the community choice alone, whoever she knows', () => {
     const knows = { community: s('Yes'), knows: s('Yes') }
+    expect(impactLine('community', knows, anjali)).toBe(
+      'Yes: noted; it shapes what each future is drawn around.',
+    )
+  })
+})
 
-    it('names the two nearest campuses in her city with the minutes to each (criterion 32)', () => {
-      const line = impactLine('community', knows, anjali)
-      expect(line).toContain('Every route shows its distance from Anjali.')
-      // Perth has three campuses; ECU Joondalup, about 75 min out, is the one left off.
-      expect(line).toBe(
-        'Anjali in Cannington, Perth: Curtin Bentley is about 20 min away, TAFE Perth about 30 min · estimate. Every route shows its distance from Anjali.',
+describe('knows', () => {
+  const yes = { community: s('Yes'), knows: s('Yes') }
+  const ask = 'Yes: next, tell me who and where. Every route can then show its distance from them.'
+
+  it('notes a No as changing nothing', () => {
+    expect(impactLine('knows', { community: s('Yes'), knows: s('No') }, null)).toBe(
+      "No: noted; it won't change your futures.",
+    )
+  })
+
+  it('asks who and where after a Yes, until her person has a place', () => {
+    expect(impactLine('knows', yes, null)).toBe(ask)
+    const noPlace: Relative = { placeId: null, place: null, relationship: 'Cousin', name: null }
+    expect(impactLine('knows', yes, noPlace)).toBe(ask)
+  })
+
+  it('is her person line once her person has a place of either kind', () => {
+    expect(impactLine('knows', yes, anjali)).toBe(personLine(anjali))
+    const blank: Relative = { placeId: null, place: '', relationship: 'Friend', name: null }
+    expect(impactLine('knows', yes, blank)).toBe(personLine(blank))
+  })
+
+  it('says so when she is not sure whether she knows someone', () => {
+    expect(impactLine('knows', { community: s('Yes'), knows: notSure('knows') }, anjali)).toBe(
+      notSureLine('knows'),
+    )
+    expect(notSureLine('knows')).toBe(
+      "Not sure: I'll assume “No” and show it as a chip you can change.",
+    )
+  })
+})
+
+describe('personLine', () => {
+  const person = (more: Partial<Relative>): Relative => ({
+    placeId: null,
+    place: null,
+    relationship: null,
+    name: null,
+    ...more,
+  })
+
+  it('is nothing without a person', () => {
+    expect(personLine(null)).toBeNull()
+  })
+
+  it('names the two nearest campuses in her city with the minutes to each (criterion 10)', () => {
+    // Perth has three campuses; ECU Joondalup, about 75 min out, is the one left off.
+    expect(personLine(anjali)).toBe(
+      'Anjali in Cannington, Perth: Curtin Bentley is about 20 min away, TAFE Perth about 30 min · estimate. Every route shows its distance from Anjali.',
+    )
+  })
+
+  it('measures from the place to every campus of the city, so each place has a line', () => {
+    for (const place of PLACES) {
+      const relative: Relative = { ...anjali, placeId: place.id, place: place.name }
+      expect(personLine(relative), place.id).toMatch(/^Anjali in .+: .+ is about \d+ min away/)
+    }
+  })
+
+  it('names the one campus of a city that has only one', () => {
+    const maya = person({
+      placeId: 'sandy-bay',
+      place: 'Sandy Bay',
+      relationship: 'Friend',
+      name: 'Maya',
+    })
+    expect(personLine(maya)).toBe(
+      'Maya in Sandy Bay, Hobart: UTAS Sandy Bay is about 10 min away · estimate. Every route shows its distance from Maya.',
+    )
+  })
+
+  it('does not name the city twice when the place is the city', () => {
+    const hobart: Relative = { ...anjali, placeId: 'hobart', place: 'Hobart', name: 'Maya' }
+    expect(personLine(hobart)).toStartWith('Maya in Hobart: UTAS Sandy Bay')
+    const cbd: Relative = { ...anjali, placeId: 'perth-cbd', place: 'Perth CBD', name: 'Maya' }
+    expect(personLine(cbd)).toStartWith('Maya in Perth CBD: ')
+  })
+
+  it('calls her contact by relationship, else the person you know', () => {
+    const at = { placeId: 'cannington', place: 'Cannington' }
+    const cases: [Relative['relationship'], string][] = [
+      ['Cousin', 'your cousin'],
+      ['Sibling', 'your sibling'],
+      ['Aunt or uncle', 'your aunt or uncle'],
+      ['Friend', 'your friend'],
+      ['Other', 'the person you know'],
+      [null, 'the person you know'],
+    ]
+    for (const [relationship, who] of cases) {
+      const line = personLine(person({ ...at, relationship }))
+      expect(line, who).toStartWith(
+        `${who.charAt(0).toUpperCase()}${who.slice(1)} in Cannington, Perth: `,
       )
-    })
+      expect(line, who).toEndWith(` · estimate. Every route shows its distance from ${who}.`)
+    }
+  })
 
-    it('measures from the place to every campus of the city, so each place has a line', () => {
-      for (const place of PLACES) {
-        const relative: Relative = { ...anjali, placeId: place.id, place: place.name }
-        expect(impactLine('community', knows, relative), place.id).toMatch(
-          /^Anjali in .+: .+ is about \d+ min away/,
-        )
-      }
-    })
+  it('promises the distances for "Somewhere else" (criterion 10)', () => {
+    expect(personLine(person({ place: 'Darwin', relationship: 'Cousin', name: 'Anjali' }))).toBe(
+      "We'll show distances from Anjali in Darwin once we can work them out.",
+    )
+    expect(personLine(person({ place: '', relationship: 'Sibling' }))).toBe(
+      "We'll show distances from your sibling once we can work them out.",
+    )
+    expect(personLine(person({ place: '' }))).toBe(
+      "We'll show distances from the person you know once we can work them out.",
+    )
+  })
 
-    it('names the one campus of a city that has only one', () => {
-      const sandyBay: Relative = {
-        placeId: 'sandy-bay',
-        place: 'Sandy Bay',
-        relationship: 'Friend',
-        name: 'Maya',
-      }
-      expect(impactLine('community', knows, sandyBay)).toBe(
-        'Maya in Sandy Bay, Hobart: UTAS Sandy Bay is about 10 min away · estimate. Every route shows its distance from Maya.',
-      )
-    })
+  it('treats a place that has left the catalogue as somewhere else', () => {
+    const gone: Relative = { ...anjali, placeId: 'no-such-place', place: 'Atlantis' }
+    expect(personLine(gone)).toBe(
+      "We'll show distances from Anjali in Atlantis once we can work them out.",
+    )
+  })
 
-    it('does not name the city twice when the place is the city', () => {
-      const hobart: Relative = { ...anjali, placeId: 'hobart', place: 'Hobart', name: 'Maya' }
-      expect(impactLine('community', knows, hobart)).toStartWith('Maya in Hobart: UTAS Sandy Bay')
-    })
-
-    it('calls her by relationship when she gave no name', () => {
-      const line = impactLine('community', knows, {
-        ...anjali,
-        relationship: 'Aunt or uncle',
-        name: null,
-      })
-      expect(line).toStartWith('Your aunt or uncle in Cannington, Perth: ')
-      expect(line).toContain('Every route shows its distance from your aunt or uncle.')
-    })
-
-    it('promises the distances for a place the preview cannot measure (criterion 33)', () => {
-      const elsewhere: Relative = {
-        placeId: null,
-        place: 'Darwin',
-        relationship: 'Cousin',
-        name: 'Anjali',
-      }
-      expect(impactLine('community', knows, elsewhere)).toBe(
-        "We'll show distances from Anjali in Darwin once we can work them out.",
-      )
-    })
-
-    it('treats a place that has left the catalogue as somewhere else', () => {
-      const gone: Relative = { ...anjali, placeId: 'no-such-place', place: 'Atlantis' }
-      expect(impactLine('community', knows, gone)).toBe(
-        "We'll show distances from Anjali in Atlantis once we can work them out.",
-      )
-    })
-
-    it('is left out when she does not know anyone, or has not said', () => {
-      const yes = 'Yes: noted; it shapes what each future is drawn around.'
-      expect(impactLine('community', { community: s('Yes'), knows: s('No') }, anjali)).toBe(yes)
-      expect(impactLine('community', { community: s('Yes') }, anjali)).toBe(yes)
-      // she said she knows someone but has not added them yet
-      expect(impactLine('community', knows, null)).toBe(yes)
-    })
-
-    it('is left out when community does not matter to her, as the question is then not shown', () => {
-      expect(impactLine('community', { community: s('No'), knows: s('Yes') }, anjali)).toBe(
-        "No: noted; it won't change your futures.",
-      )
-    })
-
-    it('says so when she is not sure whether she knows someone', () => {
-      expect(
-        impactLine('community', { community: s('Yes'), knows: notSure('knows') }, anjali),
-      ).toBe(notSureLine('knows'))
-    })
+  it('asks for a city or suburb while there is no place', () => {
+    expect(personLine(person({ relationship: 'Cousin' }))).toBe(
+      'Pick a city or suburb, and each route shows its distance from your cousin.',
+    )
+    expect(personLine(person({ name: 'Anjali' }))).toBe(
+      'Pick a city or suburb, and each route shows its distance from Anjali.',
+    )
+    expect(personLine(person({}))).toBe(
+      'Pick a city or suburb, and each route shows its distance from the person you know.',
+    )
   })
 })
 
@@ -672,6 +720,9 @@ const unmeasured: Relative = {
   name: null,
 }
 
+/** A person with every part blank but the place still to pick. */
+const placeless: Relative = { placeId: null, place: null, relationship: 'Other', name: null }
+
 /** Every item with every combination of its answers, and every kind of relative. */
 const CASES: { itemId: string; answers: StoredAnswers; relative: Relative | null }[] =
   SCREENS.flatMap((screen) =>
@@ -685,7 +736,11 @@ const CASES: { itemId: string; answers: StoredAnswers; relative: Relative | null
         )
       }
       return combos.flatMap((answers) =>
-        [null, anjali, unmeasured].map((relative) => ({ itemId: item.id, answers, relative })),
+        [null, anjali, unmeasured, placeless].map((relative) => ({
+          itemId: item.id,
+          answers,
+          relative,
+        })),
       )
     }),
   )
@@ -742,7 +797,7 @@ describe('impactView', () => {
     expect(impactView('budget', { amount: s(36) }, null)).toEqual({
       text: "About AUD 36k a year. Tell me if it's a hard limit.",
       kind: 'plain',
-      mock: false,
+      tag: null,
       chips: [],
     })
   })
@@ -751,7 +806,7 @@ describe('impactView', () => {
     expect(impactView('budget', { amount: notSure('amount') }, null)).toEqual({
       text: "Not sure: I'll assume “AUD 30k” and show it as a chip you can change.",
       kind: 'assume',
-      mock: false,
+      tag: null,
       chips: [],
     })
   })
@@ -780,20 +835,73 @@ describe('impactView', () => {
       expect(impactView('dep', { dep: s(dep) }, null)).toEqual({
         text,
         kind: 'limit',
-        mock: false,
+        tag: null,
         chips: [],
       })
     }
     expect(impactView('dep', { dep: s('No one') }, null)?.kind).toBe('plain')
   })
 
-  it('strips the mock tag into mock: true (criterion 3)', () => {
+  it('limits for "Open to others", and not for Australia', () => {
+    expect(impactView('dest', { dest: s('Open to others') }, null)).toEqual({
+      text: 'Only Australia is covered in this preview, so your futures will be Australian.',
+      kind: 'limit',
+      tag: null,
+      chips: [],
+    })
+    expect(impactView('dest', { dest: s('Australia') }, null)?.kind).toBe('plain')
+  })
+
+  it('takes the mock tag apart, with nothing after it (criterion 3)', () => {
     expect(impactView('level', { level: s("Master's") }, null)).toEqual({
       text: "Master's: 18 months to 2 years, building on your degree",
       kind: 'plain',
-      mock: true,
+      tag: { text: 'mock', after: '' },
       chips: [],
     })
+  })
+
+  it('takes the estimate tag apart, with the sentence after it', () => {
+    expect(impactView('knows', { community: s('Yes'), knows: s('Yes') }, anjali)).toEqual({
+      text: 'Anjali in Cannington, Perth: Curtin Bentley is about 20 min away, TAFE Perth about 30 min',
+      kind: 'plain',
+      tag: { text: 'estimate', after: '. Every route shows its distance from Anjali.' },
+      chips: [],
+    })
+  })
+
+  it('gives the person screen her person line', () => {
+    const cousin: Relative = { placeId: null, place: null, relationship: 'Cousin', name: null }
+    expect(impactView('person', {}, cousin)).toEqual({
+      text: 'Pick a city or suburb, and each route shows its distance from your cousin.',
+      kind: 'plain',
+      tag: null,
+      chips: [],
+    })
+    expect(impactView('person', {}, anjali)?.tag).toEqual({
+      text: 'estimate',
+      after: '. Every route shows its distance from Anjali.',
+    })
+    expect(impactView('person', {}, null)).toBeNull()
+  })
+
+  it('finds no tag in a place she typed, whatever it says', () => {
+    const typed: Relative = {
+      placeId: null,
+      place: 'Darwin · estimate',
+      relationship: 'Cousin',
+      name: null,
+    }
+    const line =
+      "We'll show distances from your cousin in Darwin · estimate once we can work them out."
+    expect(impactView('person', {}, typed)).toEqual({
+      text: line,
+      kind: 'plain',
+      tag: null,
+      chips: [],
+    })
+    const answers = { community: s('Yes'), knows: s('Yes') }
+    expect(impactView('knows', answers, typed)?.tag).toBeNull()
   })
 
   it('is null when there is no line', () => {
@@ -801,11 +909,12 @@ describe('impactView', () => {
     expect(impactView('nope', {}, null)).toBeNull()
   })
 
-  it('never changes a line: the text plus the mock tag is the line', () => {
+  it('never changes a line: the text plus the tag is the line', () => {
     for (const { itemId, answers, relative } of CASES) {
       const view = impactView(itemId, answers, relative)
       const line = impactLine(itemId, answers, relative)
-      expect(view === null ? null : view.text + (view.mock ? ' · mock' : ''), itemId).toBe(line)
+      const tag = view?.tag ? ` · ${view.tag.text}${view.tag.after}` : ''
+      expect(view === null ? null : view.text + tag, itemId).toBe(line)
     }
   })
 })
