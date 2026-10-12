@@ -20,7 +20,6 @@ mock.module('next/navigation', () => ({
   useRouter: () => ({ push, replace: () => {}, refresh: () => {}, back: () => {} }),
   usePathname: () => pathname,
 }))
-mock.module('@/shared/lib/auth/client', () => ({ signOut: mock(async () => {}) }))
 
 const { QuestionScreen } = await import('./QuestionScreen')
 
@@ -146,22 +145,9 @@ it('shows what a tap does at once, then saves it', async () => {
   expect(saveAnswersAction).toHaveBeenCalledWith({ amount: 36 })
 })
 
-it('says what "Not sure" assumes', async () => {
-  screenAt('amount')
-  await tap('Not sure')
-  expect(
-    screen.getByText("Not sure: I'll assume “AUD 30k” and show it as a chip you can change."),
-  ).toBeInTheDocument()
-})
-
-it('says family is not covered yet for a partner, with no follow-up form', async () => {
+it('asks no follow-up form for a partner', async () => {
   screenAt('coming')
   await tap('Partner')
-  expect(
-    screen.getByText(
-      "Family isn't covered in this preview yet, so every route shows costs for you alone.",
-    ),
-  ).toBeInTheDocument()
   expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
 })
 
@@ -555,16 +541,6 @@ it("saves stay's Not sure as stated, with no assumption", async () => {
   expect(screen.queryByText('Assumed')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
   await waitFor(() => expect(saveAnswersAction).toHaveBeenCalledWith({ stay: 'Not sure' }))
-})
-
-it('says what Not sure assumes on focus', async () => {
-  afterAt('focus')
-  await tap('Not sure')
-  expect(
-    screen.getByText(
-      "Not sure: I'll assume “Career-focused” and show it as a chip you can change.",
-    ),
-  ).toBeInTheDocument()
 })
 
 it('ends step 04 at the optional long-term, on to your attention', async () => {

@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { cache } from 'react'
 import { auth } from '@/shared/lib/auth'
 import { canUseAdmin, canUseStudentApp } from './access'
-import { ADMIN_PATH, ADMIN_SIGNIN_PATH, HOME_PATH, SUSPENDED_PATH, WELCOME_PATH } from './gate'
+import { ADMIN_PATH, ADMIN_SIGNIN_PATH, HOME_PATH, SIGNIN_PATH, SUSPENDED_PATH } from './gate'
 
 // The stored session, suspended or not. React cache() dedupes it within one server render, so
 // the layout and the page share a single lookup per request.
@@ -20,7 +20,6 @@ export async function getSession() {
 }
 
 export type Session = NonNullable<Awaited<ReturnType<typeof getSession>>>
-export type SessionUser = Session['user']
 
 /**
  * The session, or a redirect: the sign-in page at / signed out, /suspended for a suspended account.
@@ -28,7 +27,7 @@ export type SessionUser = Session['user']
  */
 export async function requireSession(): Promise<Session> {
   const session = await readSession()
-  if (!session) redirect(WELCOME_PATH)
+  if (!session) redirect(SIGNIN_PATH)
   if (session.user.suspendedAt) redirect(SUSPENDED_PATH)
   return session
 }

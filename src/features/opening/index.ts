@@ -1,35 +1,22 @@
-// The opening feature's client-safe API: the screens, and the question rules the engine reads.
+// The opening feature's client-safe API: the screens and the onboarding paths.
 // Database reads are in ./server/profile (server-only), the writes in ./actions ('use server');
 // pages import those and pass the actions to the screens, as the admin feature does.
 
 export { AttentionScreen } from './components/AttentionScreen'
 export { DoneScreen } from './components/DoneScreen'
 export { DuckLoader } from './components/DuckLoader'
-export { FuturesScreen } from './components/FuturesScreen'
-export { Hero } from './components/Hero'
 export { OnboardingShell } from './components/OnboardingShell'
 export { PictureQuestion } from './components/PictureQuestion'
 export { QuestionScreen } from './components/QuestionScreen'
 export { Splash } from './components/Splash'
 export { WelcomeScreen } from './components/WelcomeScreen'
-export { landingPath, onboardingResumePath } from './model/landing'
+export { onboardingResumePath } from './model/landing'
 export {
   ATTENTION_PATH,
-  factKey,
-  factPath,
   firstOpenQuestion,
-  firstUnanswered,
-  PICTURE_PATH,
   questionBySlug,
   questionPath,
-  WELCOME_PATH,
 } from './model/onboarding'
-export {
-  activeRelative,
-  effective,
-  fieldsChosen,
-  isAssumed,
-  questionOf,
-  SCREENS,
-} from './model/questions'
+// The engine's catalogue test checks its fields against the questions' options.
+export { questionOf } from './model/questions'
 export { SPLASH_SEEN_SCRIPT } from './model/splash-seen'

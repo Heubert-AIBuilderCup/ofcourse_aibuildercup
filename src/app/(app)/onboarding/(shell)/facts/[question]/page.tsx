@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { factKey, QuestionScreen } from '@/features/opening'
+import { QuestionScreen, questionBySlug } from '@/features/opening'
 import { saveAnswersAction } from '@/features/opening/actions'
 import { getProfile, markStep } from '@/features/opening/server/profile'
 import { requireStudent } from '@/shared/lib/auth/session'
@@ -14,7 +14,7 @@ export default async function FactQuestionPage({
   params,
 }: PageProps<'/onboarding/facts/[question]'>) {
   const { question } = await params
-  if (!factKey(question)) notFound()
+  if (!questionBySlug(1, question)) notFound()
   const { user } = await requireStudent()
   const [profile] = await Promise.all([getProfile(user.id), markStep(user.id, 'facts')])
 

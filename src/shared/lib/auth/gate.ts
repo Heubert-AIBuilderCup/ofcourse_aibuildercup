@@ -5,7 +5,7 @@
 import { SURFACE_ERRORS } from './access'
 
 /** Public: the sign-in page. Signed in, it moves on to HOME_PATH. */
-export const WELCOME_PATH = '/'
+export const SIGNIN_PATH = '/'
 /** The signed-in home: where a student lands, and from where she resumes. */
 export const HOME_PATH = '/start'
 /** Public: "This account is suspended", where a suspended account is sent instead of the app. */
@@ -23,17 +23,13 @@ export const ADMIN_SIGNIN_PATH = '/admin/sign-in'
 export const ADMIN_SIGNIN_ERROR_PATH = '/signin-error/admin'
 
 /** The student app. Keep in step with the proxy matcher in src/proxy.ts. */
-export const APP_PATHS = ['/start', '/onboarding', '/futures', '/attention'] as const
+export const APP_PATHS = ['/start', '/onboarding'] as const
 
 // Pages a sign-in may return to.
 const RETURN_PATHS = [...APP_PATHS, ADMIN_PATH] as const
 
 const underPrefix = (pathname: string, prefix: string) =>
   pathname === prefix || pathname.startsWith(`${prefix}/`)
-
-export function isAppPath(pathname: string): boolean {
-  return APP_PATHS.some((prefix) => underPrefix(pathname, prefix))
-}
 
 export function isAdminPath(pathname: string): boolean {
   return underPrefix(pathname, ADMIN_PATH)
@@ -49,7 +45,7 @@ export function isAdminSignInPath(pathname: string): boolean {
  */
 export function welcomeUrl(requested: URL): URL {
   const admin = isAdminPath(requested.pathname)
-  const url = new URL(admin ? ADMIN_SIGNIN_PATH : WELCOME_PATH, requested)
+  const url = new URL(admin ? ADMIN_SIGNIN_PATH : SIGNIN_PATH, requested)
   const home = admin ? ADMIN_PATH : HOME_PATH
   if (requested.pathname !== home) url.searchParams.set('next', requested.pathname)
   return url
@@ -71,7 +67,6 @@ export const SIGNIN_MESSAGES = {
   'student-only': 'This page is for students. This account signs in on the admin page.',
   'not-admin': "This account doesn't have admin access.",
 } as const
-export type SigninMessageKey = keyof typeof SIGNIN_MESSAGES
 
 /**
  * Where a failed student-page sign-in leads, from Better Auth's error code: the suspended page for
@@ -81,8 +76,8 @@ export type SigninMessageKey = keyof typeof SIGNIN_MESSAGES
  */
 export function signinErrorTarget(code: string | null): string {
   if (code === ACCOUNT_SUSPENDED) return SUSPENDED_PATH
-  if (code === SURFACE_ERRORS.studentPageOnly) return `${WELCOME_PATH}?error=student-only`
-  return `${WELCOME_PATH}?error=signin`
+  if (code === SURFACE_ERRORS.studentPageOnly) return `${SIGNIN_PATH}?error=student-only`
+  return `${SIGNIN_PATH}?error=signin`
 }
 
 /** The same for the admin page: its own fixed paths, the code in the URL never echoed. */

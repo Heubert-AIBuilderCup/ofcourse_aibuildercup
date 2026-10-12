@@ -1,9 +1,10 @@
 'use client'
 
-import { ArrowLeft, ArrowRight, Check, CircleAlert, Info, LoaderCircle } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Info, LoaderCircle } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useId, useRef, useState } from 'react'
+import motion from '@/shared/components/motion.module.css'
 import { Button } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
 import type { AnswerValue, QuestionKey, Relative } from '@/shared/types/student'
@@ -15,7 +16,7 @@ import {
   useRelativeSave,
 } from '../model/answer-save'
 import { impactView } from '../model/impact'
-import { ANSWER_SAVE_FAILED } from '../model/messages'
+import { ANSWER_SAVE_FAILED, PERSON_SAVE_FAILED } from '../model/messages'
 import {
   askedQuestions,
   forwardPath,
@@ -32,9 +33,11 @@ import { parseAnswer, type Question, questionOf } from '../model/questions'
 import { AnswerCards } from './AnswerCards'
 import { AreaChecks } from './AreaChecks'
 import styles from './facts.module.css'
-import shell from './onboarding.module.css'
+import { Note } from './Note'
 import { PersonForm } from './PersonForm'
-import picture from './picture.module.css'
+import { SaveFailed } from './SaveFailed'
+import { StepActions } from './StepActions'
+import { StepHeading, StepKicker } from './StepHeading'
 
 type Notes = Record<Exclude<SaveStatus, 'failed'>, string>
 const NOTES: Notes = {
@@ -62,8 +65,6 @@ const PERSON_NOTES: Notes = {
   idle: 'Every change saves as you go. Skip, and no one is added.',
   saved: 'Saved. Every change saves as you go.',
 }
-const PERSON_SAVE_FAILED =
-  "We couldn't save that. What you entered is still here. Check your connection and try again."
 /** What the note under the question says, by what the question is. */
 function notesFor(question: Question | null): Notes {
   if (question === null) return PERSON_NOTES
@@ -79,10 +80,18 @@ const NOTE_ICONS = {
   saving: (
     <LoaderCircle
       aria-hidden="true"
-      className={cn(picture.spin, 'icon-on-line-sm size-icon-sm shrink-0')}
+      className={cn(motion.spin, 'icon-on-line-sm size-icon-sm shrink-0')}
     />
   ),
   saved: <Check aria-hidden="true" className="icon-on-line-sm size-icon-sm shrink-0" />,
+}
+/** The impact line's icon by what it says: the accent arrow (the tone's own), none for an assumption, the grey Info for a limit. */
+const IMPACT_ICONS = {
+  plain: undefined,
+  assume: null,
+  limit: (
+    <Info aria-hidden="true" className="icon-on-line-sm size-icon-sm shrink-0 text-neutral-700" />
+  ),
 }
 
 /**
@@ -97,8 +106,8 @@ const NOTE_ICONS = {
  * step sends any save still waiting, so a quick tap is never lost. Step 03's "Who, and where?" is
  * a form instead of cards: her person is held here from the one the page passed (a
  * `router.refresh()` does not overwrite what she entered), so "Do you know anyone…" speaks of the
- * person on screen, and each change saves as the answers do. Step 04's last question leads out of
- * onboarding, to the futures.
+ * person on screen, and each change saves as the answers do. Step 04's last question leads on to
+ * step 05, Your attention.
  */
 export function QuestionScreen({
   step,
@@ -205,25 +214,15 @@ export function QuestionScreen({
 
   return (
     <div ref={root} className="mx-auto flex w-full max-w-2xl flex-col gap-5 @max-xl:gap-4">
-      <div className={cn(shell.rise, shell.d2, 'flex min-h-11 items-center')}>
-        <p className="m-0 text-overline uppercase text-accent-700">
-          {title} ·{' '}
-          <b className="font-medium text-muted-foreground">
-            {index + 1} of {asked.length}
-          </b>
-        </p>
+      <div className={cn(motion.rise, motion.d2, 'flex min-h-11 items-center')}>
+        <StepKicker detail={`${index + 1} of ${asked.length}`}>{title}</StepKicker>
       </div>
 
       <div key={item.key} className={cn(styles.question, 'flex flex-col gap-5 @max-xl:gap-4')}>
         {item.group ? <p className="m-0 text-lead text-muted-foreground">{item.group}</p> : null}
-        <h1
-          ref={heading}
-          id={headingId}
-          tabIndex={-1}
-          className="m-0 font-heading text-h1 font-semibold tracking-[-0.015em] outline-none"
-        >
+        <StepHeading ref={heading} id={headingId} tabIndex={-1}>
           {item.question}
-        </h1>
+        </StepHeading>
         <p className="m-0 max-w-prose leading-relaxed text-muted-foreground">{item.why}</p>
         <div className={styles.cards}>
           {question === null ? (
@@ -250,45 +249,32 @@ export function QuestionScreen({
         <div aria-live="polite" className="flex flex-col gap-2 empty:absolute">
           {impact ? (
             <>
-              <div
+              <Note
                 key={impact.text}
+                tone="impact"
+                icon={IMPACT_ICONS[impact.kind]}
                 className={cn(
                   styles.impact,
-                  'flex items-start gap-2.5 border-l-2 border-accent-700 bg-accent-100/70 px-4 py-3',
                   impact.kind === 'assume' && 'border-dashed',
                   impact.kind === 'limit' && 'border-neutral-600 bg-neutral-100',
                 )}
               >
-                {impact.kind === 'plain' ? (
-                  <ArrowRight
-                    aria-hidden="true"
-                    className="icon-on-line-sm size-icon-sm shrink-0 text-accent-700"
-                  />
-                ) : null}
-                {impact.kind === 'limit' ? (
-                  <Info
-                    aria-hidden="true"
-                    className="icon-on-line-sm size-icon-sm shrink-0 text-neutral-700"
-                  />
-                ) : null}
-                <p className="m-0">
-                  <span className="sr-only">What this does: </span>
-                  <span>{impact.text}</span>
-                  {impact.tag ? (
-                    <>
-                      {/* The tag never starts a line, nor leaves its full stop behind. */}
-                      <span className="whitespace-nowrap">
-                        {' · '}
-                        <span className="border border-dashed border-neutral-500 px-1.5 text-overline uppercase tracking-[0.06em] text-muted-foreground">
-                          {impact.tag.text}
-                        </span>
-                        {tagStop}
+                <span className="sr-only">What this does: </span>
+                <span>{impact.text}</span>
+                {impact.tag ? (
+                  <>
+                    {/* The tag never starts a line, nor leaves its full stop behind. */}
+                    <span className="whitespace-nowrap">
+                      {' · '}
+                      <span className="border border-dashed border-neutral-500 px-1.5 text-overline uppercase tracking-[0.06em] text-muted-foreground">
+                        {impact.tag.text}
                       </span>
-                      {impact.tag.after.slice(tagStop.length)}
-                    </>
-                  ) : null}
-                </p>
-              </div>
+                      {tagStop}
+                    </span>
+                    {impact.tag.after.slice(tagStop.length)}
+                  </>
+                ) : null}
+              </Note>
               {impact.chips.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
                   {impact.chips.map((chip) => (
@@ -309,34 +295,14 @@ export function QuestionScreen({
         </div>
 
         {status === 'failed' ? (
-          <div
-            role="alert"
-            className={cn(
-              picture.errorIn,
-              'flex flex-wrap items-center gap-x-2.5 gap-y-2 border border-danger-300 bg-danger-100 px-3.5 py-2.5 text-caption text-danger-800',
-            )}
-          >
-            <CircleAlert aria-hidden="true" className="size-icon shrink-0 text-danger-700" />
-            <span className="min-w-45 flex-1">
-              {key === PERSON ? PERSON_SAVE_FAILED : ANSWER_SAVE_FAILED}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => (key === PERSON ? personSave.retry(key) : answerSave.retry(key))}
-              className="h-11 border-danger-300 px-3.5 text-danger-800 hover:bg-danger-200 hover:text-danger-800"
-            >
-              Try again
-            </Button>
-          </div>
+          <SaveFailed
+            message={key === PERSON ? PERSON_SAVE_FAILED : ANSWER_SAVE_FAILED}
+            onRetry={() => (key === PERSON ? personSave.retry(key) : answerSave.retry(key))}
+          />
         ) : (
-          <p
-            role="status"
-            className="m-0 flex items-start gap-2 text-caption text-muted-foreground"
-          >
-            {NOTE_ICONS[status]}
-            <span>{notes[status]}</span>
-          </p>
+          <Note tone="hint" role="status" icon={NOTE_ICONS[status]}>
+            {notes[status]}
+          </Note>
         )}
       </div>
 
@@ -350,14 +316,7 @@ export function QuestionScreen({
         </Link>
       )}
 
-      <div
-        className={cn(
-          shell.rise,
-          shell.d8,
-          'mt-1 flex items-center justify-between gap-3.5',
-          '@max-xl:sticky @max-xl:bottom-0 @max-xl:z-5 @max-xl:-mx-4 @max-xl:border-t @max-xl:bg-background @max-xl:px-4 @max-xl:pt-3 @max-xl:pb-[calc(0.75rem+env(safe-area-inset-bottom))]',
-        )}
-      >
+      <StepActions className="justify-between">
         <Button
           type="button"
           variant="outline"
@@ -378,7 +337,7 @@ export function QuestionScreen({
           {last ? `Next: ${nextName}` : answered ? 'Continue' : 'Skip'}
           <ArrowRight aria-hidden="true" className="size-icon-sm" />
         </Button>
-      </div>
+      </StepActions>
     </div>
   )
 }

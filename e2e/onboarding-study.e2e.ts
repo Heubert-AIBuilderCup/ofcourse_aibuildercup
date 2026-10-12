@@ -63,8 +63,8 @@ test('step 02 asks one question per screen, in the order her first answer sets',
 
     // Out of the step and back: step 03 follows the last question, and its Back returns to it.
     await button(page, "Next: Where and how you'd live").click()
-    await expect(page).toHaveURL(/\/onboarding\/living$/)
-    await page.getByRole('link', { name: 'Back', exact: true }).click()
+    await expect(page).toHaveURL(/\/onboarding\/living\/destination$/)
+    await button(page, 'Back').click()
     await expect(page).toHaveURL(/\/onboarding\/study\/length$/)
     await expect(heading(page, "Course length you'd prefer")).toBeVisible()
 

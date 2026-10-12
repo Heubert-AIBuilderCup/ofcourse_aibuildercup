@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { FrameMarks } from '@/shared/components/Frame'
+import { FrameMarks } from '@/shared/components/Blueprint'
 import { cn } from '@/shared/lib/utils'
 
 export type CardProps = React.HTMLAttributes<HTMLDivElement> & {

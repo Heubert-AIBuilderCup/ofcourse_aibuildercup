@@ -2,9 +2,9 @@ import { OPENING_STEPS, type OpeningStep, type Profile } from '@/shared/types/st
 import {
   ATTENTION_PATH,
   DONE_PATH,
-  factPath,
-  firstUnanswered,
+  firstOpenQuestion,
   ONBOARDING_PATH,
+  questionPath,
   WELCOME_PATH,
 } from './onboarding'
 
@@ -15,7 +15,7 @@ const isOpeningStep = (step: string): step is OpeningStep =>
 
 /**
  * Step 05 reached: from step 05 itself, or from the futures before they left onboarding (marks
- * stored then; the parked futures page marks nothing now).
+ * stored then; nothing marks them now).
  */
 const reachedAttention = (p: Resumable) =>
   p.seenFutures || p.lastStep === 'futures' || p.lastStep === 'attention'
@@ -33,13 +33,5 @@ export function onboardingResumePath(p: Resumable): string {
   if (isOpeningStep(p.lastStep) && p.lastStep !== 'facts') {
     return `${ONBOARDING_PATH}/${p.lastStep}`
   }
-  return factPath(firstUnanswered(p.answers))
-}
-
-/**
- * Where a signed-in student lands: where onboarding resumes, the end screen once she has finished.
- * Never the futures, which sit outside onboarding until their own feature places them.
- */
-export function landingPath(p: Resumable): string {
-  return onboardingResumePath(p)
+  return questionPath(1, firstOpenQuestion(1, p.answers))
 }

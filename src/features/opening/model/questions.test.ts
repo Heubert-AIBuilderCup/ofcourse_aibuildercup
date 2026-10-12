@@ -7,11 +7,8 @@ import {
 } from '@/shared/types/student'
 import {
   activeRelative,
-  chipText,
   DEFAULTS,
-  editLabel,
   effective,
-  fieldsChosen,
   isAssumed,
   isVisible,
   parseAnswer,
@@ -24,83 +21,15 @@ const assumed = (value: StoredAnswer['value']): StoredAnswer => ({ value, state:
 const keysOf = (i: number) => SCREENS[i].items.flatMap((item) => item.questions.map((q) => q.key))
 
 describe('SCREENS', () => {
-  it('are the four opening steps, numbered 1 to 4', () => {
-    expect(SCREENS.map((screen) => screen.step)).toEqual(['facts', 'study', 'living', 'after'])
-    expect(SCREENS.map((screen) => screen.number)).toEqual([1, 2, 3, 4])
-    expect(SCREENS.map((screen) => screen.next)).toEqual([
-      "Next: what you'd study",
-      "Next: where and how you'd live",
-      'Next: after you graduate',
-      'Show me three futures',
-    ])
-  })
-
   it('ask every question exactly once', () => {
     const keys = SCREENS.flatMap((_, i) => keysOf(i))
     expect([...keys].sort()).toEqual([...QUESTION_KEYS].sort())
   })
 
-  it('ask on screen 1 where she is, her budget, timing, who comes, and her scores', () => {
-    expect(keysOf(0)).toEqual([
-      'where',
-      'amount',
-      'covers',
-      'who',
-      'hard',
-      'earliest',
-      'latest',
-      'years',
-      'dep',
-      'qual',
-      'eng',
-    ])
-    expect(SCREENS[0].items.map((item) => item.title)).toEqual([
-      'Where are you right now?',
-      'Your budget per year',
-      'Timing',
-      'Anyone coming with you?',
-      'Your qualifications and scores',
-    ])
-  })
-
   it('ask on screen 3 one question per item, so community and knowing someone each have a line', () => {
-    expect(SCREENS[2].items.map((item) => [item.id, item.title])).toEqual([
-      ['dest', 'Destination'],
-      ['place', 'Kind of place'],
-      ['community', 'Does a community of similar culture, or relatives nearby, matter?'],
-      ['knows', 'Do you know anyone who lives in Australia?'],
-      ['climate', 'Climate (optional)'],
-    ])
     for (const item of SCREENS[2].items) {
       expect(item.questions.map((q): string => q.key)).toEqual([item.id])
     }
-    expect(questionOf('knows').options).toEqual(['Yes', 'No'])
-    expect(editLabel('knows')).toBe('Do you know anyone who lives in Australia?')
-  })
-
-  it('offer every country, ending with a visa in Australia and another country', () => {
-    const where = questionOf('where')
-    expect(where.control).toBe('select')
-    expect(where.options.slice(-2)).toEqual(['Australia (on a visa)', 'Another country'])
-    expect(where.options).toHaveLength(12)
-  })
-
-  it('offer partner and children on "Anyone coming with you?"', () => {
-    expect(questionOf('dep').options).toEqual(['No one', 'Partner', 'Partner and children'])
-  })
-
-  it('offer "Open to others" as a destination', () => {
-    expect(questionOf('dest').options).toEqual(['Australia', 'Open to others'])
-  })
-
-  it('offer yes, not sure and no on staying, where "Not sure" is a real answer', () => {
-    expect(questionOf('stay').options).toEqual(['Yes', 'Not sure', 'No'])
-    expect(questionOf('stay').notSure).toBe(false)
-  })
-
-  it('let areas be picked up to three, with no "Not sure"', () => {
-    expect(questionOf('areas').control).toBe('multi')
-    expect(questionOf('areas').notSure).toBe(false)
   })
 
   it('give a default to every question that offers "Not sure"', () => {
@@ -208,108 +137,6 @@ describe('effective and isAssumed', () => {
   it('leave a question with no default unanswered, and not assumed', () => {
     expect(effective({}, 'climate')).toBeUndefined()
     expect(isAssumed({}, 'climate')).toBe(false)
-  })
-})
-
-describe('fieldsChosen', () => {
-  it('is any field when nothing is answered', () => {
-    expect(fieldsChosen({})).toEqual({ kind: 'any', values: [] })
-  })
-
-  it('is the field she knows', () => {
-    expect(fieldsChosen({ know: s('Something particular'), field: s('Cyber security') })).toEqual({
-      kind: 'field',
-      values: ['Cyber security'],
-    })
-  })
-
-  it('is any field when she knows something particular but has not said which', () => {
-    expect(fieldsChosen({ know: s('Something particular') })).toEqual({ kind: 'any', values: [] })
-    expect(fieldsChosen({ know: s('Something particular'), field: assumed('Any') })).toEqual({
-      kind: 'any',
-      values: [],
-    })
-  })
-
-  it('is the areas she is drawn to', () => {
-    expect(
-      fieldsChosen({ know: s("A few areas I'm drawn to"), areas: s(['IT and computing', 'Data']) }),
-    ).toEqual({ kind: 'areas', values: ['IT and computing', 'Data'] })
-  })
-
-  it('ignores a field left over once she says "Suggest me"', () => {
-    expect(fieldsChosen({ know: s('Suggest me'), field: s('Cyber security') })).toEqual({
-      kind: 'any',
-      values: [],
-    })
-  })
-})
-
-describe('chipText', () => {
-  it('says the budget, marked assumed when unanswered', () => {
-    expect(chipText('amount', {})).toBe('Assumed: Budget about AUD 30k a year')
-    expect(chipText('amount', { amount: s(36) })).toBe('Budget about AUD 36k a year')
-  })
-
-  it('says whether she wants to stay', () => {
-    expect(chipText('stay', { stay: s('Yes') })).toBe('Wants to stay after')
-    expect(chipText('stay', { stay: s('Not sure') })).toBe('Not sure about staying')
-    expect(chipText('stay', { stay: s('No') })).toBe('Not staying after')
-    expect(chipText('stay', {})).toBe('Assumed: Not sure about staying')
-  })
-
-  it('reads every other chip as the design does', () => {
-    expect(chipText('hard', { hard: s('Hard limit') })).toBe('A hard limit')
-    expect(chipText('hard', { hard: assumed('Roughly') })).toBe('Assumed: A rough budget')
-    expect(chipText('covers', { covers: s('Fees and living') })).toBe('Fees and living')
-    expect(chipText('place', { place: s('Regional') })).toBe('Prefers regional')
-    expect(chipText('latest', { latest: s('Feb 2028') })).toBe('Latest start Feb 2028')
-    expect(chipText('earn', { earn: s('Helpful') })).toBe('Earning while studying: helpful')
-    expect(chipText('level', { level: s("Bachelor's") })).toBe("Level: Bachelor's")
-    expect(chipText('dest', { dest: s('Australia') })).toBe('Australia only')
-    expect(chipText('dest', { dest: s('Open to others') })).toBe('Open to others · Australia shown')
-  })
-
-  it('names the question where the bare answer would not say what it answers', () => {
-    expect(chipText('who', {})).toBe('Assumed: Who pays: family')
-    expect(chipText('learn', {})).toBe('Assumed: Learning: no preference')
-    expect(chipText('community', {})).toBe('Assumed: Community nearby: a little')
-    expect(chipText('focus', {})).toBe('Assumed: Career-focused')
-  })
-
-  it('names the field, the areas, or any field', () => {
-    expect(chipText('field', { know: s('Something particular'), field: s('Cyber security') })).toBe(
-      'Field: Cyber security',
-    )
-    expect(
-      chipText('field', {
-        know: s("A few areas I'm drawn to"),
-        areas: s(['IT and computing', 'Data']),
-      }),
-    ).toBe('Areas: IT and computing, Data')
-    expect(chipText('field', {})).toBe('Assumed: Field: any (suggest me)')
-  })
-
-  it('does not mark "Suggest me" assumed once she said it', () => {
-    expect(chipText('field', { know: s('Suggest me') })).toBe('Field: any (suggest me)')
-    expect(chipText('field', { know: s('Something particular'), field: assumed('Any') })).toBe(
-      'Assumed: Field: any (suggest me)',
-    )
-  })
-})
-
-describe('editLabel', () => {
-  it('names the budget and the field as the chip editor heads them', () => {
-    expect(editLabel('amount')).toBe('Your budget per year')
-    expect(editLabel('field')).toBe("What you'd study")
-  })
-
-  it("is the question's label, or the item's title where the title asks it", () => {
-    expect(editLabel('hard')).toBe('Is this a hard limit, or roughly?')
-    expect(editLabel('latest')).toBe("Latest you'd accept")
-    expect(editLabel('stay')).toBe('Would you want to stay after?')
-    expect(editLabel('level')).toBe('Study level')
-    expect(editLabel('place')).toBe('Kind of place')
   })
 })
 

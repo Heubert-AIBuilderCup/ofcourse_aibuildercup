@@ -4,9 +4,9 @@ import { getProfile } from '@/features/opening/server/profile'
 import { requireStudent } from '@/shared/lib/auth/session'
 
 /**
- * The welcome before step 00: a new student lands here (landingPath) until she has answered or
- * skipped step 00; after that it sends her on to where onboarding resumes. The greeting uses the
- * first word of her name; an email-code sign-in has none.
+ * The welcome before step 00: a new student lands here (onboardingResumePath) until she has
+ * answered or skipped step 00; after that it sends her on to where onboarding resumes. The greeting
+ * uses the first word of her name; an email-code sign-in has none.
  */
 export default async function WelcomePage() {
   const { user } = await requireStudent()

@@ -2,10 +2,8 @@
 // that says what a pile means to her. Pure, so the screen and the server action count the same
 // way. A coin never moves a route or a city (DS-R7): no line here says it does.
 
-import { LIFE_VALUES } from '@/shared/types/student'
+import { COINS_TOTAL, LIFE_VALUES, MAX_PER_PILE } from '@/shared/types/student'
 
-export const COINS_TOTAL = 10
-export const MAX_PER_PILE = 5
 /** What "Not sure" places: the canvas's even spread (Coins.dc.html EVEN), as LIFE_VALUES. */
 export const NOT_SURE_SPREAD = [2, 1, 2, 1, 1, 1, 1, 1] as const
 

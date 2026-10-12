@@ -3,6 +3,7 @@
 import { Layers } from 'lucide-react'
 import { type MouseEvent, useEffect, useRef } from 'react'
 import { Blueprint } from '@/shared/components/Blueprint'
+import motion from '@/shared/components/motion.module.css'
 import { cn } from '@/shared/lib/utils'
 import styles from './sign-in.module.css'
 
@@ -85,7 +86,7 @@ export function SignInPanel({
       onMouseMove={track}
       onMouseLeave={untrack}
       className={cn(
-        styles.grid,
+        motion.grid,
         styles.paused,
         'split-panel relative flex flex-col justify-between gap-block overflow-hidden py-section text-panel-foreground @max-5xl:justify-start @max-5xl:pb-11 @max-xl:gap-6 @max-xl:px-5 @max-xl:pt-6 @max-xl:pb-8',
       )}
@@ -112,12 +113,12 @@ export function SignInPanel({
         </div>
       </div>
 
-      <div className={cn(styles.rise, styles.d1, 'relative flex items-center gap-3')}>
+      <div className={cn(motion.rise, motion.d1, 'relative flex items-center gap-3')}>
         <Blueprint
           className={cn(
             styles.frame,
-            styles.d1,
-            styles.onPanel,
+            styles.markFrame,
+            motion.onPanel,
             'flex size-9 items-center justify-center',
           )}
         >
@@ -131,8 +132,8 @@ export function SignInPanel({
       <div className="relative flex max-w-130 flex-col gap-stack @max-5xl:max-w-150 @max-xl:gap-4">
         <div
           className={cn(
-            styles.rise,
-            styles.d2,
+            motion.rise,
+            motion.d2,
             'text-overline tracking-widest uppercase text-panel-accent',
           )}
         >
@@ -144,16 +145,16 @@ export function SignInPanel({
         {/* 48 to 56px from tablet to desktop; the design's compact layout drops to 38px. */}
         <h1 className="m-0 font-heading text-display font-semibold text-panel-foreground @max-xl:text-[2.375rem]">
           <span className={styles.line}>
-            <span className={styles.d3}>Pick up where</span>
+            <span className={motion.d3}>Pick up where</span>
           </span>
           <span className={styles.line}>
-            <span className={styles.d4}>you left off.</span>
+            <span className={motion.d4}>you left off.</span>
           </span>
         </h1>
         <p
           className={cn(
-            styles.rise,
-            styles.d5,
+            motion.rise,
+            motion.d5,
             'm-0 text-lead text-panel-foreground dark:text-panel-foreground/78',
           )}
         >
@@ -171,7 +172,7 @@ export function SignInPanel({
             className={cn(
               styles.cell,
               position,
-              styles.onPanel,
+              motion.onPanel,
               'aspect-square p-[0.425rem] text-micro text-panel-foreground/55',
             )}
           >

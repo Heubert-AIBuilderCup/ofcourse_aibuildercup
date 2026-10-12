@@ -2,18 +2,15 @@ import 'server-only'
 import { eq, sql } from 'drizzle-orm'
 import type { PgUpdateSetSource } from 'drizzle-orm/pg-core'
 import { cache } from 'react'
-import { COURSES } from '@/features/engine'
 import { db } from '@/shared/lib/db'
 import { studentProfile } from '@/shared/lib/db/schema'
 import {
   type Coins,
   coinsSchema,
-  FUTURE_IDS,
   type Persona,
   type Profile,
   type QuestionKey,
   type Relative,
-  type Reminder,
   relativeSchema,
   reminderSchema,
   type Step,
@@ -103,32 +100,7 @@ export async function saveCoins(userId: string, coins: Coins): Promise<void> {
   await write(userId, { coins: coinsSchema.parse(coins) })
 }
 
-/** One reminder per future and course at most, so the list never outgrows the catalogue. */
-export const REMINDERS_MAX = FUTURE_IDS.length * COURSES.length
-
-/**
- * Adds the reminder at the end, replacing any earlier one for the same future and course, and
- * drops the oldest beyond REMINDERS_MAX.
- */
-export async function addReminder(userId: string, reminder: Reminder): Promise<void> {
-  const r = reminderSchema.parse(reminder)
-  await write(userId, {
-    reminders: sql`coalesce(
-      (select jsonb_agg(kept.value order by kept.idx)
-         from (select e.value, e.idx
-                 from jsonb_array_elements(${studentProfile.reminders}) with ordinality as e(value, idx)
-                where not (e.value->>'futureId' = ${r.futureId} and e.value->>'courseId' = ${r.courseId})
-                order by e.idx desc
-                limit ${REMINDERS_MAX - 1}) as kept),
-      '[]'::jsonb
-    ) || ${JSON.stringify([r])}::jsonb`,
-  })
-}
-
-/** Where she left off. Reaching the futures marks them seen, for good. */
+/** Where she left off. */
 export async function markStep(userId: string, step: Step): Promise<void> {
-  await write(
-    userId,
-    step === 'futures' ? { lastStep: step, seenFutures: true } : { lastStep: step },
-  )
+  await write(userId, { lastStep: step })
 }

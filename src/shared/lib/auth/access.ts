@@ -111,7 +111,7 @@ export function surfaceSessionError(
   return canUseAdmin(role) ? null : SURFACE_ERRORS.notAdmin
 }
 
-/** The student app (the opening and the futures): accounts with role user only. */
+/** The student app (onboarding): accounts with role user only. */
 export function canUseStudentApp(role: string | null | undefined): boolean {
   return role === 'user'
 }

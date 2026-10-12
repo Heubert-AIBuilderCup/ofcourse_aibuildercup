@@ -1,7 +1,6 @@
 'use server'
 
 import { z } from 'zod/mini'
-import { COURSES } from '@/features/engine'
 import { ACCESS_ERRORS, canUseStudentApp } from '@/shared/lib/auth/access'
 import { getSession } from '@/shared/lib/auth/session'
 import type { ActionResult } from '@/shared/types/action-result'
@@ -11,12 +10,11 @@ import {
   QUESTION_KEYS,
   type QuestionKey,
   relativeSchema,
-  reminderSchema,
   type StoredAnswers,
 } from '@/shared/types/student'
 import { SAVE_FAILED } from './model/messages'
 import { parseAnswer } from './model/questions'
-import { addReminder, saveAnswers, saveCoins, savePersona, saveRelative } from './server/profile'
+import { saveAnswers, saveCoins, savePersona, saveRelative } from './server/profile'
 
 // The student's writes, one per tap. Each reads the student from the session (never from the
 // request), refuses anyone who is not a student, validates the browser's input against the
@@ -26,11 +24,6 @@ const SIGN_IN = 'Please sign in again.'
 const INVALID = "That answer isn't one of the options."
 
 const personaSchema = z.enum(PERSONAS)
-/** Only which future and which course: the text is the catalogue's and `at` the server's. */
-const reminderInputSchema = z.strictObject({
-  futureId: reminderSchema.shape.futureId,
-  courseId: reminderSchema.shape.courseId,
-})
 
 const fail = (error: string): { ok: false; error: string } => ({ ok: false, error })
 
@@ -115,23 +108,6 @@ export async function saveCoinsAction(coins: unknown): Promise<ActionResult> {
     const parsed = coinsSchema.safeParse(coins)
     if (!parsed.success) return fail(INVALID)
     await saveCoins(userId, parsed.data)
-    return { ok: true }
-  })
-}
-
-/**
- * "Remind me" on a keep-options-open action: `{ futureId, courseId }` for a course in the
- * catalogue, stored with that course's own action, set now.
- */
-export async function addReminderAction(reminder: unknown): Promise<ActionResult> {
-  return asStudent('addReminder', async (userId) => {
-    const parsed = reminderInputSchema.safeParse(reminder)
-    if (!parsed.success) return fail(INVALID)
-    const { futureId, courseId } = parsed.data
-    const course = COURSES.find((c) => c.id === courseId)
-    if (!course) return fail(INVALID)
-    const { text } = course.keepOpen
-    await addReminder(userId, { futureId, courseId, text, at: new Date().toISOString() })
     return { ok: true }
   })
 }

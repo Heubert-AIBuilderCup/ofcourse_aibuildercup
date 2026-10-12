@@ -2,31 +2,32 @@
 
 import { ArrowRight, CircleHelp, Clock, Columns3, type LucideIcon } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect, useRef } from 'react'
 import { FrameMarks } from '@/shared/components/Blueprint'
+import motion from '@/shared/components/motion.module.css'
 import { buttonVariants } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
 import { PICTURE_PATH, WELCOME_MINUTES } from '../model/onboarding'
-import shell from './onboarding.module.css'
+import { StepActions } from './StepActions'
+import { StepHeading } from './StepHeading'
 
 const POINTS = [
   {
     icon: Clock,
     title: 'Five short steps, one question at a time',
     text: 'Everything saves as you go, so you can stop and pick up where you left off.',
-    rise: shell.d5,
+    rise: motion.d5,
   },
   {
     icon: CircleHelp,
     title: 'Each question says why it asks',
     text: "“Not sure” and Skip are always fine. I'll assume a sensible default and show it as a chip you can change.",
-    rise: shell.d6,
+    rise: motion.d6,
   },
   {
     icon: Columns3,
     title: 'Nothing ranked or recommended',
     text: 'We show what each choice would give you and what it would cost you. You decide what matters.',
-    rise: shell.d7,
+    rise: motion.d7,
   },
 ] as const satisfies readonly { icon: LucideIcon; title: string; text: string; rise: string }[]
 
@@ -38,32 +39,18 @@ const POINTS = [
  * (email-code sign-ins). On a phone (below @xl) Start sits in a bar within thumb reach.
  */
 export function WelcomeScreen({ firstName }: { firstName: string }) {
-  const heading = useRef<HTMLHeadingElement>(null)
-
-  useEffect(() => {
-    heading.current?.focus({ preventScroll: true })
-  }, [])
-
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 @max-xl:gap-4">
-      <p className={cn(shell.rise, shell.d2, 'm-0 text-lead text-muted-foreground')}>
+      <p className={cn(motion.rise, motion.d2, 'm-0 text-lead text-muted-foreground')}>
         {firstName ? `Welcome, ${firstName}.` : 'Welcome.'}
       </p>
-      <h1
-        ref={heading}
-        tabIndex={-1}
-        className={cn(
-          shell.rise,
-          shell.d3,
-          'm-0 font-heading text-h1 font-semibold tracking-[-0.015em] outline-none',
-        )}
-      >
+      <StepHeading focusOnArrival className={cn(motion.rise, motion.d3)}>
         {`About ${WELCOME_MINUTES} minutes of short questions`}
-      </h1>
+      </StepHeading>
       <p
         className={cn(
-          shell.rise,
-          shell.d4,
+          motion.rise,
+          motion.d4,
           'm-0 max-w-prose leading-relaxed text-muted-foreground',
         )}
       >
@@ -76,7 +63,7 @@ export function WelcomeScreen({ firstName }: { firstName: string }) {
           <li
             key={title}
             className={cn(
-              shell.rise,
+              motion.rise,
               rise,
               'grid grid-cols-[2.75rem_minmax(0,1fr)] items-start gap-4 border-t py-4 last:border-b',
               '@max-xl:grid-cols-[2.25rem_minmax(0,1fr)] @max-xl:gap-3 @max-xl:py-3.5',
@@ -95,8 +82,8 @@ export function WelcomeScreen({ firstName }: { firstName: string }) {
 
       <div
         className={cn(
-          shell.rise,
-          shell.d7,
+          motion.rise,
+          motion.d7,
           'flex flex-col gap-1 border-l-2 border-accent-700 bg-accent-100/70 px-4 py-3',
         )}
       >
@@ -107,14 +94,7 @@ export function WelcomeScreen({ firstName }: { firstName: string }) {
         </p>
       </div>
 
-      <div
-        className={cn(
-          shell.rise,
-          shell.d8,
-          'mt-1 flex items-center justify-start gap-3.5',
-          '@max-xl:sticky @max-xl:bottom-0 @max-xl:z-5 @max-xl:-mx-4 @max-xl:border-t @max-xl:bg-background @max-xl:px-4 @max-xl:pt-3 @max-xl:pb-[calc(0.75rem+env(safe-area-inset-bottom))]',
-        )}
-      >
+      <StepActions className="justify-start">
         <Link
           href={PICTURE_PATH}
           className={cn(
@@ -126,7 +106,7 @@ export function WelcomeScreen({ firstName }: { firstName: string }) {
           Start
           <ArrowRight aria-hidden="true" className="size-icon-sm" />
         </Link>
-      </div>
+      </StepActions>
     </div>
   )
 }

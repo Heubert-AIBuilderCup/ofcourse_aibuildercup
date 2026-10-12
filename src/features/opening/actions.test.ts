@@ -23,17 +23,12 @@ const saveAnswers = mock(
 const savePersona = mock(async (_userId: string, _persona: unknown) => {})
 const saveRelative = mock(async (_userId: string, _relative: unknown) => {})
 const saveCoins = mock(async (_userId: string, _coins: unknown) => {})
-const addReminder = mock(async (_userId: string, _reminder: unknown) => {})
-const repository = { saveAnswers, savePersona, saveRelative, saveCoins, addReminder }
+const repository = { saveAnswers, savePersona, saveRelative, saveCoins }
 mock.module('./server/profile', () => repository)
 
-const {
-  addReminderAction,
-  saveAnswersAction,
-  saveCoinsAction,
-  savePersonaAction,
-  saveRelativeAction,
-} = await import('./actions')
+const { saveAnswersAction, saveCoinsAction, savePersonaAction, saveRelativeAction } = await import(
+  './actions'
+)
 
 const SIGN_IN = 'Please sign in again.'
 const NOT_AUTHORISED = 'Not authorised.'
@@ -42,9 +37,6 @@ const SAVE_FAILED = 'Could not save. Please try again.'
 
 const relative = { placeId: 'perth', place: 'Perth', relationship: 'Cousin', name: 'Asha' }
 const coins = { state: 'spent', piles: [2, 2, 1, 1, 1, 1, 1, 1], assumed: false }
-const reminder = { futureId: 'career', courseId: 'uts-cyber' }
-/** uts-cyber's keep-options-open action in the catalogue. */
-const UTS_DEFER = 'Ask UTS whether you can defer a year'
 
 // Every action, called with input that is valid, so only the caller decides the outcome.
 const calls = [
@@ -52,7 +44,6 @@ const calls = [
   ['savePersonaAction', () => savePersonaAction('female')],
   ['saveRelativeAction', () => saveRelativeAction(relative)],
   ['saveCoinsAction', () => saveCoinsAction(coins)],
-  ['addReminderAction', () => addReminderAction(reminder)],
 ] as const
 
 const repositoryCalls = () => Object.values(repository).reduce((n, f) => n + f.mock.calls.length, 0)
@@ -263,57 +254,5 @@ describe('saveCoinsAction', () => {
       await saveCoinsAction({ state: 'spent', piles: [2, 1, 1, 1, 1, 1, 1, 1], assumed: false }),
     ).toEqual({ ok: false, error: INVALID })
     expect(saveCoins).not.toHaveBeenCalled()
-  })
-})
-
-describe('addReminderAction', () => {
-  it("stores the reminder with the course's own action and the time it was set on the server", async () => {
-    session = student()
-    const before = Date.now()
-    expect(await addReminderAction(reminder)).toEqual({ ok: true })
-    const [userId, stored] = addReminder.mock.calls[0] as [string, Record<string, unknown>]
-    expect(userId).toBe('student-1')
-    expect(Object.keys(stored).sort()).toEqual(['at', 'courseId', 'futureId', 'text'])
-    expect(stored).toMatchObject({ ...reminder, text: UTS_DEFER })
-    const at = stored.at as string
-    expect(new Date(at).toISOString()).toBe(at)
-    expect(Date.parse(at)).toBeGreaterThanOrEqual(before)
-  })
-
-  it('takes only the future and the course: any other field is refused', async () => {
-    session = student()
-    for (const extra of [
-      { text: 'Anything the browser likes' },
-      { at: '1999-01-01T00:00:00.000Z' },
-      { userId: 'other' },
-    ]) {
-      expect(await addReminderAction({ ...reminder, ...extra })).toEqual({
-        ok: false,
-        error: INVALID,
-      })
-    }
-    expect(addReminder).not.toHaveBeenCalled()
-  })
-
-  it('refuses a course that is not in the catalogue', async () => {
-    session = student()
-    expect(await addReminderAction({ ...reminder, courseId: 'no-such-course' })).toEqual({
-      ok: false,
-      error: INVALID,
-    })
-    expect(await addReminderAction({ ...reminder, courseId: 'toString' })).toEqual({
-      ok: false,
-      error: INVALID,
-    })
-    expect(addReminder).not.toHaveBeenCalled()
-  })
-
-  it('refuses a future that is not one of the three', async () => {
-    session = student()
-    expect(await addReminderAction({ ...reminder, futureId: 'luck' })).toEqual({
-      ok: false,
-      error: INVALID,
-    })
-    expect(addReminder).not.toHaveBeenCalled()
   })
 })

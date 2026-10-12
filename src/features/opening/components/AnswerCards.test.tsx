@@ -95,13 +95,3 @@ it('leaves other keys alone', () => {
   fireEvent.keyDown(radio('AUD 24k'), { key: 'Tab' })
   expect(onAnswer).not.toHaveBeenCalled()
 })
-
-it('lays four cards out in two columns, five in three', () => {
-  const four = renderCards('dep')
-  expect(screen.getAllByRole('radio')).toHaveLength(4)
-  expect(screen.getByRole('radiogroup').className).toContain('grid-cols-2')
-  expect(screen.getByRole('radiogroup').className).not.toContain('grid-cols-3')
-  four.unmount()
-  renderCards('amount')
-  expect(screen.getByRole('radiogroup').className).toContain('grid-cols-3')
-})

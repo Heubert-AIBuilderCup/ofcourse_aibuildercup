@@ -54,12 +54,3 @@ it('still renders the first line when sessionStorage throws', () => {
   render(<DuckLoader />)
   expect(screen.getByText(LOADER_LINES[0])).toBeInTheDocument()
 })
-
-it('has the duck facing right, the way it drifts', () => {
-  render(<DuckLoader />)
-  const duck = document.querySelector('img')
-  expect(duck).not.toBeNull()
-  expect(duck?.getAttribute('alt')).toBe('')
-  // The PNG faces left; mirrored, it faces the way it moves.
-  expect(duck?.className).toContain('-scale-x-100')
-})

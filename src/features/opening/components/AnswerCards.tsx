@@ -5,7 +5,10 @@ import { type KeyboardEvent, useRef } from 'react'
 import { cn } from '@/shared/lib/utils'
 import type { AnswerValue, StoredAnswer } from '@/shared/types/student'
 import { NOT_SURE, type Question } from '../model/questions'
-import { labelOf } from './OptionButtons'
+
+/** "AUD 24k" for an amount (the only numbers); any other option reads as itself. */
+const labelOf = (option: AnswerValue): string =>
+  typeof option === 'number' ? `AUD ${option}k` : String(option)
 
 /**
  * A single-choice question's options as a radiogroup of cards, then "Not sure" when the question

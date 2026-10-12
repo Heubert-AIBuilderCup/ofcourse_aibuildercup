@@ -4,6 +4,7 @@ import { GoogleSignIn } from '@/features/auth/components/GoogleSignIn'
 import { SignInPanel } from '@/features/auth/components/SignInPanel'
 import styles from '@/features/auth/components/sign-in.module.css'
 import { Blueprint } from '@/shared/components/Blueprint'
+import motion from '@/shared/components/motion.module.css'
 import { ThemeToggle } from '@/shared/components/ThemeToggle'
 import { canUseAdmin } from '@/shared/lib/auth/access'
 import {
@@ -45,7 +46,7 @@ export default async function AdminSignInPage({ searchParams }: PageProps<'/admi
   return (
     // The outer div is the container the layout queries; a container query never applies to the
     // container itself, so the grid is a separate child.
-    <div className={cn(styles.page, '@container min-h-dvh bg-background text-foreground')}>
+    <div className={cn(motion.page, '@container min-h-dvh bg-background text-foreground')}>
       <div className="split-page relative min-h-dvh @max-5xl:grid-cols-1 @max-5xl:grid-rows-[auto_1fr]">
         <SignInPanel
           productName={`${SITE_NAME} Admin`}
@@ -58,11 +59,11 @@ export default async function AdminSignInPage({ searchParams }: PageProps<'/admi
           <Blueprint
             className={cn(
               styles.frame,
-              styles.d5,
+              styles.cardFrame,
               'flex w-full max-w-sm flex-col gap-5 bg-card p-stack text-card-foreground @max-xl:p-5',
             )}
           >
-            <div className={cn(styles.rise, styles.d6)}>
+            <div className={cn(motion.rise, motion.d6)}>
               <div className="mb-[0.425rem] text-micro uppercase text-primary-strong">
                 Admin sign-in
               </div>
@@ -83,8 +84,8 @@ export default async function AdminSignInPage({ searchParams }: PageProps<'/admi
 
           <div
             className={cn(
-              styles.rise,
-              styles.d8,
+              motion.rise,
+              motion.d8,
               'flex justify-center text-caption text-muted-foreground',
             )}
           >

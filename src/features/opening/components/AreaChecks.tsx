@@ -1,13 +1,13 @@
 'use client'
 
-import { Check, Info } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { useId, useState } from 'react'
 import { AREA_FIELDS } from '@/features/engine'
 import { cn } from '@/shared/lib/utils'
-import type { AnswerValue, StoredAnswer } from '@/shared/types/student'
+import { type AnswerValue, AREAS_MAX, type StoredAnswer } from '@/shared/types/student'
 import type { Question } from '../model/questions'
+import { Note } from './Note'
 
-const MOST = 3
 const MARKS = [1, 2, 3] as const
 const REFUSAL = "Three is the most for now. Tap one you've chosen to make room."
 const NOTE = 'Nearest field used for now'
@@ -35,8 +35,8 @@ export function AreaChecks({
   const [refused, setRefused] = useState(false)
   const countId = useId()
   const value = answer?.value
-  const chosen: readonly string[] = Array.isArray(value) && value.length <= MOST ? value : []
-  const full = chosen.length >= MOST
+  const chosen: readonly string[] = Array.isArray(value) && value.length <= AREAS_MAX ? value : []
+  const full = chosen.length >= AREAS_MAX
 
   function tap(area: string) {
     if (chosen.includes(area)) {
@@ -68,20 +68,19 @@ export function AreaChecks({
             />
           ))}
         </span>
-        <span>{`${chosen.length} of ${MOST} chosen`}</span>
+        <span>{`${chosen.length} of ${AREAS_MAX} chosen`}</span>
       </p>
 
       {/* Rendered before the refusal, so a screen reader hears it arrive; empty, it leaves the flow
           (it stays rendered), so it adds no gap. */}
       <div role="status" aria-live="polite" className="empty:absolute">
         {refused ? (
-          <p className="m-0 flex items-start gap-2 border-l-2 border-neutral-600 bg-neutral-100 px-3.5 py-2.5 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-350 motion-safe:ease-out">
-            <Info
-              aria-hidden="true"
-              className="icon-on-line-sm size-icon-sm shrink-0 text-neutral-700"
-            />
-            <span>{REFUSAL}</span>
-          </p>
+          <Note
+            tone="limit"
+            className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-350 motion-safe:ease-out"
+          >
+            {REFUSAL}
+          </Note>
         ) : null}
       </div>
 

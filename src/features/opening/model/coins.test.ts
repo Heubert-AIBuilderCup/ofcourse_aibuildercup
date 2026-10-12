@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'bun:test'
-import { coinsSchema, LIFE_VALUES } from '@/shared/types/student'
+import { COINS_TOTAL, coinsSchema, LIFE_VALUES, MAX_PER_PILE } from '@/shared/types/student'
 import {
   addCoin,
-  COINS_TOTAL,
   canFinish,
   coinLine,
   doneLine,
-  MAX_PER_PILE,
   NOT_SURE_SPREAD,
   placed,
   refusal,

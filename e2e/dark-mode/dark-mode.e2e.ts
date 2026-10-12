@@ -3,7 +3,7 @@ import { expect, type Locator, type Page, test } from '@playwright/test'
 import { freshEmail } from '../helpers/accounts'
 import { deleteSignInCodes, deleteUsers, latestSignInCode, setRole } from '../helpers/db'
 import { signInUser } from '../helpers/login'
-import { answerOpening, card, factUrl, newStudent, PRIYA, skipSplash } from '../helpers/student'
+import { card, factUrl, newStudent, skipSplash } from '../helpers/student'
 import {
   colourOf,
   differingShare,
@@ -622,9 +622,7 @@ test('AC10: nothing light-themed remains in dark [step 01]', async ({ page }) =>
   }
 })
 
-test('AC10: nothing light-themed remains in dark [screens 2–4, futures, coins]', async ({
-  page,
-}) => {
+test('AC10: nothing light-themed remains in dark [screens 2–4]', async ({ page }) => {
   test.setTimeout(240_000)
   const email = await newStudent(page, 'dm-ac10-later')
   try {
@@ -634,16 +632,6 @@ test('AC10: nothing light-themed remains in dark [screens 2–4, futures, coins]
       await page.goto(path)
       await noLightAtBothWidths(page, path)
     }
-    await page.setViewportSize(DESKTOP)
-    await answerOpening(page, PRIYA)
-    await expect(
-      page.getByRole('heading', { level: 1, name: "Here's what each would give you" }),
-    ).toBeVisible()
-    await noLightAtBothWidths(page, '/futures')
-    await page.setViewportSize(DESKTOP)
-    await page.goto('/attention')
-    await expect(page.getByText('10 coins left to place')).toBeVisible()
-    await noLightAtBothWidths(page, '/attention')
   } finally {
     await deleteUsers([email])
   }

@@ -9,7 +9,7 @@ import { newStudent, skipSplash } from './helpers/student'
 // and that once step 00 is answered she never sees it again.
 
 const heading = (page: Page) =>
-  page.getByRole('heading', { level: 1, name: 'About 10 minutes, then three futures' })
+  page.getByRole('heading', { level: 1, name: 'About 6 minutes of short questions' })
 
 test('a new student lands on the welcome, and its Start opens step 00', async ({ page }) => {
   const email = await newStudent(page, 'welcome-land')
@@ -20,14 +20,14 @@ test('a new student lands on the welcome, and its Start opens step 00', async ({
     await expect(heading(page)).toBeVisible()
     await expect(
       page.getByText(
-        "Your answers shape three futures you'll see at the end: what you'd study, where you'd live, and what could come after.",
+        "Your answers shape what OfCourse shows you: what you'd study, where you'd live, and what could come after.",
       ),
     ).toBeVisible()
     const points = page.getByRole('list', { name: 'How it works' })
     for (const title of [
-      'Six short steps, one question at a time',
+      'Five short steps, one question at a time',
       'Each question says why it asks',
-      'Three futures, side by side',
+      'Nothing ranked or recommended',
     ])
       await expect(points.getByRole('heading', { level: 2, name: title })).toBeVisible()
     await expect(page.getByText('First · optional')).toBeVisible()
@@ -111,7 +111,7 @@ test('on a phone the panel band says she has not started, and what comes first',
   try {
     await page.goto('/onboarding/welcome')
     const panel = page.getByRole('complementary', { name: 'Getting started' })
-    await expect(panel.getByText('Not started yet · about 10 min')).toBeVisible()
+    await expect(panel.getByText('Not started yet · about 6 min')).toBeVisible()
     await expect(panel.getByText('First: Your comic character')).toBeVisible()
     await expect(panel.locator('[data-lit="true"]')).toHaveCount(0)
   } finally {
@@ -131,7 +131,7 @@ test('side by side the step list has none current, step 00 tagged Optional', asy
     ).toBeVisible()
     const list = page.getByRole('list', { name: 'Your steps' })
     const steps = list.getByRole('listitem')
-    await expect(steps).toHaveCount(7)
+    await expect(steps).toHaveCount(6)
     await expect(steps.nth(0)).toContainText('Your comic character')
     await expect(steps.nth(0)).toContainText('Optional')
     await expect(list.locator('[aria-current]')).toHaveCount(0)

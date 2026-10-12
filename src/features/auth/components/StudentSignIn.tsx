@@ -6,6 +6,7 @@ import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'rea
 // The mini build: the same z.email() check the server makes, without the full library in the page.
 import { z } from 'zod/mini'
 import { Blueprint } from '@/shared/components/Blueprint'
+import motion from '@/shared/components/motion.module.css'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
@@ -76,7 +77,7 @@ function FieldError({ id, children }: { id: string; children: ReactNode }) {
     <p
       id={id}
       className={cn(
-        styles.errorIn,
+        motion.errorIn,
         'm-0 flex items-start gap-1.5 text-xs leading-snug font-medium text-danger-700',
       )}
     >
@@ -92,7 +93,7 @@ function Alert({ children }: { children: ReactNode }) {
     <div
       role="alert"
       className={cn(
-        styles.errorIn,
+        motion.errorIn,
         'flex items-start gap-2 border border-danger-300 bg-danger-100 px-3.5 py-2.5 text-caption text-danger-800',
       )}
     >
@@ -244,7 +245,7 @@ export function StudentSignIn({ next, notice }: { next: string; notice?: string 
     busy === 'send' ? 'Sending the code' : busy === 'sign' ? 'Signing in' : done ? 'Signed in' : ''
 
   const submit = (
-    <div className={cn(styles.rise, styles.d8, 'flex flex-col gap-3.5')}>
+    <div className={cn(motion.rise, motion.d8, 'flex flex-col gap-3.5')}>
       <Button
         type="submit"
         variant="strong"
@@ -266,7 +267,7 @@ export function StudentSignIn({ next, notice }: { next: string; notice?: string 
           </>
         ) : working ? (
           <>
-            <LoaderCircle aria-hidden="true" className={cn(styles.spin, 'size-icon-sm')} />
+            <LoaderCircle aria-hidden="true" className={cn(motion.spin, 'size-icon-sm')} />
             {working}
           </>
         ) : (
@@ -290,13 +291,13 @@ export function StudentSignIn({ next, notice }: { next: string; notice?: string 
       data-shake={shake}
       className={cn(
         styles.frame,
-        styles.d5,
+        styles.cardFrame,
         shake === 'a' && styles.shakeA,
         shake === 'b' && styles.shakeB,
         'flex w-full max-w-sm flex-col gap-5 bg-card p-stack text-card-foreground @max-xl:p-5',
       )}
     >
-      <div className={cn(styles.rise, styles.d6)}>
+      <div className={cn(motion.rise, motion.d6)}>
         <div className="mb-[0.425rem] text-micro uppercase text-primary-strong">Sign in</div>
         <h2 className="m-0 mb-[0.425rem] font-heading text-h2 font-semibold tracking-[-0.015em]">
           Welcome
@@ -310,7 +311,7 @@ export function StudentSignIn({ next, notice }: { next: string; notice?: string 
         <form noValidate onSubmit={onEmail} className="flex flex-col gap-5">
           <div
             data-invalid={emailError ? '' : undefined}
-            className={cn(styles.rise, styles.d7, 'group grid gap-1.5')}
+            className={cn(motion.rise, motion.d7, 'group grid gap-1.5')}
           >
             <Label htmlFor="student-email" className={LABEL}>
               Your email
@@ -344,7 +345,7 @@ export function StudentSignIn({ next, notice }: { next: string; notice?: string 
         </form>
       ) : (
         <form noValidate onSubmit={onCode} className="flex flex-col gap-5">
-          <div className={cn(styles.rise, styles.d7, 'flex flex-col gap-3.5')}>
+          <div className={cn(motion.rise, motion.d7, 'flex flex-col gap-3.5')}>
             <p className="m-0 text-sm">{`The code we sent to ${sentTo}`}</p>
             <div data-invalid={codeError ? '' : undefined} className="group grid gap-1.5">
               <Label htmlFor="student-code" className={LABEL}>

@@ -3,7 +3,6 @@ import { deleteUsers, profileOf, sql, userIdByEmail } from '../helpers/db'
 import { devLogin } from '../helpers/login'
 import {
   answerFact,
-  answerOpening,
   card,
   factUrl,
   newStudent,
@@ -290,17 +289,17 @@ test.describe('on a phone', () => {
     }
   })
 
-  test('AC22: the progress shows which step she is on, read out as "Step N of 6" [phone]', async ({
+  test('AC22: the progress shows which step she is on, read out as "Step N of 5" [phone]', async ({
     page,
   }) => {
     const email = await newStudent(page, 'qa-ac22-phone')
     try {
       await startOnboarding(page)
-      await expect(page.getByText('Step 0 of 6.', { exact: true })).toBeAttached()
+      await expect(page.getByText('Step 0 of 5.', { exact: true })).toBeAttached()
       await page.getByRole('button', { name: 'Skip', exact: true }).click()
       await expect(question(page, 'Where are you right now?')).toBeVisible()
-      await expect(page.getByText('Step 1 of 6.', { exact: true })).toBeAttached()
-      await expect(page.getByText('Step 0 of 6.', { exact: true })).toHaveCount(0)
+      await expect(page.getByText('Step 1 of 5.', { exact: true })).toBeAttached()
+      await expect(page.getByText('Step 0 of 5.', { exact: true })).toHaveCount(0)
     } finally {
       await deleteUsers([email])
     }
@@ -363,9 +362,7 @@ test.describe('on a phone', () => {
     }
   })
 
-  test('AC26: "Not sure" stores the default as assumed, the line says so, and the futures show it as a chip', async ({
-    page,
-  }) => {
+  test('AC26: "Not sure" stores the default as assumed, and the line says so', async ({ page }) => {
     const email = await newStudent(page, 'qa-ac26')
     try {
       for (const fact of FACTS) {
@@ -377,11 +374,6 @@ test.describe('on a phone', () => {
       const answers = (await profileOf(email))?.answers ?? {}
       for (const fact of FACTS) expect(answers[fact.key]?.state, fact.key).toBe('assumed')
       expect(answers.amount).toEqual({ value: 30, state: 'assumed' })
-
-      await answerOpening(page, {})
-      await expect(
-        page.getByRole('button', { name: 'Assumed: Budget about AUD 30k a year' }).first(),
-      ).toBeVisible()
     } finally {
       await deleteUsers([email])
     }
@@ -581,13 +573,13 @@ test.describe('on a phone', () => {
 test.describe('on a tablet', () => {
   test.use({ viewport: TABLET })
 
-  test('AC22: the progress shows which step she is on, read out as "Step N of 6" [tablet]', async ({
+  test('AC22: the progress shows which step she is on, read out as "Step N of 5" [tablet]', async ({
     page,
   }) => {
     const email = await newStudent(page, 'qa-ac22-tablet')
     try {
       await leaveStep00(page, 'Male')
-      await expect(page.getByText('Step 1 of 6.', { exact: true })).toBeAttached()
+      await expect(page.getByText('Step 1 of 5.', { exact: true })).toBeAttached()
     } finally {
       await deleteUsers([email])
     }
@@ -604,12 +596,12 @@ test.describe('on desktop', () => {
     try {
       await startOnboarding(page)
       const steps = page.getByRole('list', { name: 'Your steps' }).getByRole('listitem')
-      await expect(steps).toHaveCount(7)
+      await expect(steps).toHaveCount(6)
       await expect(steps.nth(0)).toHaveAttribute('aria-current', 'step')
 
       await page.getByRole('button', { name: 'Continue', exact: true }).click()
       await expect(question(page, 'Where are you right now?')).toBeVisible()
-      await expect(steps).toHaveCount(7)
+      await expect(steps).toHaveCount(6)
       await expect(steps.nth(0)).toContainText('Done')
       await expect(steps.nth(1)).toHaveAttribute('aria-current', 'step')
       await expect(steps.nth(1)).toContainText('Facts about you')

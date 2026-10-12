@@ -17,7 +17,7 @@ export const ONBOARDING_STEPS: readonly string[] = [
 ]
 
 /** The onboarding steps, 00 to 05. */
-export type OnboardingStep = 0 | 1 | 2 | 3 | 4 | 5
+type OnboardingStep = 0 | 1 | 2 | 3 | 4 | 5
 
 /** The steps that ask one question per screen. */
 export type QuestionStep = 1 | 2 | 3 | 4
@@ -107,7 +107,7 @@ const WHY: Record<FactKey, string> = {
  * Step 01's questions in the URL: one readable slug per stored key (CLAUDE.md, "Student URLs").
  * Keys never appear in a URL; renaming a slug breaks old links, renaming a key does not.
  */
-export const FACT_SLUGS: Readonly<Record<FactKey, string>> = {
+const FACT_SLUGS: Readonly<Record<FactKey, string>> = {
   where: 'where',
   amount: 'amount',
   covers: 'covers',
@@ -227,7 +227,6 @@ export const AFTER_PATH = `${ONBOARDING_PATH}/after`
 export const ATTENTION_PATH = `${ONBOARDING_PATH}/attention`
 /** The end screen after step 05: still step 05 on the panel. */
 export const DONE_PATH = `${ONBOARDING_PATH}/done`
-export const FUTURES_PATH = '/futures'
 
 /** Per question step: the kicker's title, its questions in order, and its base path. */
 export const QUESTION_STEPS: Readonly<
@@ -317,11 +316,6 @@ export const QUESTION_STEPS: Readonly<
   },
 }
 
-/** Step 01's questions, in the model order: stored answers only, it never asks her person. */
-export const FACT_QUESTIONS = QUESTION_STEPS[1].questions as readonly (StepQuestion & {
-  key: QuestionKey
-})[]
-
 /**
  * The URL of a step's question. A key the step does not ask gives the step's own path, which
  * opens its first open question.
@@ -385,24 +379,6 @@ export function forwardPath(step: QuestionStep, answers: StoredAnswers): string 
   if (step === 1) return questionPath(2, firstOpenQuestion(2, answers))
   if (step === 2) return LIVING_PATH
   return step === 3 ? AFTER_PATH : ATTENTION_PATH
-}
-
-/** Step 01 never asks her person: the one place its question keys meet the helpers below. */
-const questionKeyOf = (key: StepKey | undefined): QuestionKey | null =>
-  key === undefined || key === PERSON ? null : key
-
-export function factPath(key: QuestionKey): string {
-  return questionPath(1, key)
-}
-
-/** The step 01 question a URL slug names, else null (a key is not a slug). */
-export function factKey(slug: string | null | undefined): QuestionKey | null {
-  return questionKeyOf(questionBySlug(1, slug)?.key)
-}
-
-/** Where a returning student lands in step 01: its first open question. */
-export function firstUnanswered(answers: StoredAnswers): QuestionKey {
-  return questionKeyOf(firstOpenQuestion(1, answers)) ?? 'where'
 }
 
 export function stepOfPath(pathname: string): PanelState | null {

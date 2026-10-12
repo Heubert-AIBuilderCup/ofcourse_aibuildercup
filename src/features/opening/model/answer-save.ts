@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ActionResult } from '@/shared/types/action-result'
 import type { AnswerValue, QuestionKey, Relative } from '@/shared/types/student'
+import { SAVE_FAILED } from './messages'
 import type { PERSON } from './onboarding'
 
 // Per-question saving for the onboarding steps: every tap (or every change to her person) is
@@ -112,4 +113,37 @@ export function useRelativeSave(saveRelativeAction: SaveRelative) {
   return useKeyedSave<typeof PERSON, Relative | null>((_person, relative) =>
     saveRelativeAction(relative),
   )
+}
+
+/**
+ * One save at a time, for a screen that moves on once it lands (step 00's character, step 05's
+ * coins), beside the per-tap saves above. A refused save keeps what was sent and what the server
+ * said (SAVE_FAILED when it never got there), for Try again; a save that lands calls `onSaved` and
+ * stays pending, so nothing can be sent again while the next screen opens.
+ */
+export function useSubmit<V>(action: (value: V) => Promise<ActionResult>, onSaved: () => void) {
+  const [pending, setPending] = useState(false)
+  const [failed, setFailed] = useState<{ value: V; error: string } | null>(null)
+
+  async function submit(value: V) {
+    if (pending) return
+    setPending(true)
+    setFailed(null)
+    let error = SAVE_FAILED
+    try {
+      const result = await action(value)
+      if (result.ok) return onSaved()
+      error = result.error
+    } catch {
+      // It never reached the server: said as a refusal is.
+    }
+    setFailed({ value, error })
+    setPending(false)
+  }
+
+  async function retry() {
+    if (failed) await submit(failed.value)
+  }
+
+  return { pending, failed, submit, retry, clear: () => setFailed(null) }
 }

@@ -5,19 +5,13 @@
 // is deleted after, with its profile.
 
 import { afterAll, beforeAll, describe, expect, mock, test } from 'bun:test'
-import type { Relative, Reminder } from '@/shared/types/student'
+import type { Relative } from '@/shared/types/student'
 
 mock.module('server-only', () => ({}))
 
 const enabled = process.env.DB_TESTS === '1'
 const P = 'sp-t-'
 
-const r1: Reminder = {
-  futureId: 'career',
-  courseId: 'ecu-cyber',
-  text: 'Check the February intake',
-  at: '2026-10-05T09:00:00.000Z',
-}
 const rel: Relative = { placeId: 'perth', place: 'Perth', relationship: 'Cousin', name: 'Asha' }
 
 describe.skipIf(!enabled)('the student profile against the database', () => {
@@ -72,17 +66,10 @@ describe.skipIf(!enabled)('the student profile against the database', () => {
 
     await server.markStep(uid, 'living')
     expect((await server.getProfile(uid)).lastStep).toBe('living')
-    await server.markStep(uid, 'futures')
     await server.markStep(uid, 'attention')
-    expect(await server.getProfile(uid)).toMatchObject({ lastStep: 'attention', seenFutures: true })
+    expect((await server.getProfile(uid)).lastStep).toBe('attention')
     await server.markStep(uid, 'study')
-    expect(await server.getProfile(uid)).toMatchObject({ lastStep: 'study', seenFutures: true })
-
-    await server.addReminder(uid, r1)
-    await server.addReminder(uid, { ...r1, text: 'again' })
-    expect((await server.getProfile(uid)).reminders).toEqual([{ ...r1, text: 'again' }])
-    await server.addReminder(uid, { ...r1, futureId: 'cost' })
-    expect((await server.getProfile(uid)).reminders).toHaveLength(2)
+    expect((await server.getProfile(uid)).lastStep).toBe('study')
 
     await server.saveCoins(uid, { state: 'later' })
     await server.savePersona(uid, 'neutral')
@@ -130,26 +117,6 @@ describe.skipIf(!enabled)('the student profile against the database', () => {
     expect((await server.getProfile(uid)).answers).toEqual({
       amount: { value: 36, state: 'stated' },
     })
-  })
-
-  test('keeps at most REMINDERS_MAX reminders, dropping the oldest', async () => {
-    const uid = `${P}c`
-    const at = (i: number) => new Date(Date.UTC(2026, 9, 5, 0, i)).toISOString()
-    const many = Array.from({ length: server.REMINDERS_MAX + 2 }, (_, i) => ({
-      ...r1,
-      courseId: `course-${i}`,
-      at: at(i),
-    }))
-    for (const reminder of many) await server.addReminder(uid, reminder)
-    const kept = (await server.getProfile(uid)).reminders
-    expect(kept).toHaveLength(server.REMINDERS_MAX)
-    expect(kept[0]).toEqual(many[2])
-    expect(kept.at(-1)).toEqual(many.at(-1))
-    // Setting one again moves it to the end and keeps the count.
-    await server.addReminder(uid, many[5])
-    const again = (await server.getProfile(uid)).reminders
-    expect(again).toHaveLength(server.REMINDERS_MAX)
-    expect(again.at(-1)).toEqual(many[5])
   })
 
   test('drops what does not match the contract when it is read back', async () => {

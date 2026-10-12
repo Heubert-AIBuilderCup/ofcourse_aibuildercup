@@ -1,10 +1,10 @@
 /*
- * Step 00's own motion and figures, from the design's pq.css: the error easing in, the busy
- * spinner, and the three choice figures from the motion study: drawn line by line on arrival, then
- * a quiet loop (breathing, a head tilt, hair sway, a blink), a small warm smile on hover or
- * keyboard focus, a hop and a full smile when chosen, and "Prefer not to say" puzzled rather than
- * pleased, with a "?" beside the head. The easings (--ease-out, --spring), the rise sequence and
- * the pause behind the splash are the onboarding shell's (onboarding.module.css).
+ * Step 00's own motion and figures, from the design's pq.css: the three choice figures from the
+ * motion study, drawn line by line on arrival, then a quiet loop (breathing, a head tilt, hair
+ * sway, a blink), a small warm smile on hover or keyboard focus, a hop and a full smile when
+ * chosen, and "Prefer not to say" puzzled rather than pleased, with a "?" beside the head. The
+ * easings (--ease-out, --spring), the rise sequence, the error easing in, the busy spinner and the
+ * pause behind the splash are the shared motion's (src/shared/components/motion.module.css).
  *
  * The base styles are the final frame: the figures drawn, the faces visible. Every animation and
  * transition is declared only under prefers-reduced-motion: no-preference, so under reduce
@@ -158,13 +158,6 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .errorIn {
-    animation: errorIn 0.3s var(--ease-out) both;
-  }
-  .spin {
-    animation: spin 0.8s linear infinite;
-  }
-
   /* Arrival: each figure drawn line by line, one after the other, then its face appears. */
   .art .s {
     stroke-dasharray: 1;
@@ -251,21 +244,6 @@
   }
   70% {
     transform: rotate(5deg);
-  }
-}
-@keyframes errorIn {
-  from {
-    opacity: 0;
-    transform: translateY(-0.25rem);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
   }
 }
 @keyframes draw {

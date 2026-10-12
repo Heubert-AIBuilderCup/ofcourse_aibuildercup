@@ -1,10 +1,10 @@
-// The one definition of opening screens 1–4: their questions, options, DS-D1 defaults, which
-// questions show, and how each answer reads as a chip on the futures. Pure, so the screens, the
-// engine, the chip editor and the server actions all read the same rules.
+// The one definition of onboarding steps 01–04's questions: their options, DS-D1 defaults, which
+// questions show, and how each answer is stored and shown. Pure, so the screens, the engine and
+// the server actions all read the same rules.
 
 import {
   type AnswerValue,
-  type OpeningStep,
+  AREAS_MAX,
   type QuestionKey,
   type Relative,
   type StoredAnswer,
@@ -27,14 +27,7 @@ export type Question = {
 }
 /** One impact line per item (impact.ts). */
 export type Item = { id: string; title: string; questions: readonly Question[] }
-export type Screen = {
-  step: OpeningStep
-  number: 1 | 2 | 3 | 4
-  title: string
-  sub: string
-  next: string
-  items: readonly Item[]
-}
+export type Screen = { items: readonly Item[] }
 
 /** The answers to "Do you know what you want to study?", which the field and areas hang on. */
 export const PARTICULAR = 'Something particular'
@@ -42,7 +35,6 @@ export const DRAWN_TO_AREAS = "A few areas I'm drawn to"
 export const SUGGEST_ME = 'Suggest me'
 /** The field's default: no field chosen, so every field. */
 const ANY_FIELD = 'Any'
-const AREAS_MAX = 3
 
 const q = (
   key: QuestionKey,
@@ -61,11 +53,6 @@ const single = (
 
 export const SCREENS: readonly Screen[] = [
   {
-    step: 'facts',
-    number: 1,
-    title: 'Facts about you',
-    sub: 'Two to four taps a question. “Not sure” is fine anywhere.',
-    next: "Next: what you'd study",
     items: [
       single(
         'where',
@@ -123,11 +110,6 @@ export const SCREENS: readonly Screen[] = [
     ],
   },
   {
-    step: 'study',
-    number: 2,
-    title: "What you'd study",
-    sub: 'Two to four taps. You can say “suggest me”.',
-    next: "Next: where and how you'd live",
     items: [
       {
         id: 'know',
@@ -161,11 +143,6 @@ export const SCREENS: readonly Screen[] = [
     ],
   },
   {
-    step: 'living',
-    number: 3,
-    title: "Where and how you'd live",
-    sub: "Where you'd be happy, not just where the course is.",
-    next: 'Next: after you graduate',
     items: [
       single('dest', 'Destination', ['Australia', 'Open to others']),
       single('place', 'Kind of place', ['City', 'Suburban', 'Regional']),
@@ -181,11 +158,6 @@ export const SCREENS: readonly Screen[] = [
     ],
   },
   {
-    step: 'after',
-    number: 4,
-    title: 'After you graduate',
-    sub: 'There are no wrong answers. Each one changes which roads stay open.',
-    next: 'Show me three futures',
     items: [
       // "Not sure" is a real answer here, not an assumption (ADR-097).
       single('stay', 'Would you want to stay after?', ['Yes', NOT_SURE, 'No'], { notSure: false }),
@@ -236,28 +208,11 @@ const QUESTIONS = new Map<QuestionKey, Question>(
     screen.items.flatMap((item) => item.questions.map((x) => [x.key, x])),
   ),
 )
-/** The item each question sits in, for the questions its title asks. */
-const ITEM_TITLES = new Map<QuestionKey, string>(
-  SCREENS.flatMap((screen) =>
-    screen.items.flatMap((item) => item.questions.map((x) => [x.key, item.title])),
-  ),
-)
 
 export function questionOf(key: QuestionKey): Question {
   const question = QUESTIONS.get(key)
   if (!question) throw new Error(`No question for ${key}`)
   return question
-}
-
-/** Where the chip editor's heading reads differently from the opening's own words. */
-const EDIT_LABELS: Partial<Record<QuestionKey, string>> = {
-  amount: 'Your budget per year',
-  field: "What you'd study",
-}
-
-/** What the chip editor calls a question: its label, else the title of the item that asks it. */
-export function editLabel(key: QuestionKey): string {
-  return EDIT_LABELS[key] ?? (questionOf(key).label || ITEM_TITLES.get(key) || '')
 }
 
 /** The stated or assumed value, else the default (undefined for a question with none). */
@@ -316,76 +271,6 @@ export function parseAnswer(key: QuestionKey, raw: unknown): StoredAnswer | null
   const { value, state } = stored.data
   if (state === 'stated') return isOption(question, value) ? { value, state } : null
   return fallback !== undefined && value === fallback ? { value, state } : null
-}
-
-/** The field, the areas, or any field, by what she said she knows. */
-export function fieldsChosen(answers: StoredAnswers): {
-  kind: 'field' | 'areas' | 'any'
-  values: string[]
-} {
-  const know = effective(answers, 'know')
-  if (know === PARTICULAR) {
-    const field = effective(answers, 'field')
-    if (typeof field === 'string' && field !== ANY_FIELD) return { kind: 'field', values: [field] }
-  }
-  if (know === DRAWN_TO_AREAS) {
-    const areas = answers.areas?.value
-    if (Array.isArray(areas) && areas.length > 0) return { kind: 'areas', values: [...areas] }
-  }
-  return { kind: 'any', values: [] }
-}
-
-const lower = (v: AnswerValue | undefined) => String(v).toLowerCase()
-
-const CHIPS: Partial<Record<QuestionKey, (v: AnswerValue | undefined) => string>> = {
-  amount: (v) => `Budget about AUD ${v}k a year`,
-  who: (v) => `Who pays: ${lower(v)}`,
-  learn: (v) => `Learning: ${lower(v)}`,
-  community: (v) => `Community nearby: ${lower(v)}`,
-  hard: (v) => (v === 'Hard limit' ? 'A hard limit' : 'A rough budget'),
-  place: (v) => `Prefers ${lower(v)}`,
-  latest: (v) => `Latest start ${v}`,
-  stay: (v) =>
-    v === 'Yes'
-      ? 'Wants to stay after'
-      : v === 'No'
-        ? 'Not staying after'
-        : 'Not sure about staying',
-  earn: (v) => `Earning while studying: ${lower(v)}`,
-  level: (v) => `Level: ${v}`,
-  dest: (v) => (v === 'Open to others' ? 'Open to others · Australia shown' : 'Australia only'),
-}
-
-/**
- * Whether the field chip rests on an assumption: the field she left unsaid after "Something
- * particular", areas she has not picked yet, or a "Suggest me" she never said.
- */
-function fieldAssumed(answers: StoredAnswers, kind: 'field' | 'areas' | 'any'): boolean {
-  if (kind === 'areas') return false
-  const know = effective(answers, 'know')
-  if (know === PARTICULAR) return isAssumed(answers, 'field')
-  if (know === DRAWN_TO_AREAS) return true
-  return isAssumed(answers, 'know')
-}
-
-function fieldChip(answers: StoredAnswers): { text: string; assumed: boolean } {
-  const { kind, values } = fieldsChosen(answers)
-  const text =
-    kind === 'field'
-      ? `Field: ${values[0]}`
-      : kind === 'areas'
-        ? `Areas: ${values.join(', ')}`
-        : 'Field: any (suggest me)'
-  return { text, assumed: fieldAssumed(answers, kind) }
-}
-
-/** The answer as a chip on the futures, "Assumed: …" when it rests on an assumption. */
-export function chipText(key: QuestionKey, answers: StoredAnswers): string {
-  const { text, assumed } =
-    key === 'field'
-      ? fieldChip(answers)
-      : { text: (CHIPS[key] ?? display)(effective(answers, key)), assumed: isAssumed(answers, key) }
-  return assumed ? `Assumed: ${text}` : text
 }
 
 /** Any other answer reads as itself (covers: "Fees only", "Fees and living"). */

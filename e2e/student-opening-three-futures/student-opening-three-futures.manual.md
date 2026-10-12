@@ -19,7 +19,7 @@ Steps from smoke-onboarding-ui.md, not run by hand (its Result: one-shot run), c
 
 - [ ] AC4: with reduced motion on (OS setting), the duck on the loader and on the panel sits still on the water and the page has no slide-ins; the test checks only that nothing in the loader moves.
 - [ ] AC4: the loader's three lines rotate during a long wait (the test sees "Keep floating." and one line only).
-- [ ] AC22: on tablet and phone, the seven progress segments show done / now / later in three distinct tones (the test checks the read-out text only).
+- [ ] AC22: on tablet and phone, the six progress segments show done / now / later in three distinct tones (the test checks the read-out text only).
 - [ ] AC2: the panel art and any image text on steps 00–01 carry no "best", "recommended" or "ranked 1st" (the test reads page text only).
 - [ ] Check steps 00 and 01 at 360, 1024, 1366 and 1536 wide (the tests visit 390, 768, 1440, 1920 and 2560).
 
@@ -30,7 +30,7 @@ Steps from smoke-onboarding-ui.md, not run by hand (its Result: one-shot run), c
 - Loader (fast-wait probe), its heading: found in page script as the `h2` with text "Keep floating.". Suggest `data-testid="loader"` on the loader root.
 - Step 01, the first question's heading (fast-wait probe): found in page script as the first `h1` by its text. Suggest `data-testid="fact-question"`.
 - Onboarding panel, the step list items: found by position (`listitem` 0 and 1 of "Your steps"). Suggest `data-step="00"`… on each item.
-- Onboarding panel, the "Step N of 6." read-out: found by its text. Suggest `data-testid="step-progress"`.
+- Onboarding panel, the "Step N of 5." read-out: found by its text. Suggest `data-testid="step-progress"`.
 - Step 01, the kicker "Facts about you · N of 11": found by its text. Suggest `data-testid="fact-counter"`.
 - Step 01, the answer cards in AC2, AC25 and the keyboard test: the first and second card found by position. Suggest `data-value="<option>"` on each card.
 - Step 01, the save note ("Saving…" / "Saved. …"): found by its text. Suggest `data-testid="save-status"`.

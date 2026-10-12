@@ -1,6 +1,6 @@
 # End-to-end tests
 
-Playwright, `bun run test:e2e -- <file> --reporter=line`. It reuses a dev server already on the address below, else starts `bun run dev`. One folder per ticket (`e2e/<ticket>/<ticket>.e2e.ts`, with person checks in `<ticket>.manual.md`); shared helpers in `e2e/helpers/`.
+Playwright, `bun run test:e2e -- <file> --reporter=line`. It reuses a dev server already on the address below, else starts `bun run dev`. A spec is a file in `e2e/` (`e2e/<name>.e2e.ts`), or a folder per ticket where it has person checks (`e2e/<ticket>/<ticket>.e2e.ts` with `<ticket>.manual.md`); shared helpers in `e2e/helpers/`. Steps 03 to 05 and the done screen have no spec yet.
 
 ## Settings
 

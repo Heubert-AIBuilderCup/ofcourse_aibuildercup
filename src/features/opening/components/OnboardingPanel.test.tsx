@@ -4,7 +4,6 @@ import { afterAll, afterEach, beforeAll, expect, it, mock } from 'bun:test'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import * as navigation from 'next/navigation'
 import type { StoredAnswers } from '@/shared/types/student'
-import { PANEL_COPY } from '../model/onboarding'
 import { OnboardingAnswersProvider } from '../model/onboarding-answers'
 
 let pathname = '/onboarding/character'
@@ -47,9 +46,6 @@ function segments(container: HTMLElement) {
 it('on the welcome lists every step, none current, step 00 optional, nothing lit', () => {
   const { container } = renderAt('/onboarding/welcome')
   expect(screen.getByRole('heading', { level: 2, name: 'Before we start' })).toBeInTheDocument()
-  expect(
-    screen.getByText("Here's the whole way through. Each step says why it asks."),
-  ).toBeInTheDocument()
   const items = steps()
   expect(items).toHaveLength(6)
   for (const item of items) {
@@ -73,7 +69,6 @@ it('lights the segments up to the current step', () => {
 it('on step 00 shows where she is: step 00 now, five short steps next', () => {
   renderAt('/onboarding/character')
   expect(screen.getByRole('heading', { level: 2, name: 'Five short steps' })).toBeInTheDocument()
-  expect(screen.getByText(PANEL_COPY[0].lead)).toBeInTheDocument()
   const items = steps()
   expect(items).toHaveLength(6)
   expect(items[0]).toHaveAttribute('aria-current', 'step')
@@ -82,7 +77,6 @@ it('on step 00 shows where she is: step 00 now, five short steps next', () => {
   expect(screen.getByText('Step 0 of 5.')).toBeInTheDocument()
   expect(screen.getByText('Now: Your comic character · optional')).toBeInTheDocument()
   expect(screen.getByText('Next: Facts about you')).toBeInTheDocument()
-  expect(screen.getByText('From off course to “Of Course!”')).toBeInTheDocument()
 })
 
 it('on step 01 marks step 00 done and counts the question she is on', () => {
@@ -168,7 +162,6 @@ for (const path of ['/onboarding/attention', '/onboarding/done']) {
   it(`at ${path} reads as the last step: 00 to 04 done, 05 now and optional, all lit`, () => {
     const { container } = renderAt(path)
     expect(screen.getByRole('heading', { level: 2, name: 'The last step' })).toBeInTheDocument()
-    expect(screen.getByText(PANEL_COPY[5].lead)).toBeInTheDocument()
     const items = steps()
     expect(items).toHaveLength(6)
     for (const done of items.slice(0, 5)) expect(done).toHaveTextContent('Done')

@@ -1,12 +1,12 @@
 // The student app's pages (APP_PATHS in src/shared/lib/auth/gate.ts): where a signed-in user
 // account may land, wherever she left off. And the walk through them a spec repeats: a new
-// student, and opening screens 1–4 answered by the options' visible names.
+// student, and steps 01 and 02 answered one question per screen by the options' visible names.
 
 import { expect, type Page } from '@playwright/test'
 import { freshEmail } from './accounts'
 import { devLogin } from './login'
 
-export const STUDENT_APP_URL = /\/(start|onboarding(\/[a-z-]+)*|futures|attention)$/
+export const STUDENT_APP_URL = /\/(start|onboarding(\/[a-z-]+)*)$/
 
 /**
  * Mark the splash as already seen in this tab (SPLASH_SEEN_KEY in
@@ -48,37 +48,6 @@ export async function signOutViaMenu(page: Page): Promise<void> {
 
 /** A question (or a relative-form field) by its visible name, and the option to give it. */
 export type Tap = readonly [question: string, option: string]
-export type OpeningAnswers = Partial<Record<'facts' | 'study' | 'living' | 'after', readonly Tap[]>>
-
-// Opening screens 3–4, still the old screen; steps 01 and 02 ask one question per screen
-// (answerFact, answerStudy).
-const SCREENS = [
-  { step: 'living', title: "Where and how you'd live", next: 'Next: after you graduate' },
-  { step: 'after', title: 'After you graduate', next: 'Show me three futures' },
-] as const
-
-/**
- * Answer one question as she would: a select by the option's label, a text field by typing (and
- * leaving it, which saves it), else the option's button in the question's group.
- */
-export async function tap(page: Page, [question, option]: Tap): Promise<void> {
-  const select = page.getByRole('combobox', { name: question, exact: true })
-  if ((await select.count()) > 0) {
-    await select.selectOption({ label: option })
-    return
-  }
-  const field = page.getByRole('textbox', { name: question, exact: true })
-  if ((await field.count()) > 0) {
-    await field.fill(option)
-    await field.blur()
-    return
-  }
-  const button = page
-    .getByRole('group', { name: question, exact: true })
-    .getByRole('button', { name: option, exact: true })
-  await button.click()
-  await expect(button).toHaveAttribute('aria-pressed', 'true')
-}
 
 // Step 01's questions as the screen asks them, to their slugs as PRODUCT.md lists them: each has
 // its own screen at /onboarding/facts/<slug>. Written out, not imported, so a slug renamed in the
@@ -162,50 +131,4 @@ export async function answerStudy(page: Page, [question, option]: Tap): Promise<
       areas ? 'Saved. Tap an area again to remove it.' : 'Saved. Tap another answer to change it.',
     ),
   ).toBeVisible()
-}
-
-/**
- * Answer step 01's and step 02's listed questions one screen each, then walk screens 3–4 from
- * the first, giving each the taps listed for it, and open the futures.
- */
-export async function answerOpening(page: Page, answers: OpeningAnswers): Promise<void> {
-  for (const answer of answers.facts ?? []) await answerFact(page, answer)
-  for (const answer of answers.study ?? []) await answerStudy(page, answer)
-  await page.goto('/onboarding/living')
-  for (const screen of SCREENS) {
-    await expect(page.getByRole('heading', { level: 1, name: screen.title })).toBeVisible()
-    for (const answer of answers[screen.step] ?? []) await tap(page, answer)
-    await page.getByRole('link', { name: screen.next }).click()
-  }
-  await expect(page).toHaveURL(/\/futures$/)
-}
-
-/** Priya, the design's walkthrough student (src/features/engine/fixtures.ts), at AUD 36k. */
-export const PRIYA: OpeningAnswers = {
-  facts: [
-    ['Where are you right now?', 'Nepal'],
-    ['Amount', 'AUD 36k'],
-    ['It covers', 'Fees only'],
-    ['Is this a hard limit, or roughly?', 'Roughly'],
-    ["Latest you'd accept", 'Jul 2027'],
-  ],
-  study: [
-    ['Do you know what you want to study?', 'Something particular'],
-    ['Which field?', 'Cyber security'],
-    ['Study level', "Master's"],
-    ['How you like to learn', 'Hands-on with placements'],
-  ],
-  living: [
-    ['Kind of place', 'Regional'],
-    ['Does a community of similar culture, or relatives nearby, matter?', 'A little'],
-    ['Do you know anyone who lives in Australia?', 'Yes'],
-    ['City or suburb', 'Cannington, Perth'],
-    ["They're your…", 'Cousin'],
-    ['Name (optional)', 'Anjali'],
-  ],
-  after: [
-    ['Would you want to stay after?', 'Yes'],
-    ['Career-focused or academic?', 'Career-focused'],
-    ['Do you need to earn while studying?', 'Helpful'],
-  ],
 }

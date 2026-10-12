@@ -5,7 +5,7 @@ import { requireStudent } from '@/shared/lib/auth/session'
 
 /**
  * Onboarding step 00, "Your comic character": reached from the welcome's Start (and with Back
- * from screen 1), her saved answer shown; Start or Skip goes on to screen 1.
+ * from step 01), her saved answer shown; Start or Skip goes on to step 01.
  */
 export default async function PicturePage() {
   const { user } = await requireStudent()

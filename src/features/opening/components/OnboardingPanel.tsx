@@ -4,6 +4,7 @@ import { Check, Layers } from 'lucide-react'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { Blueprint } from '@/shared/components/Blueprint'
+import motion from '@/shared/components/motion.module.css'
 import { SITE_NAME } from '@/shared/lib/site'
 import { cn } from '@/shared/lib/utils'
 import {
@@ -65,7 +66,7 @@ export function OnboardingPanel() {
       aria-label="Getting started"
       data-theme="light"
       className={cn(
-        styles.grid,
+        motion.grid,
         'split-panel relative flex flex-col justify-between gap-block overflow-hidden py-section text-panel-foreground',
         '@5xl:sticky @5xl:top-0 @5xl:min-h-dvh @5xl:self-start',
         '@max-5xl:justify-start @max-5xl:gap-5 @max-5xl:px-10 @max-5xl:pt-7 @max-5xl:pb-6',
@@ -74,13 +75,13 @@ export function OnboardingPanel() {
     >
       <div
         className={cn(
-          styles.rise,
-          styles.d1,
+          motion.rise,
+          motion.d1,
           'relative flex items-center gap-3 font-heading text-h4 font-semibold tracking-[-0.015em]',
         )}
       >
         <Blueprint
-          className={cn(styles.onPanel, 'flex size-9 items-center justify-center @max-xl:size-8')}
+          className={cn(motion.onPanel, 'flex size-9 items-center justify-center @max-xl:size-8')}
         >
           <Layers aria-hidden="true" className="size-icon-md" />
         </Blueprint>
@@ -90,8 +91,8 @@ export function OnboardingPanel() {
       <div className="relative flex max-w-110 flex-col gap-4 @max-5xl:max-w-130 @max-5xl:pr-18 @max-xl:order-2 @max-xl:mt-1.5 @max-xl:max-w-none @max-xl:basis-full @max-xl:gap-1.5 @max-xl:pr-0">
         <h2
           className={cn(
-            styles.rise,
-            styles.d2,
+            motion.rise,
+            motion.d2,
             'm-0 font-heading text-h1 leading-[1.04] font-semibold tracking-[-0.015em] text-panel-foreground',
           )}
         >
@@ -99,8 +100,8 @@ export function OnboardingPanel() {
         </h2>
         <p
           className={cn(
-            styles.rise,
-            styles.d3,
+            motion.rise,
+            motion.d3,
             'm-0 text-panel-foreground dark:text-panel-foreground/80',
           )}
         >
@@ -111,8 +112,8 @@ export function OnboardingPanel() {
       <ol
         aria-label="Your steps"
         className={cn(
-          styles.rise,
-          styles.d4,
+          motion.rise,
+          motion.d4,
           'relative m-0 flex max-w-110 list-none flex-col p-0 @max-5xl:hidden',
         )}
       >
@@ -159,8 +160,8 @@ export function OnboardingPanel() {
 
       <div
         className={cn(
-          styles.rise,
-          styles.d4,
+          motion.rise,
+          motion.d4,
           'relative hidden max-w-130 flex-col gap-2 @max-5xl:flex @max-5xl:pr-18 @max-xl:order-3 @max-xl:mt-1 @max-xl:max-w-none @max-xl:basis-full @max-xl:gap-1.5 @max-xl:pr-0',
         )}
       >
@@ -193,8 +194,8 @@ export function OnboardingPanel() {
 
       <div
         className={cn(
-          styles.rise,
-          styles.d5,
+          motion.rise,
+          motion.d5,
           'relative flex h-18 items-end gap-3',
           '@max-5xl:absolute @max-5xl:right-10 @max-5xl:bottom-3 @max-5xl:h-14',
           // The phone band gives the duck's place to the header menu.

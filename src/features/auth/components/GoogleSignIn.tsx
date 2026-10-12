@@ -2,6 +2,7 @@
 
 import { LogIn } from 'lucide-react'
 import { useState } from 'react'
+import motion from '@/shared/components/motion.module.css'
 import { Button } from '@/shared/components/ui/button'
 import type { Surface } from '@/shared/lib/auth/access'
 import { signIn } from '@/shared/lib/auth/client'
@@ -47,7 +48,7 @@ export function GoogleSignIn({
   }
 
   return (
-    <div className={cn(styles.rise, styles.d8, 'grid gap-2', className)}>
+    <div className={cn(motion.rise, motion.d8, 'grid gap-2', className)}>
       <Button
         variant="outline"
         size="lg"

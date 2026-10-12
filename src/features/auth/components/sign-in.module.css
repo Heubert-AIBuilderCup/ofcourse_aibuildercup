@@ -1,41 +1,23 @@
 /*
- * The sign-in page's motion, from the Industry login design: a load sequence (rise, lines,
- * frames and marks), ambient drift on the panel's grid, a scanline, cells that light in turn, a
- * blinking cursor, corner marks that spread on hover, and the form's states (an error easing in,
- * the card shaking at a failed try, the busy spinner). Every animation and transition is declared
- * only under prefers-reduced-motion: no-preference, so under reduce nothing moves and no selector
- * has to out-rank another. Only transform and opacity move, so low-end phones keep up. Keyframes
- * and multi-step delays have no Tailwind utility, so they live here; colours and sizes still come
- * from the tokens.
+ * The sign-in page's own motion, from the Industry login design: lines, frames and marks in the
+ * load sequence, a scanline, cells that light in turn, a blinking cursor, corner marks that spread
+ * on hover, and the card shaking at a failed try. The easings, the grid's drift, the rise sequence
+ * (d1–d8), the error easing in and the busy spinner are the shared motion's
+ * (src/shared/components/motion.module.css). Every animation and transition is declared only under
+ * prefers-reduced-motion: no-preference, so under reduce nothing moves. Only transform and opacity
+ * move, so low-end phones keep up. Keyframes and multi-step delays have no Tailwind utility, so
+ * they live here; colours and sizes still come from the tokens.
  */
-
-.page {
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-}
 
 /*
- * The panel's grid, on its own layer one cell larger than the panel, so its drift is a transform.
- * The grid lines are hairlines: 1px on purpose, so they stay one device pixel.
+ * The two frames that arrive on a beat of the shared rise sequence, with .frame: the panel's mark
+ * on the first, the sign-in card on the fifth. Their corner marks land 0.4s after them (below).
  */
-.grid {
-  background-color: var(--panel);
+.markFrame {
+  composes: d1 from "../../../shared/components/motion.module.css";
 }
-.grid::before {
-  content: "";
-  position: absolute;
-  inset: -1.7rem 0 0 -1.7rem;
-  pointer-events: none;
-  background-image:
-    linear-gradient(
-      color-mix(in oklch, var(--panel-foreground) 6%, transparent) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      90deg,
-      color-mix(in oklch, var(--panel-foreground) 6%, transparent) 1px,
-      transparent 1px
-    );
-  background-size: 1.7rem 1.7rem;
+.cardFrame {
+  composes: d5 from "../../../shared/components/motion.module.css";
 }
 
 /* The scanline travels its area's height (cqh), so its move is a transform too. */
@@ -46,14 +28,6 @@
   background: color-mix(in oklch, var(--panel-accent) 55%, transparent);
   box-shadow: 0 0 0.75rem color-mix(in oklch, var(--panel-accent) 40%, transparent);
   transform: translateY(-2cqh);
-}
-
-/* On the dark panel the hairlines and marks are drawn in the panel's foreground. */
-.onPanel {
-  border-color: color-mix(in oklch, var(--panel-foreground) 18%, transparent);
-}
-.onPanel [data-frame-mark] {
-  color: color-mix(in oklch, var(--panel-foreground) 45%, transparent);
 }
 
 /* A cell lights in the accent by fading a fill in and out (opacity, not background). */
@@ -97,36 +71,30 @@
 }
 
 /*
- * Held still: the panel's loops while the tab is hidden (SignInPanel sets data-paused), and the
- * whole page while the splash plays in front of it, so its load sequence starts as the splash
- * lands on the panel.
+ * Held still: the panel's loops while the tab is hidden (SignInPanel sets data-paused). The pause
+ * behind the splash is the shared motion's.
  */
 .paused[data-paused],
 .paused[data-paused]::before,
 .paused[data-paused] *,
 .paused[data-paused] *::before,
-.paused[data-paused] *::after,
-:global(html:has([data-splash="play"])) .page *,
-:global(html:has([data-splash="play"])) .page *::before,
-:global(html:has([data-splash="play"])) .page *::after {
+.paused[data-paused] *::after {
   animation-play-state: paused;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .grid::before {
-    animation: drift 9s linear infinite;
-  }
   .scanline {
     animation: scan 7s cubic-bezier(0.45, 0, 0.55, 1) 1.6s infinite backwards;
-  }
-  .rise {
-    animation: rise 0.8s var(--ease-out) backwards;
   }
   .line > span {
     animation: lineUp 1s var(--ease-out) backwards;
   }
+  /* Longhands, so a frame on a beat keeps the shared delay whichever module loads last. */
   .frame {
-    animation: frameIn 0.8s var(--ease-out) backwards;
+    animation-name: frameIn;
+    animation-duration: 0.8s;
+    animation-timing-function: var(--ease-out);
+    animation-fill-mode: backwards;
   }
   .frame > [data-frame-mark] {
     animation: markIn 0.7s var(--ease-out) backwards;
@@ -141,34 +109,10 @@
     animation: blink 1s steps(1) infinite;
   }
 
-  .d1 {
-    animation-delay: 0.1s;
-  }
-  .d2 {
-    animation-delay: 0.25s;
-  }
-  .d3 {
-    animation-delay: 0.4s;
-  }
-  .d4 {
-    animation-delay: 0.55s;
-  }
-  .d5 {
-    animation-delay: 0.7s;
-  }
-  .d6 {
-    animation-delay: 0.85s;
-  }
-  .d7 {
-    animation-delay: 1s;
-  }
-  .d8 {
-    animation-delay: 1.15s;
-  }
-  .frame.d1 > [data-frame-mark] {
+  .frame.markFrame > [data-frame-mark] {
     animation-delay: 0.5s;
   }
-  .frame.d5 > [data-frame-mark] {
+  .frame.cardFrame > [data-frame-mark] {
     animation-delay: 1.1s;
   }
   .cell.c1 {
@@ -211,30 +155,14 @@
   }
 
   /* The form's states. A failed try alternates two identical shakes, so each one restarts. */
-  .errorIn {
-    animation: errorIn 0.3s var(--ease-out) both;
-  }
   .frame.shakeA {
     animation: shakeA 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
   }
   .frame.shakeB {
     animation: shakeB 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
   }
-  .spin {
-    animation: spin 0.8s linear infinite;
-  }
 }
 
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(0.875rem);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
 @keyframes lineUp {
   from {
     transform: translateY(105%);
@@ -261,14 +189,6 @@
   to {
     opacity: 1;
     transform: none;
-  }
-}
-@keyframes drift {
-  from {
-    transform: none;
-  }
-  to {
-    transform: translate(1.7rem, 1.7rem);
   }
 }
 @keyframes scan {
@@ -300,16 +220,6 @@
 @keyframes blink {
   50% {
     opacity: 0;
-  }
-}
-@keyframes errorIn {
-  from {
-    opacity: 0;
-    transform: translateY(-0.25rem);
-  }
-  to {
-    opacity: 1;
-    transform: none;
   }
 }
 @keyframes shakeA {
@@ -348,10 +258,5 @@
   40%,
   60% {
     transform: translateX(0.375rem);
-  }
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
   }
 }

@@ -38,14 +38,14 @@ export type QuestionKey = (typeof QUESTION_KEYS)[number]
 /** `amount` is a number (AUD thousands); `areas` is up to three strings. */
 export type AnswerValue = string | number | string[]
 /** 'assumed': she tapped "Not sure", and the default is stored. */
-export type AnswerState = 'stated' | 'assumed'
+type AnswerState = 'stated' | 'assumed'
 export type StoredAnswer = { value: AnswerValue; state: AnswerState }
 export type StoredAnswers = Partial<Record<QuestionKey, StoredAnswer>>
 
 /** "Prefer not to say" and Skip both store 'neutral'. */
 export const PERSONAS = ['male', 'female', 'neutral'] as const
 export type Persona = (typeof PERSONAS)[number]
-/** Screens 1–4, also their URL segments. */
+/** Onboarding steps 01–04, also their URL segments. */
 export const OPENING_STEPS = ['facts', 'study', 'living', 'after'] as const
 export type OpeningStep = (typeof OPENING_STEPS)[number]
 export const STEPS = ['picture', ...OPENING_STEPS, 'futures', 'attention'] as const
@@ -100,11 +100,13 @@ export type Profile = {
 
 // ── Schemas for the stored JSON ─────────────────────────────────────────────────────────────
 
-const COINS = 10
-const PILE_MAX = 5
+/** The coins she places (step 05), and the most on one pile. */
+export const COINS_TOTAL = 10
+export const MAX_PER_PILE = 5
 /** Far above any option's label; a stored answer stops here rather than grow. */
 const ANSWER_TEXT_MAX = 80
-const AREAS_MAX = 3
+/** The most areas she may pick (step 02). */
+export const AREAS_MAX = 3
 
 const answerText = z.string().check(z.maxLength(ANSWER_TEXT_MAX))
 
@@ -141,9 +143,9 @@ export const coinsSchema = z.discriminatedUnion('state', [
   z.object({ state: z.literal('later') }),
   z.object({
     state: z.literal('spent'),
-    piles: z.array(z.int().check(z.minimum(0), z.maximum(PILE_MAX))).check(
+    piles: z.array(z.int().check(z.minimum(0), z.maximum(MAX_PER_PILE))).check(
       z.length(LIFE_VALUES.length),
-      z.refine((piles) => piles.reduce((sum, n) => sum + n, 0) === COINS),
+      z.refine((piles) => piles.reduce((sum, n) => sum + n, 0) === COINS_TOTAL),
     ),
     assumed: z.boolean(),
   }),

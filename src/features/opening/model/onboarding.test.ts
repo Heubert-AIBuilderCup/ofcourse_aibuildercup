@@ -2,29 +2,18 @@ import { describe, expect, it } from 'bun:test'
 import type { Relative, StoredAnswers } from '@/shared/types/student'
 import {
   askedQuestions,
-  FACT_QUESTIONS,
-  FACT_SLUGS,
-  FACTS_PATH,
-  factKey,
-  factPath,
   firstOpenQuestion,
-  firstUnanswered,
   forwardPath,
   LIVING_PATH,
-  ONBOARDING_STEPS,
   PANEL_COPY,
   PERSON,
-  PICTURE_PATH,
   QUESTION_STEPS,
   questionBySlug,
   questionOfPath,
   questionPath,
-  STUDY_PATH,
   shownQuestion,
   stepOfPath,
   stepProgress,
-  WELCOME_MINUTES,
-  WELCOME_PATH,
 } from './onboarding'
 import { DRAWN_TO_AREAS, PARTICULAR, SUGGEST_ME } from './questions'
 
@@ -66,68 +55,15 @@ const knowsSomeone: StoredAnswers = {
 }
 const cousin: Relative = { placeId: null, place: null, relationship: 'Cousin', name: null }
 
-describe('FACT_QUESTIONS', () => {
-  it('asks the eleven questions in the model order', () => {
-    expect(FACT_QUESTIONS.map((q) => q.key)).toEqual([...KEYS])
+describe('step 01', () => {
+  it('groups a question under its item title when the item asks more than one', () => {
+    const facts = QUESTION_STEPS[1].questions
+    expect(facts[0]).toMatchObject({ group: '', question: 'Where are you right now?' })
+    expect(facts[1]).toMatchObject({ group: 'Your budget per year', question: 'Amount' })
   })
 
-  it('reads the group and question from the model', () => {
-    expect(FACT_QUESTIONS[0]).toMatchObject({
-      group: '',
-      question: 'Where are you right now?',
-      itemId: 'where',
-    })
-    expect(FACT_QUESTIONS[1]).toMatchObject({
-      group: 'Your budget per year',
-      question: 'Amount',
-      itemId: 'budget',
-    })
-    expect(FACT_QUESTIONS[8]).toMatchObject({ group: '', question: 'Anyone coming with you?' })
-  })
-
-  it('says why each question is asked', () => {
-    for (const q of FACT_QUESTIONS) expect(q.why.length).toBeGreaterThan(0)
-    expect(FACT_QUESTIONS[0]?.why).toBe(
-      "It decides whether you'd apply for a visa from home or from inside Australia, and which fees apply.",
-    )
-  })
-})
-
-describe('firstUnanswered', () => {
-  it('starts at where', () => {
-    expect(firstUnanswered({})).toBe('where')
-  })
-
-  it('lands on the first question without an answer', () => {
-    expect(firstUnanswered(stated('where', 'amount'))).toBe('covers')
-  })
-
-  it('counts an assumed answer as answered', () => {
-    expect(
-      firstUnanswered({
-        where: { value: 'Nepal', state: 'assumed' },
-        amount: { value: 30, state: 'assumed' },
-      }),
-    ).toBe('covers')
-  })
-
-  it('stays on the last question once all are answered', () => {
-    expect(firstUnanswered(stated(...KEYS))).toBe('eng')
-  })
-})
-
-describe('the step URLs', () => {
-  it('names the steps under /onboarding', () => {
-    expect(PICTURE_PATH).toBe('/onboarding/character')
-    expect(FACTS_PATH).toBe('/onboarding/facts')
-    expect(STUDY_PATH).toBe('/onboarding/study')
-    expect(LIVING_PATH).toBe('/onboarding/living')
-  })
-})
-
-describe('the question slugs', () => {
   it('gives each question a readable slug, in order', () => {
-    expect(FACT_QUESTIONS.map((q) => FACT_SLUGS[q.key as keyof typeof FACT_SLUGS])).toEqual([
+    expect(QUESTION_STEPS[1].questions.map((q) => q.slug)).toEqual([
       'where',
       'amount',
       'covers',
@@ -141,33 +77,13 @@ describe('the question slugs', () => {
       'english',
     ])
   })
-
-  it('maps every slug back to its key', () => {
-    for (const q of FACT_QUESTIONS) expect(factKey(factPath(q.key).split('/').pop())).toBe(q.key)
-  })
-
-  it('carries each step 01 question its slug', () => {
-    for (const q of FACT_QUESTIONS) {
-      expect(q.slug).toBe(FACT_SLUGS[q.key as keyof typeof FACT_SLUGS])
-      expect(q.opensWithLine).toBe(false)
-    }
-  })
 })
 
-describe('factPath and factKey', () => {
-  it('puts the question in the URL as its slug', () => {
-    expect(factPath('amount')).toBe('/onboarding/facts/amount')
-    expect(factPath('hard')).toBe('/onboarding/facts/limit')
-    expect(factPath('eng')).toBe('/onboarding/facts/english')
-  })
-
-  it('reads a slug as its key, never a key as a slug', () => {
-    expect(factKey('who-pays')).toBe('who')
-    expect(factKey('hard')).toBeNull()
-    expect(factKey('field')).toBeNull()
-    expect(factKey('nope')).toBeNull()
-    expect(factKey(null)).toBeNull()
-    expect(factKey(undefined)).toBeNull()
+describe('the question slugs', () => {
+  it('map every question of every step to its URL and back', () => {
+    for (const step of [1, 2, 3, 4] as const)
+      for (const q of QUESTION_STEPS[step].questions)
+        expect(questionBySlug(step, questionPath(step, q.key).split('/').pop())?.key).toBe(q.key)
   })
 })
 
@@ -180,8 +96,6 @@ describe('stepOfPath', () => {
   })
 
   it('knows the welcome, before step 00', () => {
-    expect(WELCOME_PATH).toBe('/onboarding/welcome')
-    expect(WELCOME_MINUTES).toBe(6)
     expect(stepOfPath('/onboarding/welcome')).toBe('welcome')
     expect(stepOfPath('/onboarding/character')).toBe(0)
   })
@@ -219,42 +133,6 @@ describe('stepOfPath', () => {
 })
 
 describe('the panel', () => {
-  it('lists the six steps, step 00 first, ending on your attention', () => {
-    expect(ONBOARDING_STEPS).toEqual([
-      'Your comic character',
-      'Facts about you',
-      "What you'd study",
-      "Where and how you'd live",
-      'After you graduate',
-      'Your attention',
-    ])
-  })
-
-  it('has its copy per step', () => {
-    expect(PANEL_COPY[0]).toEqual(PANEL_COPY[1])
-    expect(PANEL_COPY[2]).toEqual(PANEL_COPY[1])
-    expect(PANEL_COPY[3]).toEqual(PANEL_COPY[2])
-    expect(PANEL_COPY[4]).toEqual(PANEL_COPY[3])
-    expect(PANEL_COPY[1]).toEqual({
-      title: 'Five short steps',
-      lead: 'Each step says why it asks, and “Not sure” is always a fine answer.',
-    })
-  })
-
-  it('calls step 05 the last step', () => {
-    expect(PANEL_COPY[5]).toEqual({
-      title: 'The last step',
-      lead: 'Optional. It never changes your routes; it shapes what we show you on them later.',
-    })
-  })
-
-  it('has the welcome its own copy', () => {
-    expect(PANEL_COPY.welcome).toEqual({
-      title: 'Before we start',
-      lead: "Here's the whole way through. Each step says why it asks.",
-    })
-  })
-
   it('never ranks (criterion 2)', () => {
     for (const { title, lead } of Object.values(PANEL_COPY))
       expect(`${title} ${lead}`).not.toMatch(/recommended|best/i)
@@ -262,21 +140,11 @@ describe('the panel', () => {
 })
 
 describe('QUESTION_STEPS', () => {
-  it('describes step 01 by what it already was', () => {
-    const step = QUESTION_STEPS[1]
-    expect(step.title).toBe('Facts about you')
-    expect(step.path).toBe(FACTS_PATH)
-    expect(step.questions).toBe(FACT_QUESTIONS)
-    expect(step.back).toBe(PICTURE_PATH)
-    expect(step.nextName).toBe("What you'd study")
-  })
-
-  it('describes step 02', () => {
-    const step = QUESTION_STEPS[2]
-    expect(step.title).toBe("What you'd study")
-    expect(step.path).toBe(STUDY_PATH)
-    expect(step.back).toBe('/onboarding/facts/english')
-    expect(step.nextName).toBe("Where and how you'd live")
+  it("goes back from each step's first question to the last question of the step before", () => {
+    expect(QUESTION_STEPS[1].back).toBe('/onboarding/character')
+    expect(QUESTION_STEPS[2].back).toBe('/onboarding/facts/english')
+    expect(QUESTION_STEPS[3].back).toBe('/onboarding/study/length')
+    expect(QUESTION_STEPS[4].back).toBe('/onboarding/living/climate')
   })
 
   it('asks step 02 in the model order, each under its slug and never its key', () => {
@@ -299,14 +167,14 @@ describe('QUESTION_STEPS', () => {
     ])
   })
 
-  it('reads step 02 from the model: the item, the question', () => {
-    expect(QUESTION_STEPS[2].questions.map((q) => [q.itemId, q.question])).toEqual([
-      ['know', 'Do you know what you want to study?'],
-      ['know', 'Which field?'],
-      ['know', 'Pick up to three'],
-      ['level', 'Study level'],
-      ['learn', 'How you like to learn'],
-      ['length', "Course length you'd prefer"],
+  it('shows the field and the areas on the line of the question that opens them', () => {
+    expect(QUESTION_STEPS[2].questions.map((q) => q.itemId)).toEqual([
+      'know',
+      'know',
+      'know',
+      'level',
+      'learn',
+      'length',
     ])
   })
 
@@ -319,8 +187,6 @@ describe('QUESTION_STEPS', () => {
       '',
       '',
     ])
-    expect(PARTICULAR).toBe('Something particular')
-    expect(DRAWN_TO_AREAS).toBe("A few areas I'm drawn to")
   })
 
   it('opens the field and the areas with their line, which asks for them', () => {
@@ -334,67 +200,19 @@ describe('QUESTION_STEPS', () => {
     ])
   })
 
-  it('says why each step 02 question is asked', () => {
-    expect(QUESTION_STEPS[2].questions.map((q) => q.why)).toEqual([
-      'It sets how wide your futures start: one field, a few areas, or every field in this preview.',
-      'Your futures are drawn from courses in this field. You can change it on each one.',
-      'Courses from each area you pick show side by side, so you can compare them.',
-      'It sets the course length and entry each future is built on.',
-      "It shapes what each future is drawn around. It doesn't put one above another.",
-      'Length changes the cost, and how long you could work in Australia after you finish.',
-    ])
-  })
-
   it('never ranks in a why line (criterion 2)', () => {
     for (const q of QUESTION_STEPS[2].questions) expect(q.why).not.toMatch(/recommended|best/i)
   })
 
-  it('describes step 03', () => {
-    const step = QUESTION_STEPS[3]
-    expect(step.title).toBe("Where and how you'd live")
-    expect(step.path).toBe(LIVING_PATH)
-    expect(step.back).toBe('/onboarding/study/length')
-    expect(step.nextName).toBe('After you graduate')
-  })
-
   it('asks step 03 in order, each under its slug, the person under a key of its own', () => {
-    expect(PERSON).toBe('person')
-    expect(
-      QUESTION_STEPS[3].questions.map((q) => [q.key, q.itemId, q.slug, q.question, q.group]),
-    ).toEqual([
-      ['dest', 'dest', 'destination', 'Destination', ''],
-      ['place', 'place', 'place', 'Kind of place', ''],
-      [
-        'community',
-        'community',
-        'community',
-        'Does a community of similar culture, or relatives nearby, matter?',
-        '',
-      ],
-      ['knows', 'knows', 'know-anyone', 'Do you know anyone who lives in Australia?', ''],
-      [PERSON, PERSON, 'who-and-where', 'Who, and where?', ''],
-      ['climate', 'climate', 'climate', 'Climate (optional)', ''],
+    expect(QUESTION_STEPS[3].questions.map((q) => [q.key, q.itemId, q.slug])).toEqual([
+      ['dest', 'dest', 'destination'],
+      ['place', 'place', 'place'],
+      ['community', 'community', 'community'],
+      ['knows', 'knows', 'know-anyone'],
+      [PERSON, PERSON, 'who-and-where'],
+      ['climate', 'climate', 'climate'],
     ])
-    for (const q of QUESTION_STEPS[3].questions) expect(q.opensWithLine).toBe(false)
-  })
-
-  it('says why each step 03 question is asked (criterion 3)', () => {
-    expect(QUESTION_STEPS[3].questions.map((q) => q.why)).toEqual([
-      'It sets the country each future is drawn in. This preview covers Australia.',
-      'It changes the rent, part-time work and migration points on each route.',
-      "It shapes where each future places you to live. It doesn't put one above another.",
-      'If you do, each route can show how far it is from them.',
-      'Each route then shows its distance from them. Leave any part blank.',
-      'Some people settle better in one climate or another.',
-    ])
-  })
-
-  it('describes step 04, leading on to your attention with the default labels', () => {
-    const step = QUESTION_STEPS[4]
-    expect(step.title).toBe('After you graduate')
-    expect(step.path).toBe('/onboarding/after')
-    expect(step.back).toBe('/onboarding/living/climate')
-    expect(step.nextName).toBe('Your attention')
   })
 
   it('asks step 04 in order, each under its slug (criteria 1 and 2)', () => {
@@ -403,25 +221,6 @@ describe('QUESTION_STEPS', () => {
       ['focus', 'focus'],
       ['earn', 'earning'],
       ['settle', 'long-term'],
-    ])
-    expect(QUESTION_STEPS[4].questions.map((q) => q.question)).toEqual([
-      'Would you want to stay after?',
-      'Career-focused or academic?',
-      'Do you need to earn while studying?',
-      'Settle long-term, or come home eventually? (optional)',
-    ])
-    for (const q of QUESTION_STEPS[4].questions) {
-      expect(q.group).toBe('')
-      expect(q.opensWithLine).toBe(false)
-    }
-  })
-
-  it('says why each step 04 question is asked (criterion 3)', () => {
-    expect(QUESTION_STEPS[4].questions.map((q) => q.why)).toEqual([
-      'It decides whether PR counts in your futures, and how much.',
-      'It sets how much career outcomes weigh against cost, time and the rest.',
-      'It sets how much part-time work weighs, and whether its rules show on every route.',
-      "It doesn't change your routes now. It shapes what we show you later.",
     ])
   })
 })
@@ -440,6 +239,7 @@ describe('questionPath, questionBySlug and questionOfPath', () => {
     expect(questionBySlug(2, null)).toBeNull()
     expect(questionBySlug(2, undefined)).toBeNull()
     expect(questionBySlug(1, 'who-pays')?.key).toBe('who')
+    expect(questionBySlug(1, 'hard')).toBeNull()
   })
 
   it('puts step 03 in the URL as its slugs, the person included', () => {
@@ -621,9 +421,15 @@ describe('firstOpenQuestion', () => {
     ).toBe('settle')
   })
 
-  it("is step 01's firstUnanswered for step 01", () => {
+  it('starts step 01 at where, then its first unanswered, assumed counting, else english', () => {
     expect(firstOpenQuestion(1, {})).toBe('where')
     expect(firstOpenQuestion(1, stated('where', 'amount'))).toBe('covers')
+    expect(
+      firstOpenQuestion(1, {
+        where: { value: 'Nepal', state: 'assumed' },
+        amount: { value: 30, state: 'assumed' },
+      }),
+    ).toBe('covers')
     expect(firstOpenQuestion(1, stated(...KEYS))).toBe('eng')
   })
 })

@@ -1,40 +1,43 @@
 'use client'
 
-import { ArrowRight, Check, CircleAlert, Info, LoaderCircle } from 'lucide-react'
+import { ArrowRight, Check, LoaderCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useId, useRef, useState } from 'react'
+import { useId, useState } from 'react'
 import { Blueprint } from '@/shared/components/Blueprint'
+import motion from '@/shared/components/motion.module.css'
 import { Button } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
 import type { ActionResult } from '@/shared/types/action-result'
 import type { Persona } from '@/shared/types/student'
+import { useSubmit } from '../model/answer-save'
 import { ANSWER_SAVE_FAILED } from '../model/messages'
-import { FACT_QUESTIONS, factPath } from '../model/onboarding'
-import shell from './onboarding.module.css'
+import { QUESTION_STEPS, questionPath } from '../model/onboarding'
+import { Note } from './Note'
 import styles from './picture.module.css'
+import { SaveFailed } from './SaveFailed'
+import { StepActions } from './StepActions'
+import { StepHeading, StepKicker } from './StepHeading'
 
 /** "Prefer not to say" stores 'neutral', as Skip and Start with nothing chosen do. */
 const CHOICES = [
-  { label: 'Male', persona: 'male', rise: shell.d5 },
-  { label: 'Female', persona: 'female', rise: shell.d6 },
-  { label: 'Prefer not to say', persona: 'neutral', rise: shell.d7 },
+  { label: 'Male', persona: 'male', rise: motion.d5 },
+  { label: 'Female', persona: 'female', rise: motion.d6 },
+  { label: 'Prefer not to say', persona: 'neutral', rise: motion.d7 },
 ] as const satisfies readonly { label: string; persona: Persona; rise: string }[]
 
 const OPTIONAL =
   "Optional. Skip, and we'll draw a neutral character. We never guess this from your name or photo."
 const CLEAR = 'Press your choice again to clear it.'
 
-type Status = 'idle' | 'saving' | 'failed'
-
 /**
  * Onboarding step 00, "Your comic character" (the design's PictureQ), the step's own column in the
  * onboarding shell, whose panel says where she is and what comes next. The question offers three
  * figures, one at a time, and pressing the chosen one again clears it. Continue saves the choice
  * (neutral when none) and Skip saves neutral; while it saves the choices hold, and once saved
- * screen 1 opens at once. A failed save keeps her choice and offers to try again. Nothing else
+ * step 01 opens at once. A failed save keeps her choice and offers to try again. Nothing else
  * sets the character, not her name or photo (criterion 15). The welcome greets her, so this step
  * opens on its kicker, and focus moves to the question. `persona` is her saved answer when she comes back from
- * screen 1: male or female is pressed again; neutral shows nothing pressed, since Skip and
+ * step 01: male or female is pressed again; neutral shows nothing pressed, since Skip and
  * "nothing chosen" save it too. On a phone (below @xl) the actions sit in a bar within thumb reach.
  */
 export function PictureQuestion({
@@ -46,56 +49,36 @@ export function PictureQuestion({
 }) {
   const router = useRouter()
   const questionId = useId()
-  const question = useRef<HTMLHeadingElement>(null)
-
-  // Arriving (from the welcome's Start, or Back from screen 1): focus on the question.
-  useEffect(() => {
-    question.current?.focus({ preventScroll: true })
-  }, [])
   const [choice, setChoice] = useState<Persona | null>(persona === 'neutral' ? null : persona)
-  const [status, setStatus] = useState<Status>('idle')
-  const saving = status === 'saving'
+  // Saved: still "Saving…" while step 01 opens; a slow one shows the duck loader.
+  const {
+    pending: saving,
+    failed,
+    submit: save,
+    clear,
+  } = useSubmit(savePersonaAction, () =>
+    router.push(questionPath(1, QUESTION_STEPS[1].questions[0].key)),
+  )
 
   function pick(persona: Persona) {
     if (saving) return
     setChoice(choice === persona ? null : persona)
-    setStatus('idle')
-  }
-
-  async function save(persona: Persona) {
-    if (saving) return
-    setStatus('saving')
-    try {
-      const result = await savePersonaAction(persona)
-      // Saved: still "Saving…" while screen 1 opens; a slow one shows the duck loader.
-      if (result.ok) return router.push(factPath(FACT_QUESTIONS[0].key))
-    } catch {
-      // It never reached the server: said as a refusal is, below.
-    }
-    setStatus('failed')
+    clear()
   }
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 @max-xl:gap-4.5">
-      <p className={cn(shell.rise, shell.d2, 'm-0 text-overline uppercase text-accent-700')}>
-        Your comic character · <b className="font-medium text-muted-foreground">optional</b>
-      </p>
-      <h1
-        ref={question}
-        id={questionId}
-        tabIndex={-1}
-        className={cn(
-          shell.rise,
-          shell.d3,
-          'm-0 font-heading text-h1 font-semibold tracking-[-0.015em] outline-none',
-        )}
-      >
+      <StepKicker detail="optional" className={cn(motion.rise, motion.d2)}>
+        Your comic character
+      </StepKicker>
+      {/* Arriving (from the welcome's Start, or Back from step 01): focus on the question. */}
+      <StepHeading focusOnArrival id={questionId} className={cn(motion.rise, motion.d3)}>
         How would you like your comic character drawn?
-      </h1>
+      </StepHeading>
       <p
         className={cn(
-          shell.rise,
-          shell.d4,
+          motion.rise,
+          motion.d4,
           'm-0 max-w-prose leading-relaxed text-muted-foreground',
         )}
       >
@@ -122,7 +105,7 @@ export function PictureQuestion({
               onClick={() => pick(c.persona)}
               className={cn(
                 styles.choice,
-                shell.rise,
+                motion.rise,
                 c.rise,
                 c.persona === 'neutral' && styles.none,
                 'flex min-h-44 cursor-pointer flex-col items-center justify-center gap-3 bg-transparent px-3 py-5 text-center font-heading text-h4 font-semibold text-foreground',
@@ -158,41 +141,13 @@ export function PictureQuestion({
         })}
       </fieldset>
 
-      <p
-        className={cn(
-          shell.rise,
-          shell.d7,
-          'm-0 flex items-start gap-2 text-caption text-muted-foreground',
-        )}
-      >
-        <Info aria-hidden="true" className="icon-on-line-sm size-icon-sm shrink-0" />
-        <span>{choice ? CLEAR : OPTIONAL}</span>
-      </p>
+      <Note tone="hint" className={cn(motion.rise, motion.d7)}>
+        {choice ? CLEAR : OPTIONAL}
+      </Note>
 
-      {status === 'failed' ? (
-        <div
-          role="alert"
-          className={cn(
-            styles.errorIn,
-            'flex items-start gap-2 border border-danger-300 bg-danger-100 px-3.5 py-2.5 text-caption text-danger-800',
-          )}
-        >
-          <CircleAlert
-            aria-hidden="true"
-            className="icon-on-line size-icon shrink-0 text-danger-700"
-          />
-          <span>{ANSWER_SAVE_FAILED}</span>
-        </div>
-      ) : null}
+      {failed ? <SaveFailed message={ANSWER_SAVE_FAILED} /> : null}
 
-      <div
-        className={cn(
-          shell.rise,
-          shell.d8,
-          'mt-1 flex items-center justify-end gap-3.5',
-          '@max-xl:sticky @max-xl:bottom-0 @max-xl:z-5 @max-xl:-mx-4 @max-xl:border-t @max-xl:bg-background @max-xl:px-4 @max-xl:pt-3 @max-xl:pb-[calc(0.75rem+env(safe-area-inset-bottom))]',
-        )}
-      >
+      <StepActions className="justify-end">
         <Button
           type="button"
           variant="outline"
@@ -213,17 +168,17 @@ export function PictureQuestion({
         >
           {saving ? (
             <>
-              <LoaderCircle aria-hidden="true" className={cn(styles.spin, 'size-icon-sm')} />
+              <LoaderCircle aria-hidden="true" className={cn(motion.spin, 'size-icon-sm')} />
               Saving…
             </>
           ) : (
             <>
-              {status === 'failed' ? 'Try again' : 'Continue'}
+              {failed ? 'Try again' : 'Continue'}
               <ArrowRight aria-hidden="true" className="size-icon-sm" />
             </>
           )}
         </Button>
-      </div>
+      </StepActions>
 
       <p role="status" className="sr-only">
         {saving ? 'Saving your answer' : ''}

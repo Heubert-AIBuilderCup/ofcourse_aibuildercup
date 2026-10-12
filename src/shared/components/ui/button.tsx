@@ -2,7 +2,7 @@ import { Slot } from '@radix-ui/react-slot'
 import { cva, type VariantProps } from 'class-variance-authority'
 import * as React from 'react'
 
-import { FrameMarks } from '@/shared/components/Frame'
+import { FrameMarks } from '@/shared/components/Blueprint'
 import { cn } from '@/shared/lib/utils'
 
 const buttonVariants = cva(

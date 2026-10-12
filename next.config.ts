@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       { source: '/attention', destination: '/onboarding/attention', permanent: true },
+      // The futures are parked until their own design: old links resume onboarding.
+      { source: '/futures', destination: '/onboarding', permanent: true },
     ]
   },
 }

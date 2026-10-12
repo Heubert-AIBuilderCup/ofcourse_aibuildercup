@@ -4,7 +4,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
 import * as React from 'react'
 
-import { FrameMarks } from '@/shared/components/Frame'
+import { FrameMarks } from '@/shared/components/Blueprint'
 import { cn } from '@/shared/lib/utils'
 
 const Dialog = DialogPrimitive.Root

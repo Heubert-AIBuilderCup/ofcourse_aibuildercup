@@ -2,14 +2,15 @@
  * Step 01's own motion, from the design's facts.css: each new question's parts slide in one after
  * the other (the block is keyed by the question, so it plays again on every question), the impact
  * line rises in whenever its text changes (keyed by the text), and a checked card gives a small
- * press. The easing (--ease-out) is the onboarding shell's (onboarding.module.css).
+ * press. A failed save keeps its own entrance (the shared errorIn), whichever module loads last. The
+ * easing (--ease-out) is the shared motion's (src/shared/components/motion.module.css).
  *
  * The base styles are the final frame; every animation is declared only under
  * prefers-reduced-motion: no-preference, so under reduce nothing moves.
  */
 
 @media (prefers-reduced-motion: no-preference) {
-  .question > * {
+  .question > :not([role="alert"]) {
     animation: fxIn 0.55s var(--ease-out) backwards;
   }
   .question > :nth-child(2) {

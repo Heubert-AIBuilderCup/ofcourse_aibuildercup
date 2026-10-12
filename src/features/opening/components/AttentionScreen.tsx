@@ -1,39 +1,36 @@
 'use client'
 
-import { ArrowLeft, ArrowRight, CircleAlert, Info, Lock, Minus, Plus } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Lock, Minus, Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useId, useState } from 'react'
+import { useId } from 'react'
+import motion from '@/shared/components/motion.module.css'
 import { Button } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
 import type { ActionResult } from '@/shared/types/action-result'
-import { type Coins, LIFE_VALUES } from '@/shared/types/student'
+import { COINS_TOTAL, type Coins, LIFE_VALUES, MAX_PER_PILE } from '@/shared/types/student'
+import { useSubmit } from '../model/answer-save'
 import {
   COINS_ALL_PLACED,
   COINS_ASSUMED,
   COINS_HINT,
   COINS_INTRO,
-  COINS_TOTAL,
   canFinish,
   coinLine,
   doneLine,
-  MAX_PER_PILE,
   placed,
   refusal,
 } from '../model/coins'
-import { SAVE_FAILED } from '../model/messages'
 import { DONE_PATH, questionPath } from '../model/onboarding'
-import shell from './onboarding.module.css'
-import picture from './picture.module.css'
+import { Note } from './Note'
+import { SaveFailed } from './SaveFailed'
+import { StepActions } from './StepActions'
+import { StepHeading, StepKicker } from './StepHeading'
 import { useCoinPiles } from './useCoinPiles'
 
 const TRAY = Array.from({ length: COINS_TOTAL }, (_, i) => i)
 const STACK = Array.from({ length: MAX_PER_PILE }, (_, i) => i)
 /** Back opens step 04's last question. */
 const BACK_PATH = questionPath(4, 'settle')
-/** The grey note: the back note and a refused +. */
-const NOTE = 'border-l-2 border-neutral-600 bg-neutral-100 px-3.5 py-2.5 text-caption'
-/** The accent line under a change: the assumed spread and a pile's line. */
-const IMPACT = 'flex items-start gap-2.5 border-l-2 border-accent-700 bg-accent-100/70'
 
 /** One coin: a dashed ring while free, filled once placed. */
 function Coin({ on }: { on: boolean }) {
@@ -67,70 +64,36 @@ export function AttentionScreen({
 }) {
   const router = useRouter()
   const { piles, assumed, last, refused, plus, minus, notSure } = useCoinPiles(initial)
-  // The save that failed, for Try again, and what it said.
-  const [failed, setFailed] = useState<{ coins: Coins; error: string } | null>(null)
-  const [pending, setPending] = useState(false)
+  const { pending, failed, submit, retry } = useSubmit(saveCoinsAction, () =>
+    router.push(DONE_PATH),
+  )
   const doneWhyId = useId()
 
   const total = placed(piles)
   const full = canFinish(piles)
 
-  async function save(coins: Coins) {
-    if (pending) return
-    setPending(true)
-    setFailed(null)
-    try {
-      const result = await saveCoinsAction(coins)
-      if (result.ok) {
-        router.push(DONE_PATH)
-        return
-      }
-      setFailed({ coins, error: result.error })
-    } catch {
-      setFailed({ coins, error: SAVE_FAILED })
-    }
-    setPending(false)
-  }
-
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 @max-xl:gap-4">
-      <div className={cn(shell.rise, shell.d2, 'flex min-h-11 items-center')}>
-        <p className="m-0 text-overline uppercase text-accent-700">
-          Your attention · <b className="font-medium text-muted-foreground">optional</b>
-        </p>
+      <div className={cn(motion.rise, motion.d2, 'flex min-h-11 items-center')}>
+        <StepKicker detail="optional">Your attention</StepKicker>
       </div>
 
-      <h1
-        className={cn(
-          shell.rise,
-          shell.d3,
-          'm-0 font-heading text-h1 font-semibold tracking-[-0.015em] outline-none',
-        )}
-      >
-        Your attention
-      </h1>
-      <p className={cn(shell.rise, shell.d4, 'm-0 max-w-prose text-lead')}>{COINS_INTRO}</p>
-      <p
-        className={cn(
-          shell.rise,
-          shell.d4,
-          '-mt-2 flex items-start gap-2 text-caption text-muted-foreground',
-        )}
-      >
-        <Info aria-hidden="true" className="icon-on-line-sm size-icon-sm shrink-0" />
-        <span>{COINS_HINT}</span>
-      </p>
+      <StepHeading className={cn(motion.rise, motion.d3)}>Your attention</StepHeading>
+      <p className={cn(motion.rise, motion.d4, 'm-0 max-w-prose text-lead')}>{COINS_INTRO}</p>
+      <Note tone="hint" className={cn(motion.rise, motion.d4, '-mt-2')}>
+        {COINS_HINT}
+      </Note>
 
       {initial ? (
-        <p className={cn(shell.rise, shell.d4, 'm-0', NOTE)}>
+        <Note tone="limit" icon={null} className={cn(motion.rise, motion.d4, 'text-caption')}>
           Here's where you placed them last time. Move any, or keep them as they are.
-        </p>
+        </Note>
       ) : null}
 
       <div
         className={cn(
-          shell.rise,
-          shell.d5,
+          motion.rise,
+          motion.d5,
           'flex flex-wrap items-center gap-x-4 gap-y-3 border border-border px-4 py-3.5 @max-xl:p-3',
         )}
       >
@@ -169,30 +132,22 @@ export function AttentionScreen({
           leaves the flow. */}
       <div role="status" className="-mt-2 flex flex-col gap-2 empty:absolute">
         {assumed ? (
-          <div className={cn(IMPACT, 'border-dashed px-4 py-3')}>
-            <ArrowRight
-              aria-hidden="true"
-              className="icon-on-line-sm size-icon-sm shrink-0 text-accent-700"
-            />
-            <p className="m-0">{COINS_ASSUMED}</p>
-          </div>
+          <Note tone="impact" className="border-dashed">
+            {COINS_ASSUMED}
+          </Note>
         ) : null}
         {total === COINS_TOTAL ? (
-          <p className={cn('m-0 flex items-start gap-2', NOTE)}>
-            <Info
-              aria-hidden="true"
-              className="icon-on-line-sm size-icon-sm shrink-0 text-neutral-700"
-            />
-            <span>{COINS_ALL_PLACED}</span>
-          </p>
+          <Note tone="limit" className="text-caption">
+            {COINS_ALL_PLACED}
+          </Note>
         ) : null}
       </div>
 
       <ul
         aria-label="Eight piles"
         className={cn(
-          shell.rise,
-          shell.d6,
+          motion.rise,
+          motion.d6,
           'm-0 grid list-none grid-cols-2 gap-3 p-0 @max-xl:grid-cols-1 @max-xl:gap-2',
         )}
       >
@@ -262,22 +217,14 @@ export function AttentionScreen({
                   flow and adds no gap under the pile. */}
               <div aria-live="polite" className="empty:absolute">
                 {why ? (
-                  <p className={cn(picture.errorIn, 'm-0 flex items-start gap-2', NOTE)}>
-                    <Info
-                      aria-hidden="true"
-                      className="icon-on-line-sm size-icon-sm shrink-0 text-neutral-700"
-                    />
-                    <span>{why}</span>
-                  </p>
+                  <Note tone="limit" className={cn(motion.errorIn, 'text-caption')}>
+                    {why}
+                  </Note>
                 ) : null}
                 {showLine ? (
-                  <div className={cn(IMPACT, 'px-3 py-2 text-caption')}>
-                    <ArrowRight
-                      aria-hidden="true"
-                      className="icon-on-line-sm size-icon-sm shrink-0 text-accent-700"
-                    />
-                    <p className="m-0">{coinLine(index, n)}</p>
-                  </div>
+                  <Note tone="impact" className="px-3 py-2 text-caption">
+                    {coinLine(index, n)}
+                  </Note>
                 ) : null}
               </div>
             </li>
@@ -285,31 +232,15 @@ export function AttentionScreen({
         })}
       </ul>
 
-      <p className="m-0 flex items-start gap-2 text-caption text-muted-foreground">
-        <Lock aria-hidden="true" className="icon-on-line-sm size-icon-sm shrink-0" />
-        <span>Your routes stay exactly as they are, whatever you place here.</span>
-      </p>
+      <Note
+        tone="hint"
+        icon={<Lock aria-hidden="true" className="icon-on-line-sm size-icon-sm shrink-0" />}
+      >
+        Your routes stay exactly as they are, whatever you place here.
+      </Note>
 
       {failed ? (
-        <div
-          role="alert"
-          className={cn(
-            picture.errorIn,
-            'flex flex-wrap items-center gap-x-2.5 gap-y-2 border border-danger-300 bg-danger-100 px-3.5 py-2.5 text-caption text-danger-800',
-          )}
-        >
-          <CircleAlert aria-hidden="true" className="size-icon shrink-0 text-danger-700" />
-          <span className="min-w-45 flex-1">{failed.error}</span>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={pending}
-            onClick={() => void save(failed.coins)}
-            className="h-11 border-danger-300 px-3.5 text-danger-800 hover:bg-danger-200 hover:text-danger-800"
-          >
-            Try again
-          </Button>
-        </div>
+        <SaveFailed message={failed.error} pending={pending} onRetry={() => void retry()} />
       ) : null}
 
       <p
@@ -321,20 +252,13 @@ export function AttentionScreen({
       <button
         type="button"
         disabled={pending}
-        onClick={() => void save({ state: 'later' })}
+        onClick={() => void submit({ state: 'later' })}
         className="-mb-2 inline-flex min-h-11 cursor-pointer items-center self-start bg-transparent text-caption font-medium text-accent-700 underline-offset-3 hover:text-accent-800 hover:underline"
       >
         Spend them later: finish without placing coins
       </button>
 
-      <div
-        className={cn(
-          shell.rise,
-          shell.d8,
-          'mt-1 flex items-center justify-between gap-3.5',
-          '@max-xl:sticky @max-xl:bottom-0 @max-xl:z-5 @max-xl:-mx-4 @max-xl:border-t @max-xl:bg-background @max-xl:px-4 @max-xl:pt-3 @max-xl:pb-[calc(0.75rem+env(safe-area-inset-bottom))]',
-        )}
-      >
+      <StepActions className="justify-between">
         <Button
           type="button"
           variant="outline"
@@ -352,14 +276,14 @@ export function AttentionScreen({
           aria-disabled={!full || pending}
           aria-describedby={doneWhyId}
           onClick={() => {
-            if (full) void save({ state: 'spent', piles, assumed })
+            if (full) void submit({ state: 'spent', piles, assumed })
           }}
           className="min-w-33 aria-disabled:cursor-not-allowed aria-disabled:opacity-60 @max-xl:min-w-0 @max-xl:flex-1"
         >
           Done
           <ArrowRight aria-hidden="true" className="size-icon-sm" />
         </Button>
-      </div>
+      </StepActions>
     </div>
   )
 }

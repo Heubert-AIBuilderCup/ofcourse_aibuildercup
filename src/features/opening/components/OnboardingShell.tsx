@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
+import motion from '@/shared/components/motion.module.css'
 import { cn } from '@/shared/lib/utils'
 import type { StoredAnswers } from '@/shared/types/student'
 import { OnboardingAnswersProvider } from '../model/onboarding-answers'
 import { AccountMenu } from './AccountMenu'
 import { OnboardingPanel } from './OnboardingPanel'
-import styles from './onboarding.module.css'
 
 /**
  * The page every onboarding step sits in: the steel panel beside the step's own column. The page
@@ -23,7 +23,7 @@ export function OnboardingShell({
 }) {
   return (
     <OnboardingAnswersProvider answers={answers}>
-      <div className={cn(styles.page, '@container min-h-dvh bg-background text-foreground')}>
+      <div className={cn(motion.page, '@container min-h-dvh bg-background text-foreground')}>
         <div className="split-page relative min-h-dvh [--split-panel:5/12] @max-5xl:grid-cols-1 @max-5xl:grid-rows-[auto_1fr]">
           <OnboardingPanel />
           {/* The header action (the design's .hdr): on the page side by side, in the band below. */}

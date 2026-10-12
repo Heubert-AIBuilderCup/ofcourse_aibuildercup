@@ -2,15 +2,15 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { SignInPanel } from '@/features/auth/components/SignInPanel'
 import { StudentSignIn } from '@/features/auth/components/StudentSignIn'
-import styles from '@/features/auth/components/sign-in.module.css'
+import motion from '@/shared/components/motion.module.css'
 import { ThemeToggle } from '@/shared/components/ThemeToggle'
 import { canUseAdmin } from '@/shared/lib/auth/access'
 import {
   ADMIN_PATH,
   HOME_PATH,
   SIGNIN_MESSAGES,
+  SIGNIN_PATH,
   safeNextPath,
-  WELCOME_PATH,
 } from '@/shared/lib/auth/gate'
 import { getSession } from '@/shared/lib/auth/session'
 import { HEADER_ACTION_SIGNIN_SPOT } from '@/shared/lib/header-action'
@@ -33,7 +33,7 @@ export default async function SignInPage({ searchParams }: PageProps<'/'>) {
   const [params, session] = await Promise.all([searchParams, getSession()])
   // Only a path of this app, never another origin (gate.ts). '/' is this page: it means home.
   const asked = safeNextPath(first(params.next))
-  const next = asked && asked !== WELCOME_PATH ? asked : HOME_PATH
+  const next = asked && asked !== SIGNIN_PATH ? asked : HOME_PATH
   if (session) redirect(canUseAdmin(session.user.role) ? ADMIN_PATH : next)
   // Only this page's two messages; anything else in the URL is ignored, never echoed.
   const error = first(params.error)
@@ -42,7 +42,7 @@ export default async function SignInPage({ searchParams }: PageProps<'/'>) {
   return (
     // The outer div is the container the layout queries; a container query never applies to the
     // container itself, so the grid is a separate child.
-    <div className={cn(styles.page, '@container min-h-dvh bg-background text-foreground')}>
+    <div className={cn(motion.page, '@container min-h-dvh bg-background text-foreground')}>
       <div className="split-page relative min-h-dvh @max-5xl:grid-cols-1 @max-5xl:grid-rows-[auto_1fr]">
         <SignInPanel
           productName={SITE_NAME}
@@ -58,8 +58,8 @@ export default async function SignInPage({ searchParams }: PageProps<'/'>) {
 
           <div
             className={cn(
-              styles.rise,
-              styles.d8,
+              motion.rise,
+              motion.d8,
               'flex justify-center text-caption text-muted-foreground',
             )}
           >

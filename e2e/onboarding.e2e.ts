@@ -98,7 +98,7 @@ test("step 00's Start opens step 01, the panel marking step 00 Done", async ({ p
     await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
 
     const steps = page.getByRole('list', { name: 'Your steps' }).getByRole('listitem')
-    await expect(steps).toHaveCount(7)
+    await expect(steps).toHaveCount(6)
     await expect(steps.nth(0)).toContainText('Your comic character')
     await expect(steps.nth(0)).toContainText('Done')
     await expect(steps.nth(1)).toHaveAttribute('aria-current', 'step')

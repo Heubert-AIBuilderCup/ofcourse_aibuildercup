@@ -2,7 +2,8 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test'
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import type { ActionResult } from '@/shared/types/action-result'
-import { SAVE_DEBOUNCE_MS, useAnswerSave } from './answer-save'
+import { SAVE_DEBOUNCE_MS, useAnswerSave, useSubmit } from './answer-save'
+import { SAVE_FAILED } from './messages'
 
 afterEach(cleanup)
 
@@ -134,5 +135,42 @@ describe('useAnswerSave', () => {
     act(() => result.current.flush())
     await pastDebounce()
     expect(action).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useSubmit', () => {
+  it('keeps a refused save with its error, retries the same value, and stays pending once saved', async () => {
+    const replies: ActionResult[] = [{ ok: false, error: 'No room' }, { ok: true }]
+    const action = mock(
+      async (_value: string): Promise<ActionResult> => replies.shift() ?? { ok: true },
+    )
+    const saved = mock(() => {})
+    const { result } = renderHook(() => useSubmit(action, saved))
+
+    await act(() => result.current.submit('spent'))
+    expect(result.current.failed).toEqual({ value: 'spent', error: 'No room' })
+    expect(result.current.pending).toBe(false)
+    expect(saved).not.toHaveBeenCalled()
+
+    await act(() => result.current.retry())
+    expect(action).toHaveBeenLastCalledWith('spent')
+    expect(saved).toHaveBeenCalledTimes(1)
+    expect(result.current.failed).toBeNull()
+    expect(result.current.pending).toBe(true)
+  })
+
+  it('says SAVE_FAILED when the save never reaches the server, and clear forgets it', async () => {
+    const { result } = renderHook(() =>
+      useSubmit(
+        async (_value: string): Promise<ActionResult> => {
+          throw new Error('offline')
+        },
+        () => {},
+      ),
+    )
+    await act(() => result.current.submit('later'))
+    expect(result.current.failed).toEqual({ value: 'later', error: SAVE_FAILED })
+    act(() => result.current.clear())
+    expect(result.current.failed).toBeNull()
   })
 })

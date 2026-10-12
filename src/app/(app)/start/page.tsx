@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { landingPath } from '@/features/opening'
+import { onboardingResumePath } from '@/features/opening'
 import { getProfile } from '@/features/opening/server/profile'
 import { requireStudent } from '@/shared/lib/auth/session'
 
@@ -7,5 +7,5 @@ import { requireStudent } from '@/shared/lib/auth/session'
 export default async function StartPage() {
   const { user } = await requireStudent()
   const profile = await getProfile(user.id)
-  redirect(landingPath(profile))
+  redirect(onboardingResumePath(profile))
 }

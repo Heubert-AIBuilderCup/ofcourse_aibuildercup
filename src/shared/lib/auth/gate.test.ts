@@ -4,7 +4,6 @@ import {
   HOME_PATH,
   isAdminPath,
   isAdminSignInPath,
-  isAppPath,
   SIGNIN_MESSAGES,
   safeNextPath,
   signinErrorTarget,
@@ -14,38 +13,6 @@ import {
 describe('HOME_PATH', () => {
   it('is /start, where a signed-in student lands', () => {
     expect(HOME_PATH).toBe('/start')
-  })
-})
-
-describe('isAppPath', () => {
-  it('covers the student pages and their sub-pages', () => {
-    for (const path of [
-      '/start',
-      '/onboarding',
-      '/onboarding/character',
-      '/onboarding/facts/who-pays',
-      '/onboarding/study',
-      '/futures',
-      '/attention',
-    ]) {
-      expect(isAppPath(path)).toBe(true)
-    }
-  })
-
-  it('no longer covers the retired onboarding paths, which next.config redirects first', () => {
-    for (const path of ['/picture', '/opening/facts', '/opening/study']) {
-      expect(isAppPath(path)).toBe(false)
-    }
-  })
-
-  it('leaves the public pages alone, the sign-in pages included', () => {
-    for (const path of ['/', '/dashboard', '/suspended', '/signin-error', '/admin/sign-in']) {
-      expect(isAppPath(path)).toBe(false)
-    }
-  })
-
-  it('matches whole segments only', () => {
-    expect(isAppPath('/startx')).toBe(false)
   })
 })
 
@@ -76,9 +43,9 @@ describe('welcomeUrl', () => {
   })
 
   it('sends a signed-out visitor to a student page to the sign-in page at /, remembering the page', () => {
-    const url = welcomeUrl(at('/futures'))
+    const url = welcomeUrl(at('/onboarding/study'))
     expect(url.pathname).toBe('/')
-    expect(url.search).toBe('?next=%2Ffutures')
+    expect(url.search).toBe('?next=%2Fonboarding%2Fstudy')
   })
 
   it('does not remember home as the page asked for', () => {
@@ -100,7 +67,7 @@ describe('welcomeUrl', () => {
 
 describe('safeNextPath', () => {
   it('accepts a student or admin path', () => {
-    expect(safeNextPath('/futures')).toBe('/futures')
+    expect(safeNextPath('/start')).toBe('/start')
     expect(safeNextPath('/admin/users')).toBe('/admin/users')
   })
 
@@ -119,6 +86,11 @@ describe('safeNextPath', () => {
 
   it('refuses the retired dashboard', () => {
     expect(safeNextPath('/dashboard')).toBeNull()
+  })
+
+  it('refuses the paths next.config redirects before the proxy runs', () => {
+    expect(safeNextPath('/futures')).toBeNull()
+    expect(safeNextPath('/attention')).toBeNull()
   })
 
   it('refuses anything that could leave the site or is not a page of the app', () => {
