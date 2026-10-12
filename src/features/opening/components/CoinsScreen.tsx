@@ -22,13 +22,13 @@ import {
   removeCoin,
 } from '../model/coins'
 import { SAVE_FAILED } from '../model/messages'
+import { FUTURES_PATH } from '../model/onboarding'
 import styles from './coins.module.css'
 import { Hero } from './Hero'
 import { Progress, SCREEN_COUNT } from './Progress'
 
 const COINS = Array.from({ length: COINS_TOTAL }, (_, i) => i)
 const SLOTS = Array.from({ length: MAX_PER_PILE }, (_, i) => i)
-const FUTURES_PATH = '/futures'
 const EMPTY: number[] = LIFE_VALUES.map(() => 0)
 
 // A coin she chose is solid; one the spread placed for her is hatched, so it reads as an assumption.

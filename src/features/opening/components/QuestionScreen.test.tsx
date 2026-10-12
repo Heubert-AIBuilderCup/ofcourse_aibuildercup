@@ -57,6 +57,7 @@ const STEP_PATHS: Record<QuestionStep, string> = {
   1: '/onboarding/facts',
   2: '/onboarding/study',
   3: '/onboarding/living',
+  4: '/onboarding/after',
 }
 
 /** The step's screen with her answers in the shell's provider, as the (shell) layout gives them. */
@@ -519,4 +520,59 @@ it('keeps her person when she answers Yes to knowing anyone', async () => {
   await waitFor(() => expect(saveAnswersAction).toHaveBeenCalledTimes(1))
   expect(saveRelativeAction).not.toHaveBeenCalled()
   expect(screen.getByText(/^Anjali in Cannington, Perth/)).toBeInTheDocument()
+})
+
+// Step 04, "After you graduate": the same screen, ending on the futures.
+
+const AFTER_LEAVE = 'Leave the rest for now: show me three futures'
+const AFTER_LAST = 'Show me three futures'
+
+/** Step 04's screen at a question's URL. */
+function afterAt(slug: string, answers: StoredAnswers = {}) {
+  pathname = `${STEP_PATHS[4]}/${slug}`
+  return render(view(4, answers))
+}
+
+it('opens step 04 at stay, with Not sure as a real answer and the ways back and on', async () => {
+  afterAt('stay')
+  expect(textOf('After you graduate · 1 of 4')).toBeInTheDocument()
+  expect(screen.getAllByRole('radio').map((r) => r.textContent)).toEqual(['Yes', 'Not sure', 'No'])
+  expect(
+    screen.getByText("“Not sure” is a real answer here. Skip, and I'll use it."),
+  ).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: AFTER_LEAVE })).toHaveAttribute('href', '/futures')
+  await press('Back')
+  expect(push).toHaveBeenCalledWith('/onboarding/living/climate')
+})
+
+it("saves stay's Not sure as stated, with no assumption", async () => {
+  afterAt('stay')
+  await tap('Not sure')
+  expect(screen.getByText('Not sure: PR counts, but no route seals.')).toBeInTheDocument()
+  expect(screen.queryByText('Assumed')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
+  await waitFor(() => expect(saveAnswersAction).toHaveBeenCalledWith({ stay: 'Not sure' }))
+})
+
+it('says what Not sure assumes on focus', async () => {
+  afterAt('focus')
+  await tap('Not sure')
+  expect(
+    screen.getByText(
+      "Not sure: I'll assume “Career-focused” and show it as a chip you can change.",
+    ),
+  ).toBeInTheDocument()
+})
+
+it('ends step 04 at the optional long-term, on to the futures', async () => {
+  afterAt('long-term')
+  expect(textOf('After you graduate · 4 of 4')).toBeInTheDocument()
+  expect(screen.getAllByRole('radio').map((r) => r.textContent)).toEqual([
+    'Settle long-term',
+    'Come home eventually',
+  ])
+  expect(screen.getByText("Optional. Skip, and it's left blank.")).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: AFTER_LEAVE })).not.toBeInTheDocument()
+  await press(AFTER_LAST)
+  expect(push).toHaveBeenCalledWith('/futures')
 })

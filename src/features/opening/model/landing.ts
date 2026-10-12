@@ -1,5 +1,11 @@
 import { OPENING_STEPS, type OpeningStep, type Profile } from '@/shared/types/student'
-import { factPath, firstUnanswered, ONBOARDING_PATH, WELCOME_PATH } from './onboarding'
+import {
+  FUTURES_PATH,
+  factPath,
+  firstUnanswered,
+  ONBOARDING_PATH,
+  WELCOME_PATH,
+} from './onboarding'
 
 type Resumable = Pick<Profile, 'persona' | 'lastStep' | 'seenFutures' | 'answers'>
 
@@ -28,6 +34,6 @@ export function onboardingResumePath(p: Resumable): string {
  * else where onboarding resumes.
  */
 export function landingPath(p: Resumable): string {
-  if (p.persona !== null && pastOnboarding(p)) return '/futures'
+  if (p.persona !== null && pastOnboarding(p)) return FUTURES_PATH
   return onboardingResumePath(p)
 }

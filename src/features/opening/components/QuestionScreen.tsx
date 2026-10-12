@@ -50,6 +50,12 @@ const AREA_NOTES: Notes = {
 }
 /** A single choice with no "Not sure" (climate): nothing is assumed when she skips. */
 const OPTIONAL_NOTES: Notes = { ...NOTES, idle: "Optional. Skip, and it's left out." }
+/** Step 04's two exceptions: stay's "Not sure" is a real answer, and long-term is left blank. */
+const STAY_NOTES: Notes = {
+  ...NOTES,
+  idle: "“Not sure” is a real answer here. Skip, and I'll use it.",
+}
+const SETTLE_NOTES: Notes = { ...NOTES, idle: "Optional. Skip, and it's left blank." }
 /** Step 03's person form, which saves as she types. */
 const PERSON_NOTES: Notes = {
   ...NOTES,
@@ -61,10 +67,12 @@ const PERSON_SAVE_FAILED =
 /** What the note under the question says, by what the question is. */
 function notesFor(question: Question | null): Notes {
   if (question === null) return PERSON_NOTES
+  if (question.key === 'stay') return STAY_NOTES
+  if (question.key === 'settle') return SETTLE_NOTES
   if (question.control === 'multi') return AREA_NOTES
   return question.notSure ? NOTES : OPTIONAL_NOTES
 }
-/** Step 03's person is saved through this when the page passes no action (steps 01 and 02 never ask). */
+/** Step 03's person is saved through this when the page passes no action (steps 01, 02 and 04 never ask). */
 const NO_PERSON_SAVE: SaveRelative = async () => ({ ok: true })
 const NOTE_ICONS = {
   idle: <Info aria-hidden="true" className="icon-on-line-sm size-icon-sm shrink-0" />,
@@ -78,7 +86,7 @@ const NOTE_ICONS = {
 }
 
 /**
- * Onboarding steps 01 to 03 (the design's Facts, Study and Live): one question per screen, the question
+ * Onboarding steps 01 to 04 (the design's Facts, Study, Live and Grad): one question per screen, the question
  * named by the URL's last segment, its slug. The questions asked follow her answers as she taps
  * (the field or the areas only after "know"), so the count and the next question change at once;
  * a URL naming a question not asked shows her first open one and is replaced with its URL.
@@ -89,7 +97,8 @@ const NOTE_ICONS = {
  * step sends any save still waiting, so a quick tap is never lost. Step 03's "Who, and where?" is
  * a form instead of cards: her person is held here from the one the page passed (a
  * `router.refresh()` does not overwrite what she entered), so "Do you know anyone…" speaks of the
- * person on screen, and each change saves as the answers do.
+ * person on screen, and each change saves as the answers do. Step 04's last question leads out of
+ * onboarding, to the futures.
  */
 export function QuestionScreen({
   step,
@@ -107,7 +116,13 @@ export function QuestionScreen({
   const router = useRouter()
   const pathname = usePathname()
   const [answers, setAnswers] = useOnboardingAnswers()
-  const { title, back, nextName } = QUESTION_STEPS[step]
+  const {
+    title,
+    back,
+    nextName,
+    lastLabel = `Next: ${nextName}`,
+    leaveLabel = `Leave the rest for now: go to ${nextName}`,
+  } = QUESTION_STEPS[step]
   const asked = askedQuestions(step, answers)
   const named = questionOfPath(step, pathname)
   // A question not asked for her answers on screen (the field without "Something particular") is
@@ -337,7 +352,7 @@ export function QuestionScreen({
           onClick={flush}
           className="inline-flex min-h-11 items-center self-start text-caption font-medium text-accent-700"
         >
-          {`Leave the rest for now: go to ${nextName}`}
+          {leaveLabel}
         </Link>
       )}
 
@@ -364,9 +379,12 @@ export function QuestionScreen({
           variant={last || answered ? 'strong' : 'outline'}
           size="lg"
           onClick={() => (last ? leave(forward) : go(asked[index + 1].key))}
-          className="min-w-33 @max-xl:min-w-0 @max-xl:flex-1"
+          className={cn(
+            'min-w-33 @max-xl:min-w-0 @max-xl:flex-1',
+            last && QUESTION_STEPS[step].lastLabel !== undefined && 'min-w-52',
+          )}
         >
-          {last ? `Next: ${nextName}` : answered ? 'Continue' : 'Skip'}
+          {last ? lastLabel : answered ? 'Continue' : 'Skip'}
           <ArrowRight aria-hidden="true" className="size-icon-sm" />
         </Button>
       </div>

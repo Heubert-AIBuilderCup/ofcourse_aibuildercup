@@ -67,7 +67,8 @@ export function AnswerCards({
     pick(target)
   }
 
-  const four = options.length === 4
+  // Two or four answers take two columns (step 04's two-answer question), else three.
+  const pairs = options.length === 2 || options.length === 4
   const compact = options.length <= 4
 
   return (
@@ -76,7 +77,7 @@ export function AnswerCards({
       aria-labelledby={labelledBy}
       className={cn(
         'mt-1 grid gap-3 @max-xl:gap-2.5',
-        four ? 'grid-cols-2' : 'grid-cols-3',
+        pairs ? 'grid-cols-2' : 'grid-cols-3',
         compact ? '@max-xl:grid-cols-1' : '@max-xl:grid-cols-2',
       )}
     >

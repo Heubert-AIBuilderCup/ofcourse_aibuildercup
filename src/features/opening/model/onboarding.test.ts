@@ -198,8 +198,13 @@ describe('stepOfPath', () => {
     expect(stepOfPath('/onboarding/livingx')).toBeNull()
   })
 
+  it('knows step 04, the after step and every question under it', () => {
+    expect(stepOfPath('/onboarding/after')).toBe(4)
+    expect(stepOfPath('/onboarding/after/focus')).toBe(4)
+    expect(stepOfPath('/onboarding/afterx')).toBeNull()
+  })
+
   it('knows nothing of the others, nor of the retired paths', () => {
-    expect(stepOfPath('/onboarding/after')).toBeNull()
     expect(stepOfPath('/onboarding')).toBeNull()
     expect(stepOfPath('/onboarding/factsx')).toBeNull()
     expect(stepOfPath('/picture')).toBeNull()
@@ -224,6 +229,7 @@ describe('the panel', () => {
     expect(PANEL_COPY[0]).toEqual(PANEL_COPY[1])
     expect(PANEL_COPY[2]).toEqual(PANEL_COPY[1])
     expect(PANEL_COPY[3]).toEqual(PANEL_COPY[2])
+    expect(PANEL_COPY[4]).toEqual(PANEL_COPY[3])
     expect(PANEL_COPY[1]).toEqual({
       title: 'Six short steps',
       lead: 'Each step says why it asks. Nothing is ranked: at the end you see three futures side by side.',
@@ -370,6 +376,42 @@ describe('QUESTION_STEPS', () => {
       'Some people settle better in one climate or another.',
     ])
   })
+
+  it('describes step 04, its last button and its leave link opening the futures', () => {
+    const step = QUESTION_STEPS[4]
+    expect(step.title).toBe('After you graduate')
+    expect(step.path).toBe('/onboarding/after')
+    expect(step.back).toBe('/onboarding/living/climate')
+    expect(step.nextName).toBe('Three futures')
+  })
+
+  it('asks step 04 in order, each under its slug (criteria 1 and 2)', () => {
+    expect(QUESTION_STEPS[4].questions.map((q) => [q.key, q.slug])).toEqual([
+      ['stay', 'stay'],
+      ['focus', 'focus'],
+      ['earn', 'earning'],
+      ['settle', 'long-term'],
+    ])
+    expect(QUESTION_STEPS[4].questions.map((q) => q.question)).toEqual([
+      'Would you want to stay after?',
+      'Career-focused or academic?',
+      'Do you need to earn while studying?',
+      'Settle long-term, or come home eventually? (optional)',
+    ])
+    for (const q of QUESTION_STEPS[4].questions) {
+      expect(q.group).toBe('')
+      expect(q.opensWithLine).toBe(false)
+    }
+  })
+
+  it('says why each step 04 question is asked (criterion 3)', () => {
+    expect(QUESTION_STEPS[4].questions.map((q) => q.why)).toEqual([
+      'It decides whether PR counts in your futures, and how much.',
+      'It sets how much career outcomes weigh against cost, time and the rest.',
+      'It sets how much part-time work weighs, and whether its rules show on every route.',
+      "It doesn't change your routes now. It shapes what we show you later.",
+    ])
+  })
 })
 
 describe('questionPath, questionBySlug and questionOfPath', () => {
@@ -399,6 +441,15 @@ describe('questionPath, questionBySlug and questionOfPath', () => {
     expect(questionOfPath(3, '/onboarding/living/climate')?.key).toBe('climate')
   })
 
+  it('reads a step 04 slug as its question, never a key or an unknown slug', () => {
+    expect(questionBySlug(4, 'earning')?.key).toBe('earn')
+    expect(questionBySlug(4, 'long-term')?.key).toBe('settle')
+    expect(questionBySlug(4, 'earn')).toBeNull()
+    expect(questionBySlug(4, 'settle')).toBeNull()
+    expect(questionBySlug(4, 'nope')).toBeNull()
+    expect(questionPath(4, 'earn')).toBe('/onboarding/after/earning')
+  })
+
   it("does not read another step's slug", () => {
     expect(questionBySlug(2, 'amount')).toBeNull()
     expect(questionBySlug(1, 'level')).toBeNull()
@@ -419,7 +470,7 @@ describe('questionPath, questionBySlug and questionOfPath', () => {
 })
 
 describe('askedQuestions', () => {
-  const keys = (step: 1 | 2 | 3, answers: StoredAnswers) =>
+  const keys = (step: 1 | 2 | 3 | 4, answers: StoredAnswers) =>
     askedQuestions(step, answers).map((q) => q.key)
 
   it('asks step 01 whole', () => {
@@ -473,6 +524,14 @@ describe('askedQuestions', () => {
     expect(
       keys(3, { community: yes('A little'), knows: { value: 'Yes', state: 'assumed' } }),
     ).not.toContain(PERSON)
+  })
+
+  it('asks step 04 all four, in order, whatever the answers', () => {
+    const four = ['stay', 'focus', 'earn', 'settle'] as const
+    expect(keys(4, {})).toEqual([...four])
+    expect(keys(4, { stay: yes('No'), focus: yes('Academic'), community: yes('No') })).toEqual([
+      ...four,
+    ])
   })
 
   it('asks neither once community turns No after a Yes', () => {
@@ -537,6 +596,19 @@ describe('firstOpenQuestion', () => {
     expect(firstOpenQuestion(3, { ...knowsSomeone, climate: yes('Mild') }, cousin)).toBe('climate')
   })
 
+  it('starts step 04 at stay, then its first unanswered, else long-term', () => {
+    expect(firstOpenQuestion(4, {})).toBe('stay')
+    expect(firstOpenQuestion(4, { stay: yes('Yes'), focus: yes('Academic') })).toBe('earn')
+    expect(
+      firstOpenQuestion(4, {
+        stay: yes('Yes'),
+        focus: yes('Academic'),
+        earn: yes('No'),
+        settle: yes('Settle long-term'),
+      }),
+    ).toBe('settle')
+  })
+
   it("is step 01's firstUnanswered for step 01", () => {
     expect(firstOpenQuestion(1, {})).toBe('where')
     expect(firstOpenQuestion(1, stated('where', 'amount'))).toBe('covers')
@@ -558,6 +630,11 @@ describe('forwardPath', () => {
   it('leaves step 03 for step 04', () => {
     expect(forwardPath(3, {})).toBe('/onboarding/after')
     expect(forwardPath(3, knowsSomeone)).toBe('/onboarding/after')
+  })
+
+  it('leaves step 04 for the futures', () => {
+    expect(forwardPath(4, {})).toBe('/futures')
+    expect(forwardPath(4, { stay: yes('Yes') })).toBe('/futures')
   })
 })
 
@@ -625,9 +702,14 @@ describe('stepProgress', () => {
     })
   })
 
+  it('counts a step 04 question among its four', () => {
+    expect(stepProgress('/onboarding/after/earning', {})).toEqual({ question: 3, total: 4 })
+    expect(stepProgress('/onboarding/after', {})).toEqual({ question: 1, total: 4 })
+  })
+
   it('counts nothing outside the question steps', () => {
     expect(stepProgress('/onboarding/character', {})).toBeNull()
     expect(stepProgress('/onboarding/welcome', {})).toBeNull()
-    expect(stepProgress('/onboarding/after', {})).toBeNull()
+    expect(stepProgress('/futures', {})).toBeNull()
   })
 })

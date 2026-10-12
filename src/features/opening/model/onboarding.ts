@@ -1,6 +1,6 @@
 // The onboarding shell's model: the seven steps, the panel's words per step, and the questions of
-// steps 01 to 03 one per screen. Pure and client-safe. The questions, their order and their texts
-// come from questions.ts (SCREENS[0] to SCREENS[2]); the "why" lines, the slugs, step 02's groups
+// steps 01 to 04 one per screen. Pure and client-safe. The questions, their order and their texts
+// come from questions.ts (SCREENS[0] to SCREENS[3]); the "why" lines, the slugs, step 02's groups
 // and step 03's person screen are new here.
 
 import type { QuestionKey, Relative, StoredAnswers } from '@/shared/types/student'
@@ -18,10 +18,10 @@ export const ONBOARDING_STEPS: readonly string[] = [
 ]
 
 /** The steps built on the onboarding shell so far. */
-export type OnboardingStep = 0 | 1 | 2 | 3
+export type OnboardingStep = 0 | 1 | 2 | 3 | 4
 
 /** The steps that ask one question per screen. */
-export type QuestionStep = 1 | 2 | 3
+export type QuestionStep = 1 | 2 | 3 | 4
 
 /**
  * Step 03's "Who, and where?": a step question that is not a stored answer. It reads and writes
@@ -34,7 +34,7 @@ export type StepKey = QuestionKey | typeof PERSON
 /** What the panel can show: a step, or the welcome before step 00 (every step listed, none current). */
 export type PanelState = OnboardingStep | 'welcome'
 
-/** The panel's words from step 00 to step 03. */
+/** The panel's words from step 00 to step 04. */
 const SIX_STEPS = {
   title: 'Six short steps',
   lead: 'Each step says why it asks. Nothing is ranked: at the end you see three futures side by side.',
@@ -50,6 +50,7 @@ export const PANEL_COPY: Readonly<Record<PanelState, { title: string; lead: stri
   1: SIX_STEPS,
   2: SIX_STEPS,
   3: SIX_STEPS,
+  4: SIX_STEPS,
 }
 
 export type StepQuestion = {
@@ -177,6 +178,25 @@ const LIVING: Readonly<Record<LivingKey, Pick<StepQuestion, 'why' | 'slug'>>> = 
   climate: { why: 'Some people settle better in one climate or another.', slug: 'climate' },
 }
 
+type AfterKey = 'stay' | 'focus' | 'earn' | 'settle'
+
+/** What step 04 adds to each question of SCREENS[3]: its why and slug. */
+const AFTER: Readonly<Record<AfterKey, Pick<StepQuestion, 'why' | 'slug'>>> = {
+  stay: { why: 'It decides whether PR counts in your futures, and how much.', slug: 'stay' },
+  focus: {
+    why: 'It sets how much career outcomes weigh against cost, time and the rest.',
+    slug: 'focus',
+  },
+  earn: {
+    why: 'It sets how much part-time work weighs, and whether its rules show on every route.',
+    slug: 'earning',
+  },
+  settle: {
+    why: "It doesn't change your routes now. It shapes what we show you later.",
+    slug: 'long-term',
+  },
+}
+
 /** Step 03's person screen, asked after "Do you know anyone…" Yes. */
 const PERSON_QUESTION: StepQuestion = {
   key: PERSON,
@@ -196,7 +216,8 @@ export const PICTURE_PATH = `${ONBOARDING_PATH}/character`
 export const FACTS_PATH = `${ONBOARDING_PATH}/facts`
 export const STUDY_PATH = `${ONBOARDING_PATH}/study`
 export const LIVING_PATH = `${ONBOARDING_PATH}/living`
-const AFTER_PATH = `${ONBOARDING_PATH}/after`
+export const AFTER_PATH = `${ONBOARDING_PATH}/after`
+export const FUTURES_PATH = '/futures'
 
 /** Per question step: the kicker's title, its questions in order, and its base path. */
 export const QUESTION_STEPS: Readonly<
@@ -210,6 +231,10 @@ export const QUESTION_STEPS: Readonly<
       back: string
       /** The next step's name, for "Next: …" on the last question and "Leave the rest for now: go to …". */
       nextName: string
+      /** The last question's forward button, when not `Next: ${nextName}`. */
+      lastLabel?: string
+      /** The "Leave the rest" link, when not `Leave the rest for now: go to ${nextName}`. */
+      leaveLabel?: string
     }
   >
 > = {
@@ -265,6 +290,26 @@ export const QUESTION_STEPS: Readonly<
     ),
     back: `${STUDY_PATH}/${STUDY.length.slug}`,
     nextName: 'After you graduate',
+  },
+  4: {
+    title: 'After you graduate',
+    path: AFTER_PATH,
+    questions: (SCREENS[3]?.items ?? []).flatMap((item) =>
+      item.questions.map(
+        (question): StepQuestion => ({
+          key: question.key,
+          itemId: item.id,
+          group: '',
+          question: question.label || item.title,
+          opensWithLine: false,
+          ...AFTER[question.key as AfterKey],
+        }),
+      ),
+    ),
+    back: `${LIVING_PATH}/${LIVING.climate.slug}`,
+    nextName: 'Three futures',
+    lastLabel: 'Show me three futures',
+    leaveLabel: 'Leave the rest for now: show me three futures',
   },
 }
 
@@ -330,11 +375,12 @@ export function firstOpenQuestion(
 
 /**
  * Where leaving a step forward goes: step 01 to step 02's first open question; step 02 to step 03
- * (its page opens her first open question); step 03 to step 04.
+ * and step 03 to step 04 (each page opens her first open question); step 04 to the futures.
  */
 export function forwardPath(step: QuestionStep, answers: StoredAnswers): string {
   if (step === 1) return questionPath(2, firstOpenQuestion(2, answers))
-  return step === 2 ? LIVING_PATH : AFTER_PATH
+  if (step === 2) return LIVING_PATH
+  return step === 3 ? AFTER_PATH : FUTURES_PATH
 }
 
 /** Step 01 never asks her person: the one place its question keys meet the helpers below. */
@@ -361,6 +407,7 @@ export function stepOfPath(pathname: string): PanelState | null {
   if (pathname === FACTS_PATH || pathname.startsWith(`${FACTS_PATH}/`)) return 1
   if (pathname === STUDY_PATH || pathname.startsWith(`${STUDY_PATH}/`)) return 2
   if (pathname === LIVING_PATH || pathname.startsWith(`${LIVING_PATH}/`)) return 3
+  if (pathname === AFTER_PATH || pathname.startsWith(`${AFTER_PATH}/`)) return 4
   return null
 }
 

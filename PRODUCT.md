@@ -18,12 +18,12 @@ Onboarding is seven steps. Each step says why it asks, and "Not sure" is always 
 | 01 | Facts about you, one question per screen | `/onboarding/facts/<question>`: `where`, `amount`, `covers`, `who-pays`, `limit`, `earliest`, `latest`, `years`, `coming`, `qualification`, `english` |
 | 02 | What you'd study, one question per screen | `/onboarding/study/<question>`: `know`, `field`, `areas`, `level`, `learning`, `length` |
 | 03 | Where and how you'd live, one question per screen | `/onboarding/living/<question>`: `destination`, `place`, `community`, `know-anyone`, `who-and-where`, `climate` |
-| 04 | After you graduate | `/onboarding/after` |
+| 04 | After you graduate, one question per screen | `/onboarding/after/<question>`: `stay`, `focus`, `earning`, `long-term` |
 | 05 | Three futures | `/futures` |
 | 06 | Your attention (the ten coins) | `/attention` |
 
 - URLs name steps, never number them, so a step can be added or reordered without breaking a link. Internal keys never appear: slugs map to stored keys in `src/features/opening/model/onboarding.ts`.
-- `/onboarding` resumes where she left off: the welcome until step 00 is answered, the step she left (after), her first unanswered question when that step is facts, study or living, and step 04 once she has seen her futures. A bare step such as `/onboarding/facts`, `/onboarding/study` or `/onboarding/living` opens its first unanswered question.
+- `/onboarding` resumes where she left off: the welcome until step 00 is answered, her first unanswered question in the step she left when that step is facts, study, living or after, and step 04 once she has seen her futures. A bare step such as `/onboarding/facts`, `/onboarding/study`, `/onboarding/living` or `/onboarding/after` opens its first unanswered question.
 - Every tap is saved, so she can continue on another device. Signing in lands her where she left off: the welcome until step 00 is answered, her first unanswered question partway through, her futures once she has seen them.
 - Onboarding stays reachable after it is done: from the futures she can go back, change an answer, and the futures redraw. The chips on each future edit an answer in place.
 - Retired paths (`/picture`, `/opening/*`) redirect permanently.
