@@ -1,9 +1,9 @@
 /*
  * Step 01's own motion, from the design's facts.css: each new question's parts slide in one after
- * the other (the block is keyed by the question, so it plays again on every question), the impact
- * line rises in whenever its text changes (keyed by the text), and a checked card gives a small
- * press. A failed save keeps its own entrance (the shared errorIn), whichever module loads last. The
- * easing (--ease-out) is the shared motion's (src/shared/components/motion.module.css).
+ * the other (the block is keyed by the question, so it plays again on every question), and a
+ * checked card gives a small press; the impact line's entrance is Note's (`appear`). A failed
+ * save keeps its own entrance (the shared errorIn), whichever module loads last. The easing
+ * (--ease-out) is the shared motion's (src/shared/components/motion.module.css).
  *
  * The base styles are the final frame; every animation is declared only under
  * prefers-reduced-motion: no-preference, so under reduce nothing moves.
@@ -24,9 +24,6 @@
   }
   .question > :nth-child(n + 5) {
     animation-delay: 0.2s;
-  }
-  .impact {
-    animation: fxIn 0.45s var(--ease-out) both;
   }
   .cards [aria-checked="true"] {
     animation: fxTap 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);

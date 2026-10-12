@@ -5,8 +5,12 @@ import * as React from 'react'
 import { FrameMarks } from '@/shared/components/Blueprint'
 import { cn } from '@/shared/lib/utils'
 
+// group/button: its corner marks spread on hover (FrameMarks `spread`), and a forward arrow nudges
+// 4px, as the design's .btn.blueprint does; eased only when motion is welcome, never while the
+// button is unavailable (aria-disabled). The pointer on every button (Tailwind 4 leaves a
+// button's cursor at default), not-allowed while unavailable.
 const buttonVariants = cva(
-  'relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-heading text-sm font-semibold ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*=size-])]:size-icon [&_svg]:shrink-0',
+  'group/button [&>svg.lucide-arrow-right]:motion-safe:transition-transform [&>svg.lucide-arrow-right]:motion-safe:duration-350 [&>svg.lucide-arrow-right]:motion-safe:ease-out-expo not-aria-disabled:hover:[&>svg.lucide-arrow-right]:translate-x-1 relative inline-flex cursor-pointer aria-disabled:cursor-not-allowed items-center justify-center gap-2 whitespace-nowrap rounded-md font-heading text-sm font-semibold ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*=size-])]:size-icon [&_svg]:shrink-0',
   {
     variants: {
       variant: {
@@ -20,14 +24,30 @@ const buttonVariants = cva(
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
+        // The design's ghost text action (btn-ghost): accent words, no frame, underlined on hover.
+        text: 'bg-transparent font-sans text-caption font-medium text-accent-700 underline-offset-3 hover:text-accent-800 hover:underline',
+        // A bordered square with no corner marks (the design's hdr-btn and cn-btn): the header's
+        // action and the coin stepper. Unavailable (aria-disabled), it fades.
+        square:
+          'border border-border bg-transparent text-foreground hover:border-foreground/40 hover:bg-foreground/6 aria-disabled:opacity-40 aria-disabled:hover:border-border aria-disabled:hover:bg-transparent',
       },
       size: {
         default: 'h-10 px-4 py-2',
         sm: 'h-9 rounded-md px-3',
         lg: 'h-11 rounded-md px-8',
         icon: 'h-10 w-10',
+        // 44px, the touch target the header and the coin stepper need.
+        'icon-lg': 'size-11 p-0',
       },
     },
+    compoundVariants: [
+      // A text action sits in running layout: as tall as a touch target, as wide as its words, and
+      // free to wrap on a phone.
+      {
+        variant: 'text',
+        className: 'h-auto min-h-11 justify-start px-0 py-0 text-left whitespace-normal',
+      },
+    ],
     defaultVariants: {
       variant: 'default',
       size: 'default',
@@ -50,7 +70,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       (variant == null || variant === 'default' || variant === 'strong' || variant === 'outline')
     return (
       <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props}>
-        {framed ? <FrameMarks /> : null}
+        {framed ? (
+          <FrameMarks
+            spread={props['aria-disabled'] !== true && props['aria-disabled'] !== 'true'}
+          />
+        ) : null}
         {children}
       </Comp>
     )

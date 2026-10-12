@@ -108,15 +108,11 @@ export function AttentionScreen({
           </b>{' '}
           placed
         </p>
-        <button
+        <Button
           type="button"
+          variant="square"
           onClick={notSure}
-          className={cn(
-            'ml-auto flex min-h-11 cursor-pointer items-center gap-2 border border-dashed border-border bg-transparent px-3 font-medium text-muted-foreground',
-            'hover:border-foreground/40 hover:text-foreground',
-            'focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-primary',
-            '@max-xl:ml-0',
-          )}
+          className="ml-auto h-11 gap-2 border-dashed px-3 font-sans text-base font-medium text-muted-foreground hover:text-foreground @max-xl:ml-0"
         >
           <span
             aria-hidden="true"
@@ -125,19 +121,19 @@ export function AttentionScreen({
             ?
           </span>
           Not sure
-        </button>
+        </Button>
       </div>
 
       {/* Always rendered, so the assumed spread and "all ten placed" are announced; empty, it
           leaves the flow. */}
       <div role="status" className="-mt-2 flex flex-col gap-2 empty:absolute">
         {assumed ? (
-          <Note tone="impact" className="border-dashed">
+          <Note tone="impact" appear className="border-dashed">
             {COINS_ASSUMED}
           </Note>
         ) : null}
         {total === COINS_TOTAL ? (
-          <Note tone="limit" className="text-caption">
+          <Note tone="limit" appear className="text-caption">
             {COINS_ALL_PLACED}
           </Note>
         ) : null}
@@ -175,41 +171,41 @@ export function AttentionScreen({
                   ))}
                 </span>
                 <span className="col-start-2 row-span-2 row-start-1 flex items-center gap-1">
-                  <button
+                  <Button
                     type="button"
+                    variant="square"
+                    size="icon-lg"
                     aria-label={`Take a coin from ${name}`}
                     aria-disabled={n <= 0}
                     onClick={() => minus(index)}
-                    className={cn(
-                      'flex size-11 cursor-pointer items-center justify-center border border-border bg-background text-foreground',
-                      'hover:border-foreground/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
-                      'aria-disabled:cursor-not-allowed aria-disabled:opacity-40 aria-disabled:hover:border-border',
-                    )}
+                    className="bg-background"
                   >
                     <Minus aria-hidden="true" strokeWidth={1.5} className="size-icon" />
-                  </button>
+                  </Button>
                   <span className="min-w-6 text-center font-heading text-h4 font-semibold">
                     <span aria-hidden="true">{n}</span>
                     <span className="sr-only">
                       {n} of {MAX_PER_PILE} on {name}
                     </span>
                   </span>
-                  <button
+                  <Button
                     type="button"
+                    variant="square"
+                    size="icon-lg"
                     aria-label={`Place a coin on ${name}`}
                     // Unavailable, not disabled: a tap still says why, and Tab still reaches it.
                     aria-disabled={capped}
                     onClick={() => plus(index)}
                     className={cn(
-                      'flex size-11 cursor-pointer items-center justify-center border bg-background aria-disabled:cursor-not-allowed',
-                      'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+                      'bg-background',
+                      // Capped, it reads dashed rather than faded: the tap still answers.
                       capped
-                        ? 'border-dashed border-neutral-500 text-neutral-600'
-                        : 'border-accent-700 text-accent-800 hover:bg-accent-100',
+                        ? 'border-dashed border-neutral-500 text-neutral-600 aria-disabled:opacity-100 aria-disabled:hover:border-neutral-500'
+                        : 'border-accent-700 text-accent-800 hover:border-accent-700 hover:bg-accent-100',
                     )}
                   >
                     <Plus aria-hidden="true" strokeWidth={1.5} className="size-icon" />
-                  </button>
+                  </Button>
                 </span>
               </div>
 
@@ -217,12 +213,17 @@ export function AttentionScreen({
                   flow and adds no gap under the pile. */}
               <div aria-live="polite" className="empty:absolute">
                 {why ? (
-                  <Note tone="limit" className={cn(motion.errorIn, 'text-caption')}>
+                  <Note tone="limit" appear className="text-caption">
                     {why}
                   </Note>
                 ) : null}
                 {showLine ? (
-                  <Note tone="impact" className="px-3 py-2 text-caption">
+                  <Note
+                    key={coinLine(index, n)}
+                    tone="impact"
+                    appear
+                    className="px-3 py-2 text-caption"
+                  >
                     {coinLine(index, n)}
                   </Note>
                 ) : null}
@@ -249,14 +250,15 @@ export function AttentionScreen({
       >
         {doneLine(piles)}
       </p>
-      <button
+      <Button
         type="button"
+        variant="text"
         disabled={pending}
         onClick={() => void submit({ state: 'later' })}
-        className="-mb-2 inline-flex min-h-11 cursor-pointer items-center self-start bg-transparent text-caption font-medium text-accent-700 underline-offset-3 hover:text-accent-800 hover:underline"
+        className="-mb-2 self-start"
       >
         Spend them later: finish without placing coins
-      </button>
+      </Button>
 
       <StepActions className="justify-between">
         <Button
@@ -278,7 +280,7 @@ export function AttentionScreen({
           onClick={() => {
             if (full) void submit({ state: 'spent', piles, assumed })
           }}
-          className="min-w-33 aria-disabled:cursor-not-allowed aria-disabled:opacity-60 @max-xl:min-w-0 @max-xl:flex-1"
+          className="min-w-33 aria-disabled:opacity-60 @max-xl:min-w-0 @max-xl:flex-1"
         >
           Done
           <ArrowRight aria-hidden="true" className="size-icon-sm" />

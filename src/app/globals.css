@@ -142,6 +142,8 @@
 @theme {
   --color-splash: oklch(0.583 0.199 256);
   --color-splash-foreground: oklch(1 0 0);
+  /* The design's ease-out (cubic-bezier(.16,1,.3,1)): a button's marks and arrow on hover. */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /*

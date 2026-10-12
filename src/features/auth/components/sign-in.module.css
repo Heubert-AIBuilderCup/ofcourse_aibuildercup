@@ -1,7 +1,7 @@
 /*
  * The sign-in page's own motion, from the Industry login design: lines, frames and marks in the
- * load sequence, a scanline, cells that light in turn, a blinking cursor, corner marks that spread
- * on hover, and the card shaking at a failed try. The easings, the grid's drift, the rise sequence
+ * load sequence, a scanline, cells that light in turn, a blinking cursor (the buttons' hover is the
+ * Button's own), and the card shaking at a failed try. The easings, the grid's drift, the rise sequence
  * (d1–d8), the error easing in and the busy spinner are the shared motion's
  * (src/shared/components/motion.module.css). Every animation and transition is declared only under
  * prefers-reduced-motion: no-preference, so under reduce nothing moves. Only transform and opacity
@@ -51,23 +51,6 @@
 }
 .line > span {
   display: block;
-}
-
-/* Interaction details: the marks spread and the arrow nudges on hover. */
-.spread:hover [data-frame-mark="tl"] {
-  transform: translate(-0.1875rem, -0.1875rem);
-}
-.spread:hover [data-frame-mark="tr"] {
-  transform: translate(0.1875rem, -0.1875rem);
-}
-.spread:hover [data-frame-mark="bl"] {
-  transform: translate(-0.1875rem, 0.1875rem);
-}
-.spread:hover [data-frame-mark="br"] {
-  transform: translate(0.1875rem, 0.1875rem);
-}
-.spread:hover .arrow {
-  transform: translateX(0.25rem);
 }
 
 /*
@@ -142,16 +125,9 @@
   .cell > [data-frame-mark] {
     animation-delay: 1.3s;
   }
-  /* The sign-in button's marks are the last beat of the load sequence. */
+  /* The sign-in buttons' marks (.spread marks them) are the last beat of the load sequence. */
   .frame.spread > [data-frame-mark] {
     animation-delay: 1.5s;
-  }
-
-  .spread [data-frame-mark] {
-    transition: transform 0.35s var(--ease-out);
-  }
-  .spread .arrow {
-    transition: transform 0.35s var(--ease-out);
   }
 
   /* The form's states. A failed try alternates two identical shakes, so each one restarts. */

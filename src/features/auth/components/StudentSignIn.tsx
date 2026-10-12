@@ -273,7 +273,7 @@ export function StudentSignIn({ next, notice }: { next: string; notice?: string 
         ) : (
           <>
             {label}
-            <ArrowRight aria-hidden="true" className={cn(styles.arrow, 'size-icon-sm')} />
+            <ArrowRight aria-hidden="true" className="size-icon-sm" />
           </>
         )}
       </Button>

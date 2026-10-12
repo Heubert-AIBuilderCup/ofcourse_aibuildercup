@@ -4,7 +4,8 @@ import { LogOut, Moon, Sun, User } from 'lucide-react'
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { useSignOut } from '@/features/auth'
 import { useThemeChoice } from '@/shared/components/Providers'
-import { HEADER_ACTION, HEADER_ACTION_ON_STEEL } from '@/shared/lib/header-action'
+import { Button } from '@/shared/components/ui/button'
+import { HEADER_ACTION_ON_STEEL } from '@/shared/lib/header-action'
 import { toggledChoice } from '@/shared/lib/theme'
 import { cn } from '@/shared/lib/utils'
 
@@ -60,23 +61,24 @@ export function AccountMenu({ className }: { className?: string }) {
 
   return (
     <div className={cn('relative', className)}>
-      <button
+      <Button
         ref={button}
         type="button"
+        variant="square"
+        size="icon-lg"
         aria-label="Menu: theme and sign out"
         title="Menu"
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((was) => !was)}
         className={cn(
-          HEADER_ACTION,
-          'aria-expanded:border-accent-700 aria-expanded:bg-accent-100 aria-expanded:text-accent-800',
+          'shrink-0 aria-expanded:border-accent-700 aria-expanded:bg-accent-100 aria-expanded:text-accent-800',
           HEADER_ACTION_ON_STEEL,
           '@max-5xl:aria-expanded:border-panel-foreground @max-5xl:aria-expanded:bg-panel-foreground/14 @max-5xl:aria-expanded:text-panel-foreground',
         )}
       >
         <User aria-hidden="true" strokeWidth={1.5} className="size-icon" />
-      </button>
+      </Button>
 
       {open ? (
         <>

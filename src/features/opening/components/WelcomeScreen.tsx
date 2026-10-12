@@ -102,7 +102,7 @@ export function WelcomeScreen({ firstName }: { firstName: string }) {
             'min-w-44 @max-xl:flex-1',
           )}
         >
-          <FrameMarks />
+          <FrameMarks spread />
           Start
           <ArrowRight aria-hidden="true" className="size-icon-sm" />
         </Link>

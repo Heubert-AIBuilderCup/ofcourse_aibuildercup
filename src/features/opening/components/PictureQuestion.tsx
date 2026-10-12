@@ -154,7 +154,7 @@ export function PictureQuestion({
           size="lg"
           aria-disabled={saving || undefined}
           onClick={() => void save('neutral')}
-          className="min-w-33 aria-disabled:cursor-default aria-disabled:opacity-55 @max-xl:min-w-0 @max-xl:flex-1"
+          className="min-w-33 aria-disabled:opacity-55 @max-xl:min-w-0 @max-xl:flex-1"
         >
           Skip
         </Button>
@@ -164,7 +164,7 @@ export function PictureQuestion({
           size="lg"
           aria-disabled={saving || undefined}
           onClick={() => void save(choice ?? 'neutral')}
-          className="min-w-33 aria-disabled:cursor-default aria-disabled:opacity-55 @max-xl:min-w-0 @max-xl:flex-1"
+          className="min-w-33 aria-disabled:opacity-55 @max-xl:min-w-0 @max-xl:flex-1"
         >
           {saving ? (
             <>

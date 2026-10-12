@@ -1,5 +1,6 @@
 import { ArrowRight, Info } from 'lucide-react'
 import type { HTMLAttributes, ReactNode } from 'react'
+import motion from '@/shared/components/motion.module.css'
 import { cn } from '@/shared/lib/utils'
 
 type Tone = 'impact' | 'limit' | 'hint'
@@ -23,27 +24,33 @@ const ICONS: Record<Tone, ReactNode> = {
 /**
  * A note on a step: its icon, then its words. `icon` replaces the tone's own; `null` leaves it out,
  * and a limit or hint without one is plain text. An impact note's words are a paragraph, so they
- * may hold a tag or an sr-only lead; the others are a line. `className` adds the place's size or
- * motion.
+ * may hold a tag or an sr-only lead; the others are a line. `appear`: a note that shows after a
+ * tap rises in, as the design's do (key it by its words to replay when they change). `className`
+ * adds the place's size or load-sequence motion.
  */
 export function Note({
   tone,
   icon,
+  appear = false,
   className,
   children,
   ...props
-}: HTMLAttributes<HTMLElement> & { tone: Tone; icon?: ReactNode }) {
+}: HTMLAttributes<HTMLElement> & { tone: Tone; icon?: ReactNode; appear?: boolean }) {
   const mark = icon === undefined ? ICONS[tone] : icon
+  const entrance = appear ? (tone === 'impact' ? motion.noteIn : motion.noteInQuick) : undefined
   if (tone === 'impact') {
     return (
-      <div className={cn('flex items-start gap-2.5', TONES.impact, className)} {...props}>
+      <div className={cn('flex items-start gap-2.5', TONES.impact, entrance, className)} {...props}>
         {mark}
         <p className="m-0">{children}</p>
       </div>
     )
   }
   return (
-    <p className={cn('m-0', mark && 'flex items-start gap-2', TONES[tone], className)} {...props}>
+    <p
+      className={cn('m-0', mark && 'flex items-start gap-2', TONES[tone], entrance, className)}
+      {...props}
+    >
       {mark}
       {mark ? <span>{children}</span> : children}
     </p>

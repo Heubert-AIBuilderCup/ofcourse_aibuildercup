@@ -56,7 +56,7 @@ export function DoneScreen({ spent }: { spent: boolean }) {
         href={ATTENTION_PATH}
         className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'self-start')}
       >
-        <FrameMarks />
+        <FrameMarks spread />
         Back to Your attention
       </Link>
     </div>

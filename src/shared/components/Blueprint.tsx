@@ -1,17 +1,37 @@
 import type { ComponentPropsWithoutRef, ElementType, ReactNode } from 'react'
 import { cn } from '@/shared/lib/utils'
 
-const MARKS = ['tl', 'tr', 'bl', 'br'] as const
+/** Each mark, and where it moves when its button is hovered: outward, 3px on each axis. */
+const MARKS = {
+  tl: 'group-hover/button:-translate-x-0.75 group-hover/button:-translate-y-0.75',
+  tr: 'group-hover/button:translate-x-0.75 group-hover/button:-translate-y-0.75',
+  bl: 'group-hover/button:-translate-x-0.75 group-hover/button:translate-y-0.75',
+  br: 'group-hover/button:translate-x-0.75 group-hover/button:translate-y-0.75',
+} as const
 
 /**
  * The four corner marks of a framed object. Place inside a positioned element (`relative`).
- * They show only when the active design system sets --ds-frame-marks (globals.css).
+ * They show only when the active design system sets --ds-frame-marks (globals.css). `spread`:
+ * inside a button (`group/button`, buttonVariants), hovering it moves the marks outward, as the
+ * design's `.btn.blueprint` does; eased only when motion is welcome.
  */
-export function FrameMarks() {
+export function FrameMarks({ spread = false }: { spread?: boolean }) {
   return (
     <>
-      {MARKS.map((m) => (
-        <span key={m} data-frame-mark={m} aria-hidden="true" />
+      {(Object.keys(MARKS) as (keyof typeof MARKS)[]).map((m) => (
+        <span
+          key={m}
+          data-frame-mark={m}
+          aria-hidden="true"
+          className={
+            spread
+              ? cn(
+                  MARKS[m],
+                  'motion-safe:transition-transform motion-safe:duration-350 motion-safe:ease-out-expo',
+                )
+              : undefined
+          }
+        />
       ))}
     </>
   )

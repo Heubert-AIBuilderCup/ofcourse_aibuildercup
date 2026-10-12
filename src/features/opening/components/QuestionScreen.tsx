@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useId, useRef, useState } from 'react'
 import motion from '@/shared/components/motion.module.css'
-import { Button } from '@/shared/components/ui/button'
+import { Button, buttonVariants } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
 import type { AnswerValue, QuestionKey, Relative } from '@/shared/types/student'
 import {
@@ -252,9 +252,9 @@ export function QuestionScreen({
               <Note
                 key={impact.text}
                 tone="impact"
+                appear
                 icon={IMPACT_ICONS[impact.kind]}
                 className={cn(
-                  styles.impact,
                   impact.kind === 'assume' && 'border-dashed',
                   impact.kind === 'limit' && 'border-neutral-600 bg-neutral-100',
                 )}
@@ -310,7 +310,7 @@ export function QuestionScreen({
         <Link
           href={forward}
           onClick={flush}
-          className="inline-flex min-h-11 items-center self-start text-caption font-medium text-accent-700"
+          className={cn(buttonVariants({ variant: 'text' }), 'self-start')}
         >
           {`Leave the rest for now: go to ${nextName}`}
         </Link>

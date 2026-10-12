@@ -90,6 +90,14 @@
   .errorIn {
     animation: errorIn 0.3s var(--ease-out) both;
   }
+  /* A note that appears after a tap (Note `appear`): an impact line rises in 0.45s, a limit or
+     hint 0.35s, as the design's fx-impact and sd-refuse do. */
+  .noteIn {
+    animation: noteIn 0.45s var(--ease-out) both;
+  }
+  .noteInQuick {
+    animation: noteIn 0.35s var(--ease-out) both;
+  }
   .spin {
     animation: spin 0.8s linear infinite;
   }
@@ -117,6 +125,16 @@
   from {
     opacity: 0;
     transform: translateY(-0.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes noteIn {
+  from {
+    opacity: 0;
+    transform: translateY(0.625rem);
   }
   to {
     opacity: 1;
