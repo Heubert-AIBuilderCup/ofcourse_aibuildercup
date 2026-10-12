@@ -12,9 +12,9 @@ const buttonVariants = cva(
       variant: {
         default: 'border border-primary bg-primary text-primary-foreground hover:bg-primary/90',
         // The solid button in the shade of primary that passes 4.5:1 with a 14px label
-        // (DESIGN.md: plain primary is for large text only).
+        // (DESIGN.md: plain primary is for large text only); the brand blue in light mode (globals.css).
         strong:
-          'border border-primary-strong bg-primary-strong text-primary-strong-foreground hover:border-primary-strong-hover hover:bg-primary-strong-hover active:bg-primary-strong-active',
+          'border border-brand bg-brand text-brand-foreground hover:border-brand-hover hover:bg-brand-hover active:bg-brand-active',
         destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
         outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',

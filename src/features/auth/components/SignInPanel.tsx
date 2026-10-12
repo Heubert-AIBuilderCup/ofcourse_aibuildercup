@@ -150,7 +150,13 @@ export function SignInPanel({
             <span className={styles.d4}>you left off.</span>
           </span>
         </h1>
-        <p className={cn(styles.rise, styles.d5, 'm-0 text-lead text-panel-foreground/78')}>
+        <p
+          className={cn(
+            styles.rise,
+            styles.d5,
+            'm-0 text-lead text-panel-foreground dark:text-panel-foreground/78',
+          )}
+        >
           {lede}
         </p>
       </div>

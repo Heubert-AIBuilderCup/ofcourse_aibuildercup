@@ -19,7 +19,7 @@ Source: the Industry design system in Claude Design (https://claude.ai/artifact/
 - Photographs: duotone into the accent, square and hairline-framed.
 - Copy: short, plain, sentence case. Buttons are verbs ("Save changes"). A dialog asks one question and says what will and won't change. No exclamation marks or emoji.
 - Contrast: `primary` on the background is 3.7:1, fine for icons, borders, large text and the focus ring, not for small text. Use `text-muted-foreground` for secondary text; it passes 4.5:1.
-- Dark mode: the steel panel and the login hero are the same in both themes (`data-theme="light"` on them); a hairline (`--border`) marks where they meet the dark ground. Never a `dark:` class inside the panel.
+- The brand ground (OfCourse's, in globals.css): in light mode the panel, the login hero, the `Hero` band and the strong button are one blue (#0062c4, a shade deeper than the splash's, `brand`), with white type; in dark mode they are Industry's steel. The fields carry `data-theme="light"`, so they keep Industry's light tokens inside a dark page; a hairline (`--border`) marks where they meet the dark ground. On the blue, secondary panel text is full white, as the canvas draws it: write it `text-panel-foreground dark:text-panel-foreground/78`, the only `dark:` classes inside the panel.
 
 ## Sizing
 

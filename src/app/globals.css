@@ -85,6 +85,11 @@
   --color-primary-strong-foreground: var(--primary-strong-foreground);
   --color-primary-strong-hover: var(--primary-strong-hover);
   --color-primary-strong-active: var(--primary-strong-active);
+  /* The strong button and the Hero band: the brand blue in light mode (below), else primary-strong. */
+  --color-brand: var(--brand, var(--primary-strong));
+  --color-brand-foreground: var(--brand-foreground, var(--primary-strong-foreground));
+  --color-brand-hover: var(--brand-hover, var(--primary-strong-hover));
+  --color-brand-active: var(--brand-active, var(--primary-strong-active));
   --color-accent-100: var(--accent-100);
   --color-accent-200: var(--accent-200);
   --color-accent-300: var(--accent-300);
@@ -137,6 +142,26 @@
 @theme {
   --color-splash: oklch(0.583 0.199 256);
   --color-splash-foreground: oklch(1 0 0);
+}
+
+/*
+ * The brand ground (the canvas's login.css): in light mode the steel fields (the sign-in panel, the
+ * onboarding panel and the Hero band) and the strong button take one blue, #0062c4, a shade deeper
+ * than the splash's, with white type: 5.9:1, 5.3:1 against the page; hover #00509f is 7.9:1. Dark
+ * mode keeps Industry's steel. The fields carry data-theme="light" to keep Industry's light tokens
+ * in a dark page, so the page's own theme (<html>) decides here, and a light field inside a light
+ * page follows it. Everything else drawn in primary-strong (links, kickers, ticks, coins) stays
+ * steel. The splash's handover lands on bg-panel, so in light mode it deepens to this blue.
+ */
+:root[data-theme='light'],
+:root[data-theme='light'] [data-theme='light'] {
+  --brand: oklch(0.507 0.172 255.8);
+  --brand-foreground: oklch(1 0 0);
+  --brand-hover: oklch(0.438 0.145 255.1);
+  --brand-active: oklch(0.373 0.122 254.9);
+  --panel: var(--brand);
+  --panel-foreground: oklch(1 0 0);
+  --panel-accent: oklch(1 0 0);
 }
 
 /*

@@ -93,7 +93,15 @@ export function OnboardingPanel() {
         >
           {copy.title}
         </h2>
-        <p className={cn(styles.rise, styles.d3, 'm-0 text-panel-foreground/80')}>{copy.lead}</p>
+        <p
+          className={cn(
+            styles.rise,
+            styles.d3,
+            'm-0 text-panel-foreground dark:text-panel-foreground/80',
+          )}
+        >
+          {copy.lead}
+        </p>
       </div>
 
       <ol
@@ -109,22 +117,24 @@ export function OnboardingPanel() {
             key={name}
             aria-current={n === step ? 'step' : undefined}
             className={cn(
-              'grid min-h-9.5 grid-cols-[2.25rem_1fr_auto] items-center gap-2 border-t border-panel-foreground/12 text-caption text-panel-foreground/72 last:border-b',
-              (welcome || n < step) && 'text-panel-foreground/82',
-              n === step && 'font-medium text-panel-foreground',
+              'grid min-h-9.5 grid-cols-[2.25rem_1fr_auto] items-center gap-2 border-t border-panel-foreground/12 text-caption text-panel-foreground dark:text-panel-foreground/72 last:border-b',
+              (welcome || n < step) && 'dark:text-panel-foreground/82',
+              n === step && 'font-medium dark:text-panel-foreground',
             )}
           >
             <span
               className={cn(
                 'text-micro',
-                n === step ? 'text-panel-accent' : 'text-panel-foreground/50',
+                n === step
+                  ? 'text-panel-accent'
+                  : 'text-panel-foreground dark:text-panel-foreground/50',
               )}
             >
               {String(n).padStart(2, '0')}
             </span>
             <span>{name}</span>
             {n < step ? (
-              <span className="inline-flex items-center gap-1 text-micro uppercase text-panel-foreground/70">
+              <span className="inline-flex items-center gap-1 text-micro uppercase text-panel-foreground dark:text-panel-foreground/70">
                 <Check aria-hidden="true" className="size-icon-xs" />
                 Done
               </span>
@@ -133,7 +143,9 @@ export function OnboardingPanel() {
                 {badge}
               </span>
             ) : welcome && n === 0 ? (
-              <span className="text-micro uppercase text-panel-foreground/62">Optional</span>
+              <span className="text-micro uppercase text-panel-foreground dark:text-panel-foreground/62">
+                Optional
+              </span>
             ) : (
               <span />
             )}
@@ -148,21 +160,23 @@ export function OnboardingPanel() {
           'relative hidden max-w-130 flex-col gap-2 @max-5xl:flex @max-5xl:pr-18 @max-xl:order-3 @max-xl:mt-1 @max-xl:max-w-none @max-xl:basis-full @max-xl:gap-1.5 @max-xl:pr-0',
         )}
       >
-        <div aria-hidden="true" className="grid grid-cols-7 gap-1">
+        {/* Told apart by shape, not shade alone, each 3:1 or more on the panel: an outline not
+            reached, a fill done, a taller fill for the current step. */}
+        <div aria-hidden="true" className="grid grid-cols-7 items-end gap-1">
           {ONBOARDING_STEPS.map((name, n) => (
             <span
               key={name}
               data-lit={n <= step}
               className={cn(
-                'h-1',
-                n < step && 'bg-panel-accent/55',
-                n === step && 'bg-panel-accent',
-                n > step && 'bg-panel-foreground/22',
+                'h-1.5',
+                n < step && 'bg-panel-foreground/85',
+                n === step && 'h-2.5 bg-panel-foreground',
+                n > step && 'border border-panel-foreground/65',
               )}
             />
           ))}
         </div>
-        <p className="m-0 flex flex-wrap justify-between gap-x-4 gap-y-1 text-caption text-panel-foreground/78">
+        <p className="m-0 flex flex-wrap justify-between gap-x-4 gap-y-1 text-caption text-panel-foreground dark:text-panel-foreground/78">
           <span className="font-medium text-panel-foreground">
             <span className="sr-only">
               {welcome ? 'Not started. ' : `Step ${step} of ${ONBOARDING_STEPS.length - 1}. `}
@@ -195,7 +209,7 @@ export function OnboardingPanel() {
           loading="eager"
           className={cn(styles.duck, 'block h-auto w-16 @max-5xl:w-14')}
         />
-        <span className="pb-3.5 text-caption text-panel-foreground/70 @max-5xl:hidden">
+        <span className="pb-3.5 text-caption text-panel-foreground dark:text-panel-foreground/70 @max-5xl:hidden">
           From off course to “Of Course!”
         </span>
       </div>

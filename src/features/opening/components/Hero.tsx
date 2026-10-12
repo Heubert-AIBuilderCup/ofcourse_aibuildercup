@@ -4,10 +4,11 @@
  */
 export function Hero({ overline, title, sub }: { overline: string; title: string; sub?: string }) {
   return (
-    // Marked light: the band keeps its steel in a dark page, as the steel panels do.
+    // Marked light: the band keeps its steel in a dark page, as the steel panels do; the brand
+    // blue in a light one (globals.css).
     <header
       data-theme="light"
-      className="bg-primary-strong px-gutter py-section text-primary-strong-foreground @max-[35rem]:px-5 @max-[35rem]:py-8"
+      className="bg-brand px-gutter py-section text-brand-foreground @max-[35rem]:px-5 @max-[35rem]:py-8"
     >
       <div className="flex max-w-2xl flex-col gap-2">
         <p className="m-0 text-overline uppercase">{overline}</p>
