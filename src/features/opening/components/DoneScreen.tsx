@@ -11,8 +11,8 @@ import shell from './onboarding.module.css'
 import { StepHeading, StepKicker } from './StepHeading'
 
 /**
- * The end of onboarding, after step 05 (the design's "You're all set"): what is saved, the duck on
- * the river, and the way back to her coins. `spent` is true when her coins are placed, false when
+ * The end of onboarding, after step 05 (the design's "You're all set"): what is saved, the duck in
+ * its pond, and the way back to her coins. `spent` is true when her coins are placed, false when
  * she left them for later. The heading takes focus on arrival, so a screen reader starts there.
  */
 export function DoneScreen({ spent }: { spent: boolean }) {
@@ -33,18 +33,23 @@ export function DoneScreen({ spent }: { spent: boolean }) {
           ? 'Your answers and your ten coins are saved. You can change any of them later.'
           : 'Your answers are saved. You can spend your ten coins any time.'}
       </p>
-      <div aria-hidden="true" className={cn(shell.river, 'relative mt-2 h-16')}>
-        <span className="absolute inset-x-0 bottom-2 h-px bg-primary/55" />
-        <span className={cn(shell.riverDuck, 'absolute bottom-1 left-0 w-13')}>
-          <Image
-            src="/brand/duck.png"
-            alt=""
-            width={64}
-            height={59}
-            loading="eager"
-            className={cn(shell.duck, 'block h-auto w-full')}
-          />
+      <div aria-hidden="true" className={cn(shell.pond, 'mt-2')}>
+        <span className={cn(shell.wave, shell.waveBack)} />
+        <span className={shell.swim}>
+          <span className={shell.ripple} />
+          <span className={shell.ripple} />
+          <span className={shell.turn}>
+            <Image
+              src="/brand/duck.png"
+              alt=""
+              width={64}
+              height={59}
+              loading="eager"
+              className={shell.pondDuck}
+            />
+          </span>
         </span>
+        <span className={cn(shell.wave, shell.waveFront)} />
       </div>
       <span className="text-caption text-muted-foreground">Keep floating.</span>
       <Link

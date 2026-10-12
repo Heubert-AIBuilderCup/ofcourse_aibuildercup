@@ -29,6 +29,7 @@ function progress(state: PanelState, count: { question: number; total: number } 
       now: `Not started yet · about ${WELCOME_MINUTES} min`,
       next: 'First: Your comic character',
     }
+  if (state === 'done') return { now: 'All steps done', next: "You're all set" }
   if (state === 5)
     return { now: `Now: 05 ${ONBOARDING_STEPS[5]} · optional`, next: "Then: you're all set" }
   if (!count) return { now: 'Now: Your comic character · optional', next: 'Next: Facts about you' }
@@ -52,8 +53,10 @@ export function OnboardingPanel() {
   const pathname = usePathname()
   const state = stepOfPath(pathname) ?? 0
   const welcome = state === 'welcome'
-  // On the welcome no step is done or current: every comparison with -1 reads "later".
-  const step = welcome ? -1 : state
+  const done = state === 'done'
+  // On the welcome no step is done or current: every comparison with -1 reads "later". At the end
+  // every step is done and none current: past the last one.
+  const step = welcome ? -1 : done ? ONBOARDING_STEPS.length : state
   const [answers] = useOnboardingAnswers()
   const count = stepProgress(pathname, answers)
   const copy = PANEL_COPY[state]
@@ -183,9 +186,11 @@ export function OnboardingPanel() {
         </div>
         <p className="m-0 flex flex-wrap justify-between gap-x-4 gap-y-1 text-caption text-panel-foreground dark:text-panel-foreground/78">
           <span className="font-medium text-panel-foreground">
-            <span className="sr-only">
-              {welcome ? 'Not started. ' : `Step ${step} of ${ONBOARDING_STEPS.length - 1}. `}
-            </span>
+            {done ? null : (
+              <span className="sr-only">
+                {welcome ? 'Not started. ' : `Step ${step} of ${ONBOARDING_STEPS.length - 1}. `}
+              </span>
+            )}
             {now}
           </span>
           <span>{next}</span>

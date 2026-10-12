@@ -158,18 +158,30 @@ it('on step 04 marks steps 00 to 03 done and counts the question she is on', () 
   expect(segments(container)).toEqual({ all: 6, lit: 5 })
 })
 
-for (const path of ['/onboarding/attention', '/onboarding/done']) {
-  it(`at ${path} reads as the last step: 00 to 04 done, 05 now and optional, all lit`, () => {
-    const { container } = renderAt(path)
-    expect(screen.getByRole('heading', { level: 2, name: 'The last step' })).toBeInTheDocument()
-    const items = steps()
-    expect(items).toHaveLength(6)
-    for (const done of items.slice(0, 5)) expect(done).toHaveTextContent('Done')
-    expect(items[5]).toHaveAttribute('aria-current', 'step')
-    expect(items[5]).toHaveTextContent('05Your attentionNow · optional')
-    expect(screen.getByText('Step 5 of 5.')).toBeInTheDocument()
-    expect(screen.getByText('Now: 05 Your attention · optional')).toBeInTheDocument()
-    expect(screen.getByText("Then: you're all set")).toBeInTheDocument()
-    expect(segments(container)).toEqual({ all: 6, lit: 6 })
-  })
-}
+it('on step 05 reads as the last step: 00 to 04 done, 05 now and optional, all lit', () => {
+  const { container } = renderAt('/onboarding/attention')
+  expect(screen.getByRole('heading', { level: 2, name: 'The last step' })).toBeInTheDocument()
+  const items = steps()
+  expect(items).toHaveLength(6)
+  for (const done of items.slice(0, 5)) expect(done).toHaveTextContent('Done')
+  expect(items[5]).toHaveAttribute('aria-current', 'step')
+  expect(items[5]).toHaveTextContent('05Your attentionNow · optional')
+  expect(screen.getByText('Step 5 of 5.')).toBeInTheDocument()
+  expect(screen.getByText('Now: 05 Your attention · optional')).toBeInTheDocument()
+  expect(screen.getByText("Then: you're all set")).toBeInTheDocument()
+  expect(segments(container)).toEqual({ all: 6, lit: 6 })
+})
+
+it('at the end marks every step done, none current, all lit', () => {
+  const { container } = renderAt('/onboarding/done')
+  expect(screen.getByRole('heading', { level: 2, name: 'The last step' })).toBeInTheDocument()
+  const items = steps()
+  for (const done of items) {
+    expect(done).toHaveTextContent('Done')
+    expect(done).not.toHaveAttribute('aria-current')
+  }
+  expect(screen.getByText('All steps done')).toBeInTheDocument()
+  expect(screen.getByText("You're all set")).toBeInTheDocument()
+  expect(screen.queryByText(/^Step \d of 5\.$/)).not.toBeInTheDocument()
+  expect(segments(container)).toEqual({ all: 6, lit: 6 })
+})

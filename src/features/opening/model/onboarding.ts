@@ -30,8 +30,8 @@ export const PERSON = 'person'
 /** What a step question asks: a stored answer, or her person. */
 export type StepKey = QuestionKey | typeof PERSON
 
-/** What the panel can show: a step, or the welcome before step 00 (every step listed, none current). */
-export type PanelState = OnboardingStep | 'welcome'
+/** What the panel can show: a step, the welcome before step 00 (every step listed, none current), or the end (every step done). */
+export type PanelState = OnboardingStep | 'welcome' | 'done'
 
 /** The panel's words from step 00 to step 04. */
 const FIVE_STEPS = {
@@ -58,6 +58,8 @@ export const PANEL_COPY: Readonly<Record<PanelState, { title: string; lead: stri
   3: FIVE_STEPS,
   4: FIVE_STEPS,
   5: LAST_STEP,
+  // The end screen keeps step 05's words; the steps all read Done.
+  done: LAST_STEP,
 }
 
 export type StepQuestion = {
@@ -388,7 +390,8 @@ export function stepOfPath(pathname: string): PanelState | null {
   if (pathname === STUDY_PATH || pathname.startsWith(`${STUDY_PATH}/`)) return 2
   if (pathname === LIVING_PATH || pathname.startsWith(`${LIVING_PATH}/`)) return 3
   if (pathname === AFTER_PATH || pathname.startsWith(`${AFTER_PATH}/`)) return 4
-  if (pathname === ATTENTION_PATH || pathname === DONE_PATH) return 5
+  if (pathname === ATTENTION_PATH) return 5
+  if (pathname === DONE_PATH) return 'done'
   return null
 }
 
@@ -417,7 +420,8 @@ export function stepProgress(
   answers: StoredAnswers,
 ): { question: number; total: number } | null {
   const step = stepOfPath(pathname)
-  if (step === null || step === 'welcome' || step === 0 || step === 5) return null
+  if (step === null || step === 'welcome' || step === 'done' || step === 0 || step === 5)
+    return null
   const asked = askedQuestions(step, answers)
   const { key } = shownQuestion(step, pathname, answers)
   return { question: asked.findIndex((q) => q.key === key) + 1, total: asked.length }

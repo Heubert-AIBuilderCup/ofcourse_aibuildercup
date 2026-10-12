@@ -120,7 +120,7 @@ describe('stepOfPath', () => {
 
   it('knows step 05, your attention, and the end screen after it', () => {
     expect(stepOfPath('/onboarding/attention')).toBe(5)
-    expect(stepOfPath('/onboarding/done')).toBe(5)
+    expect(stepOfPath('/onboarding/done')).toBe('done')
     expect(stepOfPath('/onboarding/attentionx')).toBeNull()
   })
 
