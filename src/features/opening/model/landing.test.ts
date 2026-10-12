@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import type { StoredAnswers } from '@/shared/types/student'
+import type { Coins, StoredAnswers } from '@/shared/types/student'
 import { landingPath, onboardingResumePath } from './landing'
 
 /** Questions 1 and 2 of step 01 answered: her first unanswered one is "It covers". */
@@ -8,85 +8,65 @@ const twoAnswered: StoredAnswers = {
   amount: { value: 36, state: 'stated' },
 }
 
-describe('landingPath', () => {
-  it('welcomes her before anything else', () => {
-    expect(
-      landingPath({ persona: null, lastStep: 'picture', seenFutures: false, answers: {} }),
-    ).toBe('/onboarding/welcome')
-    expect(landingPath({ persona: null, lastStep: 'living', seenFutures: true, answers: {} })).toBe(
-      '/onboarding/welcome',
-    )
-  })
+const later: Coins = { state: 'later' }
+const spent: Coins = { state: 'spent', piles: [2, 1, 2, 1, 1, 1, 1, 1], assumed: false }
 
-  it('opens her first unanswered step 01 question once she has answered the picture question', () => {
-    expect(
-      landingPath({ persona: 'neutral', lastStep: 'picture', seenFutures: false, answers: {} }),
-    ).toBe('/onboarding/facts/where')
-    expect(
-      landingPath({
-        persona: 'neutral',
-        lastStep: 'facts',
-        seenFutures: false,
-        answers: twoAnswered,
-      }),
-    ).toBe('/onboarding/facts/covers')
-  })
-
-  it('reopens the screen she left', () => {
-    expect(
-      landingPath({ persona: 'female', lastStep: 'living', seenFutures: false, answers: {} }),
-    ).toBe('/onboarding/living')
-  })
-
-  it('opens her futures once she has seen them, wherever she was', () => {
-    expect(
-      landingPath({ persona: 'male', lastStep: 'living', seenFutures: true, answers: {} }),
-    ).toBe('/futures')
-  })
-
-  it('opens her futures from the futures and coins screens', () => {
-    expect(
-      landingPath({ persona: 'male', lastStep: 'futures', seenFutures: false, answers: {} }),
-    ).toBe('/futures')
-    expect(
-      landingPath({ persona: 'male', lastStep: 'attention', seenFutures: false, answers: {} }),
-    ).toBe('/futures')
-  })
+type Resumable = Parameters<typeof onboardingResumePath>[0]
+const student = (p: Partial<Resumable> & Pick<Resumable, 'lastStep'>): Resumable => ({
+  persona: 'neutral',
+  seenFutures: false,
+  answers: twoAnswered,
+  coins: null,
+  ...p,
 })
 
-describe('onboardingResumePath', () => {
-  const resume = (
-    p: Partial<Parameters<typeof onboardingResumePath>[0]> &
-      Pick<Parameters<typeof onboardingResumePath>[0], 'lastStep'>,
-  ) => onboardingResumePath({ persona: 'neutral', seenFutures: false, answers: twoAnswered, ...p })
+/** Both rules agree everywhere: landing is where onboarding resumes. */
+const both = (p: Partial<Resumable> & Pick<Resumable, 'lastStep'>) => {
+  const resume = onboardingResumePath(student(p))
+  expect(landingPath(student(p))).toBe(resume)
+  return resume
+}
 
-  it('opens the welcome until she has answered step 00, whatever else is stored', () => {
-    expect(resume({ persona: null, lastStep: 'picture', answers: {} })).toBe('/onboarding/welcome')
-    expect(resume({ persona: null, lastStep: 'living' })).toBe('/onboarding/welcome')
-    expect(resume({ persona: null, lastStep: 'futures', seenFutures: true })).toBe(
+describe('landingPath and onboardingResumePath', () => {
+  it('open the welcome until she has answered step 00, whatever else is stored', () => {
+    expect(both({ persona: null, lastStep: 'picture', answers: {} })).toBe('/onboarding/welcome')
+    expect(both({ persona: null, lastStep: 'living' })).toBe('/onboarding/welcome')
+    expect(both({ persona: null, lastStep: 'futures', seenFutures: true })).toBe(
       '/onboarding/welcome',
     )
+    expect(both({ persona: null, lastStep: 'attention', coins: spent })).toBe('/onboarding/welcome')
   })
 
-  it('opens her first unanswered step 01 question from step 00 or step 01', () => {
-    expect(resume({ lastStep: 'picture', answers: {} })).toBe('/onboarding/facts/where')
-    expect(resume({ lastStep: 'picture' })).toBe('/onboarding/facts/covers')
-    expect(resume({ lastStep: 'facts' })).toBe('/onboarding/facts/covers')
+  it('open her first unanswered step 01 question from step 00 or step 01', () => {
+    expect(both({ lastStep: 'picture', answers: {} })).toBe('/onboarding/facts/where')
+    expect(both({ lastStep: 'picture' })).toBe('/onboarding/facts/covers')
+    expect(both({ lastStep: 'facts' })).toBe('/onboarding/facts/covers')
   })
 
-  it('reopens step 02, 03 or 04 when she left from there', () => {
-    expect(resume({ lastStep: 'study' })).toBe('/onboarding/study')
-    expect(resume({ lastStep: 'living' })).toBe('/onboarding/living')
-    expect(resume({ lastStep: 'after' })).toBe('/onboarding/after')
+  it('reopen step 02, 03 or 04 when she left from there', () => {
+    expect(both({ lastStep: 'study' })).toBe('/onboarding/study')
+    expect(both({ lastStep: 'living' })).toBe('/onboarding/living')
+    expect(both({ lastStep: 'after' })).toBe('/onboarding/after')
   })
 
-  it('opens step 04, the last onboarding step, from the futures and coins screens', () => {
-    expect(resume({ lastStep: 'futures' })).toBe('/onboarding/after')
-    expect(resume({ lastStep: 'attention' })).toBe('/onboarding/after')
+  it('open step 05 from step 05, or from the futures for a student who reached them before', () => {
+    expect(both({ lastStep: 'attention' })).toBe('/onboarding/attention')
+    expect(both({ lastStep: 'futures' })).toBe('/onboarding/attention')
+    expect(both({ lastStep: 'study', seenFutures: true })).toBe('/onboarding/attention')
+    expect(both({ lastStep: 'facts', seenFutures: true })).toBe('/onboarding/attention')
   })
 
-  it('opens step 04 once she has seen her futures, wherever she was', () => {
-    expect(resume({ lastStep: 'study', seenFutures: true })).toBe('/onboarding/after')
-    expect(resume({ lastStep: 'facts', seenFutures: true })).toBe('/onboarding/after')
+  it('open the end screen once her coins are stored, spent or for later', () => {
+    expect(both({ lastStep: 'attention', coins: later })).toBe('/onboarding/done')
+    expect(both({ lastStep: 'attention', coins: spent })).toBe('/onboarding/done')
+    expect(both({ lastStep: 'study', coins: spent })).toBe('/onboarding/done')
+    expect(both({ lastStep: 'futures', seenFutures: true, coins: later })).toBe('/onboarding/done')
+  })
+
+  it('never send her to the futures', () => {
+    for (const lastStep of ['picture', 'facts', 'after', 'futures', 'attention'] as const)
+      for (const seenFutures of [false, true])
+        for (const coins of [null, later, spent])
+          expect(both({ lastStep, seenFutures, coins })).not.toBe('/futures')
   })
 })

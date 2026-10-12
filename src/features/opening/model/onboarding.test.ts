@@ -181,7 +181,7 @@ describe('stepOfPath', () => {
 
   it('knows the welcome, before step 00', () => {
     expect(WELCOME_PATH).toBe('/onboarding/welcome')
-    expect(WELCOME_MINUTES).toBe(10)
+    expect(WELCOME_MINUTES).toBe(6)
     expect(stepOfPath('/onboarding/welcome')).toBe('welcome')
     expect(stepOfPath('/onboarding/character')).toBe(0)
   })
@@ -204,6 +204,12 @@ describe('stepOfPath', () => {
     expect(stepOfPath('/onboarding/afterx')).toBeNull()
   })
 
+  it('knows step 05, your attention, and the end screen after it', () => {
+    expect(stepOfPath('/onboarding/attention')).toBe(5)
+    expect(stepOfPath('/onboarding/done')).toBe(5)
+    expect(stepOfPath('/onboarding/attentionx')).toBeNull()
+  })
+
   it('knows nothing of the others, nor of the retired paths', () => {
     expect(stepOfPath('/onboarding')).toBeNull()
     expect(stepOfPath('/onboarding/factsx')).toBeNull()
@@ -213,14 +219,13 @@ describe('stepOfPath', () => {
 })
 
 describe('the panel', () => {
-  it('lists the seven steps, step 00 first', () => {
+  it('lists the six steps, step 00 first, ending on your attention', () => {
     expect(ONBOARDING_STEPS).toEqual([
       'Your comic character',
       'Facts about you',
       "What you'd study",
       "Where and how you'd live",
       'After you graduate',
-      'Three futures',
       'Your attention',
     ])
   })
@@ -231,8 +236,15 @@ describe('the panel', () => {
     expect(PANEL_COPY[3]).toEqual(PANEL_COPY[2])
     expect(PANEL_COPY[4]).toEqual(PANEL_COPY[3])
     expect(PANEL_COPY[1]).toEqual({
-      title: 'Six short steps',
-      lead: 'Each step says why it asks. Nothing is ranked: at the end you see three futures side by side.',
+      title: 'Five short steps',
+      lead: 'Each step says why it asks, and “Not sure” is always a fine answer.',
+    })
+  })
+
+  it('calls step 05 the last step', () => {
+    expect(PANEL_COPY[5]).toEqual({
+      title: 'The last step',
+      lead: 'Optional. It never changes your routes; it shapes what we show you on them later.',
     })
   })
 
@@ -377,12 +389,12 @@ describe('QUESTION_STEPS', () => {
     ])
   })
 
-  it('describes step 04, its last button and its leave link opening the futures', () => {
+  it('describes step 04, leading on to your attention with the default labels', () => {
     const step = QUESTION_STEPS[4]
     expect(step.title).toBe('After you graduate')
     expect(step.path).toBe('/onboarding/after')
     expect(step.back).toBe('/onboarding/living/climate')
-    expect(step.nextName).toBe('Three futures')
+    expect(step.nextName).toBe('Your attention')
   })
 
   it('asks step 04 in order, each under its slug (criteria 1 and 2)', () => {
@@ -632,9 +644,9 @@ describe('forwardPath', () => {
     expect(forwardPath(3, knowsSomeone)).toBe('/onboarding/after')
   })
 
-  it('leaves step 04 for the futures', () => {
-    expect(forwardPath(4, {})).toBe('/futures')
-    expect(forwardPath(4, { stay: yes('Yes') })).toBe('/futures')
+  it('leaves step 04 for step 05, your attention', () => {
+    expect(forwardPath(4, {})).toBe('/onboarding/attention')
+    expect(forwardPath(4, { stay: yes('Yes') })).toBe('/onboarding/attention')
   })
 })
 
@@ -711,5 +723,10 @@ describe('stepProgress', () => {
     expect(stepProgress('/onboarding/character', {})).toBeNull()
     expect(stepProgress('/onboarding/welcome', {})).toBeNull()
     expect(stepProgress('/futures', {})).toBeNull()
+  })
+
+  it('counts nothing on step 05 or the end screen', () => {
+    expect(stepProgress('/onboarding/attention', {})).toBeNull()
+    expect(stepProgress('/onboarding/done', {})).toBeNull()
   })
 })

@@ -19,7 +19,8 @@ import styles from './onboarding.module.css'
 
 /**
  * What the band (below @5xl) says is now and next, per step, and before step 00 on the welcome.
- * On a question step the count is the question she is on and how many she is asked.
+ * On a question step the count is the question she is on and how many she is asked; step 00 and
+ * step 05, both optional, have none.
  */
 function progress(state: PanelState, count: { question: number; total: number } | null) {
   if (state === 'welcome')
@@ -27,16 +28,19 @@ function progress(state: PanelState, count: { question: number; total: number } 
       now: `Not started yet · about ${WELCOME_MINUTES} min`,
       next: 'First: Your comic character',
     }
+  if (state === 5)
+    return { now: `Now: 05 ${ONBOARDING_STEPS[5]} · optional`, next: "Then: you're all set" }
   if (!count) return { now: 'Now: Your comic character · optional', next: 'Next: Facts about you' }
   return {
     now: `Now: ${String(state).padStart(2, '0')} ${ONBOARDING_STEPS[state]} · ${count.question} of ${count.total}`,
-    next: `Next: ${ONBOARDING_STEPS[state + 1]}`,
+    // Step 05 is optional, and the band says so before she gets there.
+    next: `Next: ${ONBOARDING_STEPS[state + 1]}${state + 1 === 5 ? ' · optional' : ''}`,
   }
 }
 
 /**
  * The steel panel beside every onboarding step: the brand, the step's title and lead, the steps
- * (the full list side by side, seven segments with Now and Next as a band) and the duck. The step
+ * (the full list side by side, six segments with Now and Next as a band) and the duck. The step
  * comes from the URL; on steps 01 to 04 so does the question (its slug, the first when missing or
  * unknown), counted among the questions her answers ask (step 02's number depends on her first).
  * Steps before the current one are marked Done (criterion 22). On the welcome, before step 00,
@@ -162,7 +166,7 @@ export function OnboardingPanel() {
       >
         {/* Told apart by shape, not shade alone, each 3:1 or more on the panel: an outline not
             reached, a fill done, a taller fill for the current step. */}
-        <div aria-hidden="true" className="grid grid-cols-7 items-end gap-1">
+        <div aria-hidden="true" className="grid grid-cols-6 items-end gap-1">
           {ONBOARDING_STEPS.map((name, n) => (
             <span
               key={name}

@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
         destination: '/onboarding/:step',
         permanent: true,
       },
+      { source: '/attention', destination: '/onboarding/attention', permanent: true },
     ]
   },
 }

@@ -522,10 +522,10 @@ it('keeps her person when she answers Yes to knowing anyone', async () => {
   expect(screen.getByText(/^Anjali in Cannington, Perth/)).toBeInTheDocument()
 })
 
-// Step 04, "After you graduate": the same screen, ending on the futures.
+// Step 04, "After you graduate": the same screen, leading on to step 05, your attention.
 
-const AFTER_LEAVE = 'Leave the rest for now: show me three futures'
-const AFTER_LAST = 'Show me three futures'
+const AFTER_LEAVE = 'Leave the rest for now: go to Your attention'
+const AFTER_LAST = 'Next: Your attention'
 
 /** Step 04's screen at a question's URL. */
 function afterAt(slug: string, answers: StoredAnswers = {}) {
@@ -540,7 +540,10 @@ it('opens step 04 at stay, with Not sure as a real answer and the ways back and 
   expect(
     screen.getByText("“Not sure” is a real answer here. Skip, and I'll use it."),
   ).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: AFTER_LEAVE })).toHaveAttribute('href', '/futures')
+  expect(screen.getByRole('link', { name: AFTER_LEAVE })).toHaveAttribute(
+    'href',
+    '/onboarding/attention',
+  )
   await press('Back')
   expect(push).toHaveBeenCalledWith('/onboarding/living/climate')
 })
@@ -564,7 +567,7 @@ it('says what Not sure assumes on focus', async () => {
   ).toBeInTheDocument()
 })
 
-it('ends step 04 at the optional long-term, on to the futures', async () => {
+it('ends step 04 at the optional long-term, on to your attention', async () => {
   afterAt('long-term')
   expect(textOf('After you graduate · 4 of 4')).toBeInTheDocument()
   expect(screen.getAllByRole('radio').map((r) => r.textContent)).toEqual([
@@ -574,5 +577,5 @@ it('ends step 04 at the optional long-term, on to the futures', async () => {
   expect(screen.getByText("Optional. Skip, and it's left blank.")).toBeInTheDocument()
   expect(screen.queryByRole('link', { name: AFTER_LEAVE })).not.toBeInTheDocument()
   await press(AFTER_LAST)
-  expect(push).toHaveBeenCalledWith('/futures')
+  expect(push).toHaveBeenCalledWith('/onboarding/attention')
 })

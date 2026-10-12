@@ -9,7 +9,7 @@ OfCourse shows an international student three possible futures in Australia, bui
 
 ## The student flow
 
-Onboarding is seven steps. Each step says why it asks, and "Not sure" is always a fine answer: it stores the default, marked assumed, which later shows as a chip she can change.
+Onboarding is six steps, 00 to 05, then "You're all set". Each step says why it asks, and "Not sure" is always a fine answer: it stores the default, marked assumed, which later shows as a chip she can change.
 
 | Step | Name | URL |
 | --- | --- | --- |
@@ -19,14 +19,16 @@ Onboarding is seven steps. Each step says why it asks, and "Not sure" is always 
 | 02 | What you'd study, one question per screen | `/onboarding/study/<question>`: `know`, `field`, `areas`, `level`, `learning`, `length` |
 | 03 | Where and how you'd live, one question per screen | `/onboarding/living/<question>`: `destination`, `place`, `community`, `know-anyone`, `who-and-where`, `climate` |
 | 04 | After you graduate, one question per screen | `/onboarding/after/<question>`: `stay`, `focus`, `earning`, `long-term` |
-| 05 | Three futures | `/futures` |
-| 06 | Your attention (the ten coins) | `/attention` |
+| 05 | Your attention (the ten coins) | `/onboarding/attention` |
+| — | You're all set (the end) | `/onboarding/done` |
+
+The three futures (`/futures`) are parked outside onboarding, as their own feature later; nothing in onboarding links there.
 
 - URLs name steps, never number them, so a step can be added or reordered without breaking a link. Internal keys never appear: slugs map to stored keys in `src/features/opening/model/onboarding.ts`.
-- `/onboarding` resumes where she left off: the welcome until step 00 is answered, her first unanswered question in the step she left when that step is facts, study, living or after, and step 04 once she has seen her futures. A bare step such as `/onboarding/facts`, `/onboarding/study`, `/onboarding/living` or `/onboarding/after` opens its first unanswered question.
-- Every tap is saved, so she can continue on another device. Signing in lands her where she left off: the welcome until step 00 is answered, her first unanswered question partway through, her futures once she has seen them.
-- Onboarding stays reachable after it is done: from the futures she can go back, change an answer, and the futures redraw. The chips on each future edit an answer in place.
-- Retired paths (`/picture`, `/opening/*`) redirect permanently.
+- `/onboarding` resumes where she left off: the welcome until step 00 is answered, her first unanswered question in the step she left when that step is facts, study, living or after, step 05 (`/onboarding/attention`) once she has reached it (or the futures, for a student who reached them before they left onboarding), and the end (`/onboarding/done`) once her coins are stored, spent or left for later. A bare step such as `/onboarding/facts`, `/onboarding/study`, `/onboarding/living` or `/onboarding/after` opens its first unanswered question.
+- Every tap is saved, so she can continue on another device. Signing in lands her where she left off: the welcome until step 00 is answered, where `/onboarding` resumes partway through, the end (`/onboarding/done`) once her coins are stored. Never the futures.
+- Onboarding stays reachable after it is done: from "You're all set" she can go back to her coins, and any step still opens by its URL. Done (exactly ten coins) or "Spend them later" ends it; coins never change her routes.
+- Retired paths (`/picture`, `/opening/*`, `/attention`) redirect permanently.
 
 ## Design
 

@@ -1,4 +1,4 @@
-// The onboarding shell's model: the seven steps, the panel's words per step, and the questions of
+// The onboarding shell's model: the six steps, the panel's words per step, and the questions of
 // steps 01 to 04 one per screen. Pure and client-safe. The questions, their order and their texts
 // come from questions.ts (SCREENS[0] to SCREENS[3]); the "why" lines, the slugs, step 02's groups
 // and step 03's person screen are new here.
@@ -6,19 +6,18 @@
 import type { QuestionKey, Relative, StoredAnswers } from '@/shared/types/student'
 import { DRAWN_TO_AREAS, isVisible, PARTICULAR, SCREENS } from './questions'
 
-/** Step 00 first; the panel shows all seven (criterion 22). */
+/** Step 00 first, step 05 last; the panel shows all six (criterion 11). */
 export const ONBOARDING_STEPS: readonly string[] = [
   'Your comic character',
   'Facts about you',
   "What you'd study",
   "Where and how you'd live",
   'After you graduate',
-  'Three futures',
   'Your attention',
 ]
 
-/** The steps built on the onboarding shell so far. */
-export type OnboardingStep = 0 | 1 | 2 | 3 | 4
+/** The onboarding steps, 00 to 05. */
+export type OnboardingStep = 0 | 1 | 2 | 3 | 4 | 5
 
 /** The steps that ask one question per screen. */
 export type QuestionStep = 1 | 2 | 3 | 4
@@ -35,9 +34,15 @@ export type StepKey = QuestionKey | typeof PERSON
 export type PanelState = OnboardingStep | 'welcome'
 
 /** The panel's words from step 00 to step 04. */
-const SIX_STEPS = {
-  title: 'Six short steps',
-  lead: 'Each step says why it asks. Nothing is ranked: at the end you see three futures side by side.',
+const FIVE_STEPS = {
+  title: 'Five short steps',
+  lead: 'Each step says why it asks, and “Not sure” is always a fine answer.',
+}
+
+/** The panel's words on step 05 and the end screen after it. */
+const LAST_STEP = {
+  title: 'The last step',
+  lead: 'Optional. It never changes your routes; it shapes what we show you on them later.',
 }
 
 export const PANEL_COPY: Readonly<Record<PanelState, { title: string; lead: string }>> = {
@@ -45,12 +50,14 @@ export const PANEL_COPY: Readonly<Record<PanelState, { title: string; lead: stri
     title: 'Before we start',
     lead: "Here's the whole way through. Each step says why it asks.",
   },
-  // The welcome says "Before we start"; from step 00 on, the panel speaks of the six steps.
-  0: SIX_STEPS,
-  1: SIX_STEPS,
-  2: SIX_STEPS,
-  3: SIX_STEPS,
-  4: SIX_STEPS,
+  // The welcome says "Before we start"; steps 00 to 04 speak of the five short steps, step 05
+  // of the last one.
+  0: FIVE_STEPS,
+  1: FIVE_STEPS,
+  2: FIVE_STEPS,
+  3: FIVE_STEPS,
+  4: FIVE_STEPS,
+  5: LAST_STEP,
 }
 
 export type StepQuestion = {
@@ -210,13 +217,16 @@ const PERSON_QUESTION: StepQuestion = {
 
 export const ONBOARDING_PATH = '/onboarding'
 export const WELCOME_PATH = `${ONBOARDING_PATH}/welcome`
-/** The canvas's placeholder until steps 04–06 are designed and timed. */
-export const WELCOME_MINUTES = 10
+/** Steps 00 to 04 hold 24 to 27 one-tap questions, about 15 seconds each; step 05 is optional. */
+export const WELCOME_MINUTES = 6
 export const PICTURE_PATH = `${ONBOARDING_PATH}/character`
 export const FACTS_PATH = `${ONBOARDING_PATH}/facts`
 export const STUDY_PATH = `${ONBOARDING_PATH}/study`
 export const LIVING_PATH = `${ONBOARDING_PATH}/living`
 export const AFTER_PATH = `${ONBOARDING_PATH}/after`
+export const ATTENTION_PATH = `${ONBOARDING_PATH}/attention`
+/** The end screen after step 05: still step 05 on the panel. */
+export const DONE_PATH = `${ONBOARDING_PATH}/done`
 export const FUTURES_PATH = '/futures'
 
 /** Per question step: the kicker's title, its questions in order, and its base path. */
@@ -231,10 +241,6 @@ export const QUESTION_STEPS: Readonly<
       back: string
       /** The next step's name, for "Next: …" on the last question and "Leave the rest for now: go to …". */
       nextName: string
-      /** The last question's forward button, when not `Next: ${nextName}`. */
-      lastLabel?: string
-      /** The "Leave the rest" link, when not `Leave the rest for now: go to ${nextName}`. */
-      leaveLabel?: string
     }
   >
 > = {
@@ -307,9 +313,7 @@ export const QUESTION_STEPS: Readonly<
       ),
     ),
     back: `${LIVING_PATH}/${LIVING.climate.slug}`,
-    nextName: 'Three futures',
-    lastLabel: 'Show me three futures',
-    leaveLabel: 'Leave the rest for now: show me three futures',
+    nextName: 'Your attention',
   },
 }
 
@@ -375,12 +379,12 @@ export function firstOpenQuestion(
 
 /**
  * Where leaving a step forward goes: step 01 to step 02's first open question; step 02 to step 03
- * and step 03 to step 04 (each page opens her first open question); step 04 to the futures.
+ * and step 03 to step 04 (each page opens her first open question); step 04 to step 05.
  */
 export function forwardPath(step: QuestionStep, answers: StoredAnswers): string {
   if (step === 1) return questionPath(2, firstOpenQuestion(2, answers))
   if (step === 2) return LIVING_PATH
-  return step === 3 ? AFTER_PATH : FUTURES_PATH
+  return step === 3 ? AFTER_PATH : ATTENTION_PATH
 }
 
 /** Step 01 never asks her person: the one place its question keys meet the helpers below. */
@@ -408,6 +412,7 @@ export function stepOfPath(pathname: string): PanelState | null {
   if (pathname === STUDY_PATH || pathname.startsWith(`${STUDY_PATH}/`)) return 2
   if (pathname === LIVING_PATH || pathname.startsWith(`${LIVING_PATH}/`)) return 3
   if (pathname === AFTER_PATH || pathname.startsWith(`${AFTER_PATH}/`)) return 4
+  if (pathname === ATTENTION_PATH || pathname === DONE_PATH) return 5
   return null
 }
 
@@ -436,7 +441,7 @@ export function stepProgress(
   answers: StoredAnswers,
 ): { question: number; total: number } | null {
   const step = stepOfPath(pathname)
-  if (step === null || step === 'welcome' || step === 0) return null
+  if (step === null || step === 'welcome' || step === 0 || step === 5) return null
   const asked = askedQuestions(step, answers)
   const { key } = shownQuestion(step, pathname, answers)
   return { question: asked.findIndex((q) => q.key === key) + 1, total: asked.length }

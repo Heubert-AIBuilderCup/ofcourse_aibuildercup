@@ -12,7 +12,7 @@ import shell from './onboarding.module.css'
 const POINTS = [
   {
     icon: Clock,
-    title: 'Six short steps, one question at a time',
+    title: 'Five short steps, one question at a time',
     text: 'Everything saves as you go, so you can stop and pick up where you left off.',
     rise: shell.d5,
   },
@@ -24,8 +24,8 @@ const POINTS = [
   },
   {
     icon: Columns3,
-    title: 'Three futures, side by side',
-    text: 'Nothing is ranked or recommended. You compare them and decide what matters to you.',
+    title: 'Nothing ranked or recommended',
+    text: 'We show what each choice would give you and what it would cost you. You decide what matters.',
     rise: shell.d7,
   },
 ] as const satisfies readonly { icon: LucideIcon; title: string; text: string; rise: string }[]
@@ -58,7 +58,7 @@ export function WelcomeScreen({ firstName }: { firstName: string }) {
           'm-0 font-heading text-h1 font-semibold tracking-[-0.015em] outline-none',
         )}
       >
-        {`About ${WELCOME_MINUTES} minutes, then three futures`}
+        {`About ${WELCOME_MINUTES} minutes of short questions`}
       </h1>
       <p
         className={cn(
@@ -67,8 +67,8 @@ export function WelcomeScreen({ firstName }: { firstName: string }) {
           'm-0 max-w-prose leading-relaxed text-muted-foreground',
         )}
       >
-        Your answers shape three futures you'll see at the end: what you'd study, where you'd live,
-        and what could come after.
+        Your answers shape what OfCourse shows you: what you'd study, where you'd live, and what
+        could come after.
       </p>
 
       <ul aria-label="How it works" className="m-0 mt-1 flex list-none flex-col p-0">

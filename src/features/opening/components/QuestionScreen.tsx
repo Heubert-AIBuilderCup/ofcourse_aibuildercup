@@ -116,13 +116,7 @@ export function QuestionScreen({
   const router = useRouter()
   const pathname = usePathname()
   const [answers, setAnswers] = useOnboardingAnswers()
-  const {
-    title,
-    back,
-    nextName,
-    lastLabel = `Next: ${nextName}`,
-    leaveLabel = `Leave the rest for now: go to ${nextName}`,
-  } = QUESTION_STEPS[step]
+  const { title, back, nextName } = QUESTION_STEPS[step]
   const asked = askedQuestions(step, answers)
   const named = questionOfPath(step, pathname)
   // A question not asked for her answers on screen (the field without "Something particular") is
@@ -352,7 +346,7 @@ export function QuestionScreen({
           onClick={flush}
           className="inline-flex min-h-11 items-center self-start text-caption font-medium text-accent-700"
         >
-          {leaveLabel}
+          {`Leave the rest for now: go to ${nextName}`}
         </Link>
       )}
 
@@ -379,12 +373,9 @@ export function QuestionScreen({
           variant={last || answered ? 'strong' : 'outline'}
           size="lg"
           onClick={() => (last ? leave(forward) : go(asked[index + 1].key))}
-          className={cn(
-            'min-w-33 @max-xl:min-w-0 @max-xl:flex-1',
-            last && QUESTION_STEPS[step].lastLabel !== undefined && 'min-w-52',
-          )}
+          className="min-w-33 @max-xl:min-w-0 @max-xl:flex-1"
         >
-          {last ? lastLabel : answered ? 'Continue' : 'Skip'}
+          {last ? `Next: ${nextName}` : answered ? 'Continue' : 'Skip'}
           <ArrowRight aria-hidden="true" className="size-icon-sm" />
         </Button>
       </div>

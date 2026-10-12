@@ -5,9 +5,11 @@ import {
   COINS_TOTAL,
   canFinish,
   coinLine,
+  doneLine,
   MAX_PER_PILE,
   NOT_SURE_SPREAD,
   placed,
+  refusal,
   removeCoin,
 } from './coins'
 
@@ -96,6 +98,10 @@ describe('canFinish', () => {
 })
 
 describe('NOT_SURE_SPREAD', () => {
+  it("is the canvas's even spread: two on Health and Financial life, one on the rest", () => {
+    expect(NOT_SURE_SPREAD).toEqual([2, 1, 2, 1, 1, 1, 1, 1])
+  })
+
   it('is the even spread: ten coins, none of the eight piles above five', () => {
     expect(NOT_SURE_SPREAD).toHaveLength(LIFE_VALUES.length)
     expect(sum(NOT_SURE_SPREAD)).toBe(COINS_TOTAL)
@@ -111,37 +117,48 @@ describe('NOT_SURE_SPREAD', () => {
   })
 })
 
+/** The canvas's two texts per pile (Coins.dc.html PILES), in the order of LIFE_VALUES. */
+const PILE_TEXTS: readonly (readonly [string, string])[] = [
+  [
+    'health cover basics appear on every route.',
+    "we'll show clinics, sport and health cover on each route.",
+  ],
+  [
+    'student clubs show on each route.',
+    "we'll show clubs, events and where students live on each route.",
+  ],
+  [
+    'money basics appear on every route.',
+    "we'll show a weekly budget and part-time pay on each route.",
+  ],
+  [
+    'short courses and libraries show on each route.',
+    "we'll show further study and certifications on each route.",
+  ],
+  ['trip costs home show on each route.', "we'll show trip times home on each route."],
+  [
+    'community groups show on each route.',
+    "we'll show community groups and relatives nearby on each route.",
+  ],
+  [
+    'living-alone costs show on each route.',
+    "we'll show solo living, transport and licences on each route.",
+  ],
+  ['weekend trips show on each route.', "we'll show travel and the outdoors near each route."],
+]
+
 describe('coinLine', () => {
-  it('says what the coins on a value mean to her (criterion 56)', () => {
-    expect(coinLine(4, 3)).toBe(
-      "Closeness to family at 3: we'll show trip times home on each route.",
-    )
-    expect(coinLine(0, 1)).toBe('Health at 1: sleep and exercise get a mention on busy weeks.')
-    expect(coinLine(7, 5)).toBe('Adventure at 5: new places and trips show in your feed.')
+  it('says nothing extra is shown for an empty pile', () => {
+    expect(coinLine(0, 0)).toBe('Health at 0: nothing extra shown for it.')
+    expect(coinLine(5, 0)).toBe('Community and relatives nearby at 0: nothing extra shown for it.')
   })
 
-  it('says nothing changes for an empty pile', () => {
-    expect(coinLine(0, 0)).toBe('Health at 0: nothing changes.')
-    expect(coinLine(5, 0)).toBe('Community and relatives nearby at 0: nothing changes.')
-  })
-
-  it('gives one line for 1 coin, one for 2 or 3, one for 4 or 5', () => {
-    for (let i = 0; i < LIFE_VALUES.length; i++) {
-      const text = (n: number) => coinLine(i, n).replace(`${LIFE_VALUES[i]} at ${n}: `, '')
-      expect(text(2)).toBe(text(3))
-      expect(text(4)).toBe(text(5))
-      expect(new Set([text(0), text(1), text(2), text(4)]).size).toBe(4)
-    }
-  })
-
-  it('names its value and its count, and ends in a full stop', () => {
-    for (let i = 0; i < LIFE_VALUES.length; i++) {
-      for (let n = 0; n <= MAX_PER_PILE; n++) {
-        const line = coinLine(i, n)
-        expect(line).toStartWith(`${LIFE_VALUES[i]} at ${n}: `)
-        expect(line).toEndWith('.')
-      }
-    }
+  it("gives every pile the canvas's two texts, the first at 1–2, the second at 3–5", () => {
+    LIFE_VALUES.forEach((name, i) => {
+      const [few, many] = PILE_TEXTS[i]
+      for (const n of [1, 2]) expect(coinLine(i, n)).toBe(`${name} at ${n}: ${few}`)
+      for (const n of [3, 4, 5]) expect(coinLine(i, n)).toBe(`${name} at ${n}: ${many}`)
+    })
   })
 
   it('never claims a route or city moves (DS-R7, criterion 59)', () => {
@@ -152,5 +169,44 @@ describe('coinLine', () => {
         )
       }
     }
+  })
+})
+
+describe('refusal', () => {
+  it('refuses a sixth coin on a pile', () => {
+    expect(refusal([5, 1, 0, 0, 0, 0, 0, 0], 0)).toBe(
+      'Five is the most on one pile. Take one from here, or place it on another pile.',
+    )
+  })
+
+  it('refuses an eleventh coin on any pile', () => {
+    expect(refusal([2, 1, 2, 1, 1, 1, 1, 1], 3)).toBe(
+      'All ten are placed. Take one from another pile first.',
+    )
+  })
+
+  it('says the pile is full when it holds five and all ten are placed', () => {
+    expect(refusal([5, 5, 0, 0, 0, 0, 0, 0], 1)).toBe(
+      'Five is the most on one pile. Take one from here, or place it on another pile.',
+    )
+    expect(refusal([5, 5, 0, 0, 0, 0, 0, 0], 2)).toBe(
+      'All ten are placed. Take one from another pile first.',
+    )
+  })
+
+  it('is null while the coin can be placed', () => {
+    expect(refusal(empty(), 0)).toBeNull()
+    expect(refusal([4, 1, 0, 0, 0, 0, 0, 0], 0)).toBeNull()
+  })
+})
+
+describe('doneLine', () => {
+  it('counts the coins left to place', () => {
+    expect(doneLine(empty())).toBe('Place all ten to finish · 10 left.')
+    expect(doneLine([2, 1, 2, 1, 1, 1, 1, 0])).toBe('Place all ten to finish · 1 left.')
+  })
+
+  it('says Done finishes onboarding at ten', () => {
+    expect(doneLine([2, 1, 2, 1, 1, 1, 1, 1])).toBe('All ten placed. Done finishes onboarding.')
   })
 })

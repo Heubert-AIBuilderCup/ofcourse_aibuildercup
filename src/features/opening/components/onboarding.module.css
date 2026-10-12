@@ -52,6 +52,17 @@
 }
 
 /*
+ * The end screen's river (the design's pq-river): the duck has crossed it and rests at the right
+ * end; with motion welcome it floats across from the left once, bobbing.
+ */
+.river {
+  container-type: inline-size;
+}
+.riverDuck {
+  transform: translateX(calc(100cqi - 100%));
+}
+
+/*
  * Held still while the splash plays in front of the page (the root layout's), so the sequence
  * starts as it lands.
  */
@@ -93,6 +104,21 @@
   }
   .duck {
     animation: bob 2.6s ease-in-out infinite;
+  }
+  .riverDuck {
+    animation: across 2.8s cubic-bezier(0.45, 0, 0.55, 1) 0.3s both;
+  }
+  .riverDuck .duck {
+    animation-duration: 1.1s;
+  }
+}
+
+@keyframes across {
+  from {
+    transform: none;
+  }
+  to {
+    transform: translateX(calc(100cqi - 100%));
   }
 }
 

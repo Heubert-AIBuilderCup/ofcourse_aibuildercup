@@ -6,8 +6,8 @@ import { LIFE_VALUES } from '@/shared/types/student'
 
 export const COINS_TOTAL = 10
 export const MAX_PER_PILE = 5
-/** The design's even spread (r5-model.js LIFE_UNSURE): what "Not sure" places. */
-export const NOT_SURE_SPREAD = [2, 1, 1, 2, 1, 1, 1, 1] as const
+/** What "Not sure" places: the canvas's even spread (Coins.dc.html EVEN), as LIFE_VALUES. */
+export const NOT_SURE_SPREAD = [2, 1, 2, 1, 1, 1, 1, 1] as const
 
 export const COINS_INTRO =
   'These ten coins are your attention, time and energy for the next few years. Where do they go?'
@@ -42,53 +42,58 @@ export function canFinish(piles: readonly number[]): boolean {
   return placed(piles) === COINS_TOTAL
 }
 
-/** What a value means to her at 1 coin, at 2 or 3, and at 4 or 5; in the order of LIFE_VALUES. */
-const EFFECTS: readonly (readonly [string, string, string])[] = [
+/** A pile's meaning at 1 or 2 coins, and at 3 to 5 (Coins.dc.html PILES), as LIFE_VALUES. */
+const EFFECTS: readonly (readonly [string, string])[] = [
   [
-    'sleep and exercise get a mention on busy weeks',
-    "we'll point out long commutes and heavy workloads when they come up",
-    'your health comes first in what we remind you of',
+    'health cover basics appear on every route',
+    "we'll show clinics, sport and health cover on each route",
   ],
   [
-    'clubs and events show in your feed now and then',
-    "we'll mention student communities on each route",
-    "we'll keep people and events in front of you",
+    'student clubs show on each route',
+    "we'll show clubs, events and where students live on each route",
   ],
   [
     'money basics appear on every route',
-    'money tips and part-time ideas show in your feed',
-    "we'll check in about money every month",
+    "we'll show a weekly budget and part-time pay on each route",
   ],
   [
-    'short reads for your next step show in your feed',
-    "we'll point out placements and tasters when they come up",
-    'stretch reading and research pathways show in your feed',
+    'short courses and libraries show on each route',
+    "we'll show further study and certifications on each route",
+  ],
+  ['trip costs home show on each route', "we'll show trip times home on each route"],
+  [
+    'community groups show on each route',
+    "we'll show community groups and relatives nearby on each route",
   ],
   [
-    'call-time tips appear in your feed',
-    "we'll show trip times home on each route",
-    "we'll remind you of family dates",
+    'living-alone costs show on each route',
+    "we'll show solo living, transport and licences on each route",
   ],
-  [
-    'community events show now and then',
-    "we'll show community size on each city",
-    'community events and groups show in your feed',
-  ],
-  [
-    'tips on living alone show in your feed',
-    'own-room costs show on every route',
-    "we'll help you plan living on your own",
-  ],
-  [
-    'weekend ideas show now and then',
-    "we'll mention what's nearby to explore",
-    'new places and trips show in your feed',
-  ],
+  ['weekend trips show on each route', "we'll show travel and the outdoors near each route"],
 ]
 
 /** "Closeness to family at 3: we'll show trip times home on each route." */
 export function coinLine(index: number, count: number): string {
-  const tier = count >= 4 ? 2 : count >= 2 ? 1 : 0
-  const text = count <= 0 ? 'nothing changes' : EFFECTS[index][tier]
+  const text = count <= 0 ? 'nothing extra shown for it' : EFFECTS[index][count <= 2 ? 0 : 1]
   return `${LIFE_VALUES[index]} at ${count}: ${text}.`
+}
+
+/** Why + places no coin on this pile, else null: five on it first, then all ten placed. */
+export function refusal(piles: readonly number[], index: number): string | null {
+  if (piles[index] >= MAX_PER_PILE)
+    return 'Five is the most on one pile. Take one from here, or place it on another pile.'
+  if (placed(piles) >= COINS_TOTAL) return 'All ten are placed. Take one from another pile first.'
+  return null
+}
+
+/** At the tray once all ten are placed: the one place the screen says the coins are used up. */
+export const COINS_ALL_PLACED =
+  'All ten placed. To move one, take it from a pile first, or press Done to finish.'
+
+/** The line under Done: what is left to place, or that Done now finishes onboarding. */
+export function doneLine(piles: readonly number[]): string {
+  const left = COINS_TOTAL - placed(piles)
+  return left === 0
+    ? 'All ten placed. Done finishes onboarding.'
+    : `Place all ten to finish · ${left} left.`
 }

@@ -6,12 +6,12 @@ import { WelcomeScreen } from './WelcomeScreen'
 
 afterEach(cleanup)
 
-const HEADING = 'About 10 minutes, then three futures'
+const HEADING = 'About 6 minutes of short questions'
 const LEDE =
-  "Your answers shape three futures you'll see at the end: what you'd study, where you'd live, and what could come after."
+  "Your answers shape what OfCourse shows you: what you'd study, where you'd live, and what could come after."
 const POINTS = [
   [
-    'Six short steps, one question at a time',
+    'Five short steps, one question at a time',
     'Everything saves as you go, so you can stop and pick up where you left off.',
   ],
   [
@@ -19,8 +19,8 @@ const POINTS = [
     "“Not sure” and Skip are always fine. I'll assume a sensible default and show it as a chip you can change.",
   ],
   [
-    'Three futures, side by side',
-    'Nothing is ranked or recommended. You compare them and decide what matters to you.',
+    'Nothing ranked or recommended',
+    'We show what each choice would give you and what it would cost you. You decide what matters.',
   ],
 ] as const
 const FIRST =
