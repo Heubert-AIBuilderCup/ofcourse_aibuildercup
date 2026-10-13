@@ -75,13 +75,28 @@ function target() {
   document.body.appendChild(panel)
 }
 
-it('plays on the first page of a tab and remembers that it did', () => {
+it('plays on the first page of a tab', () => {
   render(<Splash />)
   const splash = screen.getByTestId('splash')
   expect(splash).toHaveAttribute('data-splash', 'play')
   expect(splash).toHaveAttribute('aria-hidden', 'true')
   expect(splash).toHaveTextContent('Of Course')
-  expect(sessionStorage.getItem('ofcourse:splash')).not.toBeNull()
+})
+
+it('remembers it played only at the handover, at 3.25 s', async () => {
+  render(<Splash />)
+  await advance(3249)
+  expect(sessionStorage.getItem(SPLASH_SEEN_KEY)).toBeNull()
+  await advance(1)
+  expect(sessionStorage.getItem(SPLASH_SEEN_KEY)).not.toBeNull()
+})
+
+it('plays again in full when its page is replaced mid-intro (a redirect that loads a new page)', async () => {
+  render(<Splash />)
+  await advance(400)
+  cleanup()
+  render(<Splash />)
+  expect(screen.getByTestId('splash')).toHaveAttribute('data-splash', 'play')
 })
 
 it('removes itself at once when the tab has already seen it, and loads no sound', () => {
@@ -104,8 +119,10 @@ it('under reduced motion holds the final frame for 1.2 s, silent, then cuts', as
   expect(screen.getByTestId('splash')).toHaveAttribute('data-splash', 'still')
   await advance(1199)
   expect(screen.getByTestId('splash')).toBeInTheDocument()
+  expect(sessionStorage.getItem(SPLASH_SEEN_KEY)).toBeNull()
   await advance(1)
   expect(screen.queryByTestId('splash')).toBeNull()
+  expect(sessionStorage.getItem(SPLASH_SEEN_KEY)).not.toBeNull()
   await advance(5000)
   expect(quackVideo()).toBeNull()
   expect(calls).toHaveLength(0)

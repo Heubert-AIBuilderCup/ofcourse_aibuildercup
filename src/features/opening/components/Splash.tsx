@@ -42,15 +42,24 @@ const TAGLINE = [
   ['Course!”', styles.t5],
 ] as const
 
-/** Whether this is the tab's first page, marking it played. Storage refused: no splash at all. */
+/** Whether this tab has yet to see the splash. Storage refused: no splash at all. */
 function firstPageOfTab(): boolean {
   try {
-    if (sessionStorage.getItem(SPLASH_SEEN_KEY) !== null) return false
-    sessionStorage.setItem(SPLASH_SEEN_KEY, 'seen')
-    return true
+    return sessionStorage.getItem(SPLASH_SEEN_KEY) === null
   } catch {
     return false
   }
+}
+
+/**
+ * Marks the tab played, at the handover and not before: a page replaced mid-intro (a redirect
+ * streamed after the loading shell loads a new document) leaves it unmarked, so the page the tab
+ * lands on plays it in full.
+ */
+function markPlayed() {
+  try {
+    sessionStorage.setItem(SPLASH_SEEN_KEY, 'seen')
+  } catch {}
 }
 
 function prefersReducedMotion(): boolean {
@@ -144,7 +153,7 @@ export function Splash() {
   const overlay = useRef<HTMLDivElement>(null)
   const ground = useRef<HTMLDivElement>(null)
   const quackHolder = useRef<HTMLSpanElement>(null)
-  // Strict Mode runs a mount's effects twice; the first run already marked the tab.
+  // Strict Mode runs a mount's effects twice; the first run already decided.
   const decided = useRef(false)
 
   useLayoutEffect(() => {
@@ -159,7 +168,14 @@ export function Splash() {
       const timer = setTimeout(() => setPhase(next), ms)
       return () => clearTimeout(timer)
     }
-    if (phase === 'still') return later('off', STILL_MS)
+    if (phase === 'still') {
+      const timer = setTimeout(() => {
+        markPlayed()
+        setPhase('off')
+      }, STILL_MS)
+      return () => clearTimeout(timer)
+    }
+    if (phase === 'morph' || phase === 'fade') markPlayed()
     if (phase === 'morph') return later('off', MORPH_MS)
     if (phase === 'fade') return later('off', FADE_MS)
     if (phase !== 'play') return
