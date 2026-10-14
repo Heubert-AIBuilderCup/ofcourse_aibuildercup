@@ -38,5 +38,5 @@ export default async function proxy(req: NextRequest) {
 
 // Keep in step with APP_PATHS in auth/gate.ts. Matchers must be literals.
 export const config = {
-  matcher: ['/start/:path*', '/onboarding/:path*', '/admin/:path*'],
+  matcher: ['/start/:path*', '/onboarding/:path*', '/road/:path*', '/admin/:path*'],
 }

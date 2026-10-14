@@ -1,0 +1,591 @@
+// Your road · B — component logic (extracted from RoadB.dc.html). Plain JavaScript; rename to .js if you like.
+// Your road — the board after onboarding (direction B, round 1).
+// The map zooms in three fixed stops (Whole road · Level · Tile) and fits the space it has; the road ahead is laid
+// out in time (a ruler of years beside it, slabs as long as the step lasts); one press opens a tile in the card and
+// the card's buttons act; the steps ahead are dark but named. Phone: a vertical road first, the map one tap away.
+// `scene` draws each board of the round: course · city · first · swapping · swapped · added · read · cost · career · empty · loading.
+// All figures are mock.
+const BADGES = {
+  offerings: { k: 'Several offerings', v: '3 intakes', exp: 'February, July and November 2027. Same course and trade-offs, so they share one tile.', icon: 'layers' },
+  ielts: { k: 'Condition', v: 'IELTS 6.5 by March', exp: 'Entry needs 6.5 overall. You have 7.0, so it’s met.', icon: 'alert' },
+  fork: { k: 'Fork ahead', v: 'at the 485', exp: 'After the 485 there are two ways to PR.', icon: 'split' },
+  maths: { k: 'Condition', v: 'Maths unit in year 1', exp: 'UWA asks business graduates to take one statistics bridging unit.', icon: 'alert' }
+};
+// Years along the road: Feb 2027 sits at gx 10; one year is 1.6 grid units.
+const YEAR0 = 2027 + 1 / 12, GX0 = 10, YU = 1.6;
+const gxAt = (y) => GX0 + (y - YEAR0) * YU;
+// kind: point · place · course · step · stack · slab. state: lit · here · alt · next · fog · seen (looked at, dim)
+// lab: label position per zoom stop (road · level · tile)
+const BASE = [
+  { id: 'a', kind: 'point', gx: 0, gy: 0, state: 'lit', kicker: 'You', name: 'Point A', short: 'Point A', sub: 'Business degree · 72% · IELTS 7.0 · AUD 36.5k a year for fees.', lab: { road: 'above', level: 'above', tile: 'none' } },
+  { id: 'au', kind: 'place', gx: 2.4, gy: 0, state: 'lit', name: 'Australia', short: 'Australia · 19 cities', sub: '19 cities to choose from.', lab: { road: 'none', level: 'none', tile: 'none' } },
+  { id: 'perth', kind: 'place', gx: 4.8, gy: 0, state: 'lit', name: 'Perth', short: 'Perth · 15 courses', sub: 'Curtin Bentley: about 25 min from Anjali in Cannington', lab: { road: 'above', level: 'above', tile: 'above' } },
+  { id: 'adl', kind: 'place', gx: 4.8, gy: 2.6, state: 'alt', name: 'Adelaide', sub: 'Nepali community: moderate · 3½-hour flight from Anjali', why: '▲ Strong on Cost, PR · ▼ Costs you on: Career', level: 'city', lab: { road: 'none', level: 'left', tile: 'none' } },
+  { id: 'cstack', kind: 'stack', gx: 4.8, gy: 5.2, state: 'alt', name: '17 more cities', sub: '4 match well', level: 'city', lab: { road: 'none', level: 'below', tile: 'none' } },
+  { id: 'cyber', kind: 'course', gx: 7.2, gy: 0, state: 'here', name: 'Cyber Security', short: 'Cyber Security', sub: 'ECU · Perth', why: '▲ Strong on PR, Career · ▼ Costs you on: Location', badges: ['offerings', 'ielts', 'fork'], level: 'course', lab: { road: 'below', level: 'below', tile: 'below' } },
+  { id: 'ds', kind: 'course', gx: 7.2, gy: -2.6, state: 'alt', name: 'Data Science', sub: 'UWA · Perth', why: '▲ Strong on Career · ▼ Costs you on: Cost, PR', badges: ['maths'], level: 'course', lab: { road: 'none', level: 'right', tile: 'none' } },
+  { id: 'kstack', kind: 'stack', gx: 7.2, gy: -5.2, state: 'alt', name: '13 more in Perth', sub: '3 match well', level: 'course', lab: { road: 'none', level: 'above', tile: 'none' } },
+  { id: 's500', kind: 'step', gx: 9.0, gy: 0, state: 'next', name: 'Student visa · 500', short: 'Student visa', when: 'Late 2026', lab: { road: 'none', level: 'right', tile: 'right' } },
+  { id: 'ms', kind: 'slab', gx: GX0, gx1: gxAt(2029) - 0.15, gy: 0, state: 'fog', name: 'Master’s · Cyber Security', short: 'Master’s', when: 'Feb 2027 – Dec 2028', lab: { road: 'below', level: 'below', tile: 'none' } },
+  { id: 'g485', kind: 'slab', gx: gxAt(2029), gx1: gxAt(2031) - 0.15, gy: 0, state: 'fog', name: 'Graduate visa · 485', short: '485', when: 'From 2029', lab: { road: 'below', level: 'none', tile: 'none' } },
+  { id: 's190', kind: 'step', gx: gxAt(2031) + 0.35, gy: 0, state: 'fog', name: '190 · state nomination', short: '190', when: '2031', lab: { road: 'above', level: 'none', tile: 'none' } },
+  { id: 'pr', kind: 'point', gx: gxAt(2032), gy: 0, state: 'fog', kicker: 'Point B', name: 'Permanent residency', short: 'Permanent residency', when: '2032', lab: { road: 'right', level: 'none', tile: 'none' } },
+  { id: 's491', kind: 'slab', gx: gxAt(2031) + 0.35, gx1: gxAt(2034) - 0.15, gy: 1.9, w: 0.3, state: 'fog', name: '491 · regional', short: '491 · regional', when: '2031 – 2034', branch: true, lab: { road: 'below', level: 'none', tile: 'none' } },
+  { id: 's191', kind: 'point', gx: gxAt(2034) + 0.3, gy: 1.9, sz: 0.46, state: 'fog', name: '191 · permanent', short: '191 · permanent', when: '2034', branch: true, lab: { road: 'below', level: 'none', tile: 'none' } }
+];
+const SIZE = { point: 0.6, place: 0.72, course: 0.72, step: 0.42, stack: 0.66, slab: 0.42 };
+const DEPTH = { point: 0.34, place: 0.26, course: 0.26, step: 0.16, stack: 0.14, slab: 0.16 };
+const WEIGHTS = [['Cost', 2], ['Time', 1], ['Work', 2], ['PR', 3], ['Place', 1], ['Career', 3]];
+const STOPS = ['road', 'level', 'tile'];
+const STOP_NAME = { road: 'Whole road', level: 'Level', tile: 'Tile' };
+const FUTURES = [['course', 'Built around staying'], ['cost', 'Built around cost'], ['career', 'Built around career']];
+const LOOK = { kicker: 'Look ahead · the duck stays · Route step', primary: 'Open route detail at this step' };
+// a pressed tile's card (one press opens it; the buttons act)
+const CARD = {
+  a: { kicker: 'Point A · You', sub: 'Where you start', guide: 'Business degree · 72% · IELTS 7.0 · AUD 36.5k a year for fees.', because: 'Where you start' },
+  au: { kicker: 'Visited · Destination', sub: '19 cities to choose from.', because: 'The country you picked', primary: 'Go to Australia' },
+  perth: { kicker: 'Visited · City', sub: 'Western Australia', g: '▲ Strong on PR, Work', c: '▼ Costs you on: Location', guide: 'A capital that counts as regional: extra points and the longest post-study stay. Curtin Bentley: about 25 min from Anjali in Cannington · ECU Joondalup: about 50 min.', because: 'The city you picked', primary: 'Go to Perth' },
+  adl: { kicker: 'Not visited · City', sub: 'South Australia', g: '▲ Strong on Cost, PR', c: '▼ Costs you on: Career', guide: 'Nepali community: moderate. A 3½-hour flight from Anjali in Perth.', because: 'The next closest fit: swap it onto your road', primary: 'Swap onto your road' },
+  cstack: { kicker: 'Stack · City', sub: '4 match well', guide: 'The other cities in Australia.', because: 'Every city you haven’t looked at yet', primary: 'Show 17 more cities' },
+  cyber: { kicker: 'Visited · Course', sub: 'ECU · Perth', g: '▲ Strong on PR, Career', c: '▼ Costs you on: Location', guide: 'ECU Joondalup: about 50 min from Anjali in Cannington.', because: 'The course you were on', primary: 'Swap onto your road' },
+  ds: { kicker: 'Not visited · Course', sub: 'UWA · Perth', g: '▲ Strong on Career', c: '▼ Costs you on: Cost, PR', guide: 'Strong demand in WA, but a bigger step from business. The road ahead re-routes through UWA.', because: 'The next closest fit: swap it onto your road', primary: 'Swap onto your road' },
+  kstack: { kicker: 'Stack · Course', sub: '3 match well', guide: 'The other courses in Perth. Some aren’t reachable yet; the list says why.', because: 'Every course in Perth you haven’t looked at yet', primary: 'Show 13 more courses' },
+  s500: Object.assign({ sub: 'Late 2026', guide: 'Lodge once the offer and health cover are in hand.', because: 'The next step on your road' }, LOOK),
+  ms: Object.assign({ sub: 'Feb 2027 – Dec 2028', guide: 'Feb 2027 – Dec 2028, with an industry capstone.', because: 'The course you’re on', lesson: true }, LOOK),
+  g485: Object.assign({ sub: 'From 2029', guide: 'Up to five years of work rights.', because: 'It follows the Master’s' }, LOOK),
+  s190: Object.assign({ sub: '2031', guide: 'WA nominates you on your regional work years.', because: 'One of 2 ways to PR from the 485' }, LOOK),
+  pr: Object.assign({ sub: 'Point B · 2032', guide: 'Point B for this road.', because: 'Where this road ends' }, LOOK),
+  s491: Object.assign({ sub: '2031 – 2034', guide: 'Five-year provisional visa.', because: 'One of 2 ways to PR from the 485' }, LOOK),
+  s191: Object.assign({ sub: '2034', guide: 'Permanent after three years of regional income.', because: 'It follows the 491' }, LOOK),
+  is: { kicker: 'Added · from your stack · Course', sub: 'Curtin · Perth', guide: 'On your board, beside your road.', because: 'You put it on your board', primary: 'Swap onto your road' }
+};
+// where she is: the card (desktop) and the card inside the road (phone)
+const HERE = {
+  cyber: { kicker: 'You are here · Course', name: 'Cyber Security', sub: 'ECU · Perth', g: '▲ Strong on what you weight most: PR, Career', c: '▼ Costs you on: Cost (only AUD 3k spare) and Location (far from the east-coast job market).', guide: 'ECU Joondalup: about 50 min from Anjali in Cannington.', badges: ['offerings', 'ielts', 'fork'], because: 'The course you’re on', course: true, primary: 'Look ahead: Student visa · 500', secondary: 'Open route detail', sibsK: 'Also in Perth' },
+  ds: { kicker: 'You are here · Course', name: 'Data Science', sub: 'UWA · Perth', g: '▲ Strong on Career', c: '▼ Costs you on: Cost, PR', guide: 'Strong demand in WA, but a bigger step from business. The road ahead re-routes through UWA.', badges: ['maths'], because: 'The course you’re on', course: true, primary: 'Look ahead: Student visa · 500', secondary: 'Open route detail', sibsK: 'Also in Perth' },
+  perth: { kicker: 'You are here · City', name: 'Perth', sub: 'Western Australia', g: '▲ Strong on PR, Work', c: '▼ Costs you on: Location', guide: 'A capital that counts as regional: extra points and the longest post-study stay. Curtin Bentley: about 25 min from Anjali in Cannington · ECU Joondalup: about 50 min.', badges: [], because: 'The city you picked', primary: 'Walk to Cyber Security', sibsK: 'Also in Australia' },
+  'cyber-cost': { kicker: 'You are here · Course', name: 'Cyber Security', sub: 'UniSA · Adelaide', g: '▲ Strong on Cost, PR', c: '▼ Costs you on: Career', guide: 'An illustrative road, drawn in the same shape as yours.', badges: [], because: 'Built around cost', course: true, primary: 'Look ahead: Student visa · 500', secondary: 'Open route detail', sibsK: '' },
+  'cyber-career': { kicker: 'You are here · Course', name: 'Cyber Security', sub: 'UTS · Sydney', g: '▲ Strong on Career', c: '▼ Costs you on: Cost', guide: 'An illustrative road, drawn in the same shape as yours.', badges: [], because: 'Built around career', course: true, primary: 'Look ahead: Student visa · 500', secondary: 'Open route detail', sibsK: '' },
+  au: { kicker: 'You are here · Destination', name: 'Australia', sub: '19 cities to choose from.', guide: '', badges: [], because: 'The country you picked', primary: 'Go to Perth', sibsK: '' },
+  a: { kicker: 'You are here · Point A', name: 'Point A', sub: 'Business degree · 72% · IELTS 7.0 · AUD 36.5k a year for fees.', guide: 'Your road starts here. Pick a destination to draw the rest.', badges: [], because: 'Where you start', primary: 'Pick a destination', sibsK: '' }
+};
+const STACK = [
+  { name: 'Information Systems', sub: 'Curtin · Perth', tag: 'Match well' },
+  { name: 'Business Analytics', sub: 'ECU · Perth', tag: 'Match well' },
+  { name: 'Computer Science', sub: 'Murdoch · Perth', tag: 'Match well' },
+  { name: 'Accounting', sub: 'Curtin · Perth', tag: '' },
+  { name: 'Master of Nursing', sub: 'Curtin · Needs a health bachelor’s', tag: 'Not yet reachable', blocked: true }
+];
+const KEY_PRESS = [['Place tile', 'Opens it. Go here from the card.'], ['Stack', 'Opens it. Show more from the card.'], ['Route step', 'Look ahead. The duck stays put.'], ['Control', 'Does what its label says, always in the same place.']];
+const KEY_LIGHT = [['lit', 'Visited · lit'], ['alt', 'Not visited · dim'], ['fog', 'Unexplored · dark, named'], ['hatch', 'Not yet reachable · hatched'], ['dot', 'Dotted outline · data unknown or out of date']];
+const OVERVIEW = ['Australia · 19 cities · 3 looked at', 'Perth · 15 courses · 3 looked at', 'Cyber Security · 3 intakes · walked', 'Permanent residency · 2 ways from the 485'];
+const TOASTS = {
+  swap: { text: 'Data Science is on your road now. The road ahead re-routed through it.', undo: true },
+  add: { text: 'Information Systems is on your board, beside your road. Data Science folded into the stack.', undo: true },
+  read: { text: 'Lesson read. The Master’s years now show as looked at.', undo: false },
+  walk: { text: 'Walked to Perth', undo: true }
+};
+
+// Each board of the round is a scene: who is where, and what is lit.
+function buildScene(scene) {
+  const W = BASE.map(t => Object.assign({}, t, { lab: Object.assign({}, t.lab) }));
+  const by = (id) => W.find(t => t.id === id);
+  const set = (id, o) => Object.assign(by(id), o);
+  const drop = (id) => { const i = W.findIndex(t => t.id === id); if (i >= 0) W.splice(i, 1); };
+  let m = { here: 'cyber', lit: ['a', 'au', 'perth', 'cyber'], next: ['cyber', 's500'], ahead: ['s500', 'ms', 'g485', 's190', 'pr'], fork: true, cityLine: ['perth', 'adl', 'cstack'], courseLine: ['cyber', 'ds', 'kstack'], open: 'course', levelIds: ['perth', 'adl', 'cstack', 'cyber', 'ds', 'kstack', 's500'], road: ['a', 'au', 'perth', 'cyber', 's500', 'ms', 'g485'], courseId: 'cyber', illustrative: false };
+  if (scene === 'city') {
+    set('perth', { state: 'here', lab: { road: 'above', level: 'below', tile: 'below' } });
+    set('cyber', { state: 'next', lab: { road: 'below', level: 'right', tile: 'right' } });
+    set('ds', { lab: { road: 'none', level: 'none', tile: 'none' } }); set('kstack', { lab: { road: 'none', level: 'none', tile: 'none' } });
+    set('s500', { state: 'fog', lab: { road: 'none', level: 'none', tile: 'none' } });
+    set('ms', { lab: { road: 'below', level: 'none', tile: 'none' } });
+    Object.assign(m, { here: 'perth', lit: ['a', 'au', 'perth'], next: ['perth', 'cyber'], ahead: ['cyber', 's500', 'ms', 'g485', 's190', 'pr'], open: 'city', levelIds: ['au', 'perth', 'adl', 'cstack', 'cyber'] });
+  }
+  if (scene === 'first') {
+    set('au', { state: 'here', lab: { road: 'below', level: 'below', tile: 'below' } });
+    set('perth', { state: 'next', lab: { road: 'above', level: 'right', tile: 'right' } });
+    ['adl', 'cstack', 'ds', 'kstack'].forEach(id => set(id, { lab: { road: 'none', level: 'none', tile: 'none' } }));
+    set('cyber', { state: 'alt', lab: { road: 'none', level: 'none', tile: 'none' } });
+    set('s500', { state: 'fog', lab: { road: 'none', level: 'none', tile: 'none' } });
+    set('ms', { lab: { road: 'below', level: 'none', tile: 'none' } });
+    Object.assign(m, { here: 'au', lit: ['a', 'au'], next: ['au', 'perth'], ahead: ['perth', 'cyber', 's500', 'ms', 'g485', 's190', 'pr'], open: null, levelIds: ['a', 'au', 'perth', 'adl', 'cstack'] });
+  }
+  if (scene === 'swapping') {
+    // mid-move: the two tiles pass each other on a short arc; the duck rides the tile arriving on the road
+    set('ds', { gx: 8.3, gy: -1.3, state: 'here', lab: { road: 'none', level: 'below', tile: 'right' } });
+    set('cyber', { gx: 6.1, gy: -1.3, state: 'lit', lab: { road: 'none', level: 'above', tile: 'left' }, kicker: 'Visited' });
+    set('ms', { name: 'Master’s · Data Science' });
+    Object.assign(m, { here: 'ds', lit: ['a', 'au', 'perth'], next: null, courseLine: ['kstack'], arc: true, road: ['a', 'au', 'perth', 'ds', 's500', 'ms', 'g485'] });
+  }
+  if (scene === 'swapped') {
+    set('ds', { gx: 7.2, gy: 0, state: 'here', lab: { road: 'below', level: 'below', tile: 'below' } });
+    set('cyber', { gx: 7.2, gy: -2.6, state: 'lit', kicker: 'Visited', lab: { road: 'none', level: 'right', tile: 'none' } });
+    set('ms', { name: 'Master’s · Data Science' });
+    Object.assign(m, { here: 'ds', lit: ['a', 'au', 'perth', 'ds'], next: ['ds', 's500'], courseLine: ['ds', 'cyber', 'kstack'], courseId: 'ds', road: ['a', 'au', 'perth', 'ds', 's500', 'ms', 'g485'] });
+  }
+  if (scene === 'added') {
+    drop('ds');
+    W.push({ id: 'is', kind: 'course', gx: 7.2, gy: -2.6, state: 'alt', name: 'Information Systems', sub: 'Curtin · Perth', kicker: 'Added · from your stack', level: 'course', lab: { road: 'none', level: 'right', tile: 'none' } });
+    Object.assign(m, { courseLine: ['cyber', 'is', 'kstack'], levelIds: ['perth', 'adl', 'cstack', 'cyber', 'is', 'kstack', 's500'] });
+  }
+  if (scene === 'read') { set('ms', { state: 'seen' }); set('g485', { state: 'seen', lab: { road: 'below', level: 'right', tile: 'none' } }); }
+  if (scene === 'cost' || scene === 'career') {
+    // illustrative futures: the same shape, a different road. No alternatives drawn.
+    ['adl', 'cstack', 'ds', 'kstack', 's190', 's491', 's191'].forEach(drop);
+    const cost = scene === 'cost';
+    set('perth', { name: cost ? 'Adelaide' : 'Sydney', short: cost ? 'Adelaide' : 'Sydney', sub: cost ? 'South Australia' : 'New South Wales' });
+    set('cyber', { sub: cost ? 'UniSA · Adelaide' : 'UTS · Sydney', badges: [] , why: cost ? '▲ Strong on Cost, PR · ▼ Costs you on: Career' : '▲ Strong on Career · ▼ Costs you on: Cost' });
+    if (cost) {
+      set('g485', { id: 'g491', name: '491 · regional', short: '491 · regional', when: '2029 – 2032', gx1: gxAt(2032) - 0.15 });
+      set('pr', { name: '191 · permanent', short: '191 · permanent', gx: gxAt(2032) + 0.4, when: '2032' });
+    } else {
+      set('pr', { name: 'Employer sponsorship', short: 'Employer sponsorship', gx: gxAt(2031) + 0.4, kicker: 'Point B', when: '2031' });
+    }
+    Object.assign(m, { ahead: ['s500', 'ms', cost ? 'g491' : 'g485', 'pr'], fork: false, cityLine: [], courseLine: [], open: null, levelIds: ['au', 'perth', 'cyber', 's500'], road: ['a', 'au', 'perth', 'cyber', 's500', 'ms', cost ? 'g491' : 'g485', 'pr'], illustrative: true });
+  }
+  if (scene === 'empty') {
+    W.splice(0, W.length, Object.assign({}, BASE[0], { state: 'here', lab: { road: 'left', level: 'left', tile: 'left' } }),
+      { id: 'dest', kind: 'place', gx: 2.4, gy: 0, state: 'unknown', name: 'Destination', lab: { road: 'below', level: 'below', tile: 'below' } });
+    Object.assign(m, { here: 'a', lit: ['a'], next: ['a', 'dest'], ahead: [], fork: false, cityLine: [], courseLine: [], open: null, levelIds: ['a', 'dest'], road: ['a'], noRuler: true });
+  }
+  if (scene === 'loading') { W.splice(0, W.length); Object.assign(m, { here: null, lit: [], next: null, ahead: [], fork: false, cityLine: [], courseLine: [], levelIds: [], road: [], noRuler: true }); }
+  return { W, m };
+}
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const z = props.zoom ?? 'level';
+    this.state = { mw: 0, mh: 0, rw: 0, rs: 1, stop: STOPS.includes(z) ? z : 'level', cam: null, hover: null, selected: props.selected || null, open: {}, view: props.view ?? 'road', viewMenu: props.panel === 'key', panel: props.panel || null, toast: props.toast || null, scene: props.scene || 'course', filter: 0, away: null, status: '' };
+    this.sc = buildScene(this.state.scene);
+  }
+  componentDidMount() {
+    this.watchOS();
+    this.measure();
+    try { this.ro = new ResizeObserver(() => this.measure()); if (this.rootEl) this.ro.observe(this.rootEl); } catch (e) {}
+    this.scrollToHere();
+  }
+  componentWillUnmount() {
+    this.unwatchOS();
+    try { if (this.ro) this.ro.disconnect(); } catch (e) {}
+    if (this.raf) cancelAnimationFrame(this.raf);
+    this.bindMap(null);
+  }
+  componentDidUpdate() {
+    if (this.mapEl && this.ro && this.observed !== this.mapEl) { try { this.ro.observe(this.mapEl); } catch (e) {} this.observed = this.mapEl; this.measure(); }
+    if (this.state.view !== this.lastView) { this.lastView = this.state.view; this.scrollToHere(); }
+    if (this.state.scene !== this.lastScene) { this.lastScene = this.state.scene; this.sc = buildScene(this.state.scene); }
+  }
+  scrollToHere() {
+    // land on what changed: the added tile, the steps just read, otherwise where she is
+    setTimeout(() => {
+      const l = this.listEl; if (!l) return;
+      const sc = this.state.scene;
+      if (this.props.futures) { l.scrollTop = 0; return; }
+      const r = (sc === 'read' && l.querySelector('.rb-row.s-seen')) || (sc === 'added' && l.querySelector('.rb-here .rb-sibs')) || this.hereRow;
+      if (r) l.scrollTop = Math.max(0, l.scrollTop + r.getBoundingClientRect().top - l.getBoundingClientRect().top - (sc === 'read' || sc === 'added' ? 140 : 88));
+    }, 0);
+  }
+  measure() {
+    const m = this.mapEl, r = this.rootEl;
+    if (!r) return;
+    const fs = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const mw = m ? Math.round(m.clientWidth) : 0, mh = m ? Math.round(m.clientHeight) : 0, rw = Math.round(r.clientWidth);
+    const s = this.state;
+    if (mw !== s.mw || mh !== s.mh || rw !== s.rw || fs / 16 !== s.rs) {
+      // the map fits the space it has: on any resize the camera re-fits the current stop
+      const nd = { mw, mh, rw, rs: fs / 16 };
+      this.setState(Object.assign({}, nd, { cam: this.target(s.stop, null, nd) }));
+    }
+  }
+  // ── Theme: one toggle, light ↔ dark (starts from the device setting when theme is "auto"). The steel panel stays light in both (data-theme="light" on it). ──
+  watchOS() { try { this.mq = window.matchMedia('(prefers-color-scheme: dark)'); this.mqf = () => this.setState({ osDark: this.mq.matches }); this.mq.addEventListener('change', this.mqf); } catch (e) {} }
+  unwatchOS() { try { if (this.mq) this.mq.removeEventListener('change', this.mqf); } catch (e) {} }
+  setTheme(v) { this.setState({ themePref: v }); if (this.props.onTheme) this.props.onTheme(v); }
+  themeVals() {
+    const pref = (this.state && this.state.themePref) || this.props.theme || 'light';
+    let os = this.state && this.state.osDark;
+    if (os === undefined) { try { os = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { os = false; } }
+    const now = pref === 'auto' ? (os ? 'dark' : 'light') : pref;
+    return {
+      themeAttr: now,
+      showMoon: now === 'light', showSun: now === 'dark', darkChecked: now === 'dark' ? 'true' : 'false',
+      toggleLabel: now === 'dark' ? 'Switch to light theme' : 'Switch to dark theme',
+      toggleTheme: () => this.setTheme(now === 'dark' ? 'light' : 'dark'),
+      themePref: pref,
+      setTheme: (v) => this.setTheme(v)
+    };
+  }
+  // ── Header menu (top right, on the logo's line): Dark theme and Sign out ──
+  toggleMenu() {
+    const open = !this.state.menuOpen;
+    this.setState({ menuOpen: open });
+    if (open) setTimeout(() => { if (this.firstItem && this.firstItem.focus) this.firstItem.focus(); }, 0);
+  }
+  closeMenu(refocus) {
+    this.setState({ menuOpen: false });
+    if (refocus && this.menuBtn && this.menuBtn.focus) setTimeout(() => this.menuBtn.focus(), 0);
+  }
+  menuVals(signOut) {
+    const open = !!this.state.menuOpen;
+    return {
+      menuOpen: open, menuExpanded: open ? 'true' : 'false',
+      toggleMenu: () => this.toggleMenu(),
+      closeMenu: () => this.closeMenu(false),
+      menuKey: (e) => { if (e.key === 'Escape' && this.state.menuOpen) { e.preventDefault(); this.closeMenu(true); } },
+      menuBtnRef: (el) => { this.menuBtn = el; },
+      firstItemRef: (el) => { this.firstItem = el; },
+      menuSignOut: () => { this.setState({ menuOpen: false }); signOut(); }
+    };
+  }
+  // ── Camera ──
+  mode(rw) { const w = rw ?? this.state.rw; return w >= 1024 ? 'wide' : w >= 576 ? 'mid' : 'phone'; }
+  P(gx, gy) { return [gx - gy, (gx + gy) / 2]; }
+  frame(stop, focus) {
+    const { W, m } = this.sc;
+    const P = (a, b) => this.P(a, b);
+    const pts = [];
+    const add = (t, pad) => {
+      if (!t) return;
+      if (t.kind === 'slab') { const w = (t.w || SIZE.slab) + pad; [[t.gx - pad, t.gy - w], [t.gx1 + pad, t.gy - w], [t.gx1 + pad, t.gy + w], [t.gx - pad, t.gy + w]].forEach(c => pts.push(P(c[0], c[1]))); }
+      else { const hx = (t.sz || SIZE[t.kind]) + pad; [[-hx, -hx], [hx, -hx], [hx, hx], [-hx, hx]].forEach(c => pts.push(P(t.gx + c[0], t.gy + c[1]))); }
+    };
+    const by = (id) => W.find(t => t.id === id);
+    if (!W.length) return { x0: -2, x1: 2, y0: -1, y1: 1 };
+    if (stop === 'road') { W.forEach(t => add(t, 0.2)); if (!m.noRuler) pts.push(P(gxAt(2034.6), -1.5)); }
+    else if (stop === 'level' && (!focus || m.levelIds.includes(focus) || focus === m.here)) { m.levelIds.forEach(id => add(by(id), 0.5)); if (m.levelIds.includes('s500')) add(by('ms'), 0); }
+    else if (stop === 'level') add(by(focus), 3);
+    else { const f = by(focus || m.here) || W[0]; add(f, f.kind === 'slab' ? 0.8 : 1.5); }
+    if (!pts.length) return { x0: -2, x1: 2, y0: -1, y1: 1 };
+    const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+    return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+  }
+  target(stop, focus, dims) {
+    const s = dims || this.state, rs = s.rs || 1, mw = s.mw || 1, mh = s.mh || 1, mode = this.mode(s.rw);
+    const f = this.frame(stop, focus || this.focusId());
+    const R = 16 * rs;
+    const pad = mode === 'wide' ? { l: 2 * R, r: 2 * R, t: 5.5 * R, b: 6 * R } : mode === 'mid' ? { l: 1.5 * R, r: 1.5 * R, t: 5 * R, b: 5 * R } : { l: 1 * R, r: 1 * R, t: 6 * R, b: 9.5 * R };
+    const cap = { road: 46, level: mode === 'phone' ? 30 : 50, tile: mode === 'phone' ? 64 : 104 }[stop] * rs;
+    const aw = Math.max(40, mw - pad.l - pad.r), ah = Math.max(40, mh - pad.t - pad.b);
+    const u = Math.min(aw / (f.x1 - f.x0), ah / (f.y1 - f.y0), cap);
+    const ox = pad.l + (aw - (f.x1 - f.x0) * u) / 2 - f.x0 * u;
+    const oy = pad.t + (ah - (f.y1 - f.y0) * u) / 2 - f.y0 * u;
+    return { u, ox, oy };
+  }
+  focusId() { const s = this.state, W = this.sc.W; return s.selected && W.find(t => t.id === s.selected) ? s.selected : this.sc.m.here; }
+  reduced() { try { return !(this.props.motion ?? true) || window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
+  goStop(stop, focus) {
+    if (!STOPS.includes(stop)) return;
+    const to = this.target(stop, focus);
+    this.setState({ stop, status: 'Zoom: ' + STOP_NAME[stop], panel: stop === 'road' ? 'overview' : (this.state.panel === 'overview' ? null : this.state.panel) });
+    this.animTo(to);
+  }
+  step(dir) { const i = STOPS.indexOf(this.state.stop) + dir; if (i >= 0 && i < STOPS.length) this.goStop(STOPS[i]); }
+  animTo(to) {
+    const from = this.state.cam;
+    if (this.raf) cancelAnimationFrame(this.raf);
+    if (!from || this.reduced()) return this.setState({ cam: to });
+    const t0 = performance.now(), D = 550;
+    const ease = (x) => 1 - Math.pow(1 - x, 3);
+    const tick = (now) => {
+      const k = ease(Math.min(1, (now - t0) / D));
+      // zoom in log space so the scale change feels even
+      const u = Math.exp(Math.log(from.u) + (Math.log(to.u) - Math.log(from.u)) * k);
+      this.setState({ cam: { u, ox: from.ox + (to.ox - from.ox) * k, oy: from.oy + (to.oy - from.oy) * k } });
+      if (k < 1) this.raf = requestAnimationFrame(tick);
+    };
+    this.raf = requestAnimationFrame(tick);
+  }
+  // wheel and trackpad pinch step between stops; drag pans; two fingers pinch
+  bindMap(el) {
+    if (this.mapBound && this.mapBound !== el) {
+      const o = this.mapBound, h = this.mapH;
+      o.removeEventListener('wheel', h.wheel); o.removeEventListener('pointerdown', h.down); o.removeEventListener('pointermove', h.move);
+      o.removeEventListener('pointerup', h.up); o.removeEventListener('pointercancel', h.up); o.removeEventListener('click', h.click, true);
+      this.mapBound = null;
+    }
+    this.mapEl = el;
+    if (!el || this.mapBound === el) return;
+    const ptrs = new Map();
+    let acc = 0, accT = 0, drag = null, pinch0 = 0, swallow = false;
+    const h = {
+      wheel: (e) => {
+        e.preventDefault();
+        const now = performance.now();
+        if (now - accT > 400) acc = 0;
+        accT = now; acc += e.deltaY * (e.ctrlKey ? 4 : 1);
+        if (Math.abs(acc) > 90 && !this.wheelLock) { this.step(acc < 0 ? 1 : -1); acc = 0; this.wheelLock = true; setTimeout(() => { this.wheelLock = false; }, 450); }
+      },
+      down: (e) => {
+        if (e.target.closest && e.target.closest('.rd-mbtn,.rb-zoom,.rd-plaque,.rd-fog,.rb-menu,.rb-futures,.rb-peek,.rb-toast,.rb-keypop')) return;
+        ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+        if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY, cam: this.state.cam, moved: false, id: e.pointerId };
+        if (ptrs.size === 2) { const v = [...ptrs.values()]; pinch0 = Math.hypot(v[0][0] - v[1][0], v[0][1] - v[1][1]); drag = null; }
+      },
+      move: (e) => {
+        if (!ptrs.has(e.pointerId)) return;
+        ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+        if (ptrs.size === 2 && pinch0) {
+          const v = [...ptrs.values()], d = Math.hypot(v[0][0] - v[1][0], v[0][1] - v[1][1]);
+          if (d / pinch0 > 1.3) { this.step(1); pinch0 = d; } else if (d / pinch0 < 0.77) { this.step(-1); pinch0 = d; }
+          return;
+        }
+        if (!drag || !drag.cam) return;
+        const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        if (!drag.moved && Math.hypot(dx, dy) < 6) return;
+        if (!drag.moved) { drag.moved = true; try { el.setPointerCapture(drag.id); } catch (err) {} el.classList.add('is-dragging'); }
+        this.setState({ cam: this.clampCam({ u: drag.cam.u, ox: drag.cam.ox + dx, oy: drag.cam.oy + dy }) });
+      },
+      up: (e) => {
+        ptrs.delete(e.pointerId);
+        if (ptrs.size < 2) pinch0 = 0;
+        if (drag && drag.moved) swallow = true;
+        if (ptrs.size === 0) { drag = null; el.classList.remove('is-dragging'); }
+      },
+      click: (e) => { if (swallow) { swallow = false; e.stopPropagation(); e.preventDefault(); } }
+    };
+    el.addEventListener('wheel', h.wheel, { passive: false });
+    el.addEventListener('pointerdown', h.down); el.addEventListener('pointermove', h.move);
+    el.addEventListener('pointerup', h.up); el.addEventListener('pointercancel', h.up);
+    el.addEventListener('click', h.click, true);
+    this.mapBound = el; this.mapH = h;
+  }
+  clampCam(c) {
+    const f = this.frame('road'), s = this.state, m = 80;
+    const x0 = f.x0 * c.u, x1 = f.x1 * c.u, y0 = f.y0 * c.u, y1 = f.y1 * c.u;
+    return { u: c.u, ox: Math.min(s.mw - m - x0, Math.max(m - x1, c.ox)), oy: Math.min(s.mh - m - y0, Math.max(m - y1, c.oy)) };
+  }
+  // ── Pressing: a press opens the tile in the card; the card's buttons act ──
+  press(t) {
+    const s = this.state, here = t.id === this.sc.m.here;
+    if (t.state === 'unknown') return;
+    if (s.stop === 'road') { this.setState({ selected: here ? null : t.id, panel: null, status: t.name + ' open in the card.' }); return this.goStop('level', t.id); }
+    if (here) return this.setState({ selected: null, panel: null, status: 'Back to where you are: ' + t.name });
+    this.setState({ selected: t.id, panel: null, status: t.name + ' open in the card.' });
+    setTimeout(() => { if (this.cardH && this.cardH.focus) this.cardH.focus({ preventScroll: true }); }, 0);
+  }
+  openRow(id) { this.setState({ selected: id === this.sc.m.here ? null : id, panel: null, status: 'Opened' }); }
+  renderVals() {
+    const s = this.state;
+    const { W, m } = this.sc;
+    const motion = this.props.motion ?? true;
+    const mode = this.mode(), wide = mode === 'wide', phone = mode === 'phone';
+    const cam = s.cam || this.target(s.stop);
+    const u = cam.u, S = (gx, gy) => { const p = this.P(gx, gy); return [cam.ox + p[0] * u, cam.oy + p[1] * u]; };
+    const f1 = (v) => v.toFixed(1);
+    const pt = (a) => a.map(v => f1(v[0]) + ',' + f1(v[1])).join(' ');
+    const byId = {}; W.forEach(t => { byId[t.id] = t; });
+    const mid = (t) => t.kind === 'slab' ? [(t.gx + t.gx1) / 2, t.gy] : [t.gx, t.gy];
+    const line = (pts) => pts.map((g, i) => { const p = S(g[0], g[1]); return (i ? 'L' : 'M') + f1(p[0]) + ' ' + f1(p[1]); }).join(' ');
+    const ends = (ids) => { const out = []; ids.forEach(id => { const t = byId[id]; if (!t) return; if (t.kind === 'slab') { out.push([t.gx, t.gy], [t.gx1, t.gy]); } else out.push([t.gx, t.gy]); }); return out; };
+    const roads = [];
+    if (m.cityLine.length > 1) roads.push({ cls: 'rd-lvl' + (m.open === 'city' ? ' is-open' : ''), d: line(ends(m.cityLine)), w: Math.max(1, u * (m.open === 'city' ? 0.06 : 0.05)) });
+    if (m.courseLine.length > 1) roads.push({ cls: 'rd-lvl' + (m.open === 'course' ? ' is-open' : ''), d: line(ends(m.courseLine)), w: Math.max(1, u * (m.open === 'course' ? 0.06 : 0.05)) });
+    if (m.ahead.length > 1) roads.push({ cls: 'rd-road is-fog', d: line(ends(m.ahead)), w: u * 0.36 });
+    if (m.fork && byId.s491) roads.push({ cls: 'rd-road is-fog is-fork', d: line([[byId.g485.gx1, 0], [byId.s491.gx, 1.9], [byId.s491.gx1, 1.9], [byId.s191.gx, 1.9]]), w: u * 0.2 });
+    if (m.next) roads.push({ cls: 'rd-road is-next' + (m.here === null ? '' : ''), d: line(ends(m.next)), w: u * 0.36 });
+    if (m.lit.length > 1) roads.push({ cls: 'rd-road is-lit', d: line(ends(m.lit)), w: u * 0.36 });
+    if (m.arc) {
+      // the two tiles' arcs during a swap
+      const arc = (a, b, bulge) => { const p0 = S(a[0], a[1]), p1 = S(b[0], b[1]); const mx = (p0[0] + p1[0]) / 2 + bulge[0] * u, my = (p0[1] + p1[1]) / 2 + bulge[1] * u; return 'M' + f1(p0[0]) + ' ' + f1(p0[1]) + ' Q' + f1(mx) + ' ' + f1(my) + ' ' + f1(p1[0]) + ' ' + f1(p1[1]); };
+      roads.push({ cls: 'rb-arc', d: arc([7.2, -2.6], [7.2, 0], [1.6, 0.4]), w: Math.max(1.5, u * 0.05) });
+      roads.push({ cls: 'rb-arc', d: arc([7.2, 0], [7.2, -2.6], [-1.6, -0.4]), w: Math.max(1.5, u * 0.05) });
+      roads.push({ cls: 'rd-road is-lit', d: line([[0, 0], [2.4, 0], [4.8, 0], [7.2, 0]]), w: u * 0.36 });
+      roads.push({ cls: 'rd-road is-next', d: line([[7.2, 0], [9, 0]]), w: u * 0.36 });
+    }
+    // the time ruler, on the ground beside the road ahead
+    const RG = -1.45;
+    const ticks = [];
+    if (!m.noRuler) for (let y = 2027; y <= 2034; y++) {
+      const g = gxAt(y), a0 = S(g, RG - 0.18), a1 = S(g, RG + 0.18);
+      ticks.push({ d: 'M' + f1(a0[0]) + ' ' + f1(a0[1]) + ' L' + f1(a1[0]) + ' ' + f1(a1[1]), y: String(y), lx: f1(a0[0]), ly: f1(a0[1]) });
+    }
+    const years = ticks.filter((t, i) => s.stop === 'road' ? (i % (u < 30 ? 2 : 1) === 0) : true).map(t => ({ y: t.y, lx: t.lx, ly: t.ly }));
+    const rulerD = m.noRuler ? 'M0 0' : line([[gxAt(2026.15), RG], [gxAt(2034.6), RG]]);
+    const nowP = S(gxAt(2026.3), RG);
+    const stop = s.stop;
+    const ahead = !!(s.selected && byId[s.selected] && (byId[s.selected].state === 'fog' || byId[s.selected].state === 'seen') && byId[s.selected].id !== 's500');
+    const hintOn = s.scene === 'first';
+    const order = W.slice().sort((a, b) => (mid(a)[0] + mid(a)[1]) - (mid(b)[0] + mid(b)[1]));
+    const tiles = order.map(t => {
+      const sz = t.sz || SIZE[t.kind], d = DEPTH[t.kind] * u;
+      const isHere = t.id === m.here, sel = s.selected === t.id, hov = s.hover === t.id;
+      const lift = ((hov || sel) && !isHere) || (m.arc && (t.id === 'ds' || t.id === 'cyber')) ? 6 : 0;
+      const box = t.kind === 'slab' ? { x0: t.gx, x1: t.gx1, y0: t.gy - (t.w || sz), y1: t.gy + (t.w || sz) } : { x0: t.gx - sz, x1: t.gx + sz, y0: t.gy - sz, y1: t.gy + sz };
+      const layerAt = (l) => {
+        const c = (gx, gy) => { const p = S(gx, gy); return [p[0], p[1] - l]; };
+        const T = c(box.x0, box.y0), R = c(box.x1, box.y0), B = c(box.x1, box.y1), Lf = c(box.x0, box.y1);
+        return { top: pt([T, R, B, Lf]), left: pt([Lf, B, [B[0], B[1] + d], [Lf[0], Lf[1] + d]]), right: pt([B, R, [R[0], R[1] + d], [B[0], B[1] + d]]) };
+      };
+      const layers = t.kind === 'stack' ? [layerAt(lift), layerAt(lift + d * 1.6), layerAt(lift + d * 3.2)] : [layerAt(lift)];
+      const top = t.kind === 'stack' ? d * 3.2 : 0;
+      const rp = (k) => { const m2 = mid(t); const hx = (box.x1 - box.x0) / 2 * k, hy = (box.y1 - box.y0) / 2 * k; return pt([S(m2[0] - hx, m2[1] - hy), S(m2[0] + hx, m2[1] - hy), S(m2[0] + hx, m2[1] + hy), S(m2[0] - hx, m2[1] + hy)].map(p => [p[0], p[1] - lift - top])); };
+      const c = S(mid(t)[0], mid(t)[1]);
+      const pos = (stop === 'level' && ahead && (t.state === 'fog' || t.state === 'seen') ? t.lab.road : (t.lab || {})[stop]) || 'none';
+      const hasLab = pos !== 'none' || (hov && !isHere);
+      const p2 = pos === 'none' ? 'above' : pos;
+      const hw = t.kind === 'slab' ? (box.x1 - box.x0) / 2 + sz : 2 * sz;
+      const lx = p2 === 'left' ? c[0] - hw * u - 6 : p2 === 'right' ? c[0] + hw * u + 6 : c[0];
+      const ly = p2 === 'below' ? c[1] + sz * u + d + 6 - lift : p2 === 'above' ? c[1] - sz * u - top - 8 - lift : c[1] - lift - top / 2;
+      const full = isHere && stop === 'tile';
+      const openLvl = (m.open === 'course' && t.level === 'course') || (m.open === 'city' && t.level === 'city');
+      const showWhy = !!t.why && ((stop === 'level' && !phone && (openLvl || (isHere && t.kind === 'course'))) || full);
+      const showSub = !!t.sub && ((t.kind === 'stack' && stop !== 'road') || (stop === 'level' && !phone && (t.id === 'perth' || isHere)) || full);
+      const badges = (t.badges || []).map(k => BADGES[k]);
+      const bw = Math.max(44, (t.kind === 'slab' ? (box.x1 - box.x0 + 2 * sz) : 4 * sz) * u), bh = Math.max(44, (t.kind === 'slab' ? (box.x1 - box.x0) / 2 + 2 * sz : 2 * sz) * u + d + top);
+      const stateWord = isHere ? 'you are here' : ({ lit: 'visited', alt: 'not visited', next: 'not visited, next', fog: 'unexplored', seen: 'looked at', unknown: 'not picked yet' }[t.state] || '');
+      return {
+        id: t.id,
+        cls: 'rd-tile k-' + t.kind + ' s-' + (isHere ? 'here' : t.state) + (lift ? ' is-lift' : '') + (sel ? ' is-sel' : ''),
+        layers,
+        hasRing: isHere || sel, ringCls: isHere ? 'rb-ring is-here' : 'rb-ring is-sel', ring: rp(isHere ? 1.45 : 1.3),
+        hasHint: hintOn && t.id === 'perth', hint: rp(1.6),
+        btnCls: 'rd-hit rb-hit' + (sel ? ' is-sel' : ''),
+        bx: f1(c[0] - bw / 2), by: f1(c[1] - bh / 2 - lift - top / 2), bw: f1(bw), bh: f1(bh),
+        aria: t.name + ', ' + stateWord + '. Open in the card',
+        pressed: sel ? 'true' : 'false',
+        press: () => this.press(t),
+        enter: () => this.setState({ hover: t.id }), leave: () => this.setState({ hover: this.state.hover === t.id ? null : this.state.hover }),
+        hasLabel: hasLab,
+        labCls: 'rd-lab is-' + p2 + (isHere ? ' is-here' : '') + (full ? ' is-full' : '') + ' k-' + t.kind + ' s-' + (isHere ? 'here' : t.state) + (pos === 'none' ? ' is-hint' : '') + ' at-' + stop,
+        lx: f1(lx), ly: f1(ly),
+        hasKicker: !!t.kicker && stop !== 'tile', kicker: t.kicker || '',
+        name: stop === 'road' ? (t.short || t.name) : t.name,
+        hasSub: showSub, sub: t.sub || '',
+        hasWhen: !!t.when && stop !== 'road' && t.kind !== 'step', when: t.when || '',
+        hasBadges: full && badges.length > 0,
+        badges: badges.slice(0, 2).map(b => ({ k: b.k, v: b.v, isLayers: b.icon === 'layers', isAlert: b.icon === 'alert', isSplit: b.icon === 'split' })),
+        hasMore: badges.length > 2, more: '+' + (badges.length - 2),
+        hasWhy: showWhy, why: t.why || ''
+      };
+    });
+    const hereT = m.here && byId[m.here];
+    const hc = hereT ? S(hereT.gx, hereT.gy) : [0, 0];
+    const dw = Math.min(Math.max(u * 1.5, 34 * (s.rs || 1)), 76 * (s.rs || 1));
+    const msT = byId.ms, msStart = msT ? S(msT.gx + 0.9, 0.95) : [0, 0];
+    const perthT = byId.perth, hintP = perthT ? S(perthT.gx, perthT.gy) : [0, 0];
+    // ── the card ──
+    const selT = s.selected && byId[s.selected];
+    const cd = selT ? (CARD[selT.id] || CARD[selT.id === 'g491' ? 's491' : 'pr']) : null;
+    const H = (m.illustrative ? HERE['cyber-' + s.scene] : HERE[m.here]) || HERE.cyber;
+    const badgeVals = (keys) => keys.map(k => {
+      const b = BADGES[k], open = !!s.open[k];
+      return { k: b.k, v: b.v, exp: b.exp, open, expanded: open ? 'true' : 'false', cls: 'rd-badge-btn' + (open ? ' is-open' : ''),
+        isLayers: b.icon === 'layers', isAlert: b.icon === 'alert', isSplit: b.icon === 'split',
+        toggle: () => this.setState({ open: Object.assign({}, this.state.open, { [k]: !open }) }) };
+    });
+    const sibIds = m.courseLine.length > 1 && (m.here === 'cyber' || m.here === 'ds') ? m.courseLine.filter(id => id !== m.here) : m.here === 'perth' ? ['adl', 'cstack'] : [];
+    const sibs = sibIds.map(id => { const t = byId[id]; return { name: t.name, sub: t.kind === 'stack' ? '' : ' · ' + (t.sub || '').split(' · ')[0], line: t.kind === 'stack' ? t.sub : (t.kicker === 'Visited' ? 'Visited · ' + (t.why || '') : (t.kicker ? t.kicker : (t.why || t.sub))), cls: 'rb-sib' + (t.kind === 'stack' ? ' is-stack' : '') + (t.state === 'lit' ? ' is-visited' : ''), open: () => this.openRow(id) }; });
+    // ── phone: the vertical road ──
+    const kindWord = { point: '', place: 'City', course: 'Course', step: 'Route step', slab: 'Route step', stack: 'Stack' };
+    const rowState = (t) => t.id === m.here ? 'here' : t.state === 'seen' ? 'seen' : (t.state === 'lit' ? 'lit' : t.state === 'next' ? 'next' : t.state === 'unknown' ? 'next' : 'fog');
+    const rows = [];
+    m.road.forEach(id => {
+      const t = byId[id]; if (!t) return;
+      if (id === m.here) { rows.push({ isHere: true, isRow: false, isFork: false }); return; }
+      const st = rowState(t);
+      const altIds = id === 'perth' && m.here !== 'perth' && byId.adl ? ['adl', 'cstack'] : (id === 'cyber' && m.here === 'perth') ? ['ds', 'kstack'] : [];
+      rows.push({
+        isRow: true, isHere: false, isFork: false,
+        cls: 'rb-row s-' + st + (hintOn && id === 'perth' ? ' has-hint' : ''),
+        when: id === 'a' ? 'Now' : (t.when || ''),
+        // the date leads the kicker, so the road needs no date column
+        kicker: (t.when ? t.when + ' · ' : '') + (id === 'a' ? 'You' : id === 'au' ? 'Destination' : (st === 'next' ? 'Next · ' : st === 'seen' ? 'Looked at · ' : '') + (id === 'pr' ? 'Point B' : (kindWord[t.kind] || ''))),
+        name: t.name,
+        line: id === 'a' || id === 'au' ? t.sub : (CARD[id] && CARD[id].guide && t.kind !== 'place' ? CARD[id].guide : (t.sub || '')),
+        hasAlts: altIds.length > 0, alts: altIds.map(a => ({ t: byId[a].name, open: () => this.openRow(a) })),
+        hasLesson: id === 'ms' && st !== 'seen', hasHint: hintOn && id === 'perth',
+        open: () => this.openRow(id),
+        aria: t.name + ', ' + ({ lit: 'visited', next: 'next', fog: 'unexplored', seen: 'looked at' }[st] || '') + '. Open'
+      });
+    });
+    if (m.fork) rows.push({ isFork: true, isRow: false, isHere: false });
+    if (m.illustrative && byId.pr) rows.push({ isRow: true, isHere: false, isFork: false, cls: 'rb-row s-fog', when: byId.pr.when, kicker: byId.pr.when + ' · Point B', name: byId.pr.name, line: 'Point B for this road.', hasAlts: false, alts: [], hasLesson: false, hasHint: false, open: () => {}, aria: byId.pr.name });
+    // ── panels ──
+    const panel = s.panel;
+    const deskKinds = panel === 'stack' || panel === 'lesson' || panel === 'overview';
+    const mv = this.menuVals(() => this.setState({ away: 'login', status: 'Signed out' }));
+    const tv = this.themeVals();
+    const cardOther = !!selT && selT.id !== m.here;
+    const sheetCard = phone && s.view === 'road' && cardOther;
+    const toast = s.toast && TOASTS[s.toast];
+    const fut = s.scene === 'course' || s.scene === 'cost' || s.scene === 'career';
+    const showFut = !!this.props.futures && fut;
+    const loading = s.scene === 'loading', empty = s.scene === 'empty';
+    return {
+      menuOpen: mv.menuOpen, menuExpanded: mv.menuExpanded, toggleMenu: mv.toggleMenu, closeMenu: mv.closeMenu, menuKey: mv.menuKey, menuBtnRef: mv.menuBtnRef, firstItemRef: mv.firstItemRef, menuSignOut: mv.menuSignOut,
+      themeAttr: tv.themeAttr, themePref: tv.themePref, setTheme: tv.setTheme, showMoon: tv.showMoon, showSun: tv.showSun, darkChecked: tv.darkChecked, toggleLabel: tv.toggleLabel, toggleTheme: tv.toggleTheme,
+      rootClass: 'rd rb ' + (motion ? 'motion-on' : 'motion-off') + ' m-' + mode + ' z-' + stop + (phone ? ' v-' + s.view : '') + (panel === 'pick' ? ' is-pick' : '') + (loading ? ' is-loading' : '') + (empty ? ' is-empty' : ''),
+      rootRef: (el) => { this.rootEl = el; }, mapRef: (el) => this.bindMap(el),
+      listRef: (el) => { this.listEl = el; }, hereRowRef: (el) => { this.hereRow = el; },
+      cardHRef: (el) => { this.cardH = el; },
+      showMap: (!phone || s.view === 'map') && panel !== 'pick', showList: phone && s.view === 'road' && panel !== 'pick', showCard: !phone && panel !== 'pick', showPeek: phone && s.view === 'map' && !loading,
+      showPick: panel === 'pick',
+      mw: String(s.mw || 1), mh: String(s.mh || 1),
+      roads, tiles, ticks, years, rulerD, rw2: f1(Math.max(1, u * 0.04)), hasRuler: !m.noRuler,
+      nowX: f1(nowP[0]), nowY: f1(nowP[1]),
+      hasDuck: !!hereT, dx: f1(hc[0] - dw / 2), dy: f1(hc[1] - dw * 0.95), dw: f1(dw), hereName: hereT ? hereT.name : '',
+      fx: f1(Math.min(msStart[0], (s.mw || 0) - 17 * 16 * (s.rs || 1))), fy: f1(msStart[1]), showFog: stop === 'level' && !ahead && !!msT && s.scene !== 'read' && !m.illustrative && m.here !== 'perth' && m.here !== 'au',
+      hintOn, hintX: f1(hintP[0] + 2 * SIZE.place * u + 14), hintY: f1(hintP[1] + 0.2 * u),
+      weights: WEIGHTS.map(w => ({ name: w[0], h: (w[1] / 3 * 100).toFixed(0) + '%' })),
+      wide, narrow: !wide, phone,
+      backLabel: wide ? (m.here === 'perth' ? 'Back to Australia' : m.here === 'au' || m.here === 'a' ? 'Back to Point A' : 'Back to Perth') : 'Back',
+      zooms: STOPS.map(z => ({ name: STOP_NAME[z], cls: 'rb-zbtn' + (z === stop ? ' is-on' : ''), on: z === stop ? 'true' : 'false', go: () => this.goStop(z) })),
+      zoomOut: () => this.step(-1), zoomIn: () => this.step(1),
+      outOff: stop === 'road' ? 'true' : 'false', inOff: stop === 'tile' ? 'true' : 'false',
+      viewOpen: s.viewMenu && !(panel === 'key'), viewExpanded: s.viewMenu ? 'true' : 'false',
+      toggleView: () => this.setState({ viewMenu: !this.state.viewMenu, panel: this.state.panel === 'key' ? null : this.state.panel }), closeView: () => this.setState({ viewMenu: false }),
+      openKey: () => this.setState({ viewMenu: false, panel: 'key' }),
+      // the card column
+      cardHereOn: !cardOther && !deskKinds && !loading, cardOther: cardOther && !deskKinds && !phone, cardLoading: loading,
+      cardAria: cardOther ? 'The tile you pressed' : 'Where you are',
+      hKicker: H.kicker, hName: H.name, hSub: H.sub, hHasTrade: !!H.g, hG: H.g || '', hC: H.c || '', hGuide: H.guide || '', hHasGuide: !!(H.g || H.guide),
+      hBecause: H.because, hIsCourse: !!H.course, hPrimary: H.primary, hHasSecondary: !!H.secondary, hSecondary: H.secondary || '',
+      hasHereBadges: (H.badges || []).length > 0, hereBadges: badgeVals(m.illustrative ? [] : (H.badges || [])),
+      hasSibs: sibs.length > 0, sibsK: H.sibsK, sibs,
+      cKicker: cd ? cd.kicker : '', cName: selT ? selT.name : '', cSub: cd ? cd.sub : '',
+      cHasTrade: !!(cd && cd.g), cG: cd ? (cd.g || '') : '', cC: cd ? (cd.c || '') : '', cGuide: cd ? (cd.guide || '') : '', cBecause: cd ? cd.because : '',
+      cHasPrimary: !!(cd && cd.primary), cPrimary: cd ? (cd.primary || '') : '', cLesson: !!(cd && cd.lesson),
+      cSecondary: cd && cd.kicker === LOOK.kicker ? 'Back to ' + (hereT ? hereT.name : '') : 'Cancel',
+      cHasBadges: !!(selT && (selT.badges || []).length), cardBadges: badgeVals(selT ? (selT.badges || []) : []),
+      cancelSelect: () => this.setState({ selected: null, status: 'Back to where you are' }),
+      lesson: () => this.setState({ panel: 'lesson', selected: null }), closePanel: () => this.setState({ panel: null, viewMenu: false }),
+      openStack: () => this.setState({ panel: 'stack', selected: null }),
+      // panels in the card column (desktop) or as sheets (phone)
+      panelStack: panel === 'stack', panelLesson: panel === 'lesson', panelOverview: panel === 'overview', panelKey: panel === 'key',
+      deskPanel: !phone && (panel === 'stack' || panel === 'lesson' || panel === 'overview'),
+      sheetOn: phone && (panel === 'stack' || panel === 'lesson' || panel === 'overview' || panel === 'key' || sheetCard),
+      sheetCard,
+      keyPop: !phone && panel === 'key',
+      filters: ['All', 'Match well', 'Not yet reachable'].map((f, i) => ({ name: f, cls: 'rb-chip' + (i === s.filter ? ' is-on' : ''), on: i === s.filter ? 'true' : 'false', go: () => this.setState({ filter: i }) })),
+      stackRows: STACK.map(r => ({ name: r.name, sub: r.sub, hasTag: !!r.tag, tag: r.tag, cls: 'rb-srow' + (r.blocked ? ' is-blocked' : ''), blocked: !!r.blocked, open: !r.blocked })),
+      keyPress: KEY_PRESS.map(k => ({ k: k[0], v: k[1] })), keyLight: KEY_LIGHT.map(k => ({ cls: 'rb-sw is-' + k[0], v: k[1] })),
+      overview: OVERVIEW.map(t => ({ t })),
+      backToWalk: () => this.goStop('level'),
+      // toast and tag
+      hasToast: !!toast, toastText: toast ? toast.text : '', toastUndo: !!(toast && toast.undo), closeToast: () => this.setState({ toast: null }),
+      swapping: !!m.arc,
+      // futures (option A switcher, option B pick first)
+      showFut, futures: FUTURES.map(f => ({ name: f[1], cls: 'rb-fbtn' + (f[0] === s.scene ? ' is-on' : ''), on: f[0] === s.scene ? 'true' : 'false', go: () => { this.sc = buildScene(f[0]); this.setState({ scene: f[0], selected: null, cam: this.target(this.state.stop), status: f[1] + ' · illustrative' }); } })),
+      illustrative: !!m.illustrative,
+      pickFutures: [
+        { name: 'Built around staying', steps: 'Perth · Master of Cyber Security, ECU · 190 state nomination · then PR', go: () => this.setState({ panel: null, scene: 'course' }) },
+        { name: 'Built around cost', steps: 'Adelaide · Master of Cyber Security, UniSA · 491 regional visa · then PR', go: () => { this.sc = buildScene('cost'); this.setState({ panel: null, scene: 'cost' }); } },
+        { name: 'Built around career', steps: 'Sydney · Master of Cyber Security, UTS · 485 · then employer sponsorship', go: () => { this.sc = buildScene('career'); this.setState({ panel: null, scene: 'career' }); } }
+      ],
+      isEmpty: empty, isLoading: loading,
+      // phone
+      viewRoad: () => this.setState({ view: 'road', status: 'Road view' }), viewMap: () => this.setState({ view: 'map', status: 'Map view' }),
+      roadOn: s.view === 'road' ? 'true' : 'false', mapOn: s.view === 'map' ? 'true' : 'false',
+      roadCls: 'rb-seg' + (s.view === 'road' ? ' is-on' : ''), mapCls: 'rb-seg' + (s.view === 'map' ? ' is-on' : ''),
+      rows,
+      peekKicker: cardOther ? cd.kicker : H.kicker, peekName: cardOther ? selT.name : H.name,
+      peekLine: cardOther ? (cd.g ? cd.g + ' · ' + cd.c : (cd.guide || cd.sub)) : (hereT && hereT.why ? hereT.why : H.sub),
+      peekPrimary: cardOther ? (cd.primary || 'Back to ' + H.name) : H.primary,
+      peekIsOther: cardOther, peekSecondary: cardOther && cd.kicker === LOOK.kicker ? 'Back to ' + H.name : 'Cancel',
+      showSelf: !s.away, showLogin: s.away === 'login', motion,
+      backHere: () => this.setState({ away: null, status: '' }),
+      statusText: s.status
+    };
+  }
+}

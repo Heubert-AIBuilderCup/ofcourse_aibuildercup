@@ -229,6 +229,8 @@ export const AFTER_PATH = `${ONBOARDING_PATH}/after`
 export const ATTENTION_PATH = `${ONBOARDING_PATH}/attention`
 /** The end screen after step 05: still step 05 on the panel. */
 export const DONE_PATH = `${ONBOARDING_PATH}/done`
+/** Where onboarding leads: "Your road", the board a finished student lands on. */
+export const ROAD_PATH = '/road'
 
 /** Per question step: the kicker's title, its questions in order, and its base path. */
 export const QUESTION_STEPS: Readonly<

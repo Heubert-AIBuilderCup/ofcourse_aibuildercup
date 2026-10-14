@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
-import { deleteUsers, profileOf, sql, userIdByEmail } from '../helpers/db'
+import { deleteUsers, profileOf } from '../helpers/db'
 import { devLogin } from '../helpers/login'
 import {
   answerFact,
@@ -68,40 +68,6 @@ async function leaveStep00(page: Page, choice: 'Female' | 'Male' | null): Promis
   return Date.now() - t0
 }
 
-/**
- * Make the server slow to open step 01: once it is requested, her profile row stays locked until
- * the returned function is called, so the page's write waits. The function releases the lock and
- * waits for it. Holding until the test has seen what it needs keeps a loaded machine from ending
- * the wait first.
- */
-async function slowStep01(page: Page, email: string): Promise<() => Promise<void>> {
-  const id = await userIdByEmail(email)
-  let release = () => {}
-  const held = new Promise<void>((resolve) => {
-    release = resolve
-  })
-  let lock: Promise<unknown> | null = null
-  await page.route(/\/onboarding\/facts\/where(\?|$)/, async (route) => {
-    if (!lock) {
-      let locked = () => {}
-      const taken = new Promise<void>((resolve) => {
-        locked = resolve
-      })
-      lock = sql.begin(async (tx) => {
-        await tx`select 1 from student_profile where user_id = ${id} for update`
-        locked()
-        await held
-      })
-      await taken
-    }
-    await route.continue()
-  })
-  return async () => {
-    release()
-    await lock
-  }
-}
-
 const BANNED = /ranked 1st|\bbest\b|recommended/i
 const COUNSELLOR = /counsell?or|already ha(s|ve) your/i
 
@@ -147,25 +113,6 @@ test.describe('on a phone', () => {
       await expect(impact(page)).toBeVisible()
       await expect(impact(page).getByText('mock', { exact: true })).toBeVisible()
     } finally {
-      await deleteUsers([email])
-    }
-  })
-
-  test('AC4: a wait over 400 ms between step 00 and step 01 shows the duck loader [slow]', async ({
-    page,
-  }) => {
-    const email = await newStudent(page, 'qa-ac4-slow')
-    let done = async () => {}
-    try {
-      await startOnboarding(page)
-      done = await slowStep01(page, email)
-      await page.getByRole('button', { name: 'Continue', exact: true }).click()
-      await expect(page.getByText('Keep floating.')).toBeVisible()
-      await done()
-      await expect(question(page, 'Where are you right now?')).toBeVisible()
-      await expect(page.getByText('Keep floating.')).toHaveCount(0)
-    } finally {
-      await done()
       await deleteUsers([email])
     }
   })
@@ -223,41 +170,6 @@ test.describe('on a phone', () => {
           `loader shown in a wait of ${Math.round(shownAt - clickAt)} ms`,
         ).toBeGreaterThanOrEqual(350)
     } finally {
-      await deleteUsers([email])
-    }
-  })
-
-  test('AC4: with reduced motion the duck sits still on the water', async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: 'reduce' })
-    const email = await newStudent(page, 'qa-ac4-still')
-    let done = async () => {}
-    try {
-      await startOnboarding(page)
-      done = await slowStep01(page, email)
-      await page.getByRole('button', { name: 'Continue', exact: true }).click()
-      const loader = page.getByRole('status').filter({ hasText: 'Keep floating.' })
-      await expect(loader).toBeVisible()
-      // The duck is decorative, hidden from the accessibility tree. Sitting still: nothing in the
-      // loader moves. The loader may fade in (opacity only), which is not motion.
-      const moving = await loader.evaluate((el) =>
-        el
-          .getAnimations({ subtree: true })
-          .filter((a) => a.playState === 'running')
-          .flatMap((a) =>
-            (a.effect as KeyframeEffect)
-              .getKeyframes()
-              .flatMap((k) => Object.keys(k))
-              .filter(
-                (p) => !['offset', 'computedOffset', 'easing', 'composite', 'opacity'].includes(p),
-              )
-              .map((p) => `${(a as CSSAnimation).animationName}: ${p}`),
-          ),
-      )
-      expect([...new Set(moving)]).toEqual([])
-      await done()
-      await expect(question(page, 'Where are you right now?')).toBeVisible()
-    } finally {
-      await done()
       await deleteUsers([email])
     }
   })

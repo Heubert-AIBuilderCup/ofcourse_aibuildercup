@@ -84,6 +84,12 @@ describe('safeNextPath', () => {
     expect(safeNextPath('/onboarding/facts/who-pays')).toBe('/onboarding/facts/who-pays')
   })
 
+  it('accepts her road, its lesson and its route steps', () => {
+    expect(safeNextPath('/road')).toBe('/road')
+    expect(safeNextPath('/road/learn/masters-years')).toBe('/road/learn/masters-years')
+    expect(safeNextPath('/road/route/student-visa-500')).toBe('/road/route/student-visa-500')
+  })
+
   it('refuses the retired dashboard', () => {
     expect(safeNextPath('/dashboard')).toBeNull()
   })

@@ -2,11 +2,13 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { SignInPanel } from '@/features/auth/components/SignInPanel'
 import { StudentSignIn } from '@/features/auth/components/StudentSignIn'
+import { signedInLanding } from '@/features/opening'
+import { getProfile } from '@/features/opening/server/profile'
 import motion from '@/shared/components/motion.module.css'
 import { ThemeToggle } from '@/shared/components/ThemeToggle'
 import { canUseAdmin } from '@/shared/lib/auth/access'
 import {
-  ADMIN_PATH,
+  ADMIN_HOME,
   HOME_PATH,
   SIGNIN_MESSAGES,
   SIGNIN_PATH,
@@ -26,15 +28,21 @@ const first = (value: string | string[] | undefined) => (Array.isArray(value) ? 
  * width (a container query): from @5xl (64rem) the dark panel is on the left and the framed card on
  * the right; below, the panel is a band on top and the form fills the rest; below @xl (36rem) both
  * go compact; above 120rem both stay in a centred frame while their colours fill (split-page). The
- * splash (root layout) lands on the panel. Signed in: an admin on to the admin, a student on to the
- * page asked for, else the student app's home.
+ * splash (root layout) lands on the panel. Signed in, in one redirect: an admin on to the admin, a
+ * student on to the page asked for (her road for an onboarding page once she is on it), else where
+ * she left off (what /start answers).
  */
 export default async function SignInPage({ searchParams }: PageProps<'/'>) {
   const [params, session] = await Promise.all([searchParams, getSession()])
   // Only a path of this app, never another origin (gate.ts). '/' is this page: it means home.
   const asked = safeNextPath(first(params.next))
-  const next = asked && asked !== SIGNIN_PATH ? asked : HOME_PATH
-  if (session) redirect(canUseAdmin(session.user.role) ? ADMIN_PATH : next)
+  const askedFor = asked && asked !== SIGNIN_PATH ? asked : null
+  if (session) {
+    if (canUseAdmin(session.user.role)) redirect(ADMIN_HOME)
+    redirect(signedInLanding(await getProfile(session.user.id), askedFor))
+  }
+  // After Google, the browser returns to /start, which answers where she left off.
+  const next = askedFor ?? HOME_PATH
   // Only this page's two messages; anything else in the URL is ignored, never echoed.
   const error = first(params.error)
   const message = error === 'signin' || error === 'student-only' ? SIGNIN_MESSAGES[error] : null

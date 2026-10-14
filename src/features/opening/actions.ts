@@ -1,5 +1,6 @@
 'use server'
 
+import { refresh } from 'next/cache'
 import { z } from 'zod/mini'
 import { ACCESS_ERRORS, canUseStudentApp } from '@/shared/lib/auth/access'
 import { getSession } from '@/shared/lib/auth/session'
@@ -14,7 +15,14 @@ import {
 } from '@/shared/types/student'
 import { SAVE_FAILED } from './model/messages'
 import { parseAnswer } from './model/questions'
-import { saveAnswers, saveCoins, savePersona, saveRelative } from './server/profile'
+import {
+  getProfile,
+  markOnboarded,
+  saveAnswers,
+  saveCoins,
+  savePersona,
+  saveRelative,
+} from './server/profile'
 
 // The student's writes, one per tap. Each reads the student from the session (never from the
 // request), refuses anyone who is not a student, validates the browser's input against the
@@ -22,6 +30,7 @@ import { saveAnswers, saveCoins, savePersona, saveRelative } from './server/prof
 
 const SIGN_IN = 'Please sign in again.'
 const INVALID = "That answer isn't one of the options."
+const COINS_FIRST = 'Place your coins, or leave them for later, first.'
 
 const personaSchema = z.enum(PERSONAS)
 
@@ -108,6 +117,21 @@ export async function saveCoinsAction(coins: unknown): Promise<ActionResult> {
     const parsed = coinsSchema.safeParse(coins)
     if (!parsed.success) return fail(INVALID)
     await saveCoins(userId, parsed.data)
+    return { ok: true }
+  })
+}
+
+/**
+ * "Go to your road": records that she finished onboarding, once her coins are stored (a second
+ * press keeps the first time), which locks onboarding. The refresh drops the browser's cached
+ * screens, so Back from her road asks the server again and is sent on to /road.
+ */
+export async function finishOnboardingAction(): Promise<ActionResult> {
+  return asStudent('finishOnboarding', async (userId) => {
+    const { coins } = await getProfile(userId)
+    if (coins === null) return fail(COINS_FIRST)
+    await markOnboarded(userId)
+    refresh()
     return { ok: true }
   })
 }

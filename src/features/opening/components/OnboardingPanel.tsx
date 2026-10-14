@@ -1,9 +1,9 @@
 'use client'
 
 import { Check, Layers } from 'lucide-react'
-import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { Blueprint } from '@/shared/components/Blueprint'
+import { Duck } from '@/shared/components/Duck'
 import motion from '@/shared/components/motion.module.css'
 import { SITE_NAME } from '@/shared/lib/site'
 import { cn } from '@/shared/lib/utils'
@@ -211,14 +211,7 @@ export function OnboardingPanel() {
           aria-hidden="true"
           className="absolute inset-x-0 bottom-1.5 h-px bg-panel-foreground/30 @max-5xl:hidden"
         />
-        <Image
-          src="/brand/duck.png"
-          alt=""
-          width={64}
-          height={59}
-          loading="eager"
-          className={cn(styles.duck, 'block h-auto w-16 @max-5xl:w-14')}
-        />
+        <Duck size="4rem" eager className={cn(styles.duck, 'block h-auto w-16 @max-5xl:w-14')} />
         <span className="pb-3.5 text-caption text-panel-foreground dark:text-panel-foreground/70 @max-5xl:hidden">
           From off course to “Of Course!”
         </span>

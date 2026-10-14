@@ -1,5 +1,5 @@
 import 'server-only'
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 import type { PgUpdateSetSource } from 'drizzle-orm/pg-core'
 import { cache } from 'react'
 import { db } from '@/shared/lib/db'
@@ -50,6 +50,7 @@ export const getProfile = cache(async (userId: string): Promise<Profile> => {
       reminders: studentProfile.reminders,
       lastStep: studentProfile.lastStep,
       seenFutures: studentProfile.seenFutures,
+      onboardedAt: studentProfile.onboardedAt,
     })
     .from(studentProfile)
     .where(eq(studentProfile.userId, userId))
@@ -66,6 +67,7 @@ export const getProfile = cache(async (userId: string): Promise<Profile> => {
     }),
     lastStep: row.lastStep,
     seenFutures: row.seenFutures,
+    onboardedAt: row.onboardedAt,
   }
 })
 
@@ -103,4 +105,12 @@ export async function saveCoins(userId: string, coins: Coins): Promise<void> {
 /** Where she left off. */
 export async function markStep(userId: string, step: Step): Promise<void> {
   await write(userId, { lastStep: step })
+}
+
+/** She finished onboarding ("Go to your road"): the time is set once, and a later call keeps it. */
+export async function markOnboarded(userId: string): Promise<void> {
+  await db
+    .update(studentProfile)
+    .set({ onboardedAt: sql`now()`, updatedAt: sql`now()` })
+    .where(and(eq(studentProfile.userId, userId), isNull(studentProfile.onboardedAt)))
 }

@@ -149,6 +149,8 @@ export const studentProfile = pgTable(
     reminders: jsonb('reminders').$type<Reminder[]>().notNull().default([]),
     lastStep: text('last_step', { enum: STEPS }).notNull().default('picture'),
     seenFutures: boolean('seen_futures').notNull().default(false),
+    // When she pressed "Go to your road": onboarding is finished and locked from then. Null before.
+    onboardedAt: tz('onboarded_at'),
     createdAt: tz('created_at').notNull().defaultNow(),
     updatedAt: tz('updated_at').notNull().defaultNow(),
   },

@@ -3,10 +3,10 @@
 import { Check } from 'lucide-react'
 import { useId, useState } from 'react'
 import { AREA_FIELDS } from '@/features/engine'
+import { Note } from '@/shared/components/Note'
 import { cn } from '@/shared/lib/utils'
 import { type AnswerValue, AREAS_MAX, type StoredAnswer } from '@/shared/types/student'
 import type { Question } from '../model/questions'
-import { Note } from './Note'
 
 const MARKS = [1, 2, 3] as const
 const REFUSAL = "Three is the most for now. Tap one you've chosen to make room."

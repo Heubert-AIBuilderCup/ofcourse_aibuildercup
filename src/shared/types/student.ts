@@ -96,6 +96,8 @@ export type Profile = {
   reminders: Reminder[]
   lastStep: Step
   seenFutures: boolean
+  /** When she pressed "Go to your road"; null until then. Set, onboarding is locked. */
+  onboardedAt: Date | null
 }
 
 // ── Schemas for the stored JSON ─────────────────────────────────────────────────────────────

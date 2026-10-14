@@ -34,7 +34,7 @@ describe.skipIf(!enabled)('the student profile against the database', () => {
     orm = await import('drizzle-orm')
     await cleanUp()
     const base = (k: string) => ({ id: `${P}${k}`, name: `SP ${k}`, email: `${P}${k}@sp.e2e.test` })
-    await db.insert(schema.user).values([base('a'), base('b'), base('c'), base('d')])
+    await db.insert(schema.user).values([base('a'), base('b'), base('c'), base('d'), base('e')])
   })
 
   afterAll(async () => {
@@ -53,6 +53,7 @@ describe.skipIf(!enabled)('the student profile against the database', () => {
       reminders: [],
       lastStep: 'picture',
       seenFutures: false,
+      onboardedAt: null,
     })
 
     await server.saveAnswers(uid, { amount: { value: 36, state: 'stated' } })
@@ -137,6 +138,18 @@ describe.skipIf(!enabled)('the student profile against the database', () => {
       answers: { amount: { value: 36, state: 'stated' } },
       coins: null,
     })
+  })
+
+  test('records when she finished onboarding once; pressing again keeps the first time', async () => {
+    const uid = `${P}e`
+    await server.saveCoins(uid, { state: 'later' })
+    expect((await server.getProfile(uid)).onboardedAt).toBeNull()
+    await server.markOnboarded(uid)
+    const first = (await server.getProfile(uid)).onboardedAt
+    expect(first).toBeInstanceOf(Date)
+    await Bun.sleep(20)
+    await server.markOnboarded(uid)
+    expect((await server.getProfile(uid)).onboardedAt).toEqual(first)
   })
 
   test('a write before any read creates the row; deleting the account deletes the profile', async () => {

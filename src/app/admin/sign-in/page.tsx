@@ -8,7 +8,7 @@ import motion from '@/shared/components/motion.module.css'
 import { ThemeToggle } from '@/shared/components/ThemeToggle'
 import { canUseAdmin } from '@/shared/lib/auth/access'
 import {
-  ADMIN_PATH,
+  ADMIN_HOME,
   ADMIN_SIGNIN_ERROR_PATH,
   isAdminPath,
   SIGNIN_MESSAGES,
@@ -37,7 +37,7 @@ export default async function AdminSignInPage({ searchParams }: PageProps<'/admi
   const [params, session] = await Promise.all([searchParams, getSession()])
   // Only an admin page of this app, never another origin (gate.ts).
   const asked = safeNextPath(first(params.next))
-  const next = asked && isAdminPath(asked) ? asked : ADMIN_PATH
+  const next = asked && isAdminPath(asked) ? asked : ADMIN_HOME
   if (session && canUseAdmin(session.user.role)) redirect(next)
   // Only this page's two messages; anything else in the URL is ignored, never echoed.
   const error = first(params.error)

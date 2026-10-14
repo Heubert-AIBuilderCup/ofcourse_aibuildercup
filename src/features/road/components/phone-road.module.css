@@ -1,0 +1,140 @@
+/*
+ * The phone's road (the reference's rb-road, phone): a narrow line down the left with a node per
+ * step, solid where walked, dashed ahead; where she is, the card's left edge is the road itself and
+ * the duck stands on the line above it. What Tailwind cannot say: the line's pseudo-element and its
+ * dashes per state, the node's diamond, the duck's bob and the hint's pulse.
+ */
+
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  column-gap: 0.75rem;
+  scroll-margin-top: 5.5rem;
+}
+.row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0.5rem;
+  width: 0.25rem;
+  background: var(--color-accent-600);
+}
+.row[data-state="next"]::before {
+  background: repeating-linear-gradient(
+    color-mix(in oklch, var(--color-accent-600) 45%, transparent) 0 0.375rem,
+    transparent 0.375rem 0.625rem
+  );
+}
+.row[data-state="fog"]::before,
+.row[data-state="fork"]::before {
+  background: repeating-linear-gradient(
+    var(--color-neutral-500) 0 0.375rem,
+    transparent 0.375rem 0.625rem
+  );
+}
+.row:first-child::before {
+  top: 0.75rem;
+}
+.row:last-child::before {
+  bottom: auto;
+  height: 1.25rem;
+}
+
+/* A step's node: a diamond on the line, hollow when next, grey ahead. */
+.node {
+  grid-column: 1;
+  position: relative;
+  z-index: 1;
+  justify-self: center;
+  box-sizing: content-box;
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-top: 1rem;
+  transform: rotate(45deg);
+  background: var(--color-accent-600);
+  border: 0.125rem solid var(--background);
+}
+.row[data-state="next"] .node {
+  background: var(--background);
+  border-color: var(--color-accent-600);
+}
+.row[data-state="fog"] .node,
+.row[data-state="fork"] .node {
+  background: var(--color-neutral-700);
+}
+.row[data-hint] .node {
+  box-shadow: 0 0 0 0.25rem color-mix(in oklch, var(--color-accent-600) 35%, transparent);
+}
+
+/* Where she is: the card spans the width, its left edge the road; the duck on the line above. */
+.here {
+  grid-template-columns: minmax(0, 1fr);
+  padding-top: 2.5rem;
+}
+.here::before {
+  background: linear-gradient(
+    var(--color-accent-600) 0 calc(100% - 1.25rem),
+    color-mix(in oklch, var(--color-accent-600) 45%, transparent) calc(100% - 1.25rem)
+  );
+}
+.duck {
+  position: absolute;
+  top: 0.25rem;
+  left: -0.375rem;
+  z-index: 2;
+  width: 2rem;
+  height: 2rem;
+  object-fit: contain;
+  transform: scaleX(-1);
+}
+.card {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 1.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-left: 0.25rem solid var(--color-accent-600);
+}
+
+/* The duck's one-time line under the next tile, its point up to the row. */
+.bubble::after {
+  content: "";
+  position: absolute;
+  top: -0.375rem;
+  left: 1.25rem;
+  width: 0.75rem;
+  height: 0.75rem;
+  background: var(--background);
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  transform: rotate(45deg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .duck {
+    animation: bob 2.4s ease-in-out infinite;
+  }
+  .row[data-hint] .node {
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes bob {
+  0%,
+  100% {
+    transform: scaleX(-1) translateY(0);
+  }
+  50% {
+    transform: scaleX(-1) translateY(-0.1875rem);
+  }
+}
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0.1875rem color-mix(in oklch, var(--color-accent-600) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 0.5rem color-mix(in oklch, var(--color-accent-600) 10%, transparent);
+  }
+}

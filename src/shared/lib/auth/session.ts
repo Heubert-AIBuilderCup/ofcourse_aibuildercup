@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { cache } from 'react'
 import { auth } from '@/shared/lib/auth'
 import { canUseAdmin, canUseStudentApp } from './access'
-import { ADMIN_PATH, ADMIN_SIGNIN_PATH, HOME_PATH, SIGNIN_PATH, SUSPENDED_PATH } from './gate'
+import { ADMIN_HOME, ADMIN_SIGNIN_PATH, HOME_PATH, SIGNIN_PATH, SUSPENDED_PATH } from './gate'
 
 // The stored session, suspended or not. React cache() dedupes it within one server render, so
 // the layout and the page share a single lookup per request.
@@ -38,7 +38,7 @@ export async function requireSession(): Promise<Session> {
  */
 export async function requireStudent(): Promise<Session> {
   const session = await requireSession()
-  if (!canUseStudentApp(session.user.role)) redirect(ADMIN_PATH)
+  if (!canUseStudentApp(session.user.role)) redirect(ADMIN_HOME)
   return session
 }
 

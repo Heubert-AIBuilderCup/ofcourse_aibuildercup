@@ -19,11 +19,13 @@ export const ACCOUNT_SUSPENDED = 'ACCOUNT_SUSPENDED'
 /** The admin console, and the admin sign-in page, which sits outside its admin-only layout. */
 export const ADMIN_PATH = '/admin'
 export const ADMIN_SIGNIN_PATH = '/admin/sign-in'
+/** Where an admin lands: the console's first page, so no redirect has to pass through /admin. */
+export const ADMIN_HOME = '/admin/users'
 /** Public: where Better Auth sends a failed admin Google sign-in, appending `?error=<code>`. */
 export const ADMIN_SIGNIN_ERROR_PATH = '/signin-error/admin'
 
 /** The student app. Keep in step with the proxy matcher in src/proxy.ts. */
-export const APP_PATHS = ['/start', '/onboarding'] as const
+export const APP_PATHS = ['/start', '/onboarding', '/road'] as const
 
 // Pages a sign-in may return to.
 const RETURN_PATHS = [...APP_PATHS, ADMIN_PATH] as const

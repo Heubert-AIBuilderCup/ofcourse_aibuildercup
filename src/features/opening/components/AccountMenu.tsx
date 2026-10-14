@@ -16,9 +16,10 @@ const ITEM =
  * The onboarding header's one button (the design's `.hdr`): a menu with Dark theme, a checkable
  * item whose drawn switch shows its state, and Sign out. Opening focuses the first item; the arrow
  * keys, Home and End move between items; Escape, Tab or a click outside closes it. Below @5xl it
- * sits in the steel band, so the button turns light on steel; the open menu keeps the page's colours.
+ * sits in the steel band, so the button turns light on steel (`band`; the road's header has no
+ * band, so it says false); the open menu keeps the page's colours.
  */
-export function AccountMenu({ className }: { className?: string }) {
+export function AccountMenu({ className, band = true }: { className?: string; band?: boolean }) {
   const { theme, setChoice } = useThemeChoice()
   const { leave } = useSignOut()
   const [open, setOpen] = useState(false)
@@ -73,8 +74,10 @@ export function AccountMenu({ className }: { className?: string }) {
         onClick={() => setOpen((was) => !was)}
         className={cn(
           'shrink-0 aria-expanded:border-accent-700 aria-expanded:bg-accent-100 aria-expanded:text-accent-800',
-          HEADER_ACTION_ON_STEEL,
-          '@max-5xl:aria-expanded:border-panel-foreground @max-5xl:aria-expanded:bg-panel-foreground/14 @max-5xl:aria-expanded:text-panel-foreground',
+          band && [
+            HEADER_ACTION_ON_STEEL,
+            '@max-5xl:aria-expanded:border-panel-foreground @max-5xl:aria-expanded:bg-panel-foreground/14 @max-5xl:aria-expanded:text-panel-foreground',
+          ],
         )}
       >
         <User aria-hidden="true" strokeWidth={1.5} className="size-icon" />

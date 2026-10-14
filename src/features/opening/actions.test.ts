@@ -23,12 +23,25 @@ const saveAnswers = mock(
 const savePersona = mock(async (_userId: string, _persona: unknown) => {})
 const saveRelative = mock(async (_userId: string, _relative: unknown) => {})
 const saveCoins = mock(async (_userId: string, _coins: unknown) => {})
-const repository = { saveAnswers, savePersona, saveRelative, saveCoins }
-mock.module('./server/profile', () => repository)
+const markOnboarded = mock(async (_userId: string) => {})
+// The writes, counted together; the read is apart, so a check before a write does not count.
+const repository = { saveAnswers, savePersona, saveRelative, saveCoins, markOnboarded }
+/** Her stored coins, as the profile read gives them. */
+let storedCoins: unknown = { state: 'later' }
+const getProfile = mock(async (userId: string) => ({ userId, coins: storedCoins }))
+mock.module('./server/profile', () => ({ ...repository, getProfile }))
 
-const { saveAnswersAction, saveCoinsAction, savePersonaAction, saveRelativeAction } = await import(
-  './actions'
-)
+// Outside a request, Next's own would throw; here it only says it was asked.
+const refresh = mock(() => {})
+mock.module('next/cache', () => ({ refresh }))
+
+const {
+  finishOnboardingAction,
+  saveAnswersAction,
+  saveCoinsAction,
+  savePersonaAction,
+  saveRelativeAction,
+} = await import('./actions')
 
 const SIGN_IN = 'Please sign in again.'
 const NOT_AUTHORISED = 'Not authorised.'
@@ -44,6 +57,7 @@ const calls = [
   ['savePersonaAction', () => savePersonaAction('female')],
   ['saveRelativeAction', () => saveRelativeAction(relative)],
   ['saveCoinsAction', () => saveCoinsAction(coins)],
+  ['finishOnboardingAction', () => finishOnboardingAction()],
 ] as const
 
 const repositoryCalls = () => Object.values(repository).reduce((n, f) => n + f.mock.calls.length, 0)
@@ -51,6 +65,9 @@ const repositoryCalls = () => Object.values(repository).reduce((n, f) => n + f.m
 afterEach(() => {
   session = null
   sessionError = null
+  storedCoins = { state: 'later' }
+  getProfile.mockClear()
+  refresh.mockClear()
   for (const f of Object.values(repository)) {
     f.mockReset()
     f.mockImplementation(async () => {})
@@ -254,5 +271,46 @@ describe('saveCoinsAction', () => {
       await saveCoinsAction({ state: 'spent', piles: [2, 1, 1, 1, 1, 1, 1, 1], assumed: false }),
     ).toEqual({ ok: false, error: INVALID })
     expect(saveCoins).not.toHaveBeenCalled()
+  })
+})
+
+describe('finishOnboardingAction', () => {
+  it("records that she finished, on the session's own account, and refreshes what Back shows", async () => {
+    session = student()
+    expect(await finishOnboardingAction()).toEqual({ ok: true })
+    expect(getProfile).toHaveBeenCalledWith('student-1')
+    expect(markOnboarded).toHaveBeenCalledWith('student-1')
+    expect(refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('succeeds again when pressed again; the first time is the one kept (the repository)', async () => {
+    session = student()
+    storedCoins = { state: 'spent', piles: [2, 2, 1, 1, 1, 1, 1, 1], assumed: false }
+    expect(await finishOnboardingAction()).toEqual({ ok: true })
+    expect(await finishOnboardingAction()).toEqual({ ok: true })
+    expect(markOnboarded).toHaveBeenCalledTimes(2)
+  })
+
+  it('refuses while her coins are not stored, and records nothing', async () => {
+    session = student()
+    storedCoins = null
+    expect(await finishOnboardingAction()).toEqual({ ok: false, error: expect.any(String) })
+    expect(markOnboarded).not.toHaveBeenCalled()
+    expect(refresh).not.toHaveBeenCalled()
+  })
+
+  it('says the save failed rather than throw when recording fails', async () => {
+    session = student()
+    markOnboarded.mockImplementation(async () => {
+      throw new Error('connection refused')
+    })
+    const logged = spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      expect(await finishOnboardingAction()).toEqual({ ok: false, error: SAVE_FAILED })
+      expect(logged).toHaveBeenCalled()
+    } finally {
+      logged.mockRestore()
+    }
+    expect(refresh).not.toHaveBeenCalled()
   })
 })

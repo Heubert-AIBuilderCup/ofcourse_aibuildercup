@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { deleteUsers, profileOf, sql, userIdByEmail } from './helpers/db'
+import { deleteUsers, profileOf } from './helpers/db'
 import { devLogin } from './helpers/login'
 import {
   answerFact,
@@ -129,52 +129,6 @@ test('Start on step 00 opens question 1 even after she has answered it and come 
     await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
     await expect(page.getByText('Facts about you · 1 of 11', { exact: true })).toBeVisible()
   } finally {
-    await deleteUsers([email])
-  }
-})
-
-test('a slow step 01 after Start shows the duck loader beside the panel', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 800 })
-  const email = await newStudent(page, 'onboarding-loader')
-  const id = await userIdByEmail(email)
-  // A slow server: once step 01 is requested, her profile row stays locked until the loader has
-  // been seen, so the page's write (markStep) waits; a fixed delay could end first on a loaded
-  // machine. Holding the request itself would hold the loader with it.
-  let release = () => {}
-  const held = new Promise<void>((resolve) => {
-    release = resolve
-  })
-  let lock: Promise<unknown> | null = null
-  try {
-    await startOnboarding(page)
-    await page.route(/\/onboarding\/facts\/where(\?|$)/, async (route) => {
-      if (!lock) {
-        let locked = () => {}
-        const taken = new Promise<void>((resolve) => {
-          locked = resolve
-        })
-        lock = sql.begin(async (tx) => {
-          await tx`select 1 from student_profile where user_id = ${id} for update`
-          locked()
-          await held
-        })
-        await taken
-      }
-      await route.continue()
-    })
-    await page.getByRole('button', { name: 'Continue' }).click()
-
-    await expect(page.getByText('Keep floating.')).toBeVisible()
-    await expect(page.getByRole('complementary', { name: 'Getting started' })).toBeVisible()
-    release()
-    await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
-    await expect(
-      page.getByRole('heading', { level: 1, name: 'Where are you right now?' }),
-    ).toBeVisible()
-    await expect(page.getByText('Keep floating.')).toHaveCount(0)
-  } finally {
-    release()
-    await lock
     await deleteUsers([email])
   }
 })
@@ -317,8 +271,7 @@ test('a retired link lands on its screen; an unknown question is not a page', as
     await expect(page).toHaveURL(/\/onboarding\/study\/know$/)
     await expect(page.getByRole('heading', { level: 1, name: STUDY_FIRST })).toBeVisible()
 
-    // notFound() inside the (app) loading boundary: the page streams as a 200 with Next's
-    // not-found screen (a soft 404, marked noindex), as /opening/<step> did.
+    // notFound(): Next's not-found screen, answered as a real 404 (no loading boundary streams it).
     for (const path of [
       '/onboarding/facts/nope',
       '/onboarding/facts/hard',

@@ -15,6 +15,13 @@
       "when": 1791197107534,
       "tag": "0001_true_ultimates",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791875195461,
+      "tag": "0002_student_profile_onboarded_at",
+      "breakpoints": true
     }
   ]
 }
