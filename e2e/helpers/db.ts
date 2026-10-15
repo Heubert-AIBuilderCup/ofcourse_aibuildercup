@@ -96,12 +96,20 @@ export type ProfileRow = {
   seenFutures: boolean
 }
 
-/** A student's saved profile (student_profile), as stored; null when she has none yet. */
+/**
+ * A student's saved profile (student_profile) with the roadmap she is answering (the unfinished
+ * one, alive), as stored and as the app mirrors it: without one, no answers, no person, no coins
+ * and 'picture'. Null when she has no profile yet.
+ */
 export async function profileOf(email: string): Promise<ProfileRow | null> {
   const [row] = await sql<ProfileRow[]>`
-    select p.persona, p.answers, p.relative, p.coins, p.reminders,
-      p.last_step as "lastStep", p.seen_futures as "seenFutures"
-    from student_profile p join "user" u on u.id = p.user_id where u.email = ${email}`
+    select p.persona, coalesce(r.answers, '{}'::jsonb) as answers, r.relative, r.coins,
+      p.reminders, coalesce(r.last_step, 'picture') as "lastStep",
+      p.seen_futures as "seenFutures"
+    from student_profile p join "user" u on u.id = p.user_id
+    left join roadmap r
+      on r.user_id = p.user_id and r.finished_at is null and r.deleted_at is null
+    where u.email = ${email}`
   return row ?? null
 }
 

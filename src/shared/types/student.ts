@@ -87,17 +87,51 @@ export type FutureId = (typeof FUTURE_IDS)[number]
 /** `at`: an ISO time. */
 export type Reminder = { futureId: FutureId; courseId: string; text: string; at: string }
 
-export type Profile = {
-  userId: string
-  persona: Persona | null
+/** What she did on a roadmap's board, kept with it. A key that is absent is false. */
+export type RoadmapChoices = {
+  swapped?: boolean
+  added?: boolean
+  read?: boolean
+  city?: boolean
+  country?: boolean
+}
+
+/** The most characters in a roadmap's name. */
+export const ROADMAP_NAME_MAX = 60
+
+/**
+ * One of the student's own roadmaps, alive (never another student's, never a deleted one).
+ * `name` null: named from its road. `finishedAt` null: the one she is still answering.
+ * `lastOpenedAt` null: never opened.
+ */
+export type Roadmap = {
+  id: string
+  name: string | null
   answers: StoredAnswers
   relative: Relative | null
   coins: Coins | null
-  reminders: Reminder[]
+  choices: RoadmapChoices
   lastStep: Step
+  copiedFrom: string | null
+  createdAt: Date
+  finishedAt: Date | null
+  lastOpenedAt: Date | null
+}
+
+export type Profile = {
+  userId: string
+  persona: Persona | null
+  reminders: Reminder[]
   seenFutures: boolean
-  /** When she pressed "Go to your road"; null until then. Set, onboarding is locked. */
-  onboardedAt: Date | null
+  /** The roadmap she is answering; null when she is answering none. */
+  draft: Roadmap | null
+  /** How many finished roadmaps she has. */
+  finished: number
+  /** The draft's, for the onboarding screens: empty, null, null and 'picture' without a draft. */
+  answers: StoredAnswers
+  relative: Relative | null
+  coins: Coins | null
+  lastStep: Step
 }
 
 // ── Schemas for the stored JSON ─────────────────────────────────────────────────────────────
@@ -158,4 +192,13 @@ export const reminderSchema = z.object({
   courseId: z.string().check(z.minLength(1), z.maxLength(80)),
   text: z.string().check(z.minLength(1), z.maxLength(300)),
   at: z.iso.datetime(),
+})
+
+/** A board's choices; a key it does not know is dropped. */
+export const roadmapChoicesSchema = z.object({
+  swapped: z.optional(z.boolean()),
+  added: z.optional(z.boolean()),
+  read: z.optional(z.boolean()),
+  city: z.optional(z.boolean()),
+  country: z.optional(z.boolean()),
 })

@@ -3,6 +3,7 @@
 // come from questions.ts (SCREENS[0] to SCREENS[3]); the "why" lines, the slugs, step 02's groups
 // and step 03's person screen are new here.
 
+import { PICTURE_PATH } from '@/shared/lib/student-paths'
 import type { QuestionKey, Relative, StoredAnswers } from '@/shared/types/student'
 import { DRAWN_TO_AREAS, isVisible, PARTICULAR, SCREENS } from './questions'
 
@@ -221,7 +222,6 @@ export const ONBOARDING_PATH = '/onboarding'
 export const WELCOME_PATH = `${ONBOARDING_PATH}/welcome`
 /** Steps 00 to 04 hold 24 to 27 one-tap questions, about 15 seconds each; step 05 is optional. */
 export const WELCOME_MINUTES = 6
-export const PICTURE_PATH = `${ONBOARDING_PATH}/character`
 export const FACTS_PATH = `${ONBOARDING_PATH}/facts`
 export const STUDY_PATH = `${ONBOARDING_PATH}/study`
 export const LIVING_PATH = `${ONBOARDING_PATH}/living`
@@ -229,8 +229,6 @@ export const AFTER_PATH = `${ONBOARDING_PATH}/after`
 export const ATTENTION_PATH = `${ONBOARDING_PATH}/attention`
 /** The end screen after step 05: still step 05 on the panel. */
 export const DONE_PATH = `${ONBOARDING_PATH}/done`
-/** Where onboarding leads: "Your road", the board a finished student lands on. */
-export const ROAD_PATH = '/road'
 
 /** Per question step: the kicker's title, its questions in order, and its base path. */
 export const QUESTION_STEPS: Readonly<

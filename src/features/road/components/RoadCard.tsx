@@ -8,6 +8,7 @@ import { Duck } from '@/shared/components/Duck'
 import { Note } from '@/shared/components/Note'
 import { Button, buttonVariants } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
+import { useBoardPath } from '../hooks/useBoardPath'
 import { type Card, siblingsOf } from '../model/press'
 import type { BadgeId, Road, Tile } from '../model/road-data'
 import { routePath } from '../model/routes'
@@ -57,6 +58,7 @@ export function RoadCard({
 }) {
   const here = card.kind === 'here'
   const siblings = here ? siblingsOf(scene) : []
+  const board = useBoardPath()
   const hereTile = scene.tiles.find((t) => t.id === scene.here)
   const course = here && hereTile?.kind === 'course' && !flat
   const trade = card.gains && card.costs
@@ -148,7 +150,7 @@ export function RoadCard({
       <div className="mt-auto flex flex-col gap-2 pt-2">
         {card.primary && card.kind === 'look' && card.routeId ? (
           <Link
-            href={routePath(card.routeId)}
+            href={routePath(board, card.routeId)}
             className={cn(buttonVariants({ variant: 'strong' }), ACTION)}
           >
             <FrameMarks spread />
@@ -164,7 +166,7 @@ export function RoadCard({
         ) : null}
         {card.secondary && here && card.routeId ? (
           <Link
-            href={routePath(card.routeId)}
+            href={routePath(board, card.routeId)}
             className={cn(buttonVariants({ variant: 'outline' }), ACTION)}
           >
             <FrameMarks spread />

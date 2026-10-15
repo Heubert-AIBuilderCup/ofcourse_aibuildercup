@@ -1,0 +1,463 @@
+/* Onboarding 01 · Facts about you — one question at a time, like step 00.
+   Reuses login.css (Industry tokens, rise/d1–d8 motion) and pq.css (side panel, step list,
+   compact progress, duck dock, question type and actions) so it reads as the same flow.
+   Responds to its own width:side by side from 960 · stacked band below 960 · phone below 560. */
+
+.fx{container-type:inline-size;min-height:100vh;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body)}
+.fx-layout{max-width:1920px;margin-inline:auto}
+.fx-layout > .pq-side{position:sticky;top:0;height:100vh;align-self:start}
+
+/* step list:00 done, 01 now */
+.pq-step.is-done{color:color-mix(in srgb,var(--color-bg) 82%,transparent)}
+.pq-done-mark{display:inline-flex;align-items:center;gap:0.25rem;font-size:0.625rem;letter-spacing:.1em;text-transform:uppercase;color:color-mix(in srgb,var(--color-bg) 70%,transparent)}
+.pq-seg.is-done{background:color-mix(in srgb,var(--color-accent-300) 55%,transparent)}
+
+/* ── Main column:the question, centred like step 00 ── */
+.fx .pq-content{max-width:40rem;gap:1.25rem}
+.fx-top{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:2.75rem;margin-bottom:-0.25rem}
+.fx-kicker{font-size:0.6875rem;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)}
+.fx-kicker b{font-weight:500;color:var(--color-neutral-700)}
+.fx-signout{min-height:2.75rem;padding-inline:0.75rem;font-family:var(--font-body);font-weight:500;font-size:0.8125rem;color:var(--color-neutral-700)}
+.fx-signout:hover{color:var(--color-text)}
+.fx-screen{display:flex;flex-direction:column;gap:1.25rem}
+.fx-group-label{margin:0;font-size:1.0625rem;color:var(--color-neutral-700)}
+.fx .pq-q:focus{outline:none}
+
+/* Answer cards:like the comic-character choices, without the frame marks, in a grid.
+   One tap picks; tapping another changes it. Selected = tick badge + double rule + colour,
+   so it never relies on colour alone. "Not sure" is one of them:dashed, calm. */
+.fx-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0.75rem;margin-top:0.25rem}
+.fx-cards.n4{grid-template-columns:repeat(2,minmax(0,1fr))}
+.fx-card{
+  position:relative;display:flex;align-items:center;gap:0.625rem;min-height:4rem;padding:0.75rem 2.5rem 0.75rem 1rem;
+  text-align:left;cursor:pointer;font-family:var(--font-heading);font-weight:600;font-size:1.1875rem;line-height:1.15;color:var(--color-text);
+  background:transparent;border:1px solid var(--color-divider);border-radius:0;
+  transition:background .2s,border-color .2s,box-shadow .2s,color .2s;
+}
+.fx-card:hover{background:color-mix(in srgb,var(--color-text) 4%,transparent);border-color:color-mix(in srgb,var(--color-text) 40%,transparent)}
+.fx-card:focus-visible{outline:2px solid var(--color-accent);outline-offset:3px}
+.fx-card[aria-checked="true"]{background:var(--color-accent-100);border-color:var(--color-accent-700);box-shadow:inset 0 0 0 1px var(--color-accent-700);color:var(--color-accent-800)}
+.fx-card.is-unsure{border-style:dashed;color:var(--color-neutral-700);font-family:var(--font-body);font-weight:500;font-size:1rem}
+.fx-card.is-unsure[aria-checked="true"]{border-style:solid;color:var(--color-accent-800)}
+.fx-q{flex:none;display:inline-flex;align-items:center;justify-content:center;width:1.25rem;height:1.25rem;border:1px solid currentColor;border-radius:50%;font-family:var(--font-body);font-size:0.75rem;font-weight:700;line-height:1}
+.fx-card .pq-tick{position:absolute;top:50%;right:0.75rem;margin:-0.6875rem 0 0}
+.fx-card[aria-checked="true"] .pq-tick{transform:scale(1)}
+
+/* What her answer does:appears as she answers */
+.fx-impact-wrap{display:flex;flex-direction:column;gap:0.5rem}
+.fx-impact-wrap:empty{display:none}
+.fx-impact{display:flex;align-items:flex-start;gap:0.625rem;padding:0.75rem 1rem;border-left:2px solid var(--color-accent-700);background:color-mix(in srgb,var(--color-accent-100) 70%,transparent);font-size:0.9375rem;line-height:1.5;color:var(--color-text)}
+/* the icon box is exactly one line tall, so the arrow sits on the middle of the first line at any size */
+.fx-impact svg{flex:none;display:block;width:0.875rem;height:1.5em;margin:0;color:var(--color-accent-700)}
+.fx-impact p{margin:0}
+.fx-impact.is-assume{border-left-style:dashed}
+.fx-impact.is-limit{border-left-color:var(--color-neutral-600);background:var(--color-neutral-100)}
+.fx-impact.is-limit svg{color:var(--color-neutral-700)}
+.fx-mock{display:inline-block;margin-left:2px;padding:0 0.375rem;font-size:0.6875rem;letter-spacing:.06em;text-transform:uppercase;color:var(--color-neutral-700);border:1px dashed var(--color-neutral-500);vertical-align:1px}
+.fx-chips{display:flex;flex-wrap:wrap;gap:0.375rem}
+.fx-chip{display:inline-flex;align-items:center;gap:0.375rem;padding:0.1875rem 0.625rem;font-size:0.75rem;color:var(--color-accent-800);border:1px dashed var(--color-accent-700);background:var(--color-bg)}
+.fx-chip b{font-weight:400;font-size:0.625rem;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700)}
+
+/* the note doubles as the quiet save status */
+.fx .pq-note .spin{margin-top:2px}
+
+/* a save that failed:short, calm, her answer stays selected above */
+.fx-alert{align-items:center;flex-wrap:wrap;gap:0.5rem 0.625rem}
+.fx-alert span{flex:1;min-width:11.25rem}
+.fx-retry{min-height:2.75rem;padding-inline:0.875rem;background:var(--color-bg);border-color:var(--color-danger-300);color:var(--color-danger-800)}
+.fx-retry:hover{background:var(--color-danger-200)}
+
+/* Back · Skip/Continue, with a quiet way straight on to step 02 */
+.fx .pq-actions{justify-content:space-between}
+.fx-later{align-self:flex-start;min-height:2.75rem;margin:-0.625rem 0 -0.375rem;padding-inline:0;font-family:var(--font-body);font-weight:500;font-size:0.8125rem;color:var(--color-accent-700)}
+.fx-later:hover{background:transparent;color:var(--color-accent-800);text-decoration:underline;text-underline-offset:0.1875rem}
+
+/* leaving:the duck floats on (reuses step 00's river) */
+.fx-leave{display:flex;flex-direction:column;gap:1rem;padding:1.5rem 0 3rem;outline:none}
+.fx-leave .pq-river-duck.is-left img{transform:none}
+.fx-leave-title{margin:0;font-size:2.25rem;line-height:1.08}
+.fx-leave-text{margin:0;font-size:0.9375rem;line-height:1.55;color:var(--color-neutral-700);max-width:52ch}
+.fx-leave .btn{align-self:flex-start;min-height:2.75rem}
+
+/* motion:each new question slides in (two names so it restarts), impact lines rise in */
+@keyframes fx-in-a{from{opacity:0;transform:translateY(0.625rem)}to{opacity:1;transform:none}}
+@keyframes fx-in-b{from{opacity:0;transform:translateY(0.625rem)}to{opacity:1;transform:none}}
+.motion-on .fx-screen.qa > *{animation:fx-in-a .55s var(--ease-out) backwards}
+.motion-on .fx-screen.qb > *{animation:fx-in-b .55s var(--ease-out) backwards}
+.motion-on .fx-screen > :nth-child(2){animation-delay:.05s}.motion-on .fx-screen > :nth-child(3){animation-delay:.1s}
+.motion-on .fx-screen > :nth-child(4){animation-delay:.15s}.motion-on .fx-screen > :nth-child(n+5){animation-delay:.2s}
+.motion-on .fx-impact.va{animation:fx-in-a .45s var(--ease-out) both}
+.motion-on .fx-impact.vb{animation:fx-in-b .45s var(--ease-out) both}
+.motion-on .fx-chip{animation:fx-in-a .45s var(--ease-out) .1s both}
+.motion-on .fx-card[aria-checked="true"]{animation:fx-tap .4s cubic-bezier(.34,1.56,.64,1)}
+@keyframes fx-tap{0%{transform:scale(1)}35%{transform:scale(.96)}100%{transform:none}}
+@keyframes fx-across-left{from{transform:translateX(calc(100cqi - 3.25rem))}to{transform:translateX(0)}}
+.motion-on .fx-leave .pq-river-duck.is-left{animation:fx-across-left 2.8s cubic-bezier(.45,0,.55,1) .3s both}
+.motion-on .fx-leave .pq-river-duck.is-left img{animation:none}
+
+/* ── Tablet:stacked, steel band on top ── */
+@container (max-width: 1023.98px){
+  .fx-layout > .pq-side{position:relative;height:auto}
+}
+
+/* ── Phone:one column, 1rem gutter, actions under the thumb ── */
+@container (max-width: 575.98px){
+  .fx .pq-content{gap:1rem}
+  .fx-screen{gap:0.875rem}
+  .fx-top{margin-bottom:-0.5rem}
+  .fx-group-label{font-size:0.9375rem}
+  .fx-cards,.fx-cards.n4{grid-template-columns:repeat(2,minmax(0,1fr));gap:0.625rem}
+  .fx-cards.n3,.fx-cards.n4{grid-template-columns:minmax(0,1fr)}
+  .fx-card{min-height:3.5rem;font-size:1.125rem;padding:0.625rem 2.5rem 0.625rem 0.875rem}
+  .fx-card.is-unsure{font-size:0.9375rem}
+  .fx-impact{font-size:0.875rem;padding:0.625rem 0.875rem}
+  .fx .pq-actions .btn{flex:1;min-width:0}
+  .fx .pq-actions .fx-back{flex:0 0 auto;min-width:6rem}
+  .fx-leave-title{font-size:1.875rem}
+}
+
+/* ── Step 02 · What you'd study: the one multi-select ──
+   Same cards as the radio questions, but each shows an empty square that fills with a tick,
+   and a count ("2 of 3 chosen") with three pips above. A fourth tap is refused with a calm line. */
+.sd-count{display:flex;align-items:center;gap:0.625rem;margin:0.25rem 0 -0.25rem;font-size:0.8125rem;font-weight:500;color:var(--color-neutral-700)}
+.sd-pips{display:inline-flex;gap:0.25rem}
+.sd-pips i{width:0.75rem;height:0.25rem;background:var(--color-neutral-300);transition:background .25s}
+.sd-pips i.on{background:var(--color-accent-700)}
+.sd-check{padding-right:3rem}
+.sd-label{display:flex;flex-direction:column;gap:0.25rem;min-width:0}
+.sd-note{font-family:var(--font-body);font-weight:400;font-size:0.75rem;line-height:1.3;color:var(--color-neutral-600)}
+.sd-check[aria-checked="true"] .sd-note{color:var(--color-accent-800)}
+.sd-box{position:absolute;top:50%;right:0.875rem;width:1.375rem;height:1.375rem;margin-top:-0.6875rem;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--color-neutral-500);color:transparent;transition:background .2s,border-color .2s,color .2s}
+.sd-check:hover .sd-box{border-color:var(--color-text)}
+.sd-check[aria-checked="true"] .sd-box{background:var(--color-accent-700);border-color:var(--color-accent-700);color:var(--color-bg)}
+.sd-check.is-full{color:var(--color-neutral-600)}
+.sd-check.is-full .sd-box{border-style:dashed}
+.sd-refuse{display:flex;align-items:flex-start;gap:0.5rem;margin:0;padding:0.625rem 0.875rem;font-size:0.875rem;line-height:1.45;color:var(--color-text);background:var(--color-neutral-100);border-left:2px solid var(--color-neutral-600)}
+.sd-refuse svg{flex:none;display:block;width:0.875rem;height:1.45em;margin:0;color:var(--color-neutral-700)}
+.motion-on .sd-refuse{animation:fx-in-a .35s var(--ease-out) both}
+.motion-on .sd-check[aria-checked="true"] .sd-box{animation:fx-tap .4s cubic-bezier(.34,1.56,.64,1)}
+@container (max-width: 575.98px){
+  .sd .fx-cards.sd-multi{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sd-check{min-height:3.5rem;padding:0.625rem 2.5rem 0.625rem 0.75rem;font-size:1.0625rem}
+  .sd-box{right:0.625rem;width:1.25rem;height:1.25rem;margin-top:-0.625rem}
+  .sd-note{font-size:0.6875rem}
+}
+
+/* ── Step 03 · Where and how you'd live: the person form ("Who, and where?") ──
+   The one screen with fields: a select of preview places (plus "Somewhere else", which opens
+   a "Where?" field), relation cards like the answers above, and an optional name.
+   Fields use Industry's .field/.input, sized up to sit with the cards. Every change saves. */
+.lv-form{display:flex;flex-direction:column;gap:1.25rem;margin-top:0.25rem}
+.lv-field > label,.lv-label{display:block;margin:0 0 0.375rem;font-size:0.8125rem;font-weight:500;color:var(--color-neutral-700)}
+.lv-opt{font-weight:400;color:var(--color-neutral-600)}
+.lv-field .input{min-height:3rem;padding:0.625rem 0.875rem;font-size:1rem;line-height:1.4}
+.lv-select{position:relative}
+.lv-select select.input{appearance:none;-webkit-appearance:none;padding-right:2.75rem;cursor:pointer;text-overflow:ellipsis}
+.lv-select select.input:invalid,.lv-select select.input.is-empty{color:var(--color-neutral-600)}
+.lv-select option,.lv-select optgroup{color:var(--color-text)}
+.lv-chev{position:absolute;top:50%;right:0.875rem;width:16px;height:16px;margin-top:-8px;pointer-events:none;color:var(--color-neutral-700)}
+.lv-tagwrap{white-space:nowrap}
+.lv-group{display:flex;flex-direction:column}
+.lv-rel{margin-top:0}
+.lv-rel .fx-card{min-height:3.25rem;font-size:1.0625rem}
+.motion-on .lv-where{animation:fx-in-a .35s var(--ease-out) both}
+@container (max-width: 575.98px){
+  .lv-form{gap:1rem}
+  .lv-rel .fx-card{min-height:3rem;font-size:1rem;padding:0.5rem 2.25rem 0.5rem 0.75rem}
+}
+
+/* ── Step 04 · After you graduate ── two-answer question: two columns; the last question's button opens the futures */
+.fx-cards.n3.n2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.gr .gr-show{min-width:13rem}
+@container (max-width: 575.98px){
+  .fx-cards.n3.n2{grid-template-columns:minmax(0,1fr)}
+  .gr .pq-actions .gr-show{min-width:0}
+}
+
+/* ══ Step 05 · Three futures ══
+   The destination, not an onboarding step: a slim steel band (brand + menu) keeps it the same product,
+   and the page below is wide (content up to 80rem). Futures sit side by side in a fixed order
+   (cost, staying, career) and are never numbered. Rows: ▲ Gives you / ▼ Costs you / ● Neutral,
+   by shape and word as well as colour. Heavier weights are drawn larger. */
+.ft{position:relative;container-type:inline-size;min-height:100vh;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body)}
+.ft-band{position:relative;color:var(--on-steel)}
+.ft-band-in{max-width:85rem;margin-inline:auto;min-height:4.5rem;padding:0 2.5rem;display:flex;align-items:center;gap:1.25rem}
+.ft-band .pq-brand{font-size:1.125rem}
+.ft-band .pq-mark{width:2rem;height:2rem}
+.ft-band-note{padding-left:1.25rem;border-left:1px solid color-mix(in srgb,var(--on-steel) 22%,transparent);font-size:0.6875rem;letter-spacing:.1em;text-transform:uppercase;color:color-mix(in srgb,var(--on-steel) 72%,transparent)}
+.ft > .hdr{top:0.875rem;right:max(2.5rem,calc((100% - 85rem) / 2 + 2.5rem))}
+.ft > .hdr .hdr-btn{color:var(--on-steel);border-color:color-mix(in srgb,var(--on-steel) 24%,transparent)}
+.ft > .hdr .hdr-btn:hover{background:color-mix(in srgb,var(--on-steel) 8%,transparent);border-color:color-mix(in srgb,var(--on-steel) 45%,transparent)}
+.ft > .hdr .hdr-btn[aria-expanded="true"]{background:color-mix(in srgb,var(--on-steel) 14%,transparent);border-color:var(--on-steel);color:var(--on-steel)}
+[data-theme="dark"] .ft-main{box-shadow:inset 0 1px 0 var(--color-divider)}
+.ft-main{padding:2.5rem 2.5rem 4rem}
+.ft-wrap{max-width:80rem;margin-inline:auto;display:flex;flex-direction:column;gap:1.5rem}
+.ft-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem 2rem;flex-wrap:wrap}
+.ft-head-text{display:flex;flex-direction:column;gap:0.5rem}
+.ft-title{margin:0;font-size:2.75rem;line-height:1.05}
+.ft-title span{color:var(--color-neutral-700);font-weight:500}
+.ft-title:focus{outline:none}
+.ft-lede{margin:0;font-size:1.0625rem;color:var(--color-neutral-700)}
+.ft-tools{display:flex;flex-wrap:wrap;gap:0.75rem}
+.ft-tools .btn{min-height:2.75rem}
+.ft-back{padding-inline:0.5rem;color:var(--color-accent-700);font-weight:500}
+.ft-tool.is-on{background:var(--color-accent-100);border-color:var(--color-accent-700);color:var(--color-accent-800)}
+
+/* weights plaque */
+.ft-plaque{position:relative;display:flex;flex-direction:column;gap:1rem;padding:1.5rem;border:1px solid var(--color-divider);background:var(--color-surface)}
+.ft-plaque-top{display:flex;flex-wrap:wrap;align-items:baseline;gap:0.25rem 1rem}
+.ft-plaque-h{margin:0;font-size:1.5rem}
+.ft-plaque-sub{margin:0;font-size:0.875rem;color:var(--color-neutral-700)}
+.ft-weights{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 2rem}
+.ft-weight{display:grid;grid-template-columns:5.5rem auto 1.25rem;grid-template-rows:auto auto;align-items:center;gap:0.25rem 0.75rem;padding:0.75rem 0;border-top:1px solid var(--color-divider)}
+.ft-weight-name{font-family:var(--font-heading);font-weight:600;font-size:1.125rem}
+.ft-weight-bar{display:inline-flex;gap:0.25rem}
+.ft-weight-bar i{width:1.25rem;height:0.375rem;background:var(--color-neutral-300)}
+.ft-weight-bar i.on{background:var(--color-accent-700)}
+.ft-weight-n{font-size:0.8125rem;font-weight:500;color:var(--color-neutral-700)}
+.ft-weight-why{grid-column:1 / -1;font-size:0.8125rem;line-height:1.4;color:var(--color-neutral-700)}
+.ft-flex{display:flex;flex-wrap:wrap;align-items:center;gap:0.5rem}
+.ft-flex-label{font-size:0.875rem;font-weight:500;margin-right:0.25rem}
+
+/* chips (answers a future rests on) and the editor that opens under them */
+.ft-chip{display:inline-flex;align-items:center;gap:0.25rem;min-height:2.25rem;padding:0.25rem 0.75rem;font-family:var(--font-body);font-size:0.8125rem;color:var(--color-accent-800);background:var(--color-bg);border:1px solid var(--color-accent-700);border-radius:0;cursor:pointer;transition:background .2s}
+.ft-chip:hover{background:var(--color-accent-100)}
+.ft-chip:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+.ft-chip.is-assumed{border-style:dashed}
+.ft-chip b{font-weight:600}
+.ft-chip.is-open{background:var(--color-accent-700);border-style:solid;color:var(--color-bg)}
+.ft-editor{display:flex;flex-direction:column;gap:0.75rem;padding:1rem;border:1px solid var(--color-accent-700);background:var(--color-accent-100)}
+.ft-ed-h{margin:0;font-family:var(--font-heading);font-weight:600;font-size:1.0625rem}
+.ft-ed-sub{font-family:var(--font-body);font-weight:400;font-size:0.875rem;color:var(--color-neutral-700)}
+.ft-ed-opts{display:flex;flex-wrap:wrap;gap:0.5rem}
+.ft-opt{position:relative;display:inline-flex;align-items:center;min-height:2.75rem;padding:0.5rem 2.25rem 0.5rem 0.875rem;font-family:var(--font-heading);font-weight:600;font-size:1rem;color:var(--color-text);background:var(--color-bg);border:1px solid var(--color-divider);border-radius:0;cursor:pointer}
+.ft-opt:hover{border-color:color-mix(in srgb,var(--color-text) 40%,transparent)}
+.ft-opt:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+.ft-opt[aria-checked="true"]{border-color:var(--color-accent-700);box-shadow:inset 0 0 0 1px var(--color-accent-700);color:var(--color-accent-800)}
+.ft-opt .pq-tick{position:absolute;right:0.5rem;top:50%;margin-top:-0.6875rem;transform:scale(0)}
+.ft-opt[aria-checked="true"] .pq-tick{transform:scale(1)}
+.ft-ed-foot{display:flex;gap:0.5rem;justify-content:flex-end}
+.ft-ed-foot .btn,.ft-undo{min-height:2.75rem}
+
+/* fewer than three · sealed · redrawn */
+.ft-fewer,.ft-redrawn-bar{display:flex;align-items:center;flex-wrap:wrap;gap:0.5rem 0.75rem;padding:0.75rem 1rem;font-size:0.9375rem;line-height:1.45;background:var(--color-neutral-100);border-left:2px solid var(--color-neutral-600)}
+.ft-fewer p,.ft-redrawn-bar p{margin:0;flex:1;min-width:16rem}
+.ft-fewer svg,.ft-redrawn-bar svg{flex:none;color:var(--color-neutral-700)}
+.ft-redrawn-bar{background:color-mix(in srgb,var(--color-accent-100) 70%,transparent);border-left-color:var(--color-accent-700)}
+.ft-redrawn-bar svg{color:var(--color-accent-700)}
+.ft-sealed-head{display:flex;align-items:flex-start;flex-wrap:wrap;gap:0.75rem 1rem;padding:1.25rem;border:1px solid var(--color-danger-300);background:var(--color-danger-100)}
+.ft-sealed-head svg{flex:none;color:var(--color-danger-700);margin-top:0.25rem}
+.ft-sealed-text{flex:1;min-width:16rem}
+.ft-sealed-text h2{margin:0;font-size:1.5rem;color:var(--color-danger-800)}
+.ft-sealed-text p{margin:0.25rem 0 0;font-size:0.9375rem;color:var(--color-text)}
+
+/* the futures */
+.ft-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.25rem;align-items:start}
+.ft-card{position:relative;display:flex;flex-direction:column;border:1px solid var(--color-divider);background:var(--color-bg)}
+.ft-card.is-redrawn{border-color:var(--color-accent-700)}
+.ft-card-head{display:flex;flex-direction:column;align-items:flex-start;gap:0.25rem;padding:1.25rem 1.25rem 1rem;border-bottom:1px solid var(--color-divider)}
+.ft-around{margin:0;font-size:0.6875rem;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)}
+.ft-route{margin:0.125rem 0 0;font-size:1.5rem;line-height:1.1}
+.ft-where{margin:0;font-size:0.9375rem;color:var(--color-neutral-700)}
+.ft-tag{margin-top:0.375rem;padding:0.125rem 0.5rem;font-size:0.75rem;font-weight:500;color:var(--color-accent-800);background:var(--color-accent-100);border:1px solid var(--color-accent-700)}
+.ft-over{display:inline-flex;align-items:center;gap:0.375rem;margin-top:0.375rem;padding:0.125rem 0.5rem;font-size:0.75rem;font-weight:600;color:var(--color-danger-800);background:var(--color-danger-100);border:1px solid var(--color-danger-300)}
+.ft-dist{display:flex;align-items:flex-start;gap:0.5rem;margin:0;padding:0.625rem 1.25rem;font-size:0.875rem;line-height:1.45;border-bottom:1px solid var(--color-divider);background:color-mix(in srgb,var(--color-accent-100) 60%,transparent)}
+.ft-dist svg{flex:none;width:16px;height:1.45em;color:var(--color-accent-700)}
+.ft-rows{list-style:none;margin:0;padding:0}
+.ft-row{border-bottom:1px solid var(--color-divider)}
+.ft-row-btn{box-sizing:border-box;width:100%;display:grid;grid-template-columns:5rem minmax(0,1fr);gap:0.75rem;padding:0.75rem 1.25rem;text-align:left;font:inherit;color:inherit;background:transparent;border:0;border-radius:0;cursor:pointer}
+.ft-row-btn:hover{background:color-mix(in srgb,var(--color-text) 3%,transparent)}
+.ft-row-btn:focus-visible{outline:2px solid var(--color-accent);outline-offset:-2px}
+.ft-dim{display:flex;flex-direction:column;gap:0.375rem;padding-top:0.125rem;font-family:var(--font-heading);font-weight:600;font-size:1rem}
+.ft-wt{display:inline-flex;gap:2px}
+.ft-wt i{width:0.5rem;height:0.1875rem;background:var(--color-neutral-300)}
+.ft-wt i.on{background:var(--color-text)}
+.ft-body{display:flex;flex-direction:column;gap:0.25rem;min-width:0}
+.ft-verdict{display:inline-flex;align-items:center;gap:0.375rem;font-size:0.6875rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.ft-shape{font-size:0.75rem;line-height:1}
+.v-gives{color:var(--color-accent-700)}
+.v-costs{color:var(--color-danger-700)}
+.v-neutral{color:var(--color-neutral-700)}
+.ft-claim{font-size:0.9375rem;line-height:1.4}
+.ft-meta{display:flex;flex-wrap:wrap;align-items:center;gap:0.25rem 0.75rem;font-size:0.75rem;color:var(--color-neutral-700)}
+.ft-pips{display:inline-flex;gap:2px}
+.ft-pips i{width:0.375rem;height:0.375rem;border:1px solid var(--color-neutral-500)}
+.ft-pips i.on{background:var(--color-neutral-700);border-color:var(--color-neutral-700)}
+.ft-state{padding:0 0.375rem;font-size:0.625rem;letter-spacing:.06em;text-transform:uppercase;border:1px dashed var(--color-neutral-500)}
+.ft-state.s-unverified{border-color:var(--color-danger-300);color:var(--color-danger-700)}
+.ft-feel b{font-weight:600;color:var(--color-text)}
+/* weight: heavier rows are drawn larger, weight 0 recedes */
+.ft-row.w3 .ft-dim{font-size:1.1875rem}
+.ft-row.w3 .ft-claim{font-size:1.0625rem;font-weight:500}
+.ft-row.w3 .ft-row-btn{padding-block:0.9375rem}
+.ft-row.w0 .ft-claim{font-size:0.8125rem;color:var(--color-neutral-700)}
+.ft-row.w0 .ft-dim{font-size:0.875rem;color:var(--color-neutral-700)}
+.ft-row.is-changed{background:color-mix(in srgb,var(--color-accent-100) 70%,transparent);box-shadow:inset 3px 0 0 var(--color-accent-700)}
+.ft-changed{align-self:flex-start;margin-top:0.125rem;font-size:0.6875rem;font-weight:600;letter-spacing:.04em;color:var(--color-accent-800)}
+.ft-row.is-open{background:var(--color-surface)}
+.ft-detail{display:flex;flex-direction:column;gap:0.25rem;margin:0 1.25rem 0.875rem calc(1.25rem + 5.75rem);padding:0.75rem 0.875rem;background:var(--color-bg);border:1px solid var(--color-divider);border-left:2px solid var(--color-accent-700)}
+.ft-num{margin:0;font-family:var(--font-heading);font-weight:600;font-size:1.25rem}
+.ft-src{margin:0;font-size:0.8125rem;line-height:1.45;color:var(--color-neutral-700)}
+.ft-assume{display:flex;flex-direction:column;gap:0.625rem;padding:1rem 1.25rem;border-bottom:1px solid var(--color-divider)}
+.ft-assume-label{margin:0;font-size:0.75rem;font-weight:500;letter-spacing:.04em;color:var(--color-text)}
+.ft-assume-label span{color:var(--color-neutral-700);font-weight:400}
+.ft-chips{display:flex;flex-wrap:wrap;gap:0.375rem}
+.ft-keep{display:flex;align-items:center;flex-wrap:wrap;justify-content:space-between;gap:0.5rem 0.75rem;padding:0.875rem 1.25rem}
+.ft-keep-text{display:flex;align-items:center;gap:0.5rem;margin:0;font-size:0.875rem}
+.ft-keep-text svg{flex:none;color:var(--color-accent-700)}
+.ft-keep-text b{font-weight:600}
+.ft-remind{min-height:2.75rem}
+.ft-remind.is-set{color:var(--color-accent-800);cursor:default}
+.ft-remind.is-set::before{content:"✓";margin-right:0.25rem}
+.ft-keep-ok{flex-basis:100%;margin:0;font-size:0.8125rem;color:var(--color-accent-800)}
+/* sealed: drawn, not hidden — hatched, with how far over */
+.ft-card.is-sealed{border-style:dashed;border-color:var(--color-danger-300);background:repeating-linear-gradient(135deg,transparent 0 0.625rem,color-mix(in srgb,var(--color-danger-300) 18%,transparent) 0.625rem 0.6875rem)}
+.ft-card.is-sealed .ft-route,.ft-card.is-sealed .ft-claim{color:var(--color-neutral-700)}
+.ft-card.is-sealed .ft-row-btn{cursor:default}
+
+/* ten coins invitation */
+.ft-coins{display:flex;align-items:center;flex-wrap:wrap;gap:1rem 1.5rem;padding:1.25rem 1.5rem;border:1px dashed var(--color-divider)}
+.ft-coins-icon{width:2.75rem;height:2.75rem;flex:none;display:flex;align-items:center;justify-content:center;border:1px solid var(--color-divider);color:var(--color-accent-700)}
+.ft-coins-text{flex:1;min-width:16rem}
+.ft-coins-k{margin:0;font-size:0.6875rem;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700)}
+.ft-coins-text h2{margin:0.125rem 0 0.25rem;font-size:1.375rem}
+.ft-coins-text p:last-child{margin:0;font-size:0.875rem;line-height:1.5;color:var(--color-neutral-700);max-width:60ch}
+.ft-coins-btn{min-height:2.75rem}
+.ft-coins-done{display:flex;align-items:center;flex-wrap:wrap;gap:0.5rem;margin:0;font-size:0.875rem;color:var(--color-neutral-700)}
+.ft-coins-done svg{color:var(--color-accent-700)}
+.ft-coins-done .fx-later{margin:0}
+.motion-on .ft-card{animation:rise .7s var(--ease-out) backwards}
+.motion-on .ft-card:nth-child(2){animation-delay:.08s}.motion-on .ft-card:nth-child(3){animation-delay:.16s}
+.motion-on .ft-row.is-changed{animation:ft-flash 1.2s var(--ease-out)}
+@keyframes ft-flash{from{background:var(--color-accent-200)}}
+.motion-on .ft-editor,.motion-on .ft-plaque,.motion-on .ft-detail{animation:fx-in-a .3s var(--ease-out) both}
+
+@container (max-width: 1023.98px){
+  .ft-cards{grid-template-columns:minmax(0,1fr)}
+  .ft-weights{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ft-band-in{padding:0 2rem}
+  .ft > .hdr{right:2rem}
+  .ft-main{padding:2rem 2rem 3.5rem}
+}
+@container (max-width: 575.98px){
+  .ft-band-in{min-height:3.75rem;padding:0 1rem}
+  .ft-band-note{display:none}
+  .ft > .hdr{top:0.5rem;right:1rem}
+  .ft-main{padding:1.5rem 1rem 3rem}
+  .ft-wrap{gap:1.25rem}
+  .ft-title{font-size:2rem}
+  .ft-title span{display:block;font-size:1.5rem}
+  .ft-lede{font-size:0.9375rem}
+  .ft-tools{width:100%}
+  .ft-tools .ft-tool{flex:1}
+  .ft-weights{grid-template-columns:minmax(0,1fr)}
+  .ft-plaque{padding:1.125rem}
+  .ft-card-head{padding:1rem}
+  .ft-route{font-size:1.3125rem}
+  .ft-row-btn{grid-template-columns:4.25rem minmax(0,1fr);gap:0.625rem;padding:0.75rem 1rem}
+  .ft-row.w3 .ft-row-btn{padding-block:0.875rem}
+  .ft-detail{margin:0 1rem 0.75rem}
+  .ft-dist,.ft-assume,.ft-keep{padding-inline:1rem}
+  .ft-keep .ft-remind{flex:1}
+  .ft-coins{padding:1rem}
+  .ft-coins-btn{width:100%}
+}
+/* side by side, the six rows line up across the futures (subgrid), so each dimension reads across */
+@container (min-width: 1024px){
+  .ft-cards{grid-template-rows:repeat(10,auto);row-gap:0}
+  .ft-card{display:grid;grid-row:span 10;grid-template-rows:subgrid}
+  .ft-card .ft-rows{display:contents}
+  .ft-card .ft-row{display:flex;flex-direction:column}
+  .ft-card .ft-row-btn{flex:1;align-content:start}
+}
+.ft-dist-slot:empty{display:none}
+@container (min-width: 1024px){ .ft-dist-slot:empty{display:block} }
+
+/* ══ Step 06 · Your attention: ten coins, eight piles ══
+   A coin is a small ringed disc; placed coins fill. Each pile holds five at most.
+   The line under the last pile changed says what that coin will show her later. */
+.cn .pq-content{max-width:46rem}
+.cn-intro{font-size:1.0625rem;color:var(--color-text)}
+.cn-hint{margin-top:-0.5rem}
+.cn-back-note{margin:0;padding:0.625rem 0.875rem;font-size:0.875rem;background:var(--color-neutral-100);border-left:2px solid var(--color-neutral-600)}
+.cn-tray{display:flex;align-items:center;flex-wrap:wrap;gap:0.75rem 1rem;padding:0.875rem 1rem;border:1px solid var(--color-divider)}
+.cn-tray-coins{display:inline-flex;gap:0.375rem}
+.cn-tray-coins i,.cn-stack i{display:block;width:1.125rem;height:1.125rem;border-radius:50%;border:1.5px dashed var(--color-neutral-400);transition:background .25s,border-color .25s,transform .3s cubic-bezier(.34,1.56,.64,1)}
+.cn-tray-coins i.on,.cn-stack i.on{border:1.5px solid var(--color-accent-700);background:var(--color-accent-700);box-shadow:inset 0 0 0 2px var(--color-bg)}
+.cn-count{margin:0;font-size:0.9375rem;color:var(--color-neutral-700)}
+.cn-count b{font-family:var(--font-heading);font-weight:600;font-size:1.25rem;color:var(--color-text)}
+.cn-unsure{margin-left:auto;min-height:2.75rem;gap:0.5rem;border:1px dashed var(--color-divider);color:var(--color-neutral-700);font-family:var(--font-body);font-weight:500}
+.cn-unsure:hover{border-color:color-mix(in srgb,var(--color-text) 40%,transparent);color:var(--color-text)}
+.cn-assumed{margin-top:-0.5rem}
+.cn-piles{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0.75rem}
+.cn-pile{display:flex;flex-direction:column;gap:0.625rem;padding:0.875rem 0.875rem 0.875rem 1rem;border:1px solid var(--color-divider);transition:border-color .2s,background .2s}
+.cn-pile.has-coins{border-color:color-mix(in srgb,var(--color-accent-700) 55%,transparent)}
+.cn-pile.is-last{border-color:var(--color-accent-700);box-shadow:inset 0 0 0 1px var(--color-accent-700)}
+.cn-pile-top{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto;gap:0.5rem 0.75rem;align-items:center}
+.cn-pile-name{font-family:var(--font-heading);font-weight:600;font-size:1.125rem;line-height:1.15}
+.cn-stack{grid-column:1;grid-row:2;display:inline-flex;gap:0.3125rem}
+.cn-ctrl{grid-column:2;grid-row:1 / span 2;display:flex;align-items:center;gap:0.25rem}
+.cn-n{min-width:1.5rem;text-align:center;font-family:var(--font-heading);font-weight:600;font-size:1.25rem}
+.cn-btn{width:2.75rem;height:2.75rem;display:flex;align-items:center;justify-content:center;padding:0;border:1px solid var(--color-divider);border-radius:0;background:var(--color-bg);color:var(--color-text);cursor:pointer;transition:background .2s,border-color .2s}
+.cn-btn:hover{border-color:color-mix(in srgb,var(--color-text) 40%,transparent)}
+.cn-btn:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+.cn-btn.cn-plus{border-color:var(--color-accent-700);color:var(--color-accent-800)}
+.cn-btn.cn-plus:hover{background:var(--color-accent-100)}
+.cn-btn[aria-disabled="true"]{opacity:.4;cursor:default}
+.cn-btn.cn-plus.is-capped{border-style:dashed;border-color:var(--color-neutral-500);color:var(--color-neutral-600)}
+.cn-refuse,.cn-line{margin:0}
+.cn-line{padding:0.5rem 0.75rem;font-size:0.875rem}
+.cn-routes{display:flex;align-items:center;gap:0.5rem;margin:0;font-size:0.875rem;color:var(--color-neutral-700)}
+.cn-routes svg{flex:none;color:var(--color-neutral-700)}
+.cn-done.is-off{opacity:.6;cursor:default}
+.cn-done-why{margin:0 0 -0.75rem;text-align:right;font-size:0.8125rem;color:var(--color-neutral-700)}
+.motion-on .cn-stack i.on:last-of-type,.motion-on .cn-pile.is-last .cn-stack i.on{animation:cn-drop .45s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes cn-drop{from{transform:translateY(-0.5rem) scale(.6);opacity:0}to{transform:none;opacity:1}}
+.motion-on .cn-line{animation:fx-in-a .35s var(--ease-out) both}
+@container (max-width: 575.98px){
+  .cn-piles{grid-template-columns:minmax(0,1fr);gap:0.5rem}
+  .cn-pile{padding:0.625rem 0.625rem 0.625rem 0.875rem}
+  .cn-pile-name{font-size:1.0625rem}
+  .cn-tray{padding:0.75rem}
+  .cn-tray-coins{gap:0.25rem}
+  .cn-tray-coins i{width:1rem;height:1rem}
+  .cn-unsure{margin-left:0}
+  .cn-done-why{text-align:left;margin:0}
+}
+
+/* ── Progress segments (tablet and phone band): readable by shape as well as colour ──
+   Not reached: an outline (3.4:1 on the blue). Done: filled (4.7:1). Now: filled and taller,
+   so it stands out from the done ones by height, not only by shade. */
+.pq-segs{align-items:end}
+.pq-seg{height:0.375rem;box-sizing:border-box;background:transparent;border:1px solid color-mix(in srgb,var(--color-bg) 65%,transparent)}
+.pq-seg.is-done{background:color-mix(in srgb,var(--color-bg) 85%,transparent);border-color:transparent}
+.pq-seg.is-now{height:0.625rem;background:var(--color-accent-300);border-color:transparent}
+/* step 05 · Your attention: "Spend them later" sits above Back / Done */
+.cn .cn-later{margin:0 0 -0.5rem}
+.cn-end .fx-leave-title{margin-top:0.25rem}
+
+/* ── End screen: the duck swims in a little pond ──
+   Two wave layers (a mask over a theme colour, so it works in light and dark): the back one behind
+   the duck, the front one half over it, so it sits in the water. The duck paddles left to right,
+   swims out of the pond and comes back in from the left, bobbing, with rings spreading from it. Still with motion off or reduced motion. */
+.cn-pond{position:relative;height:7.5rem;margin-top:0.5rem;overflow:hidden;container-type:inline-size}
+.cn-wave{position:absolute;left:0;right:0;bottom:0;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 40' preserveAspectRatio='none'%3E%3Cpath d='M0 10Q20 2 40 10T80 10T120 10T160 10V40H0Z'/%3E%3C/svg%3E") 0 0 / 8rem 100% repeat-x;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 40' preserveAspectRatio='none'%3E%3Cpath d='M0 10Q20 2 40 10T80 10T120 10T160 10V40H0Z'/%3E%3C/svg%3E") 0 0 / 8rem 100% repeat-x}
+.cn-wave.is-back{height:3.25rem;background:var(--color-accent-200)}
+.cn-wave.is-front{z-index:2;height:2.125rem;background:color-mix(in srgb,var(--color-accent-300) 72%,transparent);-webkit-mask-size:10rem 100%;mask-size:10rem 100%;-webkit-mask-position:3rem 0;mask-position:3rem 0}
+.cn-swim{position:absolute;z-index:1;left:0;bottom:1.125rem;width:3.75rem;transform:translateX(calc(50cqi - 1.875rem))}
+.cn-turn{display:block;transform:scaleX(-1)}
+.cn-duck{display:block;width:100%;height:auto;transform-origin:50% 80%}
+.cn-ripple{position:absolute;left:-0.5rem;right:-0.5rem;bottom:-0.125rem;height:0.75rem;border:1.5px solid color-mix(in srgb,var(--color-accent-700) 55%,transparent);border-radius:50%;opacity:0}
+@keyframes cn-wave{to{-webkit-mask-position:-8rem 0;mask-position:-8rem 0}}
+@keyframes cn-wave-front{from{-webkit-mask-position:3rem 0;mask-position:3rem 0}to{-webkit-mask-position:13rem 0;mask-position:13rem 0}}
+@keyframes cn-swim{from{transform:translateX(-4rem)}to{transform:translateX(calc(100cqi + 0.25rem))}}
+@keyframes cn-bob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-0.1875rem) rotate(-4deg)}}
+@keyframes cn-ripple{0%{opacity:.7;transform:scale(.5)}100%{opacity:0;transform:scale(1.7,1.4)}}
+.motion-on .cn-wave.is-back{animation:cn-wave 7s linear infinite}
+.motion-on .cn-wave.is-front{animation:cn-wave-front 5s linear infinite}
+.motion-on .cn-swim{animation:cn-swim 12s linear infinite}
+.motion-on .cn-duck{animation:cn-bob 1.4s ease-in-out infinite}
+.motion-on .cn-ripple{animation:cn-ripple 2.4s ease-out infinite}
+.motion-on .cn-ripple.is-2{animation-delay:1.2s}

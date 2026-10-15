@@ -10,13 +10,12 @@ export { PictureQuestion } from './components/PictureQuestion'
 export { QuestionScreen } from './components/QuestionScreen'
 export { Splash } from './components/Splash'
 export { WelcomeScreen } from './components/WelcomeScreen'
-export { onboardingResumePath, signedInLanding } from './model/landing'
+export { onboardingClosed, onboardingResumePath, signedInLanding } from './model/landing'
 export {
   ATTENTION_PATH,
   firstOpenQuestion,
   questionBySlug,
   questionPath,
-  ROAD_PATH,
 } from './model/onboarding'
 // The engine's catalogue test checks its fields against the questions' options.
 export { questionOf } from './model/questions'

@@ -154,10 +154,14 @@ describe('primaryAction: what the card’s primary does', () => {
     expect(primaryAction(road, city, null)).toEqual({ kind: 'walk', to: 'course' })
   })
 
-  it('has nothing to do where the data has no road: another city, the cities’ stack, a country', () => {
+  it('walks back to her country from its card, from her course or her city', () => {
+    expect(primaryAction(road, atCourse, 'australia')).toEqual({ kind: 'walk', to: 'country' })
+    expect(primaryAction(road, city, 'australia')).toEqual({ kind: 'walk', to: 'country' })
+  })
+
+  it('has nothing to do where the data has no road: another city, the cities’ stack', () => {
     expect(primaryAction(road, atCourse, 'adelaide')).toBeNull()
     expect(primaryAction(road, atCourse, 'more-cities')).toBeNull()
-    expect(primaryAction(road, atCourse, 'australia')).toBeNull()
   })
 
   it('does not swap a course put on the board from the stack (this round)', () => {

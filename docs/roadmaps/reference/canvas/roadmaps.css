@@ -1,0 +1,120 @@
+/* ── Your roadmaps (/roadmaps) ──
+   every roadmap she has made, last opened first, never ranked; a New roadmap button;
+   each card opens its board. Phone <576, stacked <1024, desktop ≥1024 (container queries on .rd) */
+.rm{grid-template-rows:auto minmax(0,1fr)}
+.rm-main{overflow:auto;min-height:0}
+.rm-head-sp{flex:1}
+.rm-wrap{box-sizing:border-box;max-width:82rem;margin-inline:auto;padding:3rem 2.5rem 4rem;display:flex;flex-direction:column;gap:2rem}
+.rm-top{display:flex;align-items:flex-end;justify-content:space-between;gap:1.5rem;flex-wrap:wrap}
+.rm-intro{display:flex;flex-direction:column;gap:0.75rem;max-width:44rem}
+.rm-h{margin:0;font-family:var(--font-heading);font-weight:600;font-size:3rem;line-height:1;letter-spacing:-.005em}
+.rm-h:focus{outline:none}
+.rm-lead{margin:0;font-size:1.0625rem;line-height:1.5;color:var(--color-neutral-700)}
+.rm-newbtn{display:inline-flex;align-items:center;gap:0.5rem;min-height:3rem;padding:0 1.5rem;font-size:1rem}
+
+.rm-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(22rem,1fr));gap:1.5rem}
+.rm-card{position:relative;display:flex;flex-direction:column;background:var(--color-bg);border:1px solid color-mix(in srgb,var(--color-text) 22%,transparent);transition:border-color .2s var(--ease-out),box-shadow .2s var(--ease-out)}
+.rm-card:hover{border-color:var(--color-text)}
+.rm-card.is-new{border:2px solid var(--color-accent);margin:-1px}
+.motion-on .rm-card.is-new{animation:rm-arrive .6s var(--ease-out) both}
+@keyframes rm-arrive{from{opacity:0;transform:translateY(0.75rem)}to{opacity:1;transform:none}}
+.rm-card.has-menu{z-index:5}
+.rm-open{display:flex;flex-direction:column;padding:0;border:0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.rm-open:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+.rm-thumb{position:relative;display:block;height:9.5rem;border-bottom:1px solid color-mix(in srgb,var(--color-text) 22%,transparent)}
+.rm-thumb-svg{position:absolute;inset:0.5rem 0.75rem;width:calc(100% - 1.5rem);height:calc(100% - 1rem)}
+.rm-thumb-road{fill:none;stroke:color-mix(in srgb,#000 22%,var(--fld));stroke-width:9;stroke-linecap:round;stroke-linejoin:round}
+.rm-thumb-svg polygon{stroke-width:0.75;stroke-linejoin:round}
+.rm-thumb-duck{position:absolute;width:1.75rem;height:auto;transform:translate(-10%,-10%) scaleX(-1);filter:drop-shadow(0 0.125rem 0.125rem rgba(0,0,0,.2))}
+.rm-thumb-k{position:absolute;left:0.75rem;top:0.625rem;font-family:var(--font-heading);font-weight:500;font-size:0.75rem;letter-spacing:.1em;text-transform:uppercase;color:#fff}
+.rm-body{display:flex;flex-direction:column;gap:0.375rem;padding:1.125rem 1.25rem 0}
+.rm-newtag{align-self:flex-start;padding:0.125rem 0.5rem;background:var(--color-accent);color:#fff;font-family:var(--font-heading);font-weight:600;font-size:0.75rem;letter-spacing:.1em;text-transform:uppercase}
+.rm-name{font-family:var(--font-heading);font-weight:600;font-size:1.5rem;line-height:1.15}
+.rm-line{font-size:0.9375rem;color:var(--color-neutral-700)}
+.rm-pb{font-size:0.9375rem}
+.rm-pb-k{font-family:var(--font-heading);font-weight:500;font-size:0.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700);margin-right:0.375rem}
+.rm-meta{display:flex;flex-direction:column;gap:0.5rem;padding:0.875rem 1.25rem 0}
+.rm-from{margin:0;font-size:0.8125rem;color:var(--color-neutral-700)}
+.rm-diffs{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:0.375rem}
+.rm-diff{padding:0.25rem 0.5rem;border:1px dashed color-mix(in srgb,var(--color-text) 45%,transparent);font-size:0.8125rem;line-height:1.3}
+.rm-foot{display:flex;align-items:center;justify-content:space-between;gap:0.75rem;margin-top:auto;padding:0.75rem 0.5rem 0.5rem 1.25rem}
+.rm-when{font-size:0.8125rem;color:var(--color-neutral-700)}
+.rm-morewrap{position:relative}
+.rm-more{display:grid;place-items:center;width:2.75rem;height:2.75rem;border:1px solid transparent;background:transparent;color:inherit;cursor:pointer}
+.rm-more:hover,.rm-more[aria-expanded="true"]{border-color:color-mix(in srgb,var(--color-text) 30%,transparent)}
+.rm-more:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+.rm-cmenu{position:absolute;right:0;bottom:calc(100% + 0.25rem);top:auto;min-width:15rem}
+.rm-danger .hdr-label{color:#b3261e}
+.rm-note{margin:0;font-size:0.8125rem;color:var(--color-neutral-700)}
+
+/* the New roadmap dialog, Rename and Delete */
+.rm-scrim{position:absolute;inset:0;z-index:30;background:rgba(18,20,23,.45)}
+.motion-on .rm-scrim{animation:rm-fade .2s var(--ease-out) both}
+@keyframes rm-fade{from{opacity:0}}
+.rm-dlg{position:absolute;z-index:31;left:50%;top:50%;transform:translate(-50%,-50%);box-sizing:border-box;width:min(38rem,calc(100% - 2rem));max-height:calc(100% - 2rem);overflow:auto;display:flex;flex-direction:column;gap:1rem;padding:2rem;background:var(--color-bg);color:var(--color-text);box-shadow:0 1.5rem 3rem rgba(0,0,0,.25)}
+.motion-on .rm-dlg{animation:rm-pop .25s var(--ease-out) both}
+@keyframes rm-pop{from{opacity:0;transform:translate(-50%,calc(-50% + 0.75rem))}}
+.rm-dlg-sm{width:min(30rem,calc(100% - 2rem))}
+.rm-dlg-k{margin:0;font-family:var(--font-heading);font-weight:500;font-size:0.8125rem;letter-spacing:.12em;text-transform:uppercase;color:var(--color-neutral-700)}
+.rm-dlg-h{margin:0;font-family:var(--font-heading);font-weight:600;font-size:2rem;line-height:1.05}
+.rm-dlg-p{margin:0;font-size:1rem;line-height:1.5;color:var(--color-neutral-700)}
+.rm-choices{display:flex;flex-direction:column;gap:0.75rem}
+.rm-choice{display:flex;align-items:flex-start;gap:0.875rem;padding:1rem 1.125rem;border:1px solid color-mix(in srgb,var(--color-text) 25%,transparent);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.rm-choice:hover{border-color:var(--color-text)}
+.rm-choice.is-on{border:2px solid var(--color-accent);padding:calc(1rem - 1px) calc(1.125rem - 1px);background:var(--color-accent-100)}
+.rm-choice:focus-visible,.rm-fromrow:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+.rm-ch-dot{flex:none;width:1.125rem;height:1.125rem;margin-top:0.125rem;border:1.5px solid var(--color-neutral-700);border-radius:50%;box-sizing:border-box}
+.is-on > .rm-ch-dot{border:5px solid var(--color-accent)}
+.rm-ch-txt{display:flex;flex-direction:column;gap:0.25rem}
+.rm-ch-t{font-family:var(--font-heading);font-weight:600;font-size:1.25rem;line-height:1.15}
+.rm-ch-d{font-size:0.9375rem;line-height:1.45;color:var(--color-neutral-700)}
+.rm-from-pick{display:flex;flex-direction:column;gap:0.5rem;padding-left:2rem}
+.rm-from-k{margin:0;font-size:0.8125rem;font-weight:500;color:var(--color-neutral-700)}
+.rm-from-l{display:flex;flex-direction:column}
+.rm-fromrow{display:flex;align-items:center;gap:0.75rem;min-height:2.75rem;padding:0 0.75rem;border:0;border-top:1px solid var(--color-divider);background:transparent;color:inherit;font:inherit;font-size:1rem;text-align:left;cursor:pointer}
+.rm-fromrow:last-child{border-bottom:1px solid var(--color-divider)}
+.rm-fromrow.is-on{font-weight:600}
+.rm-dlg-actions{display:flex;justify-content:flex-end;gap:0.75rem;flex-wrap:wrap;margin-top:0.5rem}
+.rm-dlg-actions .btn{min-height:2.75rem}
+.rm-delbtn{background:#b3261e;border-color:#b3261e}
+.rm-field-l{font-size:0.875rem;font-weight:500}
+.rm-field{box-sizing:border-box;width:100%;min-height:3rem;padding:0 0.875rem;border:1px solid var(--color-text);background:var(--color-bg);color:var(--color-text);font:inherit;font-size:1.0625rem}
+.rm-field:focus-visible{outline:2px solid var(--color-accent);outline-offset:1px}
+
+/* toast and the full-screen loader (its steps and pond share the board's styles) */
+.rm .rm-toast{position:absolute;bottom:1.5rem}
+.rm-load{z-index:40}
+.rm-pond{left:50%;top:calc(50% - 9rem);width:min(22rem,calc(100% - 2rem));transform:translateX(-50%);--m:1;--wop:1;--pdo:1}
+.rm-load-l{top:calc(50% + 0.75rem)}
+.rm-load-note{top:calc(50% + 0.75rem)}
+.rm.is-loading-full .rm-main,.rm.is-loading-full .rd-head{visibility:hidden}
+
+/* the board, opened from a roadmap: where it sits, and the way back */
+.rb-crumb{display:flex;align-items:center;gap:0.5rem;min-width:0;font-size:0.9375rem}
+.rb-crumb-back{display:inline-flex;align-items:center;gap:0.25rem;min-height:2.75rem;padding:0 0.5rem;border:0;background:transparent;color:var(--color-accent-700);font:inherit;font-weight:600;cursor:pointer}
+.rb-crumb-back:hover{text-decoration:underline}
+.rb-crumb-back:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+.rb-crumb-sep{color:var(--color-neutral-500)}
+.rb-crumb-now{font-family:var(--font-heading);font-weight:600;font-size:1.0625rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-ans-bbtn.is-off{opacity:.5;cursor:not-allowed}
+
+@container (max-width: 1023.98px){
+  .rm-wrap{padding:2rem 1.5rem 3rem}
+  .rm-h{font-size:2.5rem}
+  .rb-crumb-sep,.rb-crumb-now{display:none}
+}
+@container (max-width: 575.98px){
+  .rm-wrap{padding:1.5rem 1rem 2.5rem;gap:1.5rem}
+  .rm-h{font-size:2.25rem}
+  .rm-top{flex-direction:column;align-items:stretch}
+  .rm-newbtn{justify-content:center}
+  .rm-grid{grid-template-columns:minmax(0,1fr);gap:1rem}
+  .rm-thumb{height:8rem}
+  .rm-dlg{padding:1.5rem 1.25rem}
+  .rm-dlg-h{font-size:1.625rem}
+  .rm-from-pick{padding-left:0}
+  .rm-dlg-actions{flex-direction:column-reverse}
+  .rm-dlg-actions .btn{width:100%;justify-content:center}
+  .rb-crumb-back span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .rm .rm-toast{left:1rem;right:1rem;transform:none;max-width:none}
+}

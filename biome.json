@@ -12,7 +12,7 @@
       "!next-env.d.ts",
       "!src/shared/lib/db/migrations",
       "!.claude",
-      "!docs/timeline-board/board-reference"
+      "!docs/roadmaps/reference"
     ]
   },
   "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },

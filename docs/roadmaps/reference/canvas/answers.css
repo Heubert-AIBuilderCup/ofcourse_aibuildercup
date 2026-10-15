@@ -1,0 +1,58 @@
+/* ── Your answers ──
+   Every onboarding answer after onboarding, from the header menu. The blue panel names the page and lists the steps
+   (with how many are open, in words); the list gives each answer in plain words with "Change", and open ones say so
+   ("Skipped", "10 coins to spend") with "Answer now". Changing reuses the step's own question screen. */
+.an{position:relative}
+@container (min-width: 1024px){.an .an-side{position:sticky;top:0;height:100vh;align-self:start}}
+.an-main{justify-content:flex-start;padding-top:4.5rem;padding-bottom:4rem}
+.an-content{max-width:46rem;gap:1.25rem}
+.an-h{font-size:2.5rem}
+.an-side .pq-side-text{max-width:26rem}
+.an-step{grid-template-columns:2.25rem 1fr auto}
+.an-step-open{font-size:0.75rem;color:#fff;opacity:.9;white-space:nowrap}
+.an-back{align-self:flex-start;min-height:2.75rem;display:inline-flex;align-items:center;gap:0.5rem;color:#fff;border-color:rgba(255,255,255,.45);background:transparent;text-decoration:none}
+.an-back:hover{background:rgba(255,255,255,.1);color:#fff}
+.an-back .corner{color:rgba(255,255,255,.6)}
+/* the list */
+.an-group{display:flex;flex-direction:column;margin-top:0.75rem}
+.an-group-h{display:flex;align-items:baseline;gap:0.75rem;margin:0 0 0.25rem;font-size:1.5rem;line-height:1.15}
+.an-group-n{font-family:var(--font-body);font-size:0.8125rem;font-weight:500;color:var(--color-accent-700)}
+.an-group-t{font-family:var(--font-heading);font-weight:600;font-size:1.5rem;color:var(--color-text)}
+.an-rows{list-style:none;margin:0;padding:0}
+.an-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) auto;align-items:center;gap:0.5rem 1.25rem;padding:0.625rem 0;border-top:1px solid var(--color-divider)}
+.an-q{font-size:0.875rem;line-height:1.4;color:var(--color-neutral-700)}
+.an-a{font-size:1rem;font-weight:500;line-height:1.4}
+.an-open-tag{display:inline-flex;align-items:center;min-height:1.625rem;padding:0 0.5rem;border:1px dashed var(--color-neutral-500);font-size:0.8125rem;font-weight:500;color:var(--color-neutral-700)}
+.an-acts{display:flex;gap:0.25rem;justify-self:end}
+.an-act{min-height:2.75rem;padding:0 0.75rem;color:var(--color-accent-700);font-weight:600}
+.an-remove{color:var(--color-neutral-700);font-weight:500}
+.an-row.is-open .an-act{color:var(--color-accent-700)}
+.an-row.is-changed{background:linear-gradient(90deg,var(--color-accent-100),transparent 70%);box-shadow:inset 3px 0 0 var(--color-accent-700);padding-left:0.75rem}
+/* changing one answer */
+.an-group-label{margin:0 0 -1rem;font-size:0.8125rem;color:var(--color-neutral-700)}
+.an-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+.an-cards .fx-card{flex-direction:column;align-items:flex-start;justify-content:center}
+.an-was{display:block;margin-top:0.125rem;font-family:var(--font-body);font-size:0.75rem;font-weight:500;color:var(--color-neutral-700)}
+.an-preview{display:flex;flex-direction:column;gap:0.5rem;padding:1rem 1.125rem;border:1px solid var(--color-divider)}
+.an-preview-k{margin:0;font-size:0.6875rem;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)}
+.an-preview-l{margin:0;padding-left:1.125rem;display:flex;flex-direction:column;gap:0.375rem;font-size:0.9375rem;line-height:1.45}
+.an-same{margin:0;font-size:0.9375rem;color:var(--color-neutral-700)}
+.an-save.is-off{opacity:.45;cursor:default}
+/* toast: Undo, and a way to see it on the road */
+.an-toast{position:fixed;left:calc(50% + 20.8%);bottom:1.5rem}
+.an-see{flex:none;color:inherit;font-weight:600;text-decoration:underline;text-underline-offset:3px;padding:0 0.25rem}
+@container (max-width: 1023.98px){
+.an-main{padding-top:2rem}
+.an-back{display:none}
+.an-toast{left:50%}
+}
+@container (max-width: 575.98px){
+.an-h{font-size:2rem}
+.an-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"q acts" "a acts";align-items:start;row-gap:0.125rem}
+.an-q{grid-area:q}
+.an-a{grid-area:a}
+.an-acts{grid-area:acts;align-self:center;flex-direction:column;align-items:flex-end;gap:0}
+.an-act{min-height:2.5rem;padding:0 0.25rem}
+.an-cards{grid-template-columns:minmax(0,1fr)}
+.an-toast{left:1rem;right:1rem;bottom:1rem;transform:none;flex-wrap:wrap}
+}

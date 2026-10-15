@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { buttonVariants } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
+import { useBoardPath } from '../hooks/useBoardPath'
 import { lessonPath } from '../model/routes'
 
 /**
@@ -16,9 +17,10 @@ export function LessonLink({
   onFollow: () => void
   className?: string
 }) {
+  const board = useBoardPath()
   return (
     <Link
-      href={lessonPath(lessonId)}
+      href={lessonPath(board, lessonId)}
       onClick={onFollow}
       className={cn(
         buttonVariants({ variant: 'square' }),

@@ -4,11 +4,15 @@ import { List, Map as MapIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useSelectedLayoutSegments } from 'next/navigation'
 import { type ReactNode, type RefObject, useLayoutEffect, useRef, useState } from 'react'
-import { ROAD_PATH } from '@/features/opening'
 import motion from '@/shared/components/motion.module.css'
+import { Note } from '@/shared/components/Note'
+import { Toast } from '@/shared/components/Toast'
 import { Button, buttonVariants } from '@/shared/components/ui/button'
+import { roadmapPath } from '@/shared/lib/student-paths'
 import { cn } from '@/shared/lib/utils'
-import { useRoadSession } from '../hooks/useRoadSession'
+import type { RoadmapChoices } from '@/shared/types/student'
+import { BoardPath, useBoardPath } from '../hooks/useBoardPath'
+import { type SaveChoices, useRoadSession } from '../hooks/useRoadSession'
 import { type Layout, layoutOf } from '../model/camera'
 import { cardFor, primaryAction } from '../model/press'
 import type { Road, Tile } from '../model/road-data'
@@ -25,7 +29,6 @@ import { RoadCard } from './RoadCard'
 import { RoadHeader } from './RoadHeader'
 import { RoadMap } from './RoadMap'
 import { StackList } from './StackList'
-import { Toast } from './Toast'
 
 /**
  * The board's layout from its own width: phone, stacked or wide (side by side); null until it has
@@ -45,18 +48,56 @@ function useLayout(ref: RefObject<HTMLElement | null>): Layout | null {
   return layout
 }
 
+/** The roadmap a board draws: its id, what she did on it, and whether she has opened it before. */
+export type BoardRoadmap = { id: string; choices: RoadmapChoices; firstVisit: boolean }
+
 /**
- * "Your road": rendered once by /road's layout, so it stays mounted (the camera, the session)
- * across /road, its lesson and its route steps; the route says what the card column shows
- * (`/road/learn/<lesson>`, `/road/route/<route-id>`, else the query's card). The header; the map
- * and the card column side by side from 64rem, or stacked below it (map, card, then the controls
- * bar). Below 36rem, a phone: the Road / Map switch (`view`), the road as a list or the map with its
- * peek, and what the card column shows rises as a bottom sheet. What she does on the board, and the
- * URL it leaves, are useRoadSession's. Until it has measured its width the board is drawn but not
- * shown, so a phone never paints the wide layout first (the map cannot draw before it measures
- * either).
+ * One roadmap's board, at `/roadmaps/<id>`: its lesson and route links and its ways back stay under
+ * it. It opens on the roadmap's stored choices, with the first arrival on her first visit, and
+ * keeps each change on the roadmap through `saveChoicesAction`.
  */
-export function RoadBoard({ road, children }: { road: Road; children: ReactNode }) {
+export function RoadBoard({
+  road,
+  roadmap,
+  saveChoicesAction,
+  children,
+}: {
+  road: Road
+  roadmap: BoardRoadmap
+  saveChoicesAction: SaveChoices
+  children: ReactNode
+}) {
+  return (
+    <BoardPath value={roadmapPath(roadmap.id)}>
+      <Board road={road} roadmap={roadmap} saveChoicesAction={saveChoicesAction}>
+        {children}
+      </Board>
+    </BoardPath>
+  )
+}
+
+/**
+ * "Your road": rendered once by the roadmap's layout, so it stays mounted (the camera, the
+ * session) across the board, its lesson and its route steps; the route says what the card column
+ * shows (`<board>/learn/<lesson>`, `<board>/route/<route-id>`, else the query's card). The header;
+ * the map and the card column side by side from 64rem, or stacked below it (map, card, then the
+ * controls bar). Below 36rem, a phone: the Road / Map switch (`view`), the road as a list or the
+ * map with its peek, and what the card column shows rises as a bottom sheet. What she does on the
+ * board, and the URL it leaves, are useRoadSession's. Until it has measured its width the board is
+ * drawn but not shown, so a phone never paints the wide layout first (the map cannot draw before
+ * it measures either).
+ */
+function Board({
+  road,
+  roadmap,
+  saveChoicesAction,
+  children,
+}: {
+  road: Road
+  roadmap: BoardRoadmap
+  saveChoicesAction: SaveChoices
+  children: ReactNode
+}) {
   // Over the board, the lesson or a route step: read from the route as it renders, so a deep link's
   // first HTML already shows it.
   const panel = panelAt(road, useSelectedLayoutSegments())
@@ -65,6 +106,7 @@ export function RoadBoard({ road, children }: { road: Road; children: ReactNode 
     state,
     status,
     toast,
+    saveFailed,
     changed,
     press,
     zoom,
@@ -80,7 +122,7 @@ export function RoadBoard({ road, children }: { road: Road; children: ReactNode 
     onLesson,
     undo,
     dismissToast,
-  } = useRoadSession(road, panel)
+  } = useRoadSession(road, panel, roadmap, saveChoicesAction)
   const rootRef = useRef<HTMLDivElement>(null)
   const measured = useLayout(rootRef)
   const layout = measured ?? 'wide'
@@ -180,16 +222,30 @@ export function RoadBoard({ road, children }: { road: Road; children: ReactNode 
     return null
   }
 
-  const toastEl = (place?: string) =>
-    toast ? (
-      <Toast
-        key={toast.id}
-        text={toast.text}
-        place={place}
-        onUndo={toast.undo ? undo : undefined}
-        onDone={dismissToast}
-      />
-    ) : null
+  /**
+   * The toast over the map or the phone's road; with it, while a change is not saved, the note
+   * that says so, where the first arrival's hint sat (gone once she has changed anything).
+   */
+  const toastEl = (place?: string) => (
+    <>
+      {toast ? (
+        <Toast
+          key={toast.id}
+          text={toast.text}
+          place={place}
+          onUndo={toast.undo ? undo : undefined}
+          onDone={dismissToast}
+        />
+      ) : null}
+      {saveFailed ? (
+        <div className="pointer-events-none absolute inset-x-4 top-4 z-40 flex justify-center @max-xl:top-18">
+          <Note tone="limit" appear role="alert" className="pointer-events-auto shadow-lg">
+            We couldn't save that change.
+          </Note>
+        </div>
+      ) : null}
+    </>
+  )
 
   const mapProps = {
     road,
@@ -304,11 +360,12 @@ function ViewSwitch({ view, onView }: { view: View; onView: (view: View) => void
 
 /** A route step's detail: its screen comes next round, a placeholder until then. */
 function RouteCard({ step }: { step: Tile }) {
+  const board = useBoardPath()
   return (
     <section aria-label={step.name} className="flex max-w-prose flex-col gap-2">
       <h2 className="m-0 text-h3">{step.name}</h2>
       <p className="m-0 text-muted-foreground">Route detail comes in the next round.</p>
-      <Link href={ROAD_PATH} className={cn(buttonVariants({ variant: 'text' }), 'self-start')}>
+      <Link href={board} className={cn(buttonVariants({ variant: 'text' }), 'self-start')}>
         Back to your road
       </Link>
     </section>

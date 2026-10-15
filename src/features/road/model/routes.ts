@@ -1,18 +1,17 @@
-import { ROAD_PATH } from '@/features/opening'
 import type { Lesson, Road, Tile } from './road-data'
 
-/** A lesson over the board. */
-export const lessonPath = (id: string) => `${ROAD_PATH}/learn/${id}`
+/** A lesson over the board at `board` (useBoardPath). */
+export const lessonPath = (board: string, id: string) => `${board}/learn/${id}`
 
-/** A route step's detail. */
-export const routePath = (routeId: string) => `${ROAD_PATH}/route/${routeId}`
+/** A route step's detail over the board at `board` (useBoardPath). */
+export const routePath = (board: string, routeId: string) => `${board}/route/${routeId}`
 
-/** The road's lesson with this id (`/road/learn/<lesson>`), or null. */
+/** The road's lesson with this id (`<board>/learn/<lesson>`), or null. */
 export function lessonById(road: Road, id: string): Lesson | null {
   return road.lesson.id === id ? road.lesson : null
 }
 
-/** The route step this route id names (`/road/route/<route-id>`), or null. */
+/** The route step this route id names (`<board>/route/<route-id>`), or null. */
 export function routeStep(road: Road, routeId: string): Tile | null {
   return road.tiles.find((tile) => tile.routeId === routeId) ?? null
 }
@@ -21,8 +20,8 @@ export function routeStep(road: Road, routeId: string): Tile | null {
 export type RoadPanel = { kind: 'lesson'; lesson: Lesson } | { kind: 'route'; step: Tile } | null
 
 /**
- * The panel the segments below /road name (`['learn', id]`, `['route', id]`), checked against the
- * road; null at /road itself or for an id it does not know.
+ * The panel the segments below the board name (`['learn', id]`, `['route', id]`), checked against the
+ * road; null at the board itself or for an id it does not know.
  */
 export function panelAt(road: Road, segments: readonly string[]): RoadPanel {
   const [kind, id] = segments

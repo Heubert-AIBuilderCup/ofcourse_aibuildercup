@@ -84,10 +84,14 @@ describe('safeNextPath', () => {
     expect(safeNextPath('/onboarding/facts/who-pays')).toBe('/onboarding/facts/who-pays')
   })
 
-  it('accepts her road, its lesson and its route steps', () => {
+  it('accepts her roadmaps, one roadmap, a new one, and /road (a redirect)', () => {
+    expect(safeNextPath('/roadmaps')).toBe('/roadmaps')
+    expect(safeNextPath('/roadmaps/abc')).toBe('/roadmaps/abc')
+    expect(safeNextPath('/roadmaps/new')).toBe('/roadmaps/new')
+    expect(safeNextPath('/roadmaps/abc/learn/masters-years')).toBe(
+      '/roadmaps/abc/learn/masters-years',
+    )
     expect(safeNextPath('/road')).toBe('/road')
-    expect(safeNextPath('/road/learn/masters-years')).toBe('/road/learn/masters-years')
-    expect(safeNextPath('/road/route/student-visa-500')).toBe('/road/route/student-visa-500')
   })
 
   it('refuses the retired dashboard', () => {

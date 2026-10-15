@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Your attention</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/industry/components/bundle.css">
+<link rel="stylesheet" href="login.css">
+<link rel="stylesheet" href="pq.css">
+<link rel="stylesheet" href="facts.css">
+<link rel="stylesheet" href="road.css">
+<link rel="stylesheet" href="answers.css">
+<link rel="stylesheet" href="roadmaps.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;700&amp;family=Barlow+Condensed:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="fx-flow">
+<sc-if value="{{showGrad}}" hint-placeholder-val="{{false}}">
+<dc-import name="Grad" theme="{{themePref}}" on-theme="{{setTheme}}" state="live" start-at="last" motion="{{motion}}" arrive="{{yes}}" on-next="{{backHere}}" hint-size="100%,100%"></dc-import>
+</sc-if>
+<sc-if value="{{showBoard}}" hint-placeholder-val="{{false}}">
+<dc-import name="Roadmaps" theme="{{themePref}}" on-theme="{{setTheme}}" arrive="{{yes}}" motion="{{motion}}" hint-size="100%,100%"></dc-import>
+</sc-if>
+<sc-if value="{{showLogin}}" hint-placeholder-val="{{false}}">
+<dc-import name="Main" theme="{{themePref}}" on-theme="{{setTheme}}" motion="{{motion}}" on-sign-in="{{backHere}}" hint-size="100%,100%"></dc-import>
+</sc-if>
+<sc-if value="{{showSelf}}" hint-placeholder-val="{{true}}">
+<div class="{{rootClass}}" data-theme="{{themeAttr}}">
+<div class="pq-layout fx-layout">
+<div class="hdr" onKeyDown="{{menuKey}}">
+<button type="button" class="hdr-btn" aria-label="Menu: theme and sign out" title="Menu" aria-haspopup="menu" aria-expanded="{{menuExpanded}}" ref="{{menuBtnRef}}" onClick="{{toggleMenu}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M20 21a8 8 0 0 0-16 0"></path></svg></button>
+<sc-if value="{{menuOpen}}" hint-placeholder-val="{{false}}">
+<button type="button" class="hdr-scrim" tabIndex="-1" aria-hidden="true" onClick="{{closeMenu}}"></button>
+<div class="hdr-menu" role="menu" aria-label="Menu">
+<button type="button" role="menuitemcheckbox" class="hdr-item" aria-checked="{{darkChecked}}" ref="{{firstItemRef}}" onClick="{{toggleTheme}}">
+<sc-if value="{{showMoon}}" hint-placeholder-val="{{true}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg></sc-if><sc-if value="{{showSun}}" hint-placeholder-val="{{false}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg></sc-if>
+<span class="hdr-label">Dark theme</span>
+<span class="hdr-sw" aria-hidden="true"><i></i></span>
+</button>
+<div class="hdr-sep" role="separator"></div>
+<button type="button" role="menuitem" class="hdr-item" onClick="{{menuSignOut}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="m16 17 5-5-5-5"></path><path d="M21 12H9"></path></svg><span class="hdr-label">Sign out</span></button>
+</div>
+</sc-if>
+</div>
+
+<aside class="pq-side grid-paper field-dark" data-theme="light" aria-label="Your steps">
+<div class="pq-brand rise d1">
+<div class="pq-mark blueprint">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"></path><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"></path><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"></path></svg>
+</div>
+<span>OfCourse</span>
+</div>
+
+<div class="pq-side-text">
+<h2 class="pq-side-title rise d2">The last step</h2>
+<p class="pq-side-lead rise d3">Optional. It never changes your routes; it shapes what we show you on them later.</p>
+</div>
+
+<ol class="pq-steps rise d4" aria-label="Your steps">
+<li class="pq-step is-done"><span class="pq-step-n">00</span><span>Your comic character</span><span class="pq-done-mark"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Done</span></li>
+<li class="pq-step is-done"><span class="pq-step-n">01</span><span>Facts about you</span><span class="pq-done-mark"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Done</span></li>
+<li class="pq-step is-done"><span class="pq-step-n">02</span><span>What you’d study</span><span class="pq-done-mark"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Done</span></li>
+<li class="pq-step is-done"><span class="pq-step-n">03</span><span>Where and how you’d live</span><span class="pq-done-mark"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Done</span></li>
+<li class="pq-step is-done"><span class="pq-step-n">04</span><span>After you graduate</span><span class="pq-done-mark"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Done</span></li>
+<sc-if value="{{showMain}}" hint-placeholder-val="{{true}}"><li class="pq-step is-now" aria-current="step"><span class="pq-step-n">05</span><span>Your attention</span><span class="pq-now">Now · optional</span></li></sc-if><sc-if value="{{showEnd}}" hint-placeholder-val="{{false}}"><li class="pq-step is-done"><span class="pq-step-n">05</span><span>Your attention</span><span class="pq-done-mark"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Done</span></li></sc-if>
+</ol>
+
+<div class="pq-progress rise d4">
+<div class="pq-segs" aria-hidden="true"><span class="pq-seg is-done"></span><span class="pq-seg is-done"></span><span class="pq-seg is-done"></span><span class="pq-seg is-done"></span><span class="pq-seg is-done"></span><span class="{{lastSegCls}}"></span></div>
+<p class="pq-progress-text"><span>{{progressNow}}</span><span>{{progressNext}}</span></p>
+</div>
+
+<div class="pq-duck-dock rise d5">
+<img class="pq-duck" src="/_blob/ef89572a2eb568c31292d17bbd6f4ded" alt="">
+<span>From off course to “Of Course!”</span>
+</div>
+</aside>
+
+<main class="pq-main">
+<div class="pq-content cn-content">
+<sc-if value="{{showMain}}" hint-placeholder-val="{{true}}">
+
+<div class="fx-top rise d2">
+<span class="fx-kicker">Your attention · <b>optional</b></span>
+</div>
+
+<h1 class="pq-q rise d3" id="cn-q" tabIndex="-1" ref="{{qRef}}">Your attention</h1>
+<p class="pq-why cn-intro rise d4">These ten coins are your attention, time and energy for the next few years. Where do they go?</p>
+<p class="pq-note cn-hint rise d4"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg><span>Tap + to place a coin. Coins shape what we show you later; they never change your routes.</span></p>
+
+<sc-if value="{{isReturning}}" hint-placeholder-val="{{false}}">
+<p class="cn-back-note rise d4">Here’s where you placed them last time. Move any, or keep them as they are.</p>
+</sc-if>
+
+<div class="cn-tray rise d5">
+<span class="cn-tray-coins" aria-hidden="true"><sc-for list="{{tray}}" as="t" hint-placeholder-count="10"><i class="{{t}}"></i></sc-for></span>
+<p class="cn-count" aria-live="polite"><b>{{placed}} of 10</b> placed</p>
+<button type="button" class="btn btn-ghost cn-unsure" onClick="{{spread}}"><span class="fx-q" aria-hidden="true">?</span>Not sure</button>
+</div>
+
+<sc-if value="{{showAssumed}}" hint-placeholder-val="{{false}}">
+<div class="fx-impact is-assume cn-assumed" role="status"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg><p>Assumed: an even spread. You can change it any time.</p></div>
+</sc-if>
+
+<ul class="cn-piles rise d6" aria-label="Eight piles">
+<sc-for list="{{piles}}" as="p" hint-placeholder-count="8">
+<li class="{{p.cls}}">
+<div class="cn-pile-top">
+<span class="cn-pile-name" id="{{p.id}}">{{p.name}}</span>
+<span class="cn-stack" aria-hidden="true"><i class="{{p.s1}}"></i><i class="{{p.s2}}"></i><i class="{{p.s3}}"></i><i class="{{p.s4}}"></i><i class="{{p.s5}}"></i></span>
+<span class="cn-ctrl">
+<button type="button" class="cn-btn" aria-label="{{p.minusLabel}}" aria-disabled="{{p.minusOff}}" onClick="{{p.minus}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"></path></svg></button>
+<span class="cn-n" aria-label="{{p.nLabel}}">{{p.n}}</span>
+<button type="button" class="{{p.plusCls}}" aria-label="{{p.plusLabel}}" onClick="{{p.plus}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg></button>
+</span>
+</div>
+<sc-if value="{{p.hasRefuse}}" hint-placeholder-val="{{false}}">
+<p class="sd-refuse cn-refuse" role="status"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg><span>{{p.refuse}}</span></p>
+</sc-if>
+<sc-if value="{{p.hasLine}}" hint-placeholder-val="{{false}}">
+<div class="{{p.lineCls}}" aria-live="polite"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg><p>{{p.line}}</p></div>
+</sc-if>
+</li>
+</sc-for>
+</ul>
+
+<p class="cn-routes"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg><span>Your routes stay exactly as they are, whatever you place here.</span></p>
+
+<p class="cn-done-why" id="cn-done-why">{{doneWhy}}</p>
+<button type="button" class="btn btn-ghost fx-later cn-later" onClick="{{later}}">Spend them later: finish without placing coins</button>
+<div class="pq-actions cn-actions rise d8">
+<button type="button" class="btn btn-secondary blueprint fx-back" onClick="{{goBack}}">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg>
+Back
+</button>
+<button type="button" class="{{doneCls}}" aria-disabled="{{doneOff}}" aria-describedby="cn-done-why" onClick="{{done}}">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+Done
+<svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+</button>
+</div>
+</sc-if>
+
+<sc-if value="{{showEnd}}" hint-placeholder-val="{{false}}">
+<div class="fx-leave cn-end" tabIndex="-1" ref="{{endRef}}">
+<span class="pq-next-label">Onboarding · done</span>
+<h1 class="fx-leave-title">You’re all set</h1>
+<p class="fx-leave-text">{{endText}}</p>
+<div class="cn-pond" aria-hidden="true">
+<span class="cn-wave is-back"></span>
+<span class="cn-swim"><span class="cn-ripple"></span><span class="cn-ripple is-2"></span><span class="cn-turn"><img class="cn-duck" src="/_blob/ef89572a2eb568c31292d17bbd6f4ded" alt=""></span></span>
+<span class="cn-wave is-front"></span>
+</div>
+<span class="pq-float">Keep floating.</span>
+<sc-if value="{{toBoard}}" hint-placeholder-val="{{false}}">
+<button type="button" class="btn btn-primary aa blueprint cn-to-board" onClick="{{goBoard}}">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+Go to your roadmaps
+<svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+</button>
+</sc-if>
+<button type="button" class="btn btn-secondary blueprint" onClick="{{stay}}">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+Back to Your attention
+</button>
+</div>
+</sc-if>
+
+<p class="sr-status" role="status">{{statusText}}</p>
+</div>
+</main>
+
+</div>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark","auto"],"default":"light"},"onTheme":{"editor":null},"state":{"editor":"enum","options":["live","none","partly","pile-full","ten","not-sure","returning","end","end-later"],"default":"live"},"placed":{"editor":null,"default":null},"motion":{"editor":"boolean","default":true},"arrive":{"editor":null,"default":false},"onDone":{"editor":null},"onLater":{"editor":null},"onBack":{"editor":null},"toBoard":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1100}}'>
+// Step 05 · Your attention — optional, the last onboarding step (after step 04). Done or "Spend them later" ends onboarding.
+// Ten coins over eight piles, at most five on a pile. Each coin that lands says what it changes in what
+// we show her later. The coins never change her routes. Done only with exactly ten placed.
+const PILES = [
+  ['health', 'Health', 'health cover basics appear on every route.', 'we’ll show clinics, sport and health cover on each route.'],
+  ['social', 'Social life', 'student clubs show on each route.', 'we’ll show clubs, events and where students live on each route.'],
+  ['money', 'Financial life', 'money basics appear on every route.', 'we’ll show a weekly budget and part-time pay on each route.'],
+  ['learning', 'Learning and growth', 'short courses and libraries show on each route.', 'we’ll show further study and certifications on each route.'],
+  ['family', 'Closeness to family', 'trip costs home show on each route.', 'we’ll show trip times home on each route.'],
+  ['community', 'Community and relatives nearby', 'community groups show on each route.', 'we’ll show community groups and relatives nearby on each route.'],
+  ['independence', 'Independence', 'living-alone costs show on each route.', 'we’ll show solo living, transport and licences on each route.'],
+  ['adventure', 'Adventure', 'weekend trips show on each route.', 'we’ll show travel and the outdoors near each route.']
+];
+const MAX = 5, TOTAL = 10;
+const EVEN = { health: 2, social: 1, money: 2, learning: 1, family: 1, community: 1, independence: 1, adventure: 1 };
+const zero = () => { const c = {}; PILES.forEach(p => { c[p[0]] = 0; }); return c; };
+const sum = (c) => Object.values(c).reduce((x, y) => x + y, 0);
+const lineFor = (k, n) => { const p = PILES.find(x => x[0] === k); return p[1] + ' at ' + n + ': ' + (n === 0 ? 'nothing extra shown for it.' : n <= 2 ? p[2] : p[3]); };
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const st = props.state ?? 'live';
+    let c = zero(), last = null, refused = null, assumed = false;
+    if (st === 'partly') { c = Object.assign(zero(), { health: 2, money: 1, learning: 1, family: 3 }); last = 'family'; }
+    if (st === 'pile-full') { c = Object.assign(zero(), { family: 5, money: 1, health: 1 }); refused = 'family'; }
+    if (st === 'ten') { c = Object.assign(zero(), { health: 2, money: 2, learning: 1, family: 3, community: 1, adventure: 1 }); last = 'adventure'; }
+    if (st === 'not-sure') { c = Object.assign(zero(), EVEN); assumed = true; }
+    if (st === 'returning') c = Object.assign(zero(), { health: 1, money: 2, learning: 2, family: 3, community: 2 });
+    if (st === 'end') c = Object.assign(zero(), { health: 2, money: 2, learning: 1, family: 3, community: 1, adventure: 1 });
+    if (props.placed) c = Object.assign(zero(), props.placed);
+    this.state = { c, last, refused, assumed, returning: st === 'returning' || !!props.placed, end: st === 'end' ? 'done' : st === 'end-later' ? 'later' : null, away: null, status: '' };
+  }
+  componentDidMount() {
+    this.watchOS();
+    if (this.props.arrive && this.qEl && this.qEl.focus) this.qEl.focus({ preventScroll: true });
+  }
+  componentWillUnmount() { this.unwatchOS(); }
+  componentDidUpdate() {
+    // the runtime calls this without arguments: track changes ourselves
+    if (this.state.end && this.state.end !== this.lastEnd && this.endEl && this.endEl.focus) this.endEl.focus();
+    this.lastEnd = this.state.end;
+  }
+  add(k) {
+    const s = this.state, n = s.c[k];
+    if (n >= MAX) return this.setState({ refused: k, rflip: !s.rflip, status: 'Five is the most on one pile.' });
+    if (sum(s.c) >= TOTAL) return this.setState({ refused: k, rflip: !s.rflip, status: 'All ten are placed.' });
+    const c = Object.assign({}, s.c, { [k]: n + 1 });
+    this.setState({ c, last: k, refused: null, assumed: false, status: lineFor(k, n + 1) + ' ' + sum(c) + ' of 10 placed.' });
+  }
+  remove(k) {
+    const s = this.state, n = s.c[k];
+    if (!n) return;
+    const c = Object.assign({}, s.c, { [k]: n - 1 });
+    this.setState({ c, last: k, refused: null, assumed: false, status: lineFor(k, n - 1) + ' ' + sum(c) + ' of 10 placed.' });
+  }
+  finish() {
+    const s = this.state;
+    if (sum(s.c) !== TOTAL) return this.setState({ status: 'Place all ten to finish. ' + (TOTAL - sum(s.c)) + ' left.' });
+    return this.props.onDone ? this.props.onDone(s.c) : this.setState({ end: 'done', status: 'You’re all set. Your answers and your ten coins are saved.' });
+  }
+  later() { return this.props.onLater ? this.props.onLater() : this.setState({ end: 'later', status: 'You’re all set. Your answers are saved.' }); }
+  back() { return this.props.onBack ? this.props.onBack() : this.setState({ away: 'grad', status: 'Back to: After you graduate' }); }
+  // ── Theme: one toggle, light ↔ dark (starts from the device setting when theme is "auto"). The steel panel stays light in both (data-theme="light" on it). ──
+  watchOS() { try { this.mq = window.matchMedia('(prefers-color-scheme: dark)'); this.mqf = () => this.setState({ osDark: this.mq.matches }); this.mq.addEventListener('change', this.mqf); } catch (e) {} }
+  unwatchOS() { try { if (this.mq) this.mq.removeEventListener('change', this.mqf); } catch (e) {} }
+  setTheme(v) { this.setState({ themePref: v }); if (this.props.onTheme) this.props.onTheme(v); }
+  themeVals() {
+    const pref = (this.state && this.state.themePref) || this.props.theme || 'light';
+    let os = this.state && this.state.osDark;
+    if (os === undefined) { try { os = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { os = false; } }
+    const now = pref === 'auto' ? (os ? 'dark' : 'light') : pref;
+    return {
+      themeAttr: now,
+      showMoon: now === 'light', showSun: now === 'dark', darkChecked: now === 'dark' ? 'true' : 'false',
+      toggleLabel: now === 'dark' ? 'Switch to light theme' : 'Switch to dark theme',
+      toggleTheme: () => this.setTheme(now === 'dark' ? 'light' : 'dark'),
+      themePref: pref,
+      setTheme: (v) => this.setTheme(v)
+    };
+  }
+  // ── Header menu (top right, on the logo's line): Dark theme and Sign out ──
+  toggleMenu() {
+    const open = !this.state.menuOpen;
+    this.setState({ menuOpen: open });
+    if (open) setTimeout(() => { if (this.firstItem && this.firstItem.focus) this.firstItem.focus(); }, 0);
+  }
+  closeMenu(refocus) {
+    this.setState({ menuOpen: false });
+    if (refocus && this.menuBtn && this.menuBtn.focus) setTimeout(() => this.menuBtn.focus(), 0);
+  }
+  menuVals(signOut) {
+    const open = !!this.state.menuOpen;
+    return {
+      menuOpen: open, menuExpanded: open ? 'true' : 'false',
+      toggleMenu: () => this.toggleMenu(),
+      closeMenu: () => this.closeMenu(false),
+      menuKey: (e) => { if (e.key === 'Escape' && this.state.menuOpen) { e.preventDefault(); this.closeMenu(true); } },
+      menuBtnRef: (el) => { this.menuBtn = el; },
+      firstItemRef: (el) => { this.firstItem = el; },
+      menuSignOut: () => { this.setState({ menuOpen: false }); signOut(); }
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const motion = this.props.motion ?? true;
+    const placed = sum(s.c), left = TOTAL - placed, full = placed >= TOTAL;
+    const piles = PILES.map(([k, name]) => {
+      const n = s.c[k];
+      const refused = s.refused === k;
+      const showLine = s.last === k && !refused;
+      return {
+        id: 'cn-' + k, name, n: String(n),
+        cls: 'cn-pile' + (n ? ' has-coins' : '') + (n >= MAX ? ' is-full' : '') + (refused ? ' is-refused' : '') + (showLine ? ' is-last' : ''),
+        s1: n >= 1 ? 'on' : '', s2: n >= 2 ? 'on' : '', s3: n >= 3 ? 'on' : '', s4: n >= 4 ? 'on' : '', s5: n >= 5 ? 'on' : '',
+        nLabel: n + ' of 5 on ' + name,
+        minusLabel: 'Take a coin from ' + name, minusOff: n ? 'false' : 'true', minus: () => this.remove(k),
+        plusLabel: 'Place a coin on ' + name, plusCls: 'cn-btn cn-plus' + (n >= MAX || full ? ' is-capped' : ''), plus: () => this.add(k),
+        hasRefuse: refused,
+        refuse: n >= MAX ? 'Five is the most on one pile. Take one from here, or place it on another pile.' : 'All ten are placed. Take one from another pile first.',
+        hasLine: showLine, line: lineFor(k, n), lineCls: 'fx-impact cn-line ' + (s.flipLine ? 'vb' : 'va')
+      };
+    });
+    const mv = this.menuVals(() => this.setState({ away: 'login', status: 'Signed out' }));
+    const tv = this.themeVals();
+    return {
+      menuOpen: mv.menuOpen, menuExpanded: mv.menuExpanded, toggleMenu: mv.toggleMenu, closeMenu: mv.closeMenu, menuKey: mv.menuKey, menuBtnRef: mv.menuBtnRef, firstItemRef: mv.firstItemRef, menuSignOut: mv.menuSignOut,
+      themeAttr: tv.themeAttr, themePref: tv.themePref, setTheme: tv.setTheme, showMoon: tv.showMoon, showSun: tv.showSun, darkChecked: tv.darkChecked, toggleLabel: tv.toggleLabel, toggleTheme: tv.toggleTheme,
+      rootClass: 'fx pq cn ' + (motion ? 'motion-on' : 'motion-off'),
+      qRef: (el) => { this.qEl = el; },
+      isReturning: s.returning,
+      tray: Array.from({ length: TOTAL }, (_, i) => i < placed ? 'on' : ''),
+      placed: String(placed), piles,
+      showAssumed: s.assumed,
+      spread: () => this.setState({ c: Object.assign(zero(), EVEN), assumed: true, last: null, refused: null, status: 'Assumed: an even spread. You can change it any time.' }),
+      doneCls: 'btn blueprint cn-done ' + (full ? 'btn-primary aa' : 'btn-secondary is-off'),
+      doneOff: full ? 'false' : 'true',
+      doneWhy: full ? 'All ten placed. Done finishes onboarding.' : 'Place all ten to finish · ' + left + ' left.',
+      done: () => this.finish(),
+      later: () => this.later(),
+      showSelf: !s.away, showGrad: s.away === 'grad', showLogin: s.away === 'login', motion, yes: true,
+      goBack: () => this.back(),
+      showMain: !s.end, showEnd: !!s.end,
+      toBoard: !!this.props.toBoard, goBoard: () => this.setState({ away: 'board', status: 'Your roadmaps' }), showBoard: s.away === 'board',
+      lastSegCls: s.end ? 'pq-seg is-done' : 'pq-seg is-now',
+      progressNow: s.end ? 'All steps done' : 'Now: 05 Your attention · optional',
+      progressNext: s.end ? 'You’re all set' : 'Then: you’re all set',
+      endText: s.end === 'done' ? 'Your answers and your ten coins are saved. You can change any of them later.' : 'Your answers are saved. You can spend your ten coins any time.',
+      endRef: (el) => { this.endEl = el; },
+      stay: () => this.setState({ end: null, status: '' }),
+      backHere: () => this.setState({ away: null, status: '' }),
+      statusText: s.status
+    };
+  }
+}
+</script>
+</body>
+</html>

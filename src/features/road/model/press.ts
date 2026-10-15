@@ -88,15 +88,15 @@ export function cardFor(road: Road, scene: Scene, tileId: string | null): Card {
 
 /**
  * What a card's primary does. look: open the next step's card · swap: the alternative beside her
- * onto her road, or back · list: the course stack's list · walk: back to her city, or on to her
- * course. null where this round's data has no road for it (another city, the cities' stack, a
- * country, a course put on the board from the stack): the button is drawn and does nothing.
+ * onto her road, or back · list: the course stack's list · walk: back to her country or her city,
+ * or on to her course. null where this round's data has no road for it (another city, the cities'
+ * stack, a course put on the board from the stack): the button is drawn and does nothing.
  */
 export type CardAction =
   | { kind: 'look'; tileId: string }
   | { kind: 'swap'; tileId: string }
   | { kind: 'list' }
-  | { kind: 'walk'; to: 'city' | 'course' }
+  | { kind: 'walk'; to: 'country' | 'city' | 'course' }
   | null
 
 export function primaryAction(road: Road, scene: Scene, tileId: string | null): CardAction {
@@ -115,6 +115,9 @@ export function primaryAction(road: Road, scene: Scene, tileId: string | null): 
   if (tile?.kind === 'stack' && tile.level === 'course') return { kind: 'list' }
   if (tileId === scene.cityLine[0] && scene.lit.includes(tileId))
     return { kind: 'walk', to: 'city' }
+  // Her country is where the first arrival stands her.
+  if (tileId === road.arrival.walk.here && scene.lit.includes(tileId))
+    return { kind: 'walk', to: 'country' }
   return null
 }
 

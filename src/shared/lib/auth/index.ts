@@ -88,6 +88,13 @@ function sentRecently(code: { expiresAt: Date }): boolean {
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
   secret: process.env.BETTER_AUTH_SECRET,
+  // Development only: another device on the local network signs in at http://192.168.x.y:3000,
+  // an origin that is not BETTER_AUTH_URL; without this every sign-in request from it is refused
+  // as a cross-site request. Production trusts its own origin alone.
+  trustedOrigins:
+    process.env.NODE_ENV === 'production'
+      ? []
+      : ['http://192.168.*.*:3000', 'http://10.*.*.*:3000'],
   database: drizzleAdapter(db, { provider: 'pg', schema }),
   advanced: {
     // Secure cookies over HTTPS in production; off in development so http://localhost works.

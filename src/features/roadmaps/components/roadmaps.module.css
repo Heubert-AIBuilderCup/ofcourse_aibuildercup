@@ -1,0 +1,261 @@
+/*
+ * The list's look, for what Tailwind cannot say: the card's small road drawing (its field and the
+ * tile faces per state, from the board's colours) and the dialogs' widths and phone layout (they are
+ * portalled to the body, outside the page's @container, so they answer the screen's width). From
+ * the reference build's roadmaps.css (rm-thumb*, rm-dlg*).
+ */
+
+/* The small road drawing: the board's field and ink, so both themes follow the board. */
+.thumb {
+  --fld: var(--panel);
+  --ink: var(--panel-foreground);
+  --shade: black;
+}
+/* The drawing keeps its 260 × 132 proportions, so the duck's percentages land on its tile. */
+.stage {
+  position: absolute;
+  inset: 0.5rem 0.75rem;
+  display: flex;
+  justify-content: center;
+}
+.frame {
+  position: relative;
+  height: 100%;
+  max-width: 100%;
+  aspect-ratio: 260 / 132;
+}
+.svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.road {
+  fill: none;
+  stroke: color-mix(in oklch, var(--shade) 22%, var(--fld));
+  stroke-width: 9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.tile polygon {
+  stroke-width: 0.75;
+  stroke-linejoin: round;
+}
+.top {
+  fill: var(--top);
+  stroke: var(--edge);
+}
+.left {
+  fill: var(--left);
+  stroke: var(--edge);
+}
+.right {
+  fill: var(--right);
+  stroke: var(--edge);
+}
+/* Walked: lit. */
+.tile[data-state="lit"] {
+  --top: var(--ink);
+  --left: color-mix(in oklch, var(--ink) 66%, var(--fld));
+  --right: color-mix(in oklch, var(--ink) 44%, var(--fld));
+  --edge: color-mix(in oklch, var(--shade) 30%, var(--fld));
+}
+/* The next step, and the course swapped off beside where she is: dim. */
+.tile[data-state="next"],
+.tile[data-state="alt"] {
+  --top: color-mix(in oklch, var(--ink) 30%, var(--fld));
+  --left: color-mix(in oklch, var(--ink) 18%, var(--fld));
+  --right: color-mix(in oklch, var(--ink) 10%, var(--fld));
+  --edge: color-mix(in oklch, var(--ink) 70%, var(--fld));
+}
+/* Beyond: dark. */
+.tile[data-state="fog"] {
+  --top: color-mix(in oklch, var(--shade) 26%, var(--fld));
+  --left: color-mix(in oklch, var(--shade) 40%, var(--fld));
+  --right: color-mix(in oklch, var(--shade) 50%, var(--fld));
+  --edge: color-mix(in oklch, var(--shade) 55%, var(--fld));
+}
+.duck {
+  position: absolute;
+  width: 1.75rem;
+  transform: translate(-10%, -10%) scaleX(-1);
+  filter: drop-shadow(0 0.125rem 0.125rem oklch(0 0 0 / 0.2));
+}
+
+/*
+ * The dialogs: New roadmap is wide; Rename and Delete are small. The box itself never scrolls: the
+ * frame marks sit just outside its border and would draw scrollbars. Its body does, when the
+ * dialog is taller than the screen (a phone in landscape, 200% zoom, a long list to copy from), so
+ * the actions under it stay in reach.
+ */
+.dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(38rem, calc(100% - 2rem));
+  max-width: none;
+  max-height: calc(100% - 2rem);
+  overflow: visible;
+  gap: 1rem;
+  padding: 2rem;
+}
+.dialogBody {
+  display: flex;
+  flex-direction: column;
+  /* Shrinks to what the box's max-height leaves it, then scrolls. */
+  min-height: 0;
+  overflow-y: auto;
+  /* Room for a focused choice's outline, which the scroll box would otherwise cut. */
+  margin: -0.25rem;
+  padding: 0.25rem;
+}
+.dialogSm {
+  width: min(30rem, calc(100% - 2rem));
+}
+.actions {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+/* A radio's drawn dot: a ring, filled with the accent when checked. */
+.dot {
+  flex: none;
+  box-sizing: border-box;
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 0.125rem solid var(--neutral-700);
+  border-radius: 50%;
+}
+:checked + .dot {
+  border: 0.3125rem solid var(--primary);
+}
+/* The roadmaps to copy from sit under their choice. */
+.fromPick {
+  padding-left: 2rem;
+}
+
+/* Phones (below 36rem): tighter dialogs, the actions full width with the primary on top. */
+@media (width < 36rem) {
+  .dialog {
+    padding: 1.5rem 1.25rem;
+  }
+  .actions {
+    flex-direction: column-reverse;
+  }
+  .actions > * {
+    width: 100%;
+  }
+  .fromPick {
+    padding-left: 0;
+  }
+}
+
+/*
+ * The full-screen loader (the reference's rb-load, rm-load): the pond floats above the middle, the
+ * three steps start just below it, and the slow note or the failure sits under them, so the steps
+ * never move when either shows. Each step's mark: done, a filled white circle with a tick; now, a
+ * faint ring with a white arc; next, a dashed ring, the step at 45%; bad, a white circle with "!".
+ * The arc spins and the tick scales in only when motion is welcome; under reduce nothing moves.
+ */
+.loaderPond {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - 9rem);
+  width: min(22rem, calc(100% - 2rem));
+  transform: translateX(-50%);
+}
+.loaderSteps,
+.loaderNote {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 0.75rem);
+  width: max-content;
+  max-width: calc(100% - 2rem);
+  margin: 0;
+  transform: translateX(-50%);
+}
+.loaderSteps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding: 0;
+  list-style: none;
+}
+.loaderNote {
+  margin-top: 8.5rem;
+  text-align: center;
+}
+.mark {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0.09375rem solid currentColor;
+  border-radius: 50%;
+}
+.step[data-state="next"] {
+  opacity: 0.45;
+}
+.step[data-state="next"] .mark {
+  border-style: dashed;
+}
+.step[data-state="done"] {
+  opacity: 0.8;
+}
+.step[data-state="done"] .mark {
+  border-color: var(--panel-foreground);
+  background: var(--panel-foreground);
+  color: var(--panel);
+}
+.step[data-state="now"],
+.step[data-state="bad"] {
+  font-weight: 600;
+}
+.step[data-state="now"] .mark {
+  border-color: color-mix(in oklch, var(--panel-foreground) 35%, transparent);
+}
+.step[data-state="now"] .mark::after {
+  content: "";
+  position: absolute;
+  inset: -0.09375rem;
+  border: 0.09375rem solid transparent;
+  border-top-color: var(--panel-foreground);
+  border-radius: 50%;
+}
+.step[data-state="bad"] .mark {
+  border-color: var(--panel-foreground);
+  background: var(--panel-foreground);
+  color: var(--destructive);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .step {
+    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .step[data-state="now"] .mark::after {
+    animation: loader-spin 0.9s linear infinite;
+  }
+  .step[data-state="done"] .mark svg {
+    animation: loader-tick 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+@keyframes loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes loader-tick {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

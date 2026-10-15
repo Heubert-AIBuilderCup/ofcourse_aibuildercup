@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { getRoad } from './road-data'
-import { buildScene, NEW_SESSION, type Session } from './scene'
+import { buildScene, choicesFrom, NEW_SESSION, type Session, sessionFrom } from './scene'
 
 const road = getRoad()
 const scene = (session: Partial<Session> = {}) => buildScene(road, { ...NEW_SESSION, ...session })
@@ -124,6 +124,26 @@ describe('first: the first arrival', () => {
   })
 })
 
+describe('country: walked back to her country', () => {
+  it('puts the duck at Australia, Perth next, with no hint', () => {
+    const sc = scene({ country: true })
+    expect(sc.here).toBe('australia')
+    expect(sc.hint).toBeNull()
+    expect(sc.lit).toEqual(['point-a', 'australia'])
+    expect(sc.next).toEqual(['australia', 'perth'])
+    expect(states(sc, ['australia', 'perth'])).toEqual(['here', 'next'])
+    expect(sc.ahead.slice(0, 3)).toEqual(['perth', CYBER, 'student-visa-500'])
+  })
+
+  it('keeps a swap: the road ahead runs through the course she swapped on', () => {
+    const sc = scene({ country: true, swapped: true })
+    expect(sc.here).toBe('australia')
+    expect(sc.next).toEqual(['australia', 'perth'])
+    expect(sc.ahead.slice(0, 3)).toEqual(['perth', DS, 'student-visa-500'])
+    expect(states(sc, ['australia', 'perth', DS, CYBER])).toEqual(['here', 'next', 'alt', 'alt'])
+  })
+})
+
 describe('city: walked back to her city', () => {
   it('puts the duck at Perth with the city level open and her course next', () => {
     const sc = scene({ city: true })
@@ -173,5 +193,32 @@ describe('an empty road', () => {
     expect(sc.next).toEqual(['point-a', 'destination'])
     expect(sc.ahead).toEqual([])
     expect(sc.ruler.ticks).toEqual([])
+  })
+})
+
+describe('a roadmap’s stored choices', () => {
+  it('start the session: each stored key, the rest false, first from the visit', () => {
+    expect(sessionFrom({ swapped: true, read: true }, false)).toEqual({
+      ...NEW_SESSION,
+      swapped: true,
+      read: true,
+    })
+    expect(sessionFrom({}, true)).toEqual({ ...NEW_SESSION, first: true })
+    expect(sessionFrom({ added: true, city: true, country: true }, false)).toEqual({
+      ...NEW_SESSION,
+      added: true,
+      city: true,
+      country: true,
+    })
+  })
+
+  it('are what the session keeps, every key, never the first arrival', () => {
+    expect(choicesFrom({ ...NEW_SESSION, swapped: true, first: true })).toEqual({
+      swapped: true,
+      added: false,
+      read: false,
+      city: false,
+      country: false,
+    })
   })
 })

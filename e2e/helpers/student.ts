@@ -6,7 +6,7 @@ import { expect, type Page } from '@playwright/test'
 import { freshEmail } from './accounts'
 import { devLogin } from './login'
 
-export const STUDENT_APP_URL = /\/(start|onboarding(\/[a-z-]+)*)$/
+export const STUDENT_APP_URL = /\/(start|roadmaps(\/[a-z0-9-]+)*|onboarding(\/[a-z-]+)*)$/
 
 /**
  * Mark the splash as already seen in this tab (SPLASH_SEEN_KEY in

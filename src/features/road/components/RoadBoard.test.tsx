@@ -16,27 +16,38 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import * as navigation from 'next/navigation'
 import type { ReactNode } from 'react'
 import { renderToString } from 'react-dom/server'
+import type { ActionResult } from '@/shared/types/action-result'
+import type { RoadmapChoices } from '@/shared/types/student'
 
+const BOARD = '/roadmaps/rm-1'
 let query = ''
-// The route below /road's layout: [] at /road, ['learn', id] over the lesson, ['route', id].
+// The route below the roadmap's layout: [] at /roadmaps/rm-1, ['learn', id] over the lesson,
+// ['route', id].
 let segments: string[] = []
 const LESSON = ['learn', 'masters-years']
 const router = { push: mock(), replace: mock(), refresh: mock(), back: mock(), prefetch: mock() }
 mock.module('next/navigation', () => ({
   ...navigation,
   useSearchParams: () => new URLSearchParams(query),
-  usePathname: () => ['/road', ...segments].join('/'),
+  usePathname: () => [BOARD, ...segments].join('/'),
   useSelectedLayoutSegments: () => segments,
   useRouter: () => router,
 }))
 mock.module('@/shared/lib/theme-actions', () => ({ setThemeChoice: async () => {} }))
 
+/** The board's save, as the layout passes it: saved unless a test says otherwise. */
+const saveChoicesAction = mock(
+  async (_id: string, _choices: RoadmapChoices): Promise<ActionResult> => ({ ok: true }),
+)
+
 const { Providers } = await import('@/shared/components/Providers')
 const { getRoad } = await import('../model/road-data')
 const { RoadBoard } = await import('./RoadBoard')
-const { ARRIVED_KEY } = await import('../hooks/useFirstArrival')
 
 const road = getRoad()
+/** A roadmap she has opened before, its board untouched. */
+const ROADMAP = { id: 'rm-1', choices: {}, firstVisit: false }
+const props = { roadmap: ROADMAP, saveChoicesAction }
 
 // The map measures itself: give every element a 1440 × 900 box, as on a laptop.
 const box = (name: 'clientWidth' | 'clientHeight', px: number) =>
@@ -46,7 +57,7 @@ const realMatchMedia = window.matchMedia
 const dom = (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM
 const startUrl = location.href
 beforeAll(() => {
-  dom.setURL('http://localhost:3000/road')
+  dom.setURL(`http://localhost:3000${BOARD}`)
   box('clientWidth', 1440)
   box('clientHeight', 900)
 })
@@ -60,8 +71,7 @@ let replace: ReturnType<typeof spyOn>
 let push: ReturnType<typeof spyOn>
 let back: ReturnType<typeof spyOn>
 beforeEach(() => {
-  // She has been here before: no first arrival unless a test asks for one.
-  localStorage.setItem(ARRIVED_KEY, '1')
+  saveChoicesAction.mockClear()
   push = spyOn(window.history, 'pushState').mockImplementation(() => {})
   back = spyOn(window.history, 'back').mockImplementation(() => {})
   for (const fn of Object.values(router)) fn.mockClear()
@@ -85,10 +95,16 @@ afterEach(() => {
   segments = []
 })
 
-const board = (children: ReactNode = null) =>
+const board = (children: ReactNode = null, roadmap: Partial<typeof ROADMAP> = {}) =>
   render(
     <Providers initialChoice="light" systemTheme={null}>
-      <RoadBoard road={road}>{children}</RoadBoard>
+      <RoadBoard
+        road={road}
+        roadmap={{ ...ROADMAP, ...roadmap }}
+        saveChoicesAction={saveChoicesAction}
+      >
+        {children}
+      </RoadBoard>
     </Providers>,
   )
 
@@ -133,7 +149,7 @@ describe('the map', () => {
     expect(pressed.map((b) => b.getAttribute('aria-label'))).toEqual([
       'Data Science, not visited. Open in the card',
     ])
-    expect(replace).toHaveBeenLastCalledWith(null, '', '/road?tile=data-science-uwa-perth')
+    expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?tile=data-science-uwa-perth`)
   })
 
   it('at Whole road, a press first brings the camera to Level, then opens the tile', () => {
@@ -158,7 +174,7 @@ describe('the map', () => {
     board()
     press(screen.getByRole('button', { name: 'Cancel' }))
     expect(screen.getByText('You are here · Course')).toBeInTheDocument()
-    expect(replace).toHaveBeenLastCalledWith(null, '', '/road')
+    expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}`)
   })
 })
 
@@ -182,7 +198,7 @@ describe('zoom', () => {
       'false',
     )
     expect(screen.getByText('Zoom: Tile')).toHaveAttribute('aria-live', 'polite')
-    expect(replace).toHaveBeenLastCalledWith(null, '', '/road?zoom=tile')
+    expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?zoom=tile`)
   })
 
   it('steps one stop out with −, and holds at Whole road', () => {
@@ -199,7 +215,9 @@ describe('the card column', () => {
     const firstRender = () =>
       renderToString(
         <Providers initialChoice="light" systemTheme={null}>
-          <RoadBoard road={road}>{null}</RoadBoard>
+          <RoadBoard road={road} {...props}>
+            {null}
+          </RoadBoard>
         </Providers>,
       )
     segments = ['learn', 'masters-years']
@@ -216,7 +234,9 @@ describe('the card column', () => {
     segments = []
     rerender(
       <Providers initialChoice="light" systemTheme={null}>
-        <RoadBoard road={road}>{null}</RoadBoard>
+        <RoadBoard road={road} {...props}>
+          {null}
+        </RoadBoard>
       </Providers>,
     )
     expect(screen.queryByText('The Master’s years, in 3 minutes')).not.toBeInTheDocument()
@@ -226,7 +246,10 @@ describe('the card column', () => {
     segments = ['route', 'student-visa-500']
     board()
     expect(screen.getByText('Route detail comes in the next round.')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Back to your road' })).toHaveAttribute('href', '/road')
+    expect(screen.getByRole('link', { name: 'Back to your road' })).toHaveAttribute(
+      'href',
+      `${BOARD}`,
+    )
   })
 })
 
@@ -246,7 +269,7 @@ describe('the card’s actions', () => {
     expect(screen.getByText('You are here · Course')).toBeInTheDocument()
     expect(tile('Data Science, you are here. Open in the card')).toBeInTheDocument()
     expect(screen.getByText(SWAP_TOAST)).toBeInTheDocument()
-    expect(replace).toHaveBeenLastCalledWith(null, '', '/road')
+    expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}`)
 
     press(button('Undo'))
     expect(tile('Cyber Security, you are here. Open in the card')).toBeInTheDocument()
@@ -278,7 +301,7 @@ describe('the card’s actions', () => {
     expect(heading()).toHaveTextContent('Student visa · 500')
     expect(screen.getByRole('link', { name: 'Open route detail at this step' })).toHaveAttribute(
       'href',
-      '/road/route/student-visa-500',
+      `${BOARD}/route/student-visa-500`,
     )
 
     press(button('Back to Cyber Security'))
@@ -289,7 +312,7 @@ describe('the card’s actions', () => {
     board()
     expect(screen.getByRole('link', { name: 'Open route detail' })).toHaveAttribute(
       'href',
-      '/road/route/student-visa-500',
+      `${BOARD}/route/student-visa-500`,
     )
   })
 
@@ -298,7 +321,7 @@ describe('the card’s actions', () => {
     board()
     expect(screen.getByRole('link', { name: 'What happens here · 3-min lesson' })).toHaveAttribute(
       'href',
-      '/road/learn/masters-years',
+      `${BOARD}/learn/masters-years`,
     )
   })
 
@@ -313,12 +336,23 @@ describe('the card’s actions', () => {
     expect(screen.getByText('You are here · Course')).toBeInTheDocument()
   })
 
+  it('walks back to her country from its card, with Undo, and on to her city', () => {
+    query = 'tile=australia'
+    board()
+    press(button('Go to Australia'))
+    expect(screen.getByText('You are here · Destination')).toBeInTheDocument()
+    expect(screen.getByText('Walked to Australia')).toBeInTheDocument()
+
+    press(button(/^Go to Perth/))
+    expect(screen.getByText('You are here · City')).toBeInTheDocument()
+  })
+
   it('goes back to the tile before where she is: its card, at Level', () => {
     query = 'zoom=tile'
     board()
     press(button('Back to Perth'))
     expect(screen.getByText('Visited · City')).toBeInTheDocument()
-    expect(replace).toHaveBeenLastCalledWith(null, '', '/road?tile=perth')
+    expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?tile=perth`)
   })
 })
 
@@ -327,7 +361,7 @@ describe('the stack', () => {
     query = 'tile=more-courses-perth'
     board()
     press(button('Show 13 more courses'))
-    expect(push).toHaveBeenLastCalledWith(null, '', '/road?tile=more-courses-perth&open=list')
+    expect(push).toHaveBeenLastCalledWith(null, '', `${BOARD}?tile=more-courses-perth&open=list`)
     expect(screen.getByRole('heading', { name: '13 more in Perth' })).toBeInTheDocument()
     expect(screen.getByText('Information Systems')).toBeInTheDocument()
 
@@ -342,7 +376,9 @@ describe('the stack', () => {
     query = 'tile=more-courses-perth'
     rerender(
       <Providers initialChoice="light" systemTheme={null}>
-        <RoadBoard road={road}>{null}</RoadBoard>
+        <RoadBoard road={road} {...props}>
+          {null}
+        </RoadBoard>
       </Providers>,
     )
     expect(screen.queryByRole('group', { name: 'Filter' })).not.toBeInTheDocument()
@@ -354,7 +390,7 @@ describe('the stack', () => {
     board()
     press(button('Close'))
     expect(back).not.toHaveBeenCalled()
-    expect(replace).toHaveBeenLastCalledWith(null, '', '/road?tile=more-courses-perth')
+    expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?tile=more-courses-perth`)
   })
 
   it('filters its rows', () => {
@@ -391,7 +427,7 @@ describe('the lesson', () => {
     expect(screen.getByText(READ_TOAST)).toBeInTheDocument()
     expect(tile('Master’s · Cyber Security, looked at. Open in the card')).toBeInTheDocument()
     // Opened by a link, not from the board: back to /road without leaving the site.
-    expect(router.replace).toHaveBeenCalledWith('/road')
+    expect(router.replace).toHaveBeenCalledWith(`${BOARD}`)
     expect(router.back).not.toHaveBeenCalled()
   })
 
@@ -402,7 +438,9 @@ describe('the lesson', () => {
     segments = LESSON
     rerender(
       <Providers initialChoice="light" systemTheme={null}>
-        <RoadBoard road={road}>{null}</RoadBoard>
+        <RoadBoard road={road} {...props}>
+          {null}
+        </RoadBoard>
       </Providers>,
     )
     press(button('Later'))
@@ -413,20 +451,20 @@ describe('the lesson', () => {
   it('a tile pressed over it leaves the lesson for that tile’s card', () => {
     lesson()
     press(tile('Data Science, not visited. Open in the card'))
-    expect(router.replace).toHaveBeenCalledWith('/road?tile=data-science-uwa-perth')
+    expect(router.replace).toHaveBeenCalledWith(`${BOARD}?tile=data-science-uwa-perth`)
   })
 
   it('a zoom over it leaves the lesson for /road at that stop, never writing onto the lesson’s path', () => {
     lesson()
     press(within(zoom()).getByRole('button', { name: 'Tile' }))
-    expect(router.replace).toHaveBeenCalledWith('/road?zoom=tile')
+    expect(router.replace).toHaveBeenCalledWith(`${BOARD}?zoom=tile`)
     expect(replace).not.toHaveBeenCalled()
   })
 
   it('Later closes it without reading', () => {
     lesson()
     press(button('Later'))
-    expect(router.replace).toHaveBeenCalledWith('/road')
+    expect(router.replace).toHaveBeenCalledWith(`${BOARD}`)
     expect(tile('Master’s · Cyber Security, unexplored. Open in the card')).toBeInTheDocument()
   })
 })
@@ -521,30 +559,25 @@ describe('toasts', () => {
 })
 
 describe('the first arrival', () => {
-  it('shows the duck at Australia with the hint on Perth once; any press ends it', () => {
-    localStorage.clear()
-    board()
+  it('on her first visit, shows the duck at Australia with the hint on Perth; any press ends it', () => {
+    board(null, { firstVisit: true })
     expect(screen.getByText('Tap Perth to see its courses.')).toBeInTheDocument()
     expect(tile('Australia, you are here. Open in the card')).toBeInTheDocument()
 
     press(tile('Perth, not visited, next. Open in the card'))
     expect(screen.queryByText('Tap Perth to see its courses.')).not.toBeInTheDocument()
-
-    cleanup()
-    board()
-    expect(screen.queryByText('Tap Perth to see its courses.')).not.toBeInTheDocument()
+    // Ending the arrival is not a choice: nothing is saved.
+    expect(saveChoicesAction).not.toHaveBeenCalled()
   })
 
   it('a zoom press ends the hint too', () => {
-    localStorage.clear()
-    board()
+    board(null, { firstVisit: true })
     press(within(zoom()).getByRole('button', { name: 'Tile' }))
     expect(screen.queryByText('Tap Perth to see its courses.')).not.toBeInTheDocument()
   })
 
   it('Go to Perth walks her to Perth', () => {
-    localStorage.clear()
-    board()
+    board(null, { firstVisit: true })
     press(button(/^Go to Perth/))
     expect(screen.getByText('You are here · City')).toBeInTheDocument()
     expect(screen.getByText('Walked to Perth')).toBeInTheDocument()
@@ -555,7 +588,9 @@ describe('an empty road', () => {
   it('shows where she starts and asks for a destination, with no zoom to use', () => {
     render(
       <Providers initialChoice="light" systemTheme={null}>
-        <RoadBoard road={{ ...road, tiles: [] }}>{null}</RoadBoard>
+        <RoadBoard road={{ ...road, tiles: [] }} {...props}>
+          {null}
+        </RoadBoard>
       </Providers>,
     )
     expect(heading()).toHaveTextContent('Point A')
@@ -602,12 +637,12 @@ describe('on a phone', () => {
     expect(screen.queryByRole('region', { name: 'Your road, map' })).not.toBeInTheDocument()
 
     press(within(switcher()).getByRole('button', { name: 'Map' }))
-    expect(replace).toHaveBeenLastCalledWith(null, '', '/road?view=map')
+    expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?view=map`)
     expect(screen.getByRole('region', { name: 'Your road, map' })).toBeInTheDocument()
     expect(screen.queryByRole('list', { name: 'Your road' })).not.toBeInTheDocument()
 
     press(within(switcher()).getByRole('button', { name: 'Road' }))
-    expect(replace).toHaveBeenLastCalledWith(null, '', '/road')
+    expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}`)
   })
 
   it('lists the road in order, dates leading each kicker, where she is as the card', () => {
@@ -635,13 +670,13 @@ describe('on a phone', () => {
     press(button('Student visa · 500, next. Open'))
     const sheet = screen.getByRole('dialog', { name: 'Student visa · 500' })
     expect(within(sheet).getByText('Look ahead · the duck stays · Route step')).toBeInTheDocument()
-    expect(replace).toHaveBeenLastCalledWith(null, '', '/road?tile=student-visa-500')
+    expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?tile=student-visa-500`)
 
     act(() => {
       fireEvent.keyDown(sheet, { key: 'Escape' })
     })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(replace).toHaveBeenLastCalledWith(null, '', '/road')
+    expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}`)
 
     press(button('Adelaide'))
     press(
@@ -707,7 +742,7 @@ describe('on a phone', () => {
     act(() => {
       fireEvent.keyDown(overview, { key: 'Escape' })
     })
-    expect(replace).toHaveBeenLastCalledWith(null, '', '/road?view=map')
+    expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?view=map`)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
     press(button('View'))
@@ -718,5 +753,85 @@ describe('on a phone', () => {
       fireEvent.keyDown(key, { key: 'Escape' })
     })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+})
+
+const NOTHING_CHOSEN = { swapped: false, added: false, read: false, city: false, country: false }
+const SAVE_NOTE = "We couldn't save that change."
+/** Lets the save's answer arrive. */
+const settle = () => act(async () => {})
+
+describe('her roadmap’s choices', () => {
+  it('start the board where she left it: swapped, Data Science is where she is', () => {
+    board(null, { choices: { swapped: true } })
+    expect(tile('Data Science, you are here. Open in the card')).toBeInTheDocument()
+    expect(screen.queryByText('Tap Perth to see its courses.')).not.toBeInTheDocument()
+  })
+
+  it('are saved after a swap and after its Undo, every key, never the first arrival', async () => {
+    reduceMotion()
+    query = 'tile=data-science-uwa-perth'
+    board()
+    press(button('Swap onto your road'))
+    await settle()
+    expect(saveChoicesAction).toHaveBeenLastCalledWith('rm-1', { ...NOTHING_CHOSEN, swapped: true })
+
+    press(button('Undo'))
+    await settle()
+    expect(saveChoicesAction).toHaveBeenLastCalledWith('rm-1', NOTHING_CHOSEN)
+    expect(saveChoicesAction).toHaveBeenCalledTimes(2)
+  })
+
+  it('saves one change at a time, in order: Undo is sent only once the swap is saved', async () => {
+    reduceMotion()
+    query = 'tile=data-science-uwa-perth'
+    board()
+    let answerSwap: (result: ActionResult) => void = () => {}
+    saveChoicesAction.mockImplementationOnce(
+      () => new Promise<ActionResult>((resolve) => (answerSwap = resolve)),
+    )
+    press(button('Swap onto your road'))
+    press(button('Undo'))
+    await settle()
+    // The Undo waits, so it can never land before the swap it undoes.
+    expect(saveChoicesAction).toHaveBeenCalledTimes(1)
+
+    // The swap's late failure is not the last word: the Undo after it saved.
+    await act(async () => answerSwap({ ok: false, error: 'Could not save. Please try again.' }))
+    expect(saveChoicesAction).toHaveBeenCalledTimes(2)
+    expect(saveChoicesAction).toHaveBeenLastCalledWith('rm-1', NOTHING_CHOSEN)
+    expect(screen.queryByText(SAVE_NOTE)).not.toBeInTheDocument()
+  })
+
+  it('a failed save keeps the change and its toast, says so, and the next change retries', async () => {
+    reduceMotion()
+    query = 'tile=data-science-uwa-perth'
+    board()
+    saveChoicesAction.mockImplementationOnce(async () => ({
+      ok: false,
+      error: 'Could not save. Please try again.',
+    }))
+    press(button('Swap onto your road'))
+    await settle()
+    expect(screen.getByText(SWAP_TOAST)).toBeInTheDocument()
+    expect(screen.getByText(SAVE_NOTE)).toBeInTheDocument()
+    expect(tile('Data Science, you are here. Open in the card')).toBeInTheDocument()
+
+    press(button('Undo'))
+    await settle()
+    expect(saveChoicesAction).toHaveBeenLastCalledWith('rm-1', NOTHING_CHOSEN)
+    expect(screen.queryByText(SAVE_NOTE)).not.toBeInTheDocument()
+  })
+
+  it('a save that cannot reach the server says so too', async () => {
+    query = 'tile=perth'
+    board()
+    saveChoicesAction.mockImplementationOnce(async () => {
+      throw new Error('Failed to fetch')
+    })
+    press(button('Go to Perth'))
+    await settle()
+    expect(screen.getByText('Walked to Perth')).toBeInTheDocument()
+    expect(screen.getByText(SAVE_NOTE)).toBeInTheDocument()
   })
 })

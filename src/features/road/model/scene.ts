@@ -1,6 +1,8 @@
-// The scene: the road as the board draws it now, after what she has done this session (nothing is
-// saved this round). Pure: builds new tiles and lines, never changes the road it reads.
+// The scene: the road as the board draws it now, after what she has done on this roadmap's board
+// (its stored choices, then this session's). Pure: builds new tiles and lines, never changes the
+// road it reads.
 
+import type { RoadmapChoices } from '@/shared/types/student'
 import type { LabelPlace, Road, Ruler, Tile, Walk } from './road-data'
 
 /** What she has done on the board this session. */
@@ -15,6 +17,8 @@ export type Session = {
   first: boolean
   /** Walked back from her course to its city: the city level open, the course next. */
   city: boolean
+  /** Walked back to her country: where the first arrival stands her, without its hint. */
+  country: boolean
 }
 
 export const NEW_SESSION: Session = {
@@ -23,7 +27,21 @@ export const NEW_SESSION: Session = {
   read: false,
   first: false,
   city: false,
+  country: false,
 }
+
+/** The session a roadmap's board opens with: its stored choices (a missing key is false). */
+export const sessionFrom = (choices: RoadmapChoices, firstVisit: boolean): Session => ({
+  swapped: choices.swapped ?? false,
+  added: choices.added ?? false,
+  read: choices.read ?? false,
+  first: firstVisit,
+  city: choices.city ?? false,
+  country: choices.country ?? false,
+})
+
+/** What a session keeps on the roadmap: every choice, never the first arrival. */
+export const choicesFrom = ({ first: _, ...choices }: Session): Required<RoadmapChoices> => choices
 
 export type Scene = Walk & {
   /** The tiles on the board, each with its state and label placement per stop. */
@@ -109,6 +127,27 @@ function walkBack(tiles: Tile[], walk: Walk): Walk {
   }
 }
 
+/**
+ * The duck back at her country, as the first arrival draws it: the country level open, her city
+ * next, no course on her road yet (each course an alternative). The road ahead is the road she has
+ * walked so far, so a swap she made stays on it.
+ */
+function toCountry(tiles: Tile[], walk: Walk, arrival: Road['arrival']): Walk {
+  const country = arrival.walk.here
+  if (!country) return walk
+  const byId = (id: string) => tiles.find((t) => t.id === id)
+  for (const [id, change] of Object.entries(arrival.tiles)) {
+    const t = byId(id)
+    if (t) Object.assign(t, change, change.lab && { lab: { ...change.lab } })
+  }
+  for (const id of walk.courseLine) {
+    const t = byId(id)
+    if (t?.state === 'here') t.state = 'alt'
+  }
+  const at = walk.lit.indexOf(country)
+  return { ...walk, ...arrival.walk, ahead: [...walk.lit.slice(at + 1), ...walk.ahead] }
+}
+
 const EVERY_STOP = (place: LabelPlace) => ({ whole: place, level: place, tile: place })
 
 /**
@@ -164,18 +203,12 @@ export function buildScene(road: Road, session: Session): Scene {
   const byId = (id: string) => onBoard.find((t) => t.id === id)
   let walk: Walk = { ...road.walk }
 
-  if (session.first) {
-    walk = { ...walk, ...road.arrival.walk }
-    for (const [id, change] of Object.entries(road.arrival.tiles)) {
-      const t = byId(id)
-      if (t) Object.assign(t, change, change.lab && { lab: { ...change.lab } })
-    }
-  }
   if (session.swapped) walk = swap(onBoard, walk)
   // After a swap, the added course takes the place of the one she swapped off.
   const stacked = tiles.find((t) => t.inStack)
   if (session.added && stacked) walk = add(onBoard, stacked, walk)
-  if (session.city && !session.first) walk = walkBack(onBoard, walk)
+  if (session.first || session.country) walk = toCountry(onBoard, walk, road.arrival)
+  else if (session.city) walk = walkBack(onBoard, walk)
   if (session.read) {
     for (const id of road.lesson.tileIds) {
       const t = byId(id)

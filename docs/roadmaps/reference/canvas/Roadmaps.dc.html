@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Your roadmaps</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/industry/components/bundle.css">
+<link rel="stylesheet" href="login.css">
+<link rel="stylesheet" href="pq.css">
+<link rel="stylesheet" href="facts.css">
+<link rel="stylesheet" href="road.css">
+<link rel="stylesheet" href="answers.css">
+<link rel="stylesheet" href="roadmaps.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;700&amp;family=Barlow+Condensed:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="rd-flow">
+<sc-if value="{{showLogin}}" hint-placeholder-val="{{false}}">
+<dc-import name="Main" theme="{{themePref}}" on-theme="{{setTheme}}" motion="{{motion}}" on-sign-in="{{backHere}}" hint-size="100%,100%"></dc-import>
+</sc-if>
+<sc-if value="{{showBoard}}" hint-placeholder-val="{{false}}">
+<dc-import name="RoadB" theme="{{themePref}}" on-theme="{{setTheme}}" scene="{{boardScene}}" roadmap-name="{{boardName}}" key-on="{{boardKey}}" on-roadmaps="{{backToList}}" motion="{{motion}}" hint-size="100%,100%"></dc-import>
+</sc-if>
+<sc-if value="{{showDraft}}" hint-placeholder-val="{{false}}">
+<dc-import name="RoadB" theme="{{themePref}}" on-theme="{{setTheme}}" scene="{{draftScene}}" roadmap-name="New roadmap" draft="{{draftFrom}}" on-create="{{create}}" on-cancel-draft="{{cancelDraft}}" on-roadmaps="{{cancelDraft}}" motion="{{motion}}" hint-size="100%,100%"></dc-import>
+</sc-if>
+<sc-if value="{{showSelf}}" hint-placeholder-val="{{true}}">
+<div class="{{rootClass}}" data-theme="{{themeAttr}}">
+
+<header class="rd-head">
+<div class="rd-brand"><img class="rd-brand-duck" src="/_blob/ef89572a2eb568c31292d17bbd6f4ded" alt=""><span>OfCourse</span></div>
+<span class="rm-head-sp"></span>
+<div class="hdr" onKeyDown="{{menuKey}}">
+<button type="button" class="hdr-btn" aria-label="Menu: theme and sign out" title="Menu" aria-haspopup="menu" aria-expanded="{{menuExpanded}}" ref="{{menuBtnRef}}" onClick="{{toggleMenu}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M20 21a8 8 0 0 0-16 0"></path></svg></button>
+<sc-if value="{{menuOpen}}" hint-placeholder-val="{{false}}">
+<button type="button" class="hdr-scrim" tabIndex="-1" aria-hidden="true" onClick="{{closeMenu}}"></button>
+<div class="hdr-menu" role="menu" aria-label="Menu">
+<button type="button" role="menuitem" class="hdr-item" aria-current="page" ref="{{firstItemRef}}" onClick="{{menuRoadmaps}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3"></rect><rect width="7" height="7" x="14" y="3"></rect><rect width="7" height="7" x="14" y="14"></rect><rect width="7" height="7" x="3" y="14"></rect></svg><span class="hdr-label">Your roadmaps</span></button>
+<div class="hdr-sep" role="separator"></div>
+
+<button type="button" role="menuitemcheckbox" class="hdr-item" aria-checked="{{darkChecked}}" onClick="{{toggleTheme}}">
+<sc-if value="{{showMoon}}" hint-placeholder-val="{{true}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg></sc-if><sc-if value="{{showSun}}" hint-placeholder-val="{{false}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg></sc-if>
+<span class="hdr-label">Dark theme</span>
+<span class="hdr-sw" aria-hidden="true"><i></i></span>
+</button>
+<div class="hdr-sep" role="separator"></div>
+<button type="button" role="menuitem" class="hdr-item" onClick="{{menuSignOut}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="m16 17 5-5-5-5"></path><path d="M21 12H9"></path></svg><span class="hdr-label">Sign out</span></button>
+</div>
+</sc-if>
+</div>
+</header>
+
+<main class="rm-main" aria-labelledby="rm-h">
+<div class="rm-wrap">
+<div class="rm-top">
+<div class="rm-intro">
+<h1 class="rm-h" id="rm-h" tabIndex="-1" ref="{{headRef}}">Your roadmaps</h1>
+<p class="rm-lead">{{lead}}</p>
+</div>
+<button type="button" class="btn btn-primary aa blueprint rm-newbtn" onClick="{{openNew}}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>New roadmap</button>
+</div>
+
+<ul class="rm-grid" aria-label="Your roadmaps, last opened first">
+<sc-for list="{{cards}}" as="c" hint-placeholder-count="3">
+<li class="{{c.cls}}">
+<button type="button" class="rm-open" onClick="{{c.open}}">
+<span class="rm-thumb rd-map grid-paper field-dark" data-theme="light" aria-hidden="true">
+<svg class="rm-thumb-svg" viewBox="0 0 260 132" preserveAspectRatio="xMidYMid meet">
+<path class="rm-thumb-road" d="{{c.roadD}}"></path>
+<sc-for list="{{c.tiles}}" as="t" hint-placeholder-count="6"><g class="{{t.cls}}"><polygon class="rd-face-l" points="{{t.l}}"></polygon><polygon class="rd-face-r" points="{{t.r}}"></polygon><polygon class="rd-face-t" points="{{t.t}}"></polygon></g></sc-for>
+</svg>
+<img class="rm-thumb-duck" src="/_blob/ef89572a2eb568c31292d17bbd6f4ded" alt="" style="left: {{c.duckX}}%; top: {{c.duckY}}%">
+<span class="rm-thumb-k">{{c.place}}</span>
+</span>
+<span class="rm-body">
+<sc-if value="{{c.isNew}}" hint-placeholder-val="{{false}}"><span class="rm-newtag">New</span></sc-if>
+<span class="rm-name">{{c.name}}</span>
+<span class="rm-line">{{c.line}}</span>
+<span class="rm-pb"><span class="rm-pb-k">Point B</span> {{c.pb}}</span>
+</span>
+</button>
+<div class="rm-meta">
+<p class="rm-from">{{c.from}}</p>
+<sc-if value="{{c.hasDiffs}}" hint-placeholder-val="{{true}}"><ul class="rm-diffs" aria-label="Different from the roadmap it was copied from"><sc-for list="{{c.diffs}}" as="d" hint-placeholder-count="1"><li class="rm-diff">{{d.t}}</li></sc-for></ul></sc-if>
+</div>
+<div class="rm-foot">
+<span class="rm-when">{{c.when}}</span>
+<div class="rm-morewrap">
+<button type="button" class="rm-more" aria-label="{{c.moreLabel}}" aria-haspopup="menu" aria-expanded="{{c.menuExpanded}}" onClick="{{c.toggleMenu}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg></button>
+<sc-if value="{{c.menuOpen}}" hint-placeholder-val="{{false}}">
+<div class="hdr-menu rm-cmenu" role="menu" aria-label="{{c.moreLabel}}">
+<button type="button" role="menuitem" class="hdr-item" onClick="{{c.open}}"><span class="hdr-label">Open</span></button>
+<button type="button" role="menuitem" class="hdr-item" onClick="{{c.copy}}"><span class="hdr-label">Copy and change answers</span></button>
+<button type="button" role="menuitem" class="hdr-item" onClick="{{c.rename}}"><span class="hdr-label">Rename</span></button>
+<sc-if value="{{c.canDelete}}" hint-placeholder-val="{{true}}"><div class="hdr-sep" role="separator"></div><button type="button" role="menuitem" class="hdr-item rm-danger" onClick="{{c.del}}"><span class="hdr-label">Delete</span></button></sc-if>
+</div>
+</sc-if>
+</div>
+</div>
+</li>
+</sc-for>
+</ul>
+<p class="rm-note">Roadmaps are never ranked. Each shows where one set of answers leads.</p>
+</div>
+</main>
+
+<sc-if value="{{dlgNew}}" hint-placeholder-val="{{false}}">
+<div class="rm-scrim"></div>
+<div class="rm-dlg" onKeyDown="{{dlgKey}}" role="dialog" aria-modal="true" aria-labelledby="rm-new-h">
+<p class="rm-dlg-k">New roadmap</p>
+<h2 class="rm-dlg-h" id="rm-new-h">How do you want to start?</h2>
+<div class="rm-choices" role="radiogroup" aria-labelledby="rm-new-h">
+<button type="button" role="radio" class="{{copyCls}}" aria-checked="{{copyOn}}" onClick="{{pickCopy}}"><span class="rm-ch-dot" aria-hidden="true"></span><span class="rm-ch-txt"><span class="rm-ch-t">Copy a roadmap and change some answers</span><span class="rm-ch-d">Quickest. It starts with the same answers; you change only what’s different.</span></span></button>
+<button type="button" role="radio" class="{{scratchCls}}" aria-checked="{{scratchOn}}" onClick="{{pickScratch}}"><span class="rm-ch-dot" aria-hidden="true"></span><span class="rm-ch-txt"><span class="rm-ch-t">Start from scratch</span><span class="rm-ch-d">Answer every question again, from your character to your ten coins. About 8 minutes.</span></span></button>
+</div>
+<sc-if value="{{copyIs}}" hint-placeholder-val="{{true}}">
+<div class="rm-from-pick">
+<p class="rm-from-k" id="rm-from-k">Copy which roadmap?</p>
+<div class="rm-from-l" role="radiogroup" aria-labelledby="rm-from-k">
+<sc-for list="{{fromList}}" as="f" hint-placeholder-count="3"><button type="button" role="radio" class="{{f.cls}}" aria-checked="{{f.on}}" onClick="{{f.pick}}"><span class="rm-ch-dot" aria-hidden="true"></span><span>{{f.name}}</span></button></sc-for>
+</div>
+</div>
+</sc-if>
+<div class="rm-dlg-actions">
+<button type="button" class="btn btn-secondary blueprint" onClick="{{closeDlg}}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Cancel</button>
+<button type="button" class="btn btn-primary aa blueprint" onClick="{{goNew}}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{goNewLabel}}</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{dlgDel}}" hint-placeholder-val="{{false}}">
+<div class="rm-scrim"></div>
+<div class="rm-dlg rm-dlg-sm" onKeyDown="{{dlgKey}}" role="alertdialog" aria-modal="true" aria-labelledby="rm-del-h">
+<h2 class="rm-dlg-h" id="rm-del-h">{{delTitle}}</h2>
+<p class="rm-dlg-p">Its answers and its board go with it. Your other roadmaps stay as they are.</p>
+<div class="rm-dlg-actions">
+<button type="button" class="btn btn-secondary blueprint" onClick="{{closeDlg}}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Keep it</button>
+<button type="button" class="btn btn-primary aa blueprint rm-delbtn" onClick="{{doDelete}}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Delete</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{dlgRename}}" hint-placeholder-val="{{false}}">
+<div class="rm-scrim"></div>
+<div class="rm-dlg rm-dlg-sm" onKeyDown="{{dlgKey}}" role="dialog" aria-modal="true" aria-labelledby="rm-ren-h">
+<h2 class="rm-dlg-h" id="rm-ren-h">Rename roadmap</h2>
+<label class="rm-field-l" for="rm-ren-i">Name</label>
+<input class="rm-field" id="rm-ren-i" type="text" value="{{renameVal}}" onInput="{{renameInput}}" maxLength="60">
+<div class="rm-dlg-actions">
+<button type="button" class="btn btn-secondary blueprint" onClick="{{closeDlg}}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Cancel</button>
+<button type="button" class="btn btn-primary aa blueprint" onClick="{{doRename}}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Save</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<div class="rb-toast rm-toast" role="status"><span>{{toastText}}</span><sc-if value="{{toastOpen}}" hint-placeholder-val="{{false}}"><button type="button" class="rb-undo" onClick="{{openNewest}}">Open it</button></sc-if><sc-if value="{{toastUndo}}" hint-placeholder-val="{{false}}"><button type="button" class="rb-undo" onClick="{{undoDelete}}">Undo</button></sc-if></div>
+</sc-if>
+
+<sc-if value="{{loadOn}}" hint-placeholder-val="{{false}}">
+<div class="rb-load rm-load grid-paper field-dark" data-theme="light" style="opacity: {{loadOp}}">
+<div class="rb-apond rm-pond" aria-hidden="true">
+<div class="cn-pond"><span class="cn-wave is-back"></span><span class="cn-swim"><span class="cn-ripple"></span><span class="cn-ripple is-2"></span><span class="cn-turn"><img class="cn-duck" src="/_blob/ef89572a2eb568c31292d17bbd6f4ded" alt=""></span></span><span class="cn-wave is-front"></span></div>
+</div>
+<ol class="rb-load-l rm-load-l">
+<sc-for list="{{loadSteps}}" as="l" hint-placeholder-count="3"><li class="{{l.cls}}"><span class="rb-load-i"><sc-if value="{{l.isDone}}" hint-placeholder-val="{{false}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg></sc-if><sc-if value="{{l.isBad}}" hint-placeholder-val="{{false}}"><span class="rb-load-x">!</span></sc-if></span><span class="rb-load-t">{{l.t}}</span></li></sc-for>
+</ol>
+<sc-if value="{{loadSlow}}" hint-placeholder-val="{{false}}"><p class="rb-load-note rm-load-note">Still working. This can take a little longer.</p></sc-if>
+<sc-if value="{{loadErr}}" hint-placeholder-val="{{false}}"><div class="rb-load-err rm-load-note" role="alert"><p class="rb-load-err-t">{{errText}}</p><button type="button" class="rb-load-btn" onClick="{{retry}}">Try again</button></div></sc-if>
+</div>
+</sc-if>
+
+<p class="sr-status" role="status">{{statusText}}</p>
+</div>
+</sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark","auto"],"default":"light"},"onTheme":{"editor":null},"state":{"editor":"enum","options":["live","first","new","menu","rename","delete","loading","slow","error","ready"],"default":"live"},"arrive":{"editor":"boolean","default":false},"kind":{"editor":"enum","options":["new","first"],"default":"new"},"motion":{"editor":"boolean","default":true},"$preview":{"width":1440,"height":900}}'>
+// Your roadmaps (/roadmaps) — every roadmap she has made, last opened first. Never ranked.
+// A roadmap = one set of answers and the choices she made on its board (swaps, courses put on it).
+// Open one: its board (RoadB) with "Your roadmaps" in the header to come back.
+// New roadmap: copy one and change some answers (its board opens as a draft, the answers panel ready),
+// or start from scratch (onboarding from question 00). Creating runs the full-screen loader, then lands here
+// with the new card marked New. First time (from "You're all set"): the loader, then this page with one card.
+// All figures are mock.
+const BASE_RMS = [
+  { id: 'perth', name: 'Cyber Security in Perth', line: 'Master’s · ECU · Perth', pb: 'Permanent residency · 2032', from: 'From onboarding', diffs: [], when: 'Opened today', scene: 'course', place: 'Australia · Perth', here: 3 },
+  { id: 'budget', name: 'On a AUD 30k budget', line: 'Master’s · ECU · Perth · a stretch on budget', pb: 'Permanent residency · 2032', from: 'Copy of Cyber Security in Perth', diffs: ['Budget: AUD 30k'], when: 'Opened yesterday', scene: 'budget-saved', place: 'Australia · Perth', here: 3 },
+  { id: 'ds', name: 'Data Science instead', line: 'Master’s · UWA · Perth', pb: 'Permanent residency · 2032', from: 'Copy of Cyber Security in Perth', diffs: ['Course: Data Science, swapped on its board'], when: 'Opened 3 days ago', scene: 'swapped', place: 'Australia · Perth', here: 3 }
+];
+const STEPS_FIRST = ['Reading your answers', 'Drawing your first roadmap', 'Opening your roadmaps'];
+const STEPS_NEW = ['Reading your answers', 'Drawing your new roadmap', 'Adding it to your roadmaps'];
+const LT = { L1: 1300, L2: 2800, L3: 3900, FADE: 450 };
+const LFRAME = { loading: 2000, slow: 2000, error: 2000 };
+// a small drawing of the road for each card: tiles on a diagonal, walked ones lit
+const tilePts = (cx, cy) => {
+  const w = 17, h = 8.5, d = 5;
+  const T = [cx, cy - h], R = [cx + w, cy], B = [cx, cy + h], L = [cx - w, cy];
+  const p = (a) => a.map(v => v[0].toFixed(1) + ',' + v[1].toFixed(1)).join(' ');
+  return { t: p([T, R, B, L]), l: p([L, B, [B[0], B[1] + d], [L[0], L[1] + d]]), r: p([B, R, [R[0], R[1] + d], [B[0], B[1] + d]]) };
+};
+const thumb = (here, alt) => {
+  const pts = [0, 1, 2, 3, 4, 5, 6].map(i => [46 + i * 32, 42 + i * 13]);
+  const tiles = pts.map((c, i) => Object.assign({ cls: 'rd-tile ' + (i <= here ? 's-lit' : i === here + 1 ? 's-next' : 's-fog') }, tilePts(c[0], c[1])));
+  if (alt) { const a = tilePts(pts[here][0] + 30, pts[here][1] - 26); tiles.splice(here, 0, Object.assign({ cls: 'rd-tile s-alt' }, a)); }
+  return { tiles, roadD: 'M' + pts.map(c => c[0] + ' ' + c[1]).join(' L'), duckX: ((pts[here][0] - 9) / 260 * 100).toFixed(1), duckY: ((pts[here][1] - 26) / 132 * 100).toFixed(1) };
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const st = props.state || 'live';
+    let list = BASE_RMS.slice();
+    const firstKind = props.arrive || props.kind === 'first';
+    if (st === 'first' || firstKind) list = [Object.assign({}, BASE_RMS[0], { isNew: true })];
+    this.seq = 0;
+    if (st === 'ready') list = [this.made(BASE_RMS[0], ['Budget: AUD 24k', 'English test: IELTS 7.5 or more'])].concat(list);
+    this.seq = 0;
+    this.state = {
+      list, view: 'list', openId: null, dlg: st === 'new' ? 'new' : st === 'delete' ? 'del' : st === 'rename' ? 'ren' : null,
+      choice: 'copy', fromId: 'perth', menuFor: st === 'menu' ? 'budget' : null, delFor: st === 'delete' ? 'ds' : null, renFor: null, renameVal: '',
+      toast: st === 'ready' ? 'ready' : null, newest: st === 'ready' ? list[0].id : null, removed: null,
+      t: LFRAME[st] ?? (props.arrive ? 0 : null), kind: firstKind ? 'first' : 'new', loadErr: st === 'error',
+      first: st === 'first' || firstKind, draftFrom: null, away: null, status: ''
+    };
+    this.seq = 0;
+  }
+  componentDidMount() { this.watchOS(); if (this.props.arrive) this.play('first'); }
+  componentWillUnmount() { this.unwatchOS(); if (this.raf) cancelAnimationFrame(this.raf); }
+  // ── Theme: one toggle, light ↔ dark (starts from the device setting when theme is "auto"). The steel panel stays light in both (data-theme="light" on it). ──
+  watchOS() { try { this.mq = window.matchMedia('(prefers-color-scheme: dark)'); this.mqf = () => this.setState({ osDark: this.mq.matches }); this.mq.addEventListener('change', this.mqf); } catch (e) {} }
+  unwatchOS() { try { if (this.mq) this.mq.removeEventListener('change', this.mqf); } catch (e) {} }
+  setTheme(v) { this.setState({ themePref: v }); if (this.props.onTheme) this.props.onTheme(v); }
+  themeVals() {
+    const pref = (this.state && this.state.themePref) || this.props.theme || 'light';
+    let os = this.state && this.state.osDark;
+    if (os === undefined) { try { os = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { os = false; } }
+    const now = pref === 'auto' ? (os ? 'dark' : 'light') : pref;
+    return {
+      themeAttr: now,
+      showMoon: now === 'light', showSun: now === 'dark', darkChecked: now === 'dark' ? 'true' : 'false',
+      toggleLabel: now === 'dark' ? 'Switch to light theme' : 'Switch to dark theme',
+      toggleTheme: () => this.setTheme(now === 'dark' ? 'light' : 'dark'),
+      themePref: pref,
+      setTheme: (v) => this.setTheme(v)
+    };
+  }
+  // ── Header menu (top right, on the logo's line): Dark theme and Sign out ──
+  toggleMenu() {
+    const open = !this.state.menuOpen;
+    this.setState({ menuOpen: open });
+    if (open) setTimeout(() => { if (this.firstItem && this.firstItem.focus) this.firstItem.focus(); }, 0);
+  }
+  closeMenu(refocus) {
+    this.setState({ menuOpen: false });
+    if (refocus && this.menuBtn && this.menuBtn.focus) setTimeout(() => this.menuBtn.focus(), 0);
+  }
+  menuVals(signOut) {
+    const open = !!this.state.menuOpen;
+    return {
+      menuOpen: open, menuExpanded: open ? 'true' : 'false',
+      toggleMenu: () => this.toggleMenu(),
+      closeMenu: () => this.closeMenu(false),
+      menuKey: (e) => { if (e.key === 'Escape' && this.state.menuOpen) { e.preventDefault(); this.closeMenu(true); } },
+      menuBtnRef: (el) => { this.menuBtn = el; },
+      firstItemRef: (el) => { this.firstItem = el; },
+      menuSignOut: () => { this.setState({ menuOpen: false }); signOut(); }
+    };
+  }
+  reduced() { try { return !(this.props.motion ?? true) || window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
+  // a new roadmap from another one, with what is different from it
+  made(src, diffs) {
+    this.seq += 1;
+    return Object.assign({}, src, { id: 'new' + this.seq, name: 'Copy of ' + src.name, from: 'Copy of ' + src.name, diffs, when: 'Made just now', isNew: true,
+      scene: diffs.some(d => /^Budget: AUD (24|30)k|^Budget: Not sure/.test(d)) ? 'budget-saved' : src.scene });
+  }
+  play(kind) {
+    if (this.raf) cancelAnimationFrame(this.raf);
+    const steps = kind === 'first' ? STEPS_FIRST : STEPS_NEW;
+    this.setState({ view: 'list', t: 0, kind, loadErr: false, status: steps[0] });
+    const t0 = performance.now(); let said = 0;
+    const tick = (now) => {
+      const t = now - t0;
+      if (t >= LT.L3 + LT.FADE) {
+        this.setState({ t: null, toast: kind === 'first' ? null : 'ready', status: kind === 'first' ? 'Your first roadmap is ready' : 'Your new roadmap is ready' });
+        return setTimeout(() => { const h = this.headEl; if (h && h.focus) h.focus({ preventScroll: true }); }, 0);
+      }
+      const k = t >= LT.L2 ? 2 : t >= LT.L1 ? 1 : 0;
+      this.setState(k !== said ? { t, status: steps[k] } : { t }); said = k;
+      this.raf = requestAnimationFrame(tick);
+    };
+    this.raf = requestAnimationFrame(tick);
+  }
+  open(id) {
+    const r = this.state.list.find(x => x.id === id); if (!r) return;
+    const list = this.state.list.map(x => x.id === id ? Object.assign({}, x, { when: 'Opened today', isNew: false }) : x);
+    // last opened first
+    list.sort((a, b) => (a.id === id ? -1 : b.id === id ? 1 : 0));
+    // the first time a roadmap opens, its board shows the map key
+    this.setState({ list, view: 'board', openId: id, boardKey: !!r.isNew, menuFor: null, toast: null, first: false, status: 'Opened ' + r.name });
+  }
+  renderVals() {
+    const s = this.state;
+    const motion = this.props.motion ?? true;
+    const mv = this.menuVals(() => this.setState({ away: 'login', status: 'Signed out' }));
+    const tv = this.themeVals();
+    const one = s.list.length === 1;
+    const cards = s.list.map((r, i) => {
+      const th = thumb(r.here, r.scene === 'swapped');
+      const menuOpen = s.menuFor === r.id;
+      return Object.assign({
+        name: r.name, line: r.line, pb: r.pb, from: r.from, when: r.when, place: r.place, isNew: !!r.isNew,
+        hasDiffs: r.diffs.length > 0, diffs: r.diffs.map(t => ({ t })),
+        cls: 'rm-card' + (r.isNew ? ' is-new' : '') + (menuOpen ? ' has-menu' : ''),
+        moreLabel: 'More for ' + r.name, menuOpen, menuExpanded: menuOpen ? 'true' : 'false', canDelete: !one,
+        open: () => this.open(r.id),
+        toggleMenu: () => this.setState({ menuFor: menuOpen ? null : r.id }),
+        copy: () => this.setState({ menuFor: null, view: 'draft', draftFrom: r.id, status: 'New roadmap, a copy of ' + r.name }),
+        rename: () => this.setState({ menuFor: null, dlg: 'ren', renFor: r.id, renameVal: r.name }),
+        del: () => this.setState({ menuFor: null, dlg: 'del', delFor: r.id })
+      }, th);
+    });
+    const steps = s.kind === 'first' ? STEPS_FIRST : STEPS_NEW;
+    const at = s.t, loading = at != null;
+    const stepAt = [LT.L1, LT.L2, LT.L3];
+    const failed = s.loadErr, slow = this.props.state === 'slow';
+    const loadSteps = steps.map((t, i) => {
+      const bad = failed && i === 1;
+      const done = loading && at >= stepAt[i] && !(failed && i >= 1);
+      const now = loading && !done && (i === 0 || at >= stepAt[i - 1]) && !(failed && i > 1);
+      return { t, cls: 'rb-ls' + (bad ? ' is-bad' : done ? ' is-done' : now ? ' is-now' : ' is-next'), isDone: done && !bad, isBad: bad };
+    });
+    const from = s.list.find(x => x.id === s.fromId) || s.list[0];
+    const opened = s.list.find(x => x.id === s.openId);
+    const draftSrc = s.list.find(x => x.id === s.draftFrom);
+    const delR = s.list.find(x => x.id === s.delFor);
+    const close = () => this.setState({ dlg: null });
+    const toastText = s.toast === 'ready' ? 'Your new roadmap is ready.' : s.toast === 'deleted' ? 'Roadmap deleted.' : s.toast === 'scratch' ? 'In the product, this opens onboarding at question 00, your character.' : s.toast === 'renamed' ? 'Renamed.' : '';
+    return {
+      menuOpen: mv.menuOpen, menuExpanded: mv.menuExpanded, toggleMenu: mv.toggleMenu, closeMenu: mv.closeMenu, menuKey: mv.menuKey, menuBtnRef: mv.menuBtnRef, firstItemRef: mv.firstItemRef, menuSignOut: mv.menuSignOut,
+      themeAttr: tv.themeAttr, themePref: tv.themePref, setTheme: tv.setTheme, showMoon: tv.showMoon, showSun: tv.showSun, darkChecked: tv.darkChecked, toggleLabel: tv.toggleLabel, toggleTheme: tv.toggleTheme,
+      menuRoadmaps: () => this.setState({ menuOpen: false }), menuAnswers: () => this.setState({ menuOpen: false }),
+      rootClass: 'rd rm ' + (motion ? 'motion-on' : 'motion-off') + (loading ? ' is-loading-full' : ''),
+      showSelf: !s.away && s.view === 'list', showLogin: s.away === 'login', showBoard: !s.away && s.view === 'board', showDraft: !s.away && s.view === 'draft',
+      backHere: () => this.setState({ away: null, status: '' }), motion,
+      lead: s.first ? 'Your first roadmap is ready. Open it to explore, or make another with different answers.' : 'Each roadmap is one set of answers and the road it draws. Copy one and change a few answers to see another way.',
+      cards,
+      openNew: () => this.setState({ dlg: 'new', choice: 'copy', fromId: s.list[0].id, menuFor: null }),
+      dlgNew: s.dlg === 'new', dlgDel: s.dlg === 'del' && !!delR, dlgRename: s.dlg === 'ren', closeDlg: close,
+      dlgKey: (e) => { if (e.key === 'Escape') close(); },
+      copyOn: s.choice === 'copy' ? 'true' : 'false', scratchOn: s.choice === 'scratch' ? 'true' : 'false', copyIs: s.choice === 'copy',
+      copyCls: 'rm-choice' + (s.choice === 'copy' ? ' is-on' : ''), scratchCls: 'rm-choice' + (s.choice === 'scratch' ? ' is-on' : ''),
+      pickCopy: () => this.setState({ choice: 'copy' }), pickScratch: () => this.setState({ choice: 'scratch' }),
+      fromList: s.list.map(r => ({ name: r.name, on: r.id === from.id ? 'true' : 'false', cls: 'rm-fromrow' + (r.id === from.id ? ' is-on' : ''), pick: () => this.setState({ fromId: r.id }) })),
+      goNewLabel: s.choice === 'copy' ? 'Copy and change answers' : 'Start the questions',
+      goNew: () => s.choice === 'copy' ? this.setState({ dlg: null, view: 'draft', draftFrom: from.id, status: 'New roadmap, a copy of ' + from.name }) : this.setState({ dlg: null, toast: 'scratch' }),
+      delTitle: delR ? 'Delete “' + delR.name + '”?' : '',
+      doDelete: () => { const i = s.list.findIndex(x => x.id === s.delFor); if (i < 0) return close(); this.setState({ list: s.list.filter(x => x.id !== s.delFor), removed: { r: s.list[i], i }, dlg: null, toast: 'deleted', status: 'Roadmap deleted' }); },
+      undoDelete: () => { const rm = s.removed; if (!rm) return; const list = s.list.slice(); list.splice(rm.i, 0, rm.r); this.setState({ list, removed: null, toast: null, status: 'Restored ' + rm.r.name }); },
+      renameVal: s.renameVal, renameInput: (e) => this.setState({ renameVal: e.target.value }),
+      doRename: () => { const v = (s.renameVal || '').trim(); if (!v) return; this.setState({ list: s.list.map(x => x.id === s.renFor ? Object.assign({}, x, { name: v }) : x), dlg: null, toast: 'renamed', status: 'Renamed to ' + v }); },
+      hasToast: !!s.toast && !loading, toastText, toastOpen: s.toast === 'ready', toastUndo: s.toast === 'deleted',
+      openNewest: () => this.open(s.list[0].id),
+      // the board of the roadmap she opened, and a new one's draft
+      boardScene: opened ? opened.scene : 'course', boardKey: !!s.boardKey, boardName: opened ? opened.name : '', backToList: () => this.setState({ view: 'list', status: 'Your roadmaps' }),
+      draftScene: draftSrc ? draftSrc.scene : 'course', draftFrom: draftSrc ? draftSrc.name : '',
+      create: (diffs) => { const nr = this.made(draftSrc || s.list[0], diffs || []); this.setState({ list: [nr].concat(s.list.map(x => Object.assign({}, x, { isNew: false }))), newest: nr.id, draftFrom: null }); this.play('new'); },
+      cancelDraft: () => this.setState({ view: 'list', draftFrom: null, status: 'No new roadmap made' }),
+      loadOn: loading, loadOp: (failed ? 1 : 1 - Math.max(0, Math.min(1, (at - LT.L3) / LT.FADE))).toFixed(2), loadSteps,
+      loadSlow: slow && !failed, loadErr: failed,
+      errText: s.kind === 'first' ? 'We couldn’t draw your roadmap. Your answers are saved.' : 'We couldn’t draw this roadmap. Your answers are saved.',
+      retry: () => this.play(s.kind),
+      headRef: (el) => { this.headEl = el; },
+      statusText: s.status
+    };
+  }
+}
+</script>
+</body>
+</html>

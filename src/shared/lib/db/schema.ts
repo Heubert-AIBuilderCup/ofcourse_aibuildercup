@@ -8,12 +8,14 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core'
 import {
   type Coins,
   PERSONAS,
   type Relative,
   type Reminder,
+  type RoadmapChoices,
   STEPS,
   type StoredAnswers,
 } from '@/shared/types/student'
@@ -130,10 +132,10 @@ export const roleInvite = pgTable(
 // ── Student opening ─────────────────────────────────────────────────────────────────────────
 
 /**
- * One student's opening: her picture, answers, relative, coins, reminders and where she left off.
- * The JSON columns follow the contract in shared/types/student.ts and are parsed by its
- * schemas on every read and write. Personal data (her circumstances, a relative's name and place):
- * read and written only for the signed-in student herself, by features/opening/server/profile.ts.
+ * One student's opening: her picture, reminders and whether she has seen the futures. Her answers
+ * live on her roadmaps (below). The JSON columns follow the contract in shared/types/student.ts
+ * and are parsed by its schemas on every read and write. Read and written only for the signed-in
+ * student herself, by features/opening/server/profile.ts.
  */
 export const studentProfile = pgTable(
   'student_profile',
@@ -143,14 +145,8 @@ export const studentProfile = pgTable(
       .references(() => user.id, { onDelete: 'cascade' }),
     // Null until the picture question is answered or skipped.
     persona: text('persona', { enum: PERSONAS }),
-    answers: jsonb('answers').$type<StoredAnswers>().notNull().default({}),
-    relative: jsonb('relative').$type<Relative>(),
-    coins: jsonb('coins').$type<Coins>(),
     reminders: jsonb('reminders').$type<Reminder[]>().notNull().default([]),
-    lastStep: text('last_step', { enum: STEPS }).notNull().default('picture'),
     seenFutures: boolean('seen_futures').notNull().default(false),
-    // When she pressed "Go to your road": onboarding is finished and locked from then. Null before.
-    onboardedAt: tz('onboarded_at'),
     createdAt: tz('created_at').notNull().defaultNow(),
     updatedAt: tz('updated_at').notNull().defaultNow(),
   },
@@ -159,6 +155,51 @@ export const studentProfile = pgTable(
       'student_profile_persona_check',
       sql`${t.persona} is null or ${oneOf(t.persona, PERSONAS)}`,
     ),
-    check('student_profile_last_step_check', oneOf(t.lastStep, STEPS)),
+  ],
+)
+
+/**
+ * One set of a student's answers and the board it draws. She has many; at most one is unfinished
+ * (the one she is answering), and the first is made when she finishes onboarding. Each holds its
+ * own full copy of the answers, never shared with another roadmap. Personal data (her
+ * circumstances, a relative's name and place): read and written only for the signed-in student
+ * herself, by features/roadmaps/server/roadmaps.ts.
+ */
+export const roadmap = pgTable(
+  'roadmap',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    // Null: named from its road (features/roadmaps/model/roadmap.ts, roadmapName).
+    name: text('name'),
+    answers: jsonb('answers').$type<StoredAnswers>().notNull().default({}),
+    relative: jsonb('relative').$type<Relative>(),
+    coins: jsonb('coins').$type<Coins>(),
+    // What she did on its board: swapped, added, read, walked to the city or the country.
+    choices: jsonb('choices').$type<RoadmapChoices>().notNull().default({}),
+    // Where she left off while answering.
+    lastStep: text('last_step', { enum: STEPS }).notNull().default('picture'),
+    copiedFrom: text('copied_from').references((): AnyPgColumn => roadmap.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: tz('created_at').notNull().defaultNow(),
+    // Null while she is still answering.
+    finishedAt: tz('finished_at'),
+    // Null: never opened (it shows as New).
+    lastOpenedAt: tz('last_opened_at'),
+    // Null: alive. Set: deleted, and Undo can still bring it back.
+    deletedAt: tz('deleted_at'),
+  },
+  (t) => [
+    index('roadmap_user_idx').on(t.userId),
+    uniqueIndex('roadmap_one_unfinished')
+      .on(t.userId)
+      .where(sql`finished_at is null and deleted_at is null`),
+    check('roadmap_last_step_check', oneOf(t.lastStep, STEPS)),
+    check('roadmap_name_check', sql`${t.name} is null or char_length(${t.name}) between 1 and 60`),
   ],
 )

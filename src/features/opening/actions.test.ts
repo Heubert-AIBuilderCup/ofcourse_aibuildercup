@@ -17,31 +17,27 @@ mock.module('@/shared/lib/auth/session', () => ({
   },
 }))
 
+// The roadmap writes answer whether they wrote (false once onboarding is closed).
+const wrote = async () => true
 const saveAnswers = mock(
-  async (_userId: string, _patch: unknown, _cleared: readonly string[] = []) => {},
+  async (_userId: string, _patch: unknown, _cleared: readonly string[] = []) => true,
 )
 const savePersona = mock(async (_userId: string, _persona: unknown) => {})
-const saveRelative = mock(async (_userId: string, _relative: unknown) => {})
-const saveCoins = mock(async (_userId: string, _coins: unknown) => {})
-const markOnboarded = mock(async (_userId: string) => {})
-// The writes, counted together; the read is apart, so a check before a write does not count.
-const repository = { saveAnswers, savePersona, saveRelative, saveCoins, markOnboarded }
-/** Her stored coins, as the profile read gives them. */
-let storedCoins: unknown = { state: 'later' }
-const getProfile = mock(async (userId: string) => ({ userId, coins: storedCoins }))
-mock.module('./server/profile', () => ({ ...repository, getProfile }))
+const saveRelative = mock(async (_userId: string, _relative: unknown) => true)
+const saveCoins = mock(async (_userId: string, _coins: unknown) => true)
+// The writes, counted together.
+const repository = { saveAnswers, savePersona, saveRelative, saveCoins }
+// Every export the module has, as Bun keeps one mock of a module for the whole run (the roadmaps'
+// actions test mocks it too).
+mock.module('./server/profile', () => ({
+  ...repository,
+  getProfile: async (userId: string) => ({ userId }),
+  markStep: async () => {},
+}))
 
-// Outside a request, Next's own would throw; here it only says it was asked.
-const refresh = mock(() => {})
-mock.module('next/cache', () => ({ refresh }))
-
-const {
-  finishOnboardingAction,
-  saveAnswersAction,
-  saveCoinsAction,
-  savePersonaAction,
-  saveRelativeAction,
-} = await import('./actions')
+const { saveAnswersAction, saveCoinsAction, savePersonaAction, saveRelativeAction } = await import(
+  './actions'
+)
 
 const SIGN_IN = 'Please sign in again.'
 const NOT_AUTHORISED = 'Not authorised.'
@@ -57,7 +53,6 @@ const calls = [
   ['savePersonaAction', () => savePersonaAction('female')],
   ['saveRelativeAction', () => saveRelativeAction(relative)],
   ['saveCoinsAction', () => saveCoinsAction(coins)],
-  ['finishOnboardingAction', () => finishOnboardingAction()],
 ] as const
 
 const repositoryCalls = () => Object.values(repository).reduce((n, f) => n + f.mock.calls.length, 0)
@@ -65,13 +60,12 @@ const repositoryCalls = () => Object.values(repository).reduce((n, f) => n + f.m
 afterEach(() => {
   session = null
   sessionError = null
-  storedCoins = { state: 'later' }
-  getProfile.mockClear()
-  refresh.mockClear()
-  for (const f of Object.values(repository)) {
+  for (const f of [saveAnswers, saveRelative, saveCoins]) {
     f.mockReset()
-    f.mockImplementation(async () => {})
+    f.mockImplementation(wrote)
   }
+  savePersona.mockReset()
+  savePersona.mockImplementation(async () => {})
 })
 
 describe('who may call the student actions', () => {
@@ -105,6 +99,23 @@ describe('who may call the student actions', () => {
       session = student()
       expect(await call()).toEqual(expect.objectContaining({ ok: true }))
       expect(repositoryCalls()).toBe(1)
+    })
+  }
+})
+
+describe('once onboarding is closed', () => {
+  const CLOSED = 'Onboarding is finished. Your roadmaps hold your answers now.'
+  const roadmapWrites = [
+    ['saveAnswersAction', saveAnswers, () => saveAnswersAction({ amount: 36 })],
+    ['saveRelativeAction', saveRelative, () => saveRelativeAction(relative)],
+    ['saveCoinsAction', saveCoins, () => saveCoinsAction(coins)],
+  ] as const
+
+  for (const [name, write, call] of roadmapWrites) {
+    it(`${name} says onboarding is finished when nothing was written`, async () => {
+      session = student()
+      write.mockImplementation(async () => false)
+      expect(await call()).toEqual({ ok: false, error: CLOSED })
     })
   }
 })
@@ -271,46 +282,5 @@ describe('saveCoinsAction', () => {
       await saveCoinsAction({ state: 'spent', piles: [2, 1, 1, 1, 1, 1, 1, 1], assumed: false }),
     ).toEqual({ ok: false, error: INVALID })
     expect(saveCoins).not.toHaveBeenCalled()
-  })
-})
-
-describe('finishOnboardingAction', () => {
-  it("records that she finished, on the session's own account, and refreshes what Back shows", async () => {
-    session = student()
-    expect(await finishOnboardingAction()).toEqual({ ok: true })
-    expect(getProfile).toHaveBeenCalledWith('student-1')
-    expect(markOnboarded).toHaveBeenCalledWith('student-1')
-    expect(refresh).toHaveBeenCalledTimes(1)
-  })
-
-  it('succeeds again when pressed again; the first time is the one kept (the repository)', async () => {
-    session = student()
-    storedCoins = { state: 'spent', piles: [2, 2, 1, 1, 1, 1, 1, 1], assumed: false }
-    expect(await finishOnboardingAction()).toEqual({ ok: true })
-    expect(await finishOnboardingAction()).toEqual({ ok: true })
-    expect(markOnboarded).toHaveBeenCalledTimes(2)
-  })
-
-  it('refuses while her coins are not stored, and records nothing', async () => {
-    session = student()
-    storedCoins = null
-    expect(await finishOnboardingAction()).toEqual({ ok: false, error: expect.any(String) })
-    expect(markOnboarded).not.toHaveBeenCalled()
-    expect(refresh).not.toHaveBeenCalled()
-  })
-
-  it('says the save failed rather than throw when recording fails', async () => {
-    session = student()
-    markOnboarded.mockImplementation(async () => {
-      throw new Error('connection refused')
-    })
-    const logged = spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      expect(await finishOnboardingAction()).toEqual({ ok: false, error: SAVE_FAILED })
-      expect(logged).toHaveBeenCalled()
-    } finally {
-      logged.mockRestore()
-    }
-    expect(refresh).not.toHaveBeenCalled()
   })
 })

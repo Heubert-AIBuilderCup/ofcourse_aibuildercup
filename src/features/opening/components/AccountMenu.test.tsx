@@ -57,6 +57,7 @@ const open = (button: HTMLElement) =>
   act(() => {
     fireEvent.click(button)
   })
+const roadmapsItem = () => screen.getByRole('menuitem', { name: 'Your roadmaps' })
 const darkItem = () => screen.getByRole('menuitemcheckbox', { name: 'Dark theme' })
 const signOutItem = () => screen.getByRole('menuitem', { name: 'Sign out' })
 
@@ -67,14 +68,15 @@ it('starts closed, a menu button', () => {
   expect(screen.queryByRole('menu')).toBeNull()
 })
 
-it('opens on Dark theme and Sign out, focus on the first item', async () => {
+it('opens on Your roadmaps, Dark theme and Sign out, focus on the first item', async () => {
   const button = show()
   await open(button)
   expect(button).toHaveAttribute('aria-expanded', 'true')
   expect(screen.getByRole('menu', { name: 'Menu' })).toBeInTheDocument()
+  expect(roadmapsItem()).toHaveAttribute('href', '/roadmaps')
   expect(darkItem()).toHaveAttribute('aria-checked', 'false')
   expect(signOutItem()).toBeInTheDocument()
-  expect(document.activeElement).toBe(darkItem())
+  expect(document.activeElement).toBe(roadmapsItem())
 })
 
 it('switches the theme from Dark theme and stays open', async () => {
@@ -118,6 +120,8 @@ it('closes on a click outside it', async () => {
 
 it('moves between items with the arrow keys, Home and End', async () => {
   await open(show())
+  fireEvent.keyDown(roadmapsItem(), { key: 'ArrowDown' })
+  expect(document.activeElement).toBe(darkItem())
   fireEvent.keyDown(darkItem(), { key: 'ArrowDown' })
   expect(document.activeElement).toBe(signOutItem())
   fireEvent.keyDown(signOutItem(), { key: 'ArrowUp' })
@@ -125,7 +129,7 @@ it('moves between items with the arrow keys, Home and End', async () => {
   fireEvent.keyDown(darkItem(), { key: 'End' })
   expect(document.activeElement).toBe(signOutItem())
   fireEvent.keyDown(signOutItem(), { key: 'Home' })
-  expect(document.activeElement).toBe(darkItem())
+  expect(document.activeElement).toBe(roadmapsItem())
 })
 
 it('signs out, then leaves for the sign-in page', async () => {

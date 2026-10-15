@@ -1,11 +1,13 @@
 'use client'
 
-import { LogOut, Moon, Sun, User } from 'lucide-react'
-import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
+import { LogOut, Map as MapIcon, Moon, Sun, User } from 'lucide-react'
+import Link from 'next/link'
 import { useSignOut } from '@/features/auth'
 import { useThemeChoice } from '@/shared/components/Providers'
 import { Button } from '@/shared/components/ui/button'
+import { useMenuKeys } from '@/shared/hooks/useMenuKeys'
 import { HEADER_ACTION_ON_STEEL } from '@/shared/lib/header-action'
+import { ROADMAPS_PATH } from '@/shared/lib/student-paths'
 import { toggledChoice } from '@/shared/lib/theme'
 import { cn } from '@/shared/lib/utils'
 
@@ -13,8 +15,8 @@ const ITEM =
   'group flex min-h-11 cursor-pointer items-center gap-3 border-0 bg-transparent px-3 text-left text-foreground hover:bg-foreground/6 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary'
 
 /**
- * The onboarding header's one button (the design's `.hdr`): a menu with Dark theme, a checkable
- * item whose drawn switch shows its state, and Sign out. Opening focuses the first item; the arrow
+ * The onboarding header's one button (the design's `.hdr`): a menu with Your roadmaps first, Dark
+ * theme, a checkable item whose drawn switch shows its state, and Sign out. Opening focuses the first item; the arrow
  * keys, Home and End move between items; Escape, Tab or a click outside closes it. Below @5xl it
  * sits in the steel band, so the button turns light on steel (`band`; the road's header has no
  * band, so it says false); the open menu keeps the page's colours.
@@ -22,43 +24,8 @@ const ITEM =
 export function AccountMenu({ className, band = true }: { className?: string; band?: boolean }) {
   const { theme, setChoice } = useThemeChoice()
   const { leave } = useSignOut()
-  const [open, setOpen] = useState(false)
-  const button = useRef<HTMLButtonElement>(null)
-  const menu = useRef<HTMLDivElement>(null)
+  const { open, setOpen, button, menu, onKeyDown } = useMenuKeys()
   const dark = theme === 'dark'
-
-  useEffect(() => {
-    if (open) menu.current?.querySelector<HTMLElement>('[role^="menuitem"]')?.focus()
-  }, [open])
-
-  function close() {
-    setOpen(false)
-    button.current?.focus()
-  }
-
-  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      close()
-      return
-    }
-    // Tab leaves the menu: it closes and focus moves on as usual (the ARIA menu pattern).
-    if (event.key === 'Tab') {
-      setOpen(false)
-      return
-    }
-    const items = [...(menu.current?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? [])]
-    const at = items.indexOf(document.activeElement as HTMLElement)
-    const to: Record<string, number> = {
-      ArrowDown: (at + 1) % items.length,
-      ArrowUp: (at - 1 + items.length) % items.length,
-      Home: 0,
-      End: items.length - 1,
-    }
-    if (!(event.key in to)) return
-    event.preventDefault()
-    items[to[event.key]]?.focus()
-  }
 
   return (
     <div className={cn('relative', className)}>
@@ -99,6 +66,20 @@ export function AccountMenu({ className, band = true }: { className?: string; ba
             onKeyDown={onKeyDown}
             className="absolute top-full right-0 z-1 mt-2 flex min-w-56 flex-col border bg-background p-1.5 text-foreground shadow-md motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-200"
           >
+            <Link
+              href={ROADMAPS_PATH}
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className={ITEM}
+            >
+              <MapIcon
+                aria-hidden="true"
+                strokeWidth={1.5}
+                className="size-icon text-neutral-700"
+              />
+              <span className="flex-1">Your roadmaps</span>
+            </Link>
+            <hr className="mx-2 my-1 border-t border-border" />
             <button
               type="button"
               role="menuitemcheckbox"

@@ -1,11 +1,12 @@
-import { onboardingResumePath, ROAD_PATH } from '@/features/opening'
+import { onboardingResumePath } from '@/features/opening'
+import { ROADMAPS_PATH } from '@/shared/lib/student-paths'
 
 /**
- * Who may open her road: null once she has pressed "Go to your road" (onboarding resumes on the
- * road), else the onboarding screen she left ("You're all set" once her coins are stored), where
- * /road sends her instead.
+ * Who may open a roadmap's board: null once onboarding is closed (she has finished a roadmap and
+ * is answering none; onboarding then resumes on her roadmaps), else the onboarding screen she left
+ * ("You're all set" once her coins are stored), where the board sends her instead.
  */
 export function roadRedirect(profile: Parameters<typeof onboardingResumePath>[0]): string | null {
   const resume = onboardingResumePath(profile)
-  return resume === ROAD_PATH ? null : resume
+  return resume === ROADMAPS_PATH ? null : resume
 }

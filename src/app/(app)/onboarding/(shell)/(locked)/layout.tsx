@@ -1,17 +1,18 @@
 import { RedirectType, redirect } from 'next/navigation'
-import { ROAD_PATH } from '@/features/opening'
+import { onboardingClosed } from '@/features/opening'
 import { getProfile } from '@/features/opening/server/profile'
 import { requireStudent } from '@/shared/lib/auth/session'
+import { ROADMAPS_PATH } from '@/shared/lib/student-paths'
 
 /**
- * Once she has pressed "Go to your road" onboarding is locked: every step sends her to her road.
- * For now "You're all set" (/onboarding/done) sits outside this group and stays open; moving
- * done/ in here locks it too. A replace, said outright: this layout can re-render inside that
- * press's own response (its refresh), where a redirect would otherwise push.
+ * Onboarding is open while a roadmap is being answered (or before her first): once she has
+ * finished one and is answering none, every step sends her to her roadmaps. "You're all set"
+ * (/onboarding/done) sits outside this group and closes by its own rule. A replace, said
+ * outright: this layout can re-render inside the finishing press's own response (its refresh),
+ * where a redirect would otherwise push.
  */
 export default async function LockedOnboardingLayout({ children }: LayoutProps<'/onboarding'>) {
   const { user } = await requireStudent()
-  const { onboardedAt } = await getProfile(user.id)
-  if (onboardedAt !== null) redirect(ROAD_PATH, RedirectType.replace)
+  if (onboardingClosed(await getProfile(user.id))) redirect(ROADMAPS_PATH, RedirectType.replace)
   return children
 }

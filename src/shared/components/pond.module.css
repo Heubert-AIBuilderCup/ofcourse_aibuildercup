@@ -1,0 +1,125 @@
+/*
+ * The pond (the design's cn-pond), on the end of onboarding and in the loader: two wave layers, a
+ * mask over a colour so they work in both themes; the back one behind the duck, the front one half
+ * over it, so it sits in the water. Still, the duck rests in the middle; with motion welcome it
+ * paddles across, swims out and comes back in from the left, bobbing, with rings spreading from it.
+ *
+ * The base styles are the final frame. Every animation is declared only under
+ * prefers-reduced-motion: no-preference, so under reduce nothing moves.
+ */
+
+.pond {
+  position: relative;
+  height: 7.5rem;
+  overflow: hidden;
+  container-type: inline-size;
+}
+.wave {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  mask:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 40' preserveAspectRatio='none'%3E%3Cpath d='M0 10Q20 2 40 10T80 10T120 10T160 10V40H0Z'/%3E%3C/svg%3E")
+    0 0 / 8rem 100% repeat-x;
+}
+.waveBack {
+  height: 3.25rem;
+  background: var(--accent-200);
+}
+.waveFront {
+  z-index: 2;
+  height: 2.125rem;
+  background: color-mix(in oklch, var(--accent-300) 72%, transparent);
+  mask-size: 10rem 100%;
+  mask-position: 3rem 0;
+}
+.swim {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  bottom: 1.125rem;
+  width: 3.75rem;
+  transform: translateX(calc(50cqi - 1.875rem));
+}
+/* The duck faces left; turned, it swims to the right. */
+.turn {
+  display: block;
+  transform: scaleX(-1);
+}
+.duck {
+  display: block;
+  width: 100%;
+  height: auto;
+  transform-origin: 50% 80%;
+}
+.ripple {
+  position: absolute;
+  inset-inline: -0.5rem;
+  bottom: -0.125rem;
+  height: 0.75rem;
+  border: 1px solid color-mix(in oklch, var(--accent-700) 55%, transparent);
+  border-radius: 50%;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .waveBack {
+    animation: wave 7s linear infinite;
+  }
+  .waveFront {
+    animation: wave-front 5s linear infinite;
+  }
+  .swim {
+    animation: swim 12s linear infinite;
+  }
+  .duck {
+    animation: pond-bob 1.4s ease-in-out infinite;
+  }
+  .ripple {
+    animation: ripple 2.4s ease-out infinite;
+  }
+  .ripple + .ripple {
+    animation-delay: 1.2s;
+  }
+}
+
+@keyframes wave {
+  to {
+    mask-position: -8rem 0;
+  }
+}
+@keyframes wave-front {
+  from {
+    mask-position: 3rem 0;
+  }
+  to {
+    mask-position: 13rem 0;
+  }
+}
+@keyframes swim {
+  from {
+    transform: translateX(-4rem);
+  }
+  to {
+    transform: translateX(calc(100cqi + 0.25rem));
+  }
+}
+@keyframes pond-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+  50% {
+    transform: translateY(-0.1875rem) rotate(-4deg);
+  }
+}
+@keyframes ripple {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.7, 1.4);
+  }
+}

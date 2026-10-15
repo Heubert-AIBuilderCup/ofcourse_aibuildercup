@@ -5,6 +5,7 @@ import type { ComponentProps } from 'react'
 import { FrameMarks } from '@/shared/components/Blueprint'
 import { Button, buttonVariants } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
+import { useBoardPath } from '../hooks/useBoardPath'
 import type { Card } from '../model/press'
 import { routePath } from '../model/routes'
 import { RoadMap } from './RoadMap'
@@ -36,6 +37,7 @@ export function PhoneMap({
 }) {
   const here = card.kind === 'here'
   const why = map.scene.tiles.find((t) => t.id === map.scene.here)?.why
+  const board = useBoardPath()
   return (
     <RoadMap {...map}>
       <section
@@ -49,7 +51,7 @@ export function PhoneMap({
         <div className="mt-2 flex gap-2">
           {card.primary && card.kind === 'look' && card.routeId ? (
             <Link
-              href={routePath(card.routeId)}
+              href={routePath(board, card.routeId)}
               className={cn(buttonVariants({ variant: 'strong' }), ACTION)}
             >
               <FrameMarks spread />

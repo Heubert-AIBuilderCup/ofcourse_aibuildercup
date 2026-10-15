@@ -1,0 +1,354 @@
+// The roadmaps' actions with the session, the profile and the roadmaps' repository mocked: who is
+// refused, what is checked first, and what reaches the repository. The repository itself is proven
+// against the database in ./server/roadmaps.test.ts.
+
+import { afterEach, describe, expect, it, mock, spyOn } from 'bun:test'
+import type { Roadmap } from '@/shared/types/student'
+
+type FakeSession = { user: { id: string; role: string | null } } | null
+let session: FakeSession = null
+const student = (): FakeSession => ({ user: { id: 'student-1', role: 'user' } })
+
+/** Set to make the session lookup itself fail, as a database error would. */
+let sessionError: Error | null = null
+mock.module('@/shared/lib/auth/session', () => ({
+  getSession: async () => {
+    if (sessionError) throw sessionError
+    return session
+  },
+}))
+
+const roadmap = (over: Partial<Roadmap> = {}): Roadmap => ({
+  id: 'rm-1',
+  name: null,
+  answers: {},
+  relative: null,
+  coins: { state: 'later' },
+  choices: {},
+  lastStep: 'attention',
+  copiedFrom: null,
+  createdAt: new Date('2026-10-14T09:00:00Z'),
+  finishedAt: null,
+  lastOpenedAt: null,
+  ...over,
+})
+
+/** Her stored coins, as the profile read gives them (the draft's). */
+let storedCoins: unknown = { state: 'later' }
+/** How many finished roadmaps she has. */
+let finishedCount = 2
+const getProfile = mock(async (userId: string) => ({
+  userId,
+  coins: storedCoins,
+  finished: finishedCount,
+}))
+// Every export the module has, as Bun keeps one mock of a module for the whole run (opening's
+// actions test mocks it too).
+const none = async () => {}
+const wrote = async () => true
+mock.module('@/features/opening/server/profile', () => ({
+  getProfile,
+  saveAnswers: wrote,
+  savePersona: none,
+  saveRelative: wrote,
+  saveCoins: wrote,
+  markStep: none,
+}))
+
+/** The roadmap she is answering, as the repository gives it. */
+let draft: Roadmap | null = null
+const getDraft = mock(async (_userId: string) => draft)
+const finishRoadmap = mock(
+  async (_userId: string): Promise<Roadmap | null> => roadmap({ finishedAt: new Date() }),
+)
+const ensureDraft = mock(async (_userId: string) => roadmap())
+/** What the repository answers for rename, delete and restore: false when not hers. */
+let found = true
+const renameRoadmap = mock(async (_userId: string, _id: string, _name: string) => found)
+const softDeleteRoadmap = mock(async (_userId: string, _id: string) => found)
+const restoreRoadmap = mock(async (_userId: string, _id: string) => found)
+const saveChoices = mock(async (_userId: string, _id: string, _choices: unknown) => found)
+// The writes, counted together; the reads are apart, so a check before a write does not count.
+const writes = {
+  finishRoadmap,
+  ensureDraft,
+  renameRoadmap,
+  softDeleteRoadmap,
+  restoreRoadmap,
+  saveChoices,
+}
+mock.module('./server/roadmaps', () => ({ ...writes, getDraft }))
+
+// Outside a request, Next's own would throw; here it only says it was asked.
+const refresh = mock(() => {})
+mock.module('next/cache', () => ({ refresh }))
+
+const {
+  deleteRoadmapAction,
+  finishOnboardingAction,
+  renameRoadmapAction,
+  restoreRoadmapAction,
+  saveChoicesAction,
+  refreshAfterOnboardingAction,
+  startFromScratchAction,
+} = await import('./actions')
+
+const SIGN_IN = 'Please sign in again.'
+const NOT_AUTHORISED = 'Not authorised.'
+const SAVE_FAILED = 'Could not save. Please try again.'
+
+const calls = [
+  ['finishOnboardingAction', () => finishOnboardingAction()],
+  ['startFromScratchAction', () => startFromScratchAction()],
+  ['renameRoadmapAction', () => renameRoadmapAction('rm-1', 'On a budget')],
+  ['deleteRoadmapAction', () => deleteRoadmapAction('rm-1')],
+  ['restoreRoadmapAction', () => restoreRoadmapAction('rm-1')],
+  ['saveChoicesAction', () => saveChoicesAction('rm-1', { swapped: true })],
+  ['refreshAfterOnboardingAction', () => refreshAfterOnboardingAction()],
+] as const
+
+const writeCalls = () => Object.values(writes).reduce((n, f) => n + f.mock.calls.length, 0)
+
+afterEach(() => {
+  session = null
+  sessionError = null
+  storedCoins = { state: 'later' }
+  draft = null
+  found = true
+  finishedCount = 2
+  getProfile.mockClear()
+  renameRoadmap.mockClear()
+  softDeleteRoadmap.mockClear()
+  restoreRoadmap.mockClear()
+  saveChoices.mockClear()
+  getDraft.mockClear()
+  refresh.mockClear()
+  finishRoadmap.mockReset()
+  finishRoadmap.mockImplementation(async () => roadmap({ finishedAt: new Date() }))
+  ensureDraft.mockReset()
+  ensureDraft.mockImplementation(async () => roadmap())
+})
+
+describe('who may call the roadmaps actions', () => {
+  for (const [name, call] of calls) {
+    it(`${name} asks a signed-out caller to sign in again, and writes nothing`, async () => {
+      expect(await call()).toEqual({ ok: false, error: SIGN_IN })
+      expect(writeCalls()).toBe(0)
+    })
+
+    it(`${name} refuses an admin, a superadmin and an account with no role`, async () => {
+      for (const role of ['admin', 'superadmin', null]) {
+        session = { user: { id: 'staff-1', role } }
+        expect(await call()).toEqual({ ok: false, error: NOT_AUTHORISED })
+      }
+      expect(writeCalls()).toBe(0)
+    })
+
+    it(`${name} says the save failed rather than throw when the session lookup fails`, async () => {
+      sessionError = new Error('connection refused')
+      const logged = spyOn(console, 'error').mockImplementation(() => {})
+      try {
+        expect(await call()).toEqual({ ok: false, error: SAVE_FAILED })
+        expect(logged.mock.calls[0]?.[0]).toBe(`[roadmaps.${name.replace(/Action$/, '')}]`)
+      } finally {
+        logged.mockRestore()
+      }
+      expect(writeCalls()).toBe(0)
+    })
+  }
+})
+
+describe('finishOnboardingAction', () => {
+  // A refresh here would re-render the end screen, which sends a finished student on to her
+  // roadmaps and so cuts the loader short; the screen refreshes once the loader has run.
+  it("finishes the roadmap she is answering, on the session's own account, and does not refresh", async () => {
+    session = student()
+    expect(await finishOnboardingAction()).toEqual({ ok: true, id: 'rm-1' })
+    expect(getProfile).toHaveBeenCalledWith('student-1')
+    expect(finishRoadmap).toHaveBeenCalledWith('student-1')
+    expect(refresh).not.toHaveBeenCalled()
+  })
+
+  it('refuses while her coins are not stored, and finishes nothing', async () => {
+    session = student()
+    storedCoins = null
+    expect(await finishOnboardingAction()).toEqual({
+      ok: false,
+      error: 'Place your coins, or leave them for later, first.',
+    })
+    expect(finishRoadmap).not.toHaveBeenCalled()
+    expect(refresh).not.toHaveBeenCalled()
+  })
+
+  it('says the save failed rather than throw when finishing fails', async () => {
+    session = student()
+    finishRoadmap.mockImplementation(async () => {
+      throw new Error('connection refused')
+    })
+    const logged = spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      expect(await finishOnboardingAction()).toEqual({ ok: false, error: SAVE_FAILED })
+      expect(logged).toHaveBeenCalled()
+    } finally {
+      logged.mockRestore()
+    }
+    expect(refresh).not.toHaveBeenCalled()
+  })
+})
+
+describe('startFromScratchAction', () => {
+  it('makes an empty roadmap for her to answer, on her own account', async () => {
+    session = student()
+    expect(await startFromScratchAction()).toEqual({ ok: true })
+    expect(getDraft).toHaveBeenCalledWith('student-1')
+    expect(ensureDraft).toHaveBeenCalledWith('student-1')
+  })
+
+  it('refuses while she is answering another, and says so', async () => {
+    session = student()
+    draft = roadmap()
+    const result = await startFromScratchAction()
+    expect(result.ok).toBe(false)
+    expect(result).toEqual({ ok: false, error: expect.stringContaining('already answering') })
+    expect(ensureDraft).not.toHaveBeenCalled()
+  })
+})
+
+const NOT_FOUND = "We couldn't find that roadmap. Reload the page and try again."
+
+describe('renameRoadmapAction', () => {
+  it("renames her roadmap, on the session's own account, trimmed", async () => {
+    session = student()
+    expect(await renameRoadmapAction('rm-1', '  On a budget  ')).toEqual({ ok: true })
+    expect(renameRoadmap).toHaveBeenCalledWith('student-1', 'rm-1', 'On a budget')
+  })
+
+  it('refuses an empty name or one over 60 characters, and renames nothing', async () => {
+    session = student()
+    for (const name of ['', '   ', 'x'.repeat(61)]) {
+      expect(await renameRoadmapAction('rm-1', name)).toEqual({
+        ok: false,
+        error: 'A name has 1 to 60 characters.',
+      })
+    }
+    expect(await renameRoadmapAction('rm-1', 'x'.repeat(60))).toEqual({ ok: true })
+    expect(renameRoadmap).toHaveBeenCalledTimes(1)
+  })
+
+  it('refuses what is not a string id and a name, and renames nothing', async () => {
+    session = student()
+    const loose = renameRoadmapAction as (
+      id: unknown,
+      name: unknown,
+    ) => ReturnType<typeof renameRoadmapAction>
+    expect((await loose({ id: 'rm-1' }, 'A')).ok).toBe(false)
+    expect((await loose('', 'A')).ok).toBe(false)
+    expect((await loose('rm-1', 42)).ok).toBe(false)
+    expect(renameRoadmap).not.toHaveBeenCalled()
+  })
+
+  it('says it cannot find a roadmap that is not hers, deleted or unknown', async () => {
+    session = student()
+    found = false
+    expect(await renameRoadmapAction('rm-2', 'Mine now')).toEqual({ ok: false, error: NOT_FOUND })
+  })
+})
+
+describe('deleteRoadmapAction', () => {
+  it("deletes her roadmap, on the session's own account", async () => {
+    session = student()
+    expect(await deleteRoadmapAction('rm-1')).toEqual({ ok: true })
+    expect(softDeleteRoadmap).toHaveBeenCalledWith('student-1', 'rm-1')
+  })
+
+  it('refuses to delete her only roadmap, and deletes nothing', async () => {
+    session = student()
+    finishedCount = 1
+    expect(await deleteRoadmapAction('rm-1')).toEqual({
+      ok: false,
+      error: 'Your only roadmap stays. Make another before you delete this one.',
+    })
+    expect(softDeleteRoadmap).not.toHaveBeenCalled()
+  })
+
+  it('says it cannot find a roadmap that is not hers, deleted or unknown', async () => {
+    session = student()
+    found = false
+    expect(await deleteRoadmapAction('rm-2')).toEqual({ ok: false, error: NOT_FOUND })
+  })
+
+  it('refuses what is not a string id, and deletes nothing', async () => {
+    session = student()
+    expect(await (deleteRoadmapAction as (id: unknown) => unknown)(['rm-1'])).toEqual({
+      ok: false,
+      error: NOT_FOUND,
+    })
+    expect(softDeleteRoadmap).not.toHaveBeenCalled()
+  })
+})
+
+describe('restoreRoadmapAction', () => {
+  it("brings her deleted roadmap back, on the session's own account", async () => {
+    session = student()
+    expect(await restoreRoadmapAction('rm-1')).toEqual({ ok: true })
+    expect(restoreRoadmap).toHaveBeenCalledWith('student-1', 'rm-1')
+  })
+
+  it('says it cannot find a roadmap that is not hers or not deleted', async () => {
+    session = student()
+    found = false
+    expect(await restoreRoadmapAction('rm-2')).toEqual({ ok: false, error: NOT_FOUND })
+  })
+})
+
+describe('refreshAfterOnboardingAction', () => {
+  it("refreshes a student's router once the loader has run, and writes nothing", async () => {
+    session = student()
+    expect(await refreshAfterOnboardingAction()).toEqual({ ok: true })
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(writeCalls()).toBe(0)
+  })
+
+  it('refreshes nothing for a caller it refuses', async () => {
+    expect((await refreshAfterOnboardingAction()).ok).toBe(false)
+    session = { user: { id: 'staff-1', role: 'admin' } }
+    expect((await refreshAfterOnboardingAction()).ok).toBe(false)
+    expect(refresh).not.toHaveBeenCalled()
+  })
+})
+
+describe('saveChoicesAction', () => {
+  const choices = { swapped: true, added: false, read: false, city: false, country: false }
+
+  it("keeps her board's choices on her roadmap, on the session's own account", async () => {
+    session = student()
+    expect(await saveChoicesAction('rm-1', choices)).toEqual({ ok: true })
+    expect(saveChoices).toHaveBeenCalledWith('student-1', 'rm-1', choices)
+  })
+
+  it('keeps only the keys a board has', async () => {
+    session = student()
+    const loose = saveChoicesAction as (id: string, choices: unknown) => Promise<unknown>
+    expect(await loose('rm-1', { swapped: true, first: true, userId: 'other' })).toEqual({
+      ok: true,
+    })
+    expect(saveChoices).toHaveBeenCalledWith('student-1', 'rm-1', { swapped: true })
+  })
+
+  it('refuses a bad shape or id, and saves nothing', async () => {
+    session = student()
+    const loose = saveChoicesAction as (id: unknown, choices: unknown) => Promise<{ ok: boolean }>
+    expect((await loose('rm-1', { swapped: 'yes' })).ok).toBe(false)
+    expect((await loose('rm-1', null)).ok).toBe(false)
+    expect((await loose('rm-1', [true])).ok).toBe(false)
+    expect((await loose(['rm-1'], choices)).ok).toBe(false)
+    expect((await loose('', choices)).ok).toBe(false)
+    expect(saveChoices).not.toHaveBeenCalled()
+  })
+
+  it('says it cannot find a roadmap that is not hers, deleted or unknown', async () => {
+    session = student()
+    found = false
+    expect(await saveChoicesAction('rm-2', choices)).toEqual({ ok: false, error: NOT_FOUND })
+  })
+})

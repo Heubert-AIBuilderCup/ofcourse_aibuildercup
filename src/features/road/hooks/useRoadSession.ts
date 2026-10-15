@@ -2,15 +2,20 @@
 
 import { useRouter } from 'next/navigation'
 import { useMemo, useRef, useState } from 'react'
-import { ROAD_PATH } from '@/features/opening'
+import type { ActionResult } from '@/shared/types/action-result'
+import type { RoadmapChoices } from '@/shared/types/student'
 import type { RoadFocus } from '../components/PhoneRoad'
+import type { BoardRoadmap } from '../components/RoadBoard'
 import { pressTile, primaryAction } from '../model/press'
 import { type Road, STOP_NAMES, type Stop } from '../model/road-data'
 import { type RoadState, serializeRoadState, type View } from '../model/road-url'
 import type { RoadPanel } from '../model/routes'
-import { buildScene, NEW_SESSION, type Scene, type Session } from '../model/scene'
-import { useFirstArrival } from './useFirstArrival'
+import { buildScene, choicesFrom, type Scene, type Session, sessionFrom } from '../model/scene'
+import { useBoardPath } from './useBoardPath'
 import { useRoadUrl } from './useRoadUrl'
+
+/** Keeps a board's choices on its roadmap (saveChoicesAction, passed down by the layout). */
+export type SaveChoices = (id: string, choices: RoadmapChoices) => Promise<ActionResult>
 
 /** A toast: what an action did, and the session Undo goes back to (none: no Undo). */
 export type ToastState = { id: number; text: string; undo: Session | null }
@@ -20,14 +25,25 @@ const nameIn = (scene: Scene, id: string) => scene.tiles.find((t) => t.id === id
 /**
  * What she does on the board, and where it leaves the URL. The query holds the open tile, the
  * zoom, the view and the stack's list (useRoadUrl); over the lesson or a route step (`panel`), a
- * change to any of them leaves the panel for /road with that query. What she changes (swaps, Put on
- * my board, the lesson read, a walk, the first arrival) is this mount's session, said in a toast
- * with Undo; zoom changes, presses and the view are said in `status`, for a polite live region.
- * The list and the lesson opened from the board pushed an entry, so closing them goes back.
+ * change to any of them leaves the panel for the board (useBoardPath) with that query. What she
+ * changes (swaps, Put on my board, the lesson read, a walk) starts from the roadmap's stored
+ * choices, is said in a toast with Undo, and is saved to the roadmap, a change and its Undo alike;
+ * a save that fails leaves the change on screen and says so (`saveFailed`) until one succeeds. Her
+ * first visit (the server's say) is the first arrival, never saved. Zoom changes, presses and the
+ * view are said in `status`, for a polite live region. The list and the lesson opened from the
+ * board pushed an entry, so closing them goes back.
  */
-export function useRoadSession(road: Road, panel: RoadPanel) {
+export function useRoadSession(
+  road: Road,
+  panel: RoadPanel,
+  roadmap: BoardRoadmap,
+  saveChoicesAction: SaveChoices,
+) {
   const router = useRouter()
-  const [session, setSession] = useState<Session>(NEW_SESSION)
+  const board = useBoardPath()
+  const [session, setSession] = useState<Session>(() =>
+    sessionFrom(roadmap.choices, roadmap.firstVisit),
+  )
   const scene = useMemo(() => buildScene(road, session), [road, session])
   const { state, setState } = useRoadUrl(scene.tiles)
   const [status, setStatus] = useState('')
@@ -37,11 +53,28 @@ export function useRoadSession(road: Road, panel: RoadPanel) {
   const [changed, setChanged] = useState<RoadFocus | null>(null)
   const listPushed = useRef(false)
   const lessonPushed = useRef(false)
-
-  useFirstArrival(() => setSession((s) => ({ ...s, first: true })))
+  const [saveFailed, setSaveFailed] = useState(false)
 
   /** Any press ends the first arrival, and its hint. */
   const settled = session.first ? { ...session, first: false } : session
+
+  // The saves sent so far, one after another.
+  const saving = useRef<Promise<void>>(Promise.resolve())
+
+  /**
+   * The board has already changed; a failure only says so. Each save waits for the one before, so
+   * they land in the order she made them (an Undo never lands before its change) and the last
+   * one's answer is the one shown.
+   */
+  function save(next: Session) {
+    const choices = choicesFrom(next)
+    saving.current = saving.current.then(() =>
+      saveChoicesAction(roadmap.id, choices).then(
+        (result) => setSaveFailed(!result.ok),
+        () => setSaveFailed(true),
+      ),
+    )
+  }
 
   /**
    * A new session, said in a toast; with Undo unless it says otherwise. `focus`: the tile that
@@ -57,14 +90,15 @@ export function useRoadSession(road: Road, panel: RoadPanel) {
     setToast({ id: toasts.current, text: text(after), undo: undo ? session : null })
     setChanged({ tileId: focus ?? after.here })
     setSession(next)
+    save(next)
   }
 
-  /** The board's next state; over the lesson or a route step, it leaves them for /road. */
+  /** The board's next state; over the lesson or a route step, it leaves them for the board. */
   function go(next: RoadState) {
     if (!panel) return setState(next)
     lessonPushed.current = false
     const query = serializeRoadState(next)
-    router.replace(query ? `${ROAD_PATH}?${query}` : ROAD_PATH)
+    router.replace(query ? `${board}?${query}` : board)
   }
 
   function press(tileId: string) {
@@ -118,7 +152,7 @@ export function useRoadSession(road: Road, panel: RoadPanel) {
       )
     } else {
       change(
-        { ...settled, city: action.to === 'city' },
+        { ...settled, city: action.to === 'city', country: action.to === 'country' },
         (after) => `Walked to ${nameIn(after, after.here)}`,
       )
     }
@@ -147,7 +181,7 @@ export function useRoadSession(road: Road, panel: RoadPanel) {
     if (lessonPushed.current) {
       lessonPushed.current = false
       router.back()
-    } else router.replace(ROAD_PATH)
+    } else router.replace(board)
   }
 
   function read() {
@@ -163,6 +197,7 @@ export function useRoadSession(road: Road, panel: RoadPanel) {
     state,
     status,
     toast,
+    saveFailed,
     changed,
     press,
     zoom,
@@ -175,7 +210,7 @@ export function useRoadSession(road: Road, panel: RoadPanel) {
     leaveLesson,
     read,
     /** Off a route step's detail, back to the board. */
-    leaveRoute: () => router.replace(ROAD_PATH),
+    leaveRoute: () => router.replace(board),
     /** A lesson link was followed from the board: it pushed an entry. */
     onLesson: () => {
       lessonPushed.current = true
@@ -183,6 +218,7 @@ export function useRoadSession(road: Road, panel: RoadPanel) {
     undo: () => {
       if (!toast?.undo) return
       setSession(toast.undo)
+      save(toast.undo)
       setToast(null)
     },
     dismissToast: () => setToast(null),

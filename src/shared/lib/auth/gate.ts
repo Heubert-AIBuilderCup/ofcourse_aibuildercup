@@ -25,7 +25,7 @@ export const ADMIN_HOME = '/admin/users'
 export const ADMIN_SIGNIN_ERROR_PATH = '/signin-error/admin'
 
 /** The student app. Keep in step with the proxy matcher in src/proxy.ts. */
-export const APP_PATHS = ['/start', '/onboarding', '/road'] as const
+export const APP_PATHS = ['/start', '/onboarding', '/roadmaps', '/road'] as const
 
 // Pages a sign-in may return to.
 const RETURN_PATHS = [...APP_PATHS, ADMIN_PATH] as const
