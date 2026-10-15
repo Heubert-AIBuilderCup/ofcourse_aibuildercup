@@ -9,6 +9,7 @@ export type { LoaderKind } from './model/loader'
 export {
   answerDiffs,
   isNew,
+  lastOpenedOut,
   openedLabel,
   orderRoadmaps,
   type RoadmapOrder,

@@ -11,30 +11,37 @@ const ITEM =
   'h-auto min-h-11 w-full justify-start rounded-none px-3 text-left font-sans text-base font-normal text-foreground hover:bg-foreground/6 hover:text-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary'
 const LINK_ITEM = cn(buttonVariants({ variant: 'ghost' }), ITEM)
 
+/** What a roadmap's menu and its row can do; each hands over the element focus goes back to. */
+export type RowActions = {
+  rename: (id: string, opener: HTMLElement | null) => void
+  remove: (id: string, opener: HTMLElement | null) => void
+  archive: (id: string, opener: HTMLElement | null) => void
+  restore: (id: string, opener: HTMLElement | null) => void
+}
+
 /**
- * A card's "…" menu: Open, Copy and change answers, Rename and, when she has more than one roadmap,
- * Delete. It opens above its button; the keys are the account menu's (useMenuKeys). Rename and
- * Delete hand their dialog the "…" button, so focus can come back to it when the dialog closes.
+ * A roadmap's "…" menu: Open, Copy and change answers, Rename, Archive and Delete; an archived
+ * one's is Restore and Delete. While she has one roadmap out of the archive (`canPutAway` false)
+ * it has no Archive and no Delete, but an archived one may always go. It opens under its button;
+ * the keys are the account menu's (useMenuKeys). Each action hands over the "…" button, so focus
+ * can come back to it.
  */
 export function CardMenu({
-  id,
-  name,
-  canDelete,
-  onRename,
-  onDelete,
+  roadmap: { id, name, archived },
+  canPutAway,
+  actions,
 }: {
-  id: string
-  name: string
-  canDelete: boolean
-  onRename: (opener: HTMLElement | null) => void
-  onDelete: (opener: HTMLElement | null) => void
+  roadmap: { id: string; name: string; archived: boolean }
+  canPutAway: boolean
+  actions: RowActions
 }) {
   const { open, setOpen, button, menu, onKeyDown } = useMenuKeys()
   const label = `More for ${name}`
-  const then = (run: (opener: HTMLElement | null) => void) => () => {
+  const then = (run: (id: string, opener: HTMLElement | null) => void) => () => {
     setOpen(false)
-    run(button.current)
+    run(id, button.current)
   }
+  const canDelete = archived || canPutAway
 
   return (
     <div className="relative">
@@ -66,33 +73,58 @@ export function CardMenu({
             role="menu"
             aria-label={label}
             onKeyDown={onKeyDown}
-            className="absolute right-0 bottom-full z-1 mb-1 flex min-w-60 flex-col border bg-background p-1.5 text-foreground shadow-md motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-200"
+            className="absolute top-full right-0 z-1 mt-1 flex min-w-60 flex-col border bg-background p-1.5 text-foreground shadow-md motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-200"
           >
-            <Link
-              href={roadmapPath(id)}
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className={LINK_ITEM}
-            >
-              Open
-            </Link>
-            <Link
-              href={newRoadmapPath(id)}
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className={LINK_ITEM}
-            >
-              Copy and change answers
-            </Link>
-            <Button
-              type="button"
-              role="menuitem"
-              variant="ghost"
-              className={ITEM}
-              onClick={then(onRename)}
-            >
-              Rename
-            </Button>
+            {archived ? (
+              <Button
+                type="button"
+                role="menuitem"
+                variant="ghost"
+                className={ITEM}
+                onClick={then(actions.restore)}
+              >
+                Restore
+              </Button>
+            ) : (
+              <>
+                <Link
+                  href={roadmapPath(id)}
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className={LINK_ITEM}
+                >
+                  Open
+                </Link>
+                <Link
+                  href={newRoadmapPath(id)}
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className={LINK_ITEM}
+                >
+                  Copy and change answers
+                </Link>
+                <Button
+                  type="button"
+                  role="menuitem"
+                  variant="ghost"
+                  className={ITEM}
+                  onClick={then(actions.rename)}
+                >
+                  Rename
+                </Button>
+                {canPutAway ? (
+                  <Button
+                    type="button"
+                    role="menuitem"
+                    variant="ghost"
+                    className={ITEM}
+                    onClick={then(actions.archive)}
+                  >
+                    Archive
+                  </Button>
+                ) : null}
+              </>
+            )}
             {canDelete ? (
               <>
                 <hr className="mx-2 my-1 border-t border-border" />
@@ -101,7 +133,7 @@ export function CardMenu({
                   role="menuitem"
                   variant="ghost"
                   className={cn(ITEM, 'text-destructive hover:text-destructive')}
-                  onClick={then(onDelete)}
+                  onClick={then(actions.remove)}
                 >
                   Delete
                 </Button>

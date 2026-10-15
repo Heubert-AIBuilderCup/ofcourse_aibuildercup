@@ -43,7 +43,19 @@ describe.skipIf(!enabled)('the roadmaps against the database', () => {
     const base = (k: string) => ({ id: `${P}${k}`, name: `RM ${k}`, email: `${P}${k}@rm.e2e.test` })
     await db
       .insert(schema.user)
-      .values([base('a'), base('b'), base('c'), base('d'), base('e'), base('f'), base('g')])
+      .values([
+        base('a'),
+        base('b'),
+        base('c'),
+        base('d'),
+        base('e'),
+        base('f'),
+        base('g'),
+        base('h'),
+        base('i'),
+        base('j'),
+        base('k'),
+      ])
   })
 
   afterAll(async () => {
@@ -112,7 +124,7 @@ describe.skipIf(!enabled)('the roadmaps against the database', () => {
     expect(await server.touchOpened(other, theirs.id)).toBe(false)
     expect(await server.saveChoices(other, theirs.id, { swapped: true })).toBe(false)
     expect(await server.copyRoadmap(other, theirs.id)).toBeNull()
-    expect(await server.softDeleteRoadmap(other, theirs.id)).toBe(false)
+    expect(await server.softDeleteRoadmap(other, theirs.id)).toBe('not-found')
     expect(await rowOf(theirs.id)).toMatchObject({
       name: null,
       lastOpenedAt: null,
@@ -151,10 +163,10 @@ describe.skipIf(!enabled)('the roadmaps against the database', () => {
       server.softDeleteRoadmap(uid, a.id),
       server.softDeleteRoadmap(uid, b.id),
     ])
-    expect(deleted.filter(Boolean)).toHaveLength(1)
+    expect(deleted.toSorted()).toEqual(['kept-one', true])
     const left = await server.listRoadmaps(uid)
     expect(left).toHaveLength(1)
-    expect(await server.softDeleteRoadmap(uid, left[0].id)).toBe(false)
+    expect(await server.softDeleteRoadmap(uid, left[0].id)).toBe('kept-one')
     expect(await server.listRoadmaps(uid)).toHaveLength(1)
   })
 
@@ -204,6 +216,83 @@ describe.skipIf(!enabled)('the roadmaps against the database', () => {
     expect((await server.getRoadmap(uid, src.id))?.answers).toEqual({
       amount: { value: 36, state: 'stated' },
     })
+  })
+
+  test('archive folds a roadmap away and restore brings it back; the list keeps it, flagged', async () => {
+    const uid = `${P}h`
+    const first = await finished(uid)
+    const second = await finished(uid)
+    await server.touchOpened(uid, first.id)
+    expect(await server.archiveRoadmap(uid, first.id)).toBe(true)
+    const archivedAt = (await rowOf(first.id))?.archivedAt
+    expect(archivedAt).toBeInstanceOf(Date)
+    // Archived twice changes nothing.
+    expect(await server.archiveRoadmap(uid, first.id)).toBe('not-found')
+    expect((await rowOf(first.id))?.archivedAt).toEqual(archivedAt ?? null)
+
+    // Same order as before: the last opened first; the archived one flagged, not dropped.
+    const list = await server.listRoadmaps(uid)
+    expect(list.map((r) => [r.id, r.archivedAt instanceof Date])).toEqual([
+      [first.id, true],
+      [second.id, false],
+    ])
+    // Her own roadmap still: its board opens and it can be copied.
+    expect((await server.getRoadmap(uid, first.id))?.id).toBe(first.id)
+    const copy = await server.copyRoadmap(uid, first.id)
+    expect(copy).toMatchObject({ copiedFrom: first.id, archivedAt: null })
+
+    expect(await server.restoreArchived(uid, first.id)).toBe(true)
+    expect((await server.getRoadmap(uid, first.id))?.archivedAt).toBeNull()
+    expect(await server.restoreArchived(uid, first.id)).toBe(false)
+  })
+
+  test("archive refuses another student's roadmap, a deleted one and her only one out", async () => {
+    const uid = `${P}i`
+    const a = await finished(uid)
+    const b = await finished(uid)
+    const c = await finished(uid)
+    expect(await server.archiveRoadmap(`${P}h`, a.id)).toBe('not-found')
+    expect(await server.restoreArchived(`${P}h`, a.id)).toBe(false)
+    expect(await server.softDeleteRoadmap(uid, c.id)).toBe(true)
+    expect(await server.archiveRoadmap(uid, c.id)).toBe('not-found')
+    expect(await server.archiveRoadmap(uid, a.id)).toBe(true)
+    // b is the only one left out of the archive.
+    expect(await server.archiveRoadmap(uid, b.id)).toBe('kept-one')
+    expect(await rowOf(b.id)).toMatchObject({ archivedAt: null })
+    expect(await rowOf(c.id)).toMatchObject({ archivedAt: null })
+  })
+
+  test('two archives sent at once leave one roadmap out of the archive', async () => {
+    const uid = `${P}k`
+    const a = await finished(uid)
+    const b = await finished(uid)
+    const archived = await Promise.all([
+      server.archiveRoadmap(uid, a.id),
+      server.archiveRoadmap(uid, b.id),
+    ])
+    expect(archived.toSorted()).toEqual(['kept-one', true])
+    const out = (await server.listRoadmaps(uid)).filter((r) => r.archivedAt === null)
+    expect(out).toHaveLength(1)
+  })
+
+  test('delete keeps one roadmap out of the archive; an archived one may always go', async () => {
+    const uid = `${P}j`
+    const active = await finished(uid)
+    const a1 = await finished(uid)
+    const a2 = await finished(uid)
+    const spare = await finished(uid)
+    expect(await server.hasArchived(uid)).toBe(false)
+    expect(await server.archiveRoadmap(uid, a1.id)).toBe(true)
+    expect(await server.hasArchived(uid)).toBe(true)
+    expect(await server.hasArchived(`${P}i`)).toBe(true)
+    expect(await server.hasArchived(`${P}f`)).toBe(false)
+    expect(await server.archiveRoadmap(uid, a2.id)).toBe(true)
+    // Two out of the archive: one of them may go.
+    expect(await server.softDeleteRoadmap(uid, spare.id)).toBe(true)
+    // One out, two archived: the one out stays, an archived one goes.
+    expect(await server.softDeleteRoadmap(uid, active.id)).toBe('kept-one')
+    expect(await rowOf(active.id)).toMatchObject({ deletedAt: null })
+    expect(await server.softDeleteRoadmap(uid, a1.id)).toBe(true)
   })
 
   test('deleting the account deletes her roadmaps', async () => {

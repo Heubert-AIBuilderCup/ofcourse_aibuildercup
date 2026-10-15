@@ -1,6 +1,6 @@
 /// <reference lib="dom" />
 /// <reference path="../../../../node_modules/@testing-library/jest-dom/types/bun.d.ts" />
-import { afterAll, afterEach, beforeAll, describe, expect, it, mock, spyOn } from 'bun:test'
+import { afterEach, describe, expect, it, mock, spyOn } from 'bun:test'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import * as navigation from 'next/navigation'
 import type { ActionResult } from '@/shared/types/action-result'
@@ -11,6 +11,8 @@ const renameRoadmapAction = mock(async (_id: string, _name: string) => ok())
 const deleteRoadmapAction = mock(async (_id: string) => ok())
 const restoreRoadmapAction = mock(async (_id: string) => ok())
 const startFromScratchAction = mock(ok)
+const archiveRoadmapAction = mock(async (_id: string) => ok())
+const restoreArchivedAction = mock(async (_id: string) => ok())
 
 const replace = mock((_: string) => {})
 const push = mock((_: string) => {})
@@ -21,13 +23,6 @@ mock.module('next/navigation', () => ({
 
 const { RoadmapsPage } = await import('./RoadmapsPage')
 
-// next/image resolves its src against the page's URL in development; happy-dom starts on
-// about:blank, which cannot be a base.
-const dom = (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM
-const startUrl = location.href
-beforeAll(() => dom.setURL('http://localhost:3000/roadmaps'))
-afterAll(() => dom.setURL(startUrl))
-
 afterEach(() => {
   cleanup()
   for (const action of [
@@ -35,27 +30,36 @@ afterEach(() => {
     deleteRoadmapAction,
     restoreRoadmapAction,
     startFromScratchAction,
+    archiveRoadmapAction,
+    restoreArchivedAction,
   ]) {
     action.mockClear()
   }
+  window.localStorage.clear()
   replace.mockClear()
   push.mockClear()
 })
 
+const at = (day: number) => new Date(2026, 9, day, 12)
+
 const card = (over: Partial<RoadmapSummary>): RoadmapSummary => ({
   id: 'perth',
   name: 'Cyber Security in Perth',
-  line: 'Master’s · ECU · Perth',
+  line: 'Cyber Security · ECU · Perth',
   pointB: 'Permanent residency · 2032',
-  place: 'Australia · Perth',
+  progress: { walked: 4, steps: 7 },
+  next: 'Student visa · Late 2026',
   from: 'From onboarding',
   diffs: [],
   openedLabel: 'Opened today',
   isNew: false,
-  thumb: { here: 3, alt: false },
+  archived: false,
+  createdAt: at(1),
+  lastOpenedAt: at(14),
   ...over,
 })
 
+// Last opened first, as the server reads them; made in the other order.
 const THREE = [
   card({}),
   card({
@@ -64,6 +68,10 @@ const THREE = [
     from: 'Copy of Cyber Security in Perth',
     diffs: ['Budget: AUD 30k'],
     openedLabel: 'Opened yesterday',
+    progress: { walked: 3, steps: 7 },
+    next: 'Pick a course in Perth',
+    createdAt: at(5),
+    lastOpenedAt: at(13),
   }),
   card({
     id: 'ds',
@@ -71,14 +79,15 @@ const THREE = [
     from: 'Copy of Cyber Security in Perth',
     diffs: ['Course: Data Science', 'English test: IELTS 7.5 or more'],
     openedLabel: 'Opened 3 days ago',
-    thumb: { here: 3, alt: true },
+    createdAt: at(9),
+    lastOpenedAt: at(11),
   }),
 ]
 
 const FIRST_LEAD =
   'Your first roadmap is ready. Open it to explore, or make another with different answers.'
 const LEAD =
-  'Each roadmap is one set of answers and the road it draws. Copy one and change a few answers to see another way.'
+  'Each roadmap is one set of answers and where it leads. Copy one and change a few answers to see another way.'
 
 function show(roadmaps: RoadmapSummary[] = THREE, madeId: string | null = null) {
   render(
@@ -89,11 +98,15 @@ function show(roadmaps: RoadmapSummary[] = THREE, madeId: string | null = null) 
       deleteRoadmapAction={deleteRoadmapAction}
       restoreRoadmapAction={restoreRoadmapAction}
       startFromScratchAction={startFromScratchAction}
+      archiveRoadmapAction={archiveRoadmapAction}
+      restoreArchivedAction={restoreArchivedAction}
     />,
   )
 }
 
-const list = () => screen.getByRole('list', { name: 'Your roadmaps, last opened first' })
+const list = () => screen.getByRole('list', { name: 'Your roadmaps' })
+/** The list's rows (its own items, not their chips). */
+const rows = () => [...list().children] as HTMLElement[]
 const cardNames = () =>
   within(list())
     .getAllByRole('link')
@@ -136,6 +149,22 @@ describe('the list', () => {
     ])
   })
 
+  it('counts her roadmaps out of the archive above the title', () => {
+    show()
+    expect(screen.getByText('3 roadmaps')).toBeInTheDocument()
+    cleanup()
+    show([card({}), card({ id: 'budget', name: 'On a AUD 30k budget', archived: true })])
+    expect(screen.getByText('1 roadmap')).toBeInTheDocument()
+  })
+
+  it('marks the one she opened last, and only that one', () => {
+    show()
+    const items = rows()
+    expect(items[0]).toHaveAttribute('data-last-opened')
+    expect(items[1]).not.toHaveAttribute('data-last-opened')
+    expect(items[2]).not.toHaveAttribute('data-last-opened')
+  })
+
   it('reads the first-visit lead with one roadmap she has never opened', () => {
     show([card({ isNew: true, openedLabel: 'Made just now' })])
     expect(screen.getByText(FIRST_LEAD)).toBeInTheDocument()
@@ -153,7 +182,7 @@ describe('the list', () => {
 
   it('tags a never-opened roadmap New, and only that one', () => {
     show([card({ id: 'a', name: 'A', isNew: true }), card({ id: 'b', name: 'B' })])
-    const items = within(list()).getAllByRole('listitem')
+    const items = rows()
     expect(within(items[0]).getByText('New')).toBeInTheDocument()
     expect(within(items[1]).queryByText('New')).not.toBeInTheDocument()
   })
@@ -177,8 +206,152 @@ describe('the list', () => {
   })
 })
 
+describe("a row's description", () => {
+  it('reads its chips and where it came from, as cards and as a table, after its name', async () => {
+    show([card({ id: 'a', name: 'A', isNew: true }), ...THREE.slice(1)])
+    expect(screen.getByRole('link', { name: 'On a AUD 30k budget' })).toHaveAccessibleDescription(
+      /Budget: AUD 30k.*Copy of Cyber Security in Perth · Opened yesterday/,
+    )
+    await click(
+      within(screen.getByRole('group', { name: 'Show as' })).getByRole('button', { name: 'Table' }),
+    )
+    expect(screen.getByRole('link', { name: 'A' })).toHaveAccessibleDescription(
+      /^New From onboarding/,
+    )
+    expect(screen.getByRole('link', { name: 'On a AUD 30k budget' })).toHaveAccessibleDescription(
+      'Copy of Cyber Security in Perth Budget: AUD 30k',
+    )
+  })
+})
+
+describe('Sort', () => {
+  const sortBy = async (label: string) => {
+    await click(screen.getByRole('combobox', { name: 'Sort' }))
+    await click(screen.getByRole('option', { name: label }))
+  }
+
+  it('starts on last opened', () => {
+    show()
+    expect(screen.getByRole('combobox', { name: 'Sort' })).toHaveTextContent('Last opened')
+  })
+
+  it('orders the list by name, A to Z', async () => {
+    show()
+    await sortBy('Name')
+    expect(cardNames()).toEqual([
+      'Cyber Security in Perth',
+      'Data Science instead',
+      'On a AUD 30k budget',
+    ])
+  })
+
+  it('orders the list by date made, newest first, and back by last opened', async () => {
+    show()
+    await sortBy('Date made')
+    expect(cardNames()).toEqual([
+      'Data Science instead',
+      'On a AUD 30k budget',
+      'Cyber Security in Perth',
+    ])
+    await sortBy('Last opened')
+    expect(cardNames()).toEqual([
+      'Cyber Security in Perth',
+      'On a AUD 30k budget',
+      'Data Science instead',
+    ])
+  })
+})
+
+describe('Show as a table', () => {
+  const showAs = (label: string) =>
+    within(screen.getByRole('group', { name: 'Show as' })).getByRole('button', { name: label })
+  const table = () => screen.getByRole('table', { name: 'Your roadmaps' })
+  const bodyRows = () => within(table()).getAllByRole('row').slice(1)
+  const rowNames = () =>
+    bodyRows().map((r) => within(r).getAllByRole('link')[0].getAttribute('aria-label'))
+  const header = (name: string) => within(table()).getByRole('columnheader', { name })
+
+  it('starts as cards; Table swaps the cards for a table, pressed', async () => {
+    show()
+    expect(showAs('Cards')).toHaveAttribute('aria-pressed', 'true')
+    expect(showAs('Table')).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    await click(showAs('Table'))
+    expect(showAs('Table')).toHaveAttribute('aria-pressed', 'true')
+    expect(showAs('Cards')).toHaveAttribute('aria-pressed', 'false')
+    expect(table()).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Your roadmaps' })).not.toBeInTheDocument()
+  })
+
+  it('has a row per roadmap: course and city, progress, next, Point B, last opened', async () => {
+    show()
+    await click(showAs('Table'))
+    expect(rowNames()).toEqual([
+      'Cyber Security in Perth',
+      'On a AUD 30k budget',
+      'Data Science instead',
+    ])
+    const cells = (i: number) =>
+      within(bodyRows()[i])
+        .getAllByRole('cell')
+        .map((c) => c.textContent)
+    expect(cells(0)).toEqual([
+      'Cyber Security · ECU · Perth',
+      '4 of 7 steps walked',
+      'Student visa · Late 2026',
+      'Permanent residency · 2032',
+      'Opened today',
+      '',
+    ])
+    expect(cells(1)[2]).toBe('Pick a course in Perth')
+    expect(within(bodyRows()[1]).getByRole('rowheader')).toHaveTextContent(
+      'Copy of Cyber Security in Perth',
+    )
+    expect(bodyRows()[0]).toHaveAttribute('data-last-opened')
+    expect(bodyRows()[1]).not.toHaveAttribute('data-last-opened')
+  })
+
+  it('sorts from the Roadmap and Last opened headers, which say how they are sorted', async () => {
+    show()
+    await click(showAs('Table'))
+    expect(header('Last opened')).toHaveAttribute('aria-sort', 'descending')
+    expect(header('Roadmap')).toHaveAttribute('aria-sort', 'none')
+
+    await click(within(header('Roadmap')).getByRole('button', { name: 'Roadmap' }))
+    expect(header('Roadmap')).toHaveAttribute('aria-sort', 'ascending')
+    expect(header('Last opened')).toHaveAttribute('aria-sort', 'none')
+    expect(rowNames()).toEqual([
+      'Cyber Security in Perth',
+      'Data Science instead',
+      'On a AUD 30k budget',
+    ])
+    expect(screen.getByRole('combobox', { name: 'Sort' })).toHaveTextContent('Name')
+
+    await click(within(header('Last opened')).getByRole('button', { name: 'Last opened' }))
+    expect(rowNames()[0]).toBe('Cyber Security in Perth')
+    expect(header('Last opened')).toHaveAttribute('aria-sort', 'descending')
+  })
+
+  it('opens on the table when she chose it last time', () => {
+    window.localStorage.setItem('ofcourse:roadmaps-view', 'table')
+    show()
+    expect(table()).toBeInTheDocument()
+  })
+
+  it('lists archived roadmaps in their own table in the fold, each row restoring', async () => {
+    show([card({}), card({ id: 'budget', name: 'On a AUD 30k budget', archived: true })])
+    await click(showAs('Table'))
+    expect(within(table()).getAllByRole('row')).toHaveLength(2)
+    await click(screen.getByRole('button', { name: 'Archived (1)' }))
+    const archived = screen.getByRole('table', { name: 'Archived roadmaps' })
+    await click(within(archived).getByRole('button', { name: 'Restore On a AUD 30k budget' }))
+    expect(restoreArchivedAction).toHaveBeenCalledWith('budget')
+    expect(within(table()).getAllByRole('row')).toHaveLength(3)
+  })
+})
+
 describe('the … menu', () => {
-  it('offers Open, Copy and change answers, Rename and Delete', async () => {
+  it('offers Open, Copy and change answers, Rename, Archive and Delete', async () => {
     show()
     const button = more('On a AUD 30k budget')
     expect(button).toHaveAttribute('aria-haspopup', 'menu')
@@ -190,18 +363,32 @@ describe('the … menu', () => {
       within(menu)
         .getAllByRole('menuitem')
         .map((m) => m.textContent),
-    ).toEqual(['Open', 'Copy and change answers', 'Rename', 'Delete'])
+    ).toEqual(['Open', 'Copy and change answers', 'Rename', 'Archive', 'Delete'])
     expect(item('Open')).toHaveAttribute('href', '/roadmaps/budget')
     expect(item('Copy and change answers')).toHaveAttribute('href', '/roadmaps/new?from=budget')
     // Opening focuses the first item.
     expect(item('Open')).toHaveFocus()
   })
 
-  it('has no Delete when she has only one roadmap', async () => {
-    show([card({})])
+  it('has no Archive and no Delete while one roadmap is out of the archive', async () => {
+    show([card({}), card({ id: 'budget', name: 'On a AUD 30k budget', archived: true })])
     await openMenu('Cyber Security in Perth')
-    expect(screen.queryByRole('menuitem', { name: 'Delete' })).not.toBeInTheDocument()
-    expect(item('Rename')).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('menu'))
+        .getAllByRole('menuitem')
+        .map((m) => m.textContent),
+    ).toEqual(['Open', 'Copy and change answers', 'Rename'])
+  })
+
+  it('offers Restore and Delete on an archived roadmap, even beside her only other one', async () => {
+    show([card({}), card({ id: 'budget', name: 'On a AUD 30k budget', archived: true })])
+    await click(screen.getByRole('button', { name: 'Archived (1)' }))
+    await openMenu('On a AUD 30k budget')
+    expect(
+      within(screen.getByRole('menu'))
+        .getAllByRole('menuitem')
+        .map((m) => m.textContent),
+    ).toEqual(['Restore', 'Delete'])
   })
 
   it('closes on Escape and gives focus back to its … button', async () => {
@@ -211,6 +398,87 @@ describe('the … menu', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     expect(more('Data Science instead')).toHaveFocus()
     expect(more('Data Science instead')).toHaveAttribute('aria-expanded', 'false')
+  })
+})
+
+describe('Archive', () => {
+  const ARCHIVED = 'Archived. Restore it any time from Archived.'
+  const fold = (n: number) => screen.getByRole('button', { name: `Archived (${n})` })
+  const archive = async (name: string) => {
+    await openMenu(name)
+    await click(item('Archive'))
+  }
+
+  it('folds it away: out of the list and the count, said with Undo, the fold closed', async () => {
+    show()
+    await archive('On a AUD 30k budget')
+    expect(archiveRoadmapAction).toHaveBeenCalledWith('budget')
+    expect(cardNames()).toEqual(['Cyber Security in Perth', 'Data Science instead'])
+    expect(screen.getByText('2 roadmaps')).toBeInTheDocument()
+    expect(screen.getByText(ARCHIVED)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument()
+    expect(fold(1)).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('list', { name: 'Archived roadmaps' })).not.toBeInTheDocument()
+    // Its "…" button went with it: focus waits on the fold. (Compared as text: a failing
+    // toHaveFocus prints the whole page here, which never ends.)
+    expect(document.activeElement?.textContent).toBe('Archived (1)')
+  })
+
+  it('the fold opens on its archived roadmaps, faded, each row restoring it', async () => {
+    show()
+    await archive('On a AUD 30k budget')
+    await click(fold(1))
+    expect(fold(1)).toHaveAttribute('aria-expanded', 'true')
+    const archived = screen.getByRole('list', { name: 'Archived roadmaps' })
+    const restore = within(archived).getByRole('button', { name: 'Restore On a AUD 30k budget' })
+    expect(restore.closest('li')).toHaveClass('opacity-75')
+    expect(within(archived).queryByRole('link')).not.toBeInTheDocument()
+
+    await click(restore)
+    expect(restoreArchivedAction).toHaveBeenCalledWith('budget')
+    expect(screen.getByText('Restored.')).toBeInTheDocument()
+    expect(cardNames()).toEqual([
+      'Cyber Security in Perth',
+      'On a AUD 30k budget',
+      'Data Science instead',
+    ])
+    expect(screen.queryByRole('button', { name: /^Archived/ })).not.toBeInTheDocument()
+    // The fold went with the last of them: focus goes to the title.
+    expect(document.activeElement?.textContent).toBe('Your roadmaps')
+  })
+
+  it('Undo on its toast puts it back in its place', async () => {
+    show()
+    await archive('On a AUD 30k budget')
+    await click(screen.getByRole('button', { name: 'Undo' }))
+    expect(restoreArchivedAction).toHaveBeenCalledWith('budget')
+    expect(cardNames()).toEqual([
+      'Cyber Security in Perth',
+      'On a AUD 30k budget',
+      'Data Science instead',
+    ])
+    expect(screen.queryByText(ARCHIVED)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Archived/ })).not.toBeInTheDocument()
+  })
+
+  it('keeps the row and says why when the archive is refused', async () => {
+    archiveRoadmapAction.mockImplementationOnce(async () => ({
+      ok: false,
+      error: 'Keep one roadmap out of the archive.',
+    }))
+    show()
+    await archive('On a AUD 30k budget')
+    expect(screen.getByText('Keep one roadmap out of the archive.')).toBeInTheDocument()
+    expect(cardNames()).toHaveLength(3)
+    expect(screen.queryByRole('button', { name: /^Archived/ })).not.toBeInTheDocument()
+  })
+
+  it('moves the last-opened mark to the next one when the marked one is archived', async () => {
+    show()
+    await archive('Cyber Security in Perth')
+    const items = rows()
+    expect(items[0]).toHaveAttribute('data-last-opened')
+    expect(within(items[0]).getByRole('link', { name: 'On a AUD 30k budget' })).toBeVisible()
   })
 })
 
@@ -350,6 +618,17 @@ describe('New roadmap', () => {
     ).toEqual(['Cyber Security in Perth', 'On a AUD 30k budget', 'Data Science instead'])
     expect(within(from).getByRole('radio', { name: 'Cyber Security in Perth' })).toBeChecked()
     expect(within(dialog).getByRole('button', { name: 'Copy and change answers' })).toBeVisible()
+  })
+
+  it('never offers an archived roadmap to copy', async () => {
+    show([THREE[0], { ...THREE[1], archived: true }, THREE[2]])
+    const dialog = await openNew()
+    const from = within(dialog).getByRole('radiogroup', { name: 'Copy which roadmap?' })
+    expect(
+      within(from)
+        .getAllByRole('radio')
+        .map((r) => r.closest('label')?.textContent),
+    ).toEqual(['Cyber Security in Perth', 'Data Science instead'])
   })
 
   it('copies the roadmap she picks: on to the draft of a copy of it', async () => {

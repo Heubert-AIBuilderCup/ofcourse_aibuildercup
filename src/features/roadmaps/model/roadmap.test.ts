@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { Roadmap } from '@/shared/types/student'
-import { isNew, openedLabel, orderRoadmaps, roadmapName } from './roadmap'
+import { isNew, lastOpenedOut, openedLabel, orderRoadmaps, roadmapName } from './roadmap'
 
 const at = (day: number, hour = 12) => new Date(2026, 9, day, hour)
 
@@ -16,6 +16,7 @@ const make = (over: Partial<Roadmap>): Roadmap => ({
   createdAt: at(1),
   finishedAt: at(1),
   lastOpenedAt: null,
+  archivedAt: null,
   ...over,
 })
 
@@ -79,6 +80,38 @@ describe('orderRoadmaps', () => {
     const before = ids(list)
     orderRoadmaps(list, 'name')
     expect(ids(list)).toEqual(before)
+  })
+})
+
+describe('lastOpenedOut', () => {
+  test('is the one she opened last, an archived one never, however recently opened', () => {
+    const list = [
+      make({ id: 'archived', lastOpenedAt: at(12), archivedAt: at(12) }),
+      make({ id: 'earlier', lastOpenedAt: at(8) }),
+      make({ id: 'last', lastOpenedAt: at(10) }),
+    ]
+    expect(lastOpenedOut(list)?.id).toBe('last')
+  })
+
+  test('counts a never opened one by when it was made, so one just made comes first', () => {
+    const list = [
+      make({ id: 'opened', createdAt: at(1), lastOpenedAt: at(10) }),
+      make({ id: 'made', createdAt: at(11), lastOpenedAt: null }),
+    ]
+    expect(lastOpenedOut(list)?.id).toBe('made')
+  })
+
+  test("reads the list's own flag as well as the stored time", () => {
+    const list = [
+      { id: 'a', createdAt: at(1), lastOpenedAt: at(10), archived: true },
+      { id: 'b', createdAt: at(1), lastOpenedAt: at(9), archived: false },
+    ]
+    expect(lastOpenedOut(list)?.id).toBe('b')
+  })
+
+  test('is null when every one is archived, and when there is none', () => {
+    expect(lastOpenedOut([make({ archivedAt: at(3), lastOpenedAt: at(3) })])).toBeNull()
+    expect(lastOpenedOut([])).toBeNull()
   })
 })
 

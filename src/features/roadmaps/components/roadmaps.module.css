@@ -1,85 +1,79 @@
 /*
- * The list's look, for what Tailwind cannot say: the card's small road drawing (its field and the
- * tile faces per state, from the board's colours) and the dialogs' widths and phone layout (they are
- * portalled to the body, outside the page's @container, so they answer the screen's width). From
- * the reference build's roadmaps.css (rm-thumb*, rm-dlg*).
+ * The list's look, for what Tailwind cannot say: the table stacked on a phone, each cell labelled
+ * by its column's name (`data-k`, read through attr()), and the dialogs' widths and phone layout
+ * (they are portalled to the body, outside the page's @container, so they answer the screen's
+ * width). From the reference build's roadmaps.css (rm-table*, rm-dlg*).
  */
 
-/* The small road drawing: the board's field and ink, so both themes follow the board. */
-.thumb {
-  --fld: var(--panel);
-  --ink: var(--panel-foreground);
-  --shade: black;
-}
-/* The drawing keeps its 260 × 132 proportions, so the duck's percentages land on its tile. */
-.stage {
-  position: absolute;
-  inset: 0.5rem 0.75rem;
-  display: flex;
-  justify-content: center;
-}
-.frame {
-  position: relative;
-  height: 100%;
-  max-width: 100%;
-  aspect-ratio: 260 / 132;
-}
-.svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-.road {
-  fill: none;
-  stroke: color-mix(in oklch, var(--shade) 22%, var(--fld));
-  stroke-width: 9;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.tile polygon {
-  stroke-width: 0.75;
-  stroke-linejoin: round;
-}
-.top {
-  fill: var(--top);
-  stroke: var(--edge);
-}
-.left {
-  fill: var(--left);
-  stroke: var(--edge);
-}
-.right {
-  fill: var(--right);
-  stroke: var(--edge);
-}
-/* Walked: lit. */
-.tile[data-state="lit"] {
-  --top: var(--ink);
-  --left: color-mix(in oklch, var(--ink) 66%, var(--fld));
-  --right: color-mix(in oklch, var(--ink) 44%, var(--fld));
-  --edge: color-mix(in oklch, var(--shade) 30%, var(--fld));
-}
-/* The next step, and the course swapped off beside where she is: dim. */
-.tile[data-state="next"],
-.tile[data-state="alt"] {
-  --top: color-mix(in oklch, var(--ink) 30%, var(--fld));
-  --left: color-mix(in oklch, var(--ink) 18%, var(--fld));
-  --right: color-mix(in oklch, var(--ink) 10%, var(--fld));
-  --edge: color-mix(in oklch, var(--ink) 70%, var(--fld));
-}
-/* Beyond: dark. */
-.tile[data-state="fog"] {
-  --top: color-mix(in oklch, var(--shade) 26%, var(--fld));
-  --left: color-mix(in oklch, var(--shade) 40%, var(--fld));
-  --right: color-mix(in oklch, var(--shade) 50%, var(--fld));
-  --edge: color-mix(in oklch, var(--shade) 55%, var(--fld));
-}
-.duck {
-  position: absolute;
-  width: 1.75rem;
-  transform: translate(-10%, -10%) scaleX(-1);
-  filter: drop-shadow(0 0.125rem 0.125rem oklch(0 0 0 / 0.2));
+/*
+ * Phones (the page's own width below 36rem): the table becomes a stack of bordered rows. The
+ * header row is read, not shown; the name spans the row with the "…" menu at its top right; each
+ * other cell is its column's name, then its value. Unlayered, so these win over the utilities.
+ */
+@container (width < 36rem) {
+  .tableWrap {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+  .table,
+  .table tbody {
+    display: block;
+  }
+  .table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .table tbody tr {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    margin-bottom: 0.75rem;
+    border: 1px solid color-mix(in oklch, var(--foreground) 20%, transparent);
+    background: var(--background);
+  }
+  .table tbody th,
+  .table tbody td {
+    display: block;
+    min-width: 0;
+    border: 0;
+    padding: 0.25rem 1rem;
+  }
+  .table tbody th {
+    padding-top: 0.875rem;
+    padding-right: 3.5rem;
+  }
+  .table tbody td[data-k] {
+    display: grid;
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+    gap: 0.5rem;
+  }
+  .table tbody td[data-k]::before {
+    content: attr(data-k);
+    padding-top: 0.125rem;
+    font-family: var(--font-heading);
+    font-size: var(--ds-text-overline);
+    font-weight: 500;
+    letter-spacing: var(--ds-text-overline-tracking);
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+  .table tbody td[data-k="Last opened"] {
+    padding-bottom: 0.875rem;
+  }
+  .more {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.25rem;
+    width: auto;
+  }
+  .table tbody td.more {
+    padding: 0;
+  }
 }
 
 /*

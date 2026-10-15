@@ -193,6 +193,8 @@ export const roadmap = pgTable(
     lastOpenedAt: tz('last_opened_at'),
     // Null: alive. Set: deleted, and Undo can still bring it back.
     deletedAt: tz('deleted_at'),
+    // Null: in her list. Set: folded away under Archived; its board still opens by URL.
+    archivedAt: tz('archived_at'),
   },
   (t) => [
     index('roadmap_user_idx').on(t.userId),

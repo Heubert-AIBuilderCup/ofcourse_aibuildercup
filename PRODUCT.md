@@ -21,7 +21,7 @@ Onboarding is six steps, 00 to 05, then "You're all set". Each step says why it 
 | 04 | After you graduate, one question per screen | `/onboarding/after/<question>`: `stay`, `focus`, `earning`, `long-term` |
 | 05 | Your attention (the ten coins) | `/onboarding/attention` |
 | — | You're all set (the end) | `/onboarding/done` |
-| — | Your roadmaps (after onboarding: the list, and where she lands) | `/roadmaps` |
+| — | Your roadmaps (after onboarding: the list, and where she lands): rows or a table, sorted by last opened, date made or name, never ranked; rename, archive (restorable) and delete (with Undo) | `/roadmaps` |
 | — | A roadmap's board | `/roadmaps/<id>`, its lesson `/roadmaps/<id>/learn/<lesson>`, a route step `/roadmaps/<id>/route/<route-id>` |
 | — | A new roadmap by copying one (next part) | `/roadmaps/new` |
 | — | The old board's URL: a redirect to her last opened roadmap | `/road` |

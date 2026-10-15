@@ -165,3 +165,72 @@ The database tests: `DB_TESTS=1 DATABASE_URL=… bun test src/features/roadmaps/
 | 11 the loader: when, layout, steps, states, timing, slow, failure, live region, reduced motion | 4 | loader.test; RoadmapLoader.test through the hook (timing, failure, retry, slow, announcements); DoneScreen.test (when, and the work); layout and reduced motion: smoke test and screenshots |
 | 33 first-time flow (part 1's leg) | 2, 4 | routes.e2e.ts (landing); smoke test |
 | 35 rename, delete with Undo, last-opened order; answers never leak | 1, 3 | roadmaps.test (`copyRoadmap` isolation, other student's rows, `touchOpened`); RoadmapsPage.test |
+
+---
+
+# Part 2: the list, round 2 — Implementation Plan
+
+**Intent:** docs/roadmaps/intent.md, "Round 2 of the list" (criteria 37–44). **Reference:** docs/roadmaps/reference/logic/roadmaps-2.js (the logic: `BASE_RMS` fields `walked`, `steps`, `next`, `nextWhen`, `end`, `endY`; `OPENED`; `SORTS`; `setMode`, `setArchived`; `renderVals`: `item()`, `head()`, `count`, `lead`, the toasts), logic/roadmaps-2-template.html (the markup: `rm-count`, `rm-bar`, `rm-cards` rows with `rm-glyph`, the table, the `rm-arch` fold, the menus), canvas/roadmaps.css (the new rules: `rm-bar`, `rm-sort`, `rm-select`, `rm-segs`/`rm-seg`, `rm-cards`, `rm-row*`, `rm-glyph`, `rm-table*`, `rm-th-btn`, `rm-prog*`, `rm-arch*`, the phone rules). Boards: RMDesk, RMPhone, RM1920, RMTableDesk, RMTablePhone, RMMenuDesk, RMArchDesk.
+**Goal:** `/roadmaps` as the canvas draws it now: compact rows or a table, sorted, with archive.
+**Approach:** one more nullable column (`archived_at`) with its migration and two server functions; a pure `boardFacts` in the road model (walked, steps, next) read from the roadmap's stored choices; the list page rebuilt around rows, a bar and a table, with the archived fold; the thumbnail component and its CSS removed.
+**Test layers:** unit plus integration, as part 1: `archiveRoadmap`/`restoreArchived` and `listRoadmaps`'s archived flag are database tests (`DB_TESTS=1 bun test src/features/roadmaps/server/roadmaps.test.ts`); the rest is unit (bun test, happy-dom): `boardFacts`, the sort and the view switch, the archive flow, the menus. No e2e (the standing specs do not cover the list). The look is the smoke test.
+**Constraints:** as part 1's, verbatim above; plus CLAUDE.md's "No end-to-end code without being asked".
+
+## Files
+| Path | Create or modify | Responsibility |
+| --- | --- | --- |
+| `src/shared/lib/db/schema.ts`, `migrations/0004_roadmap_archived_at.sql` (+ meta) | modify / create | `archived_at` on `roadmap` |
+| `src/shared/types/student.ts` | modify | `Roadmap.archivedAt: Date | null` |
+| `src/features/roadmaps/server/roadmaps.ts` (+ test) | modify | `archiveRoadmap`, `restoreArchived`; `listRoadmaps` returns archived ones too (flagged); the copy list and `/road` filter them |
+| `src/features/roadmaps/actions.ts` (+ test) | modify | `archiveRoadmapAction`, `restoreArchivedAction` |
+| `src/features/road/model/board-facts.ts` (+ test) | create | `boardFacts(road, choices)` → `{ walked, steps, next, nextWhen, hereWord }` |
+| `src/features/roadmaps/model/roadmap.ts` (+ test) | modify | `RoadmapSummary` gains `course`, `city`, `progress`, `next`, `archived`, `isLastOpened`; `SORTS`, `SortKey`; `orderRoadmaps` unchanged |
+| `src/features/roadmaps/components/RoadmapsPage.tsx` (+ test), `RoadmapRow.tsx`, `RoadmapTable.tsx`, `ListBar.tsx`, `RoadGlyph.tsx`, `ArchivedFold.tsx`, `CardMenu.tsx`, `roadmaps.module.css` | modify / create | The page as the canvas draws it |
+| `src/features/roadmaps/components/RoadmapCard.tsx`, `RoadmapThumb.tsx` | delete | The thumbnail card goes |
+| `src/features/roadmaps/hooks/useListView.ts` (+ test) | create | Cards/Table remembered in localStorage (`ofcourse:roadmaps-view`), try/catch, default cards |
+| `src/app/(app)/roadmaps/page.tsx`, `src/app/(app)/road/page.tsx` | modify | The summaries with facts; `/road` skips archived |
+
+## Task 6: Archive in the data, and the board's facts
+**Delivers:** criteria 42 (the data side), 43.
+**Files:** modify `src/shared/lib/db/schema.ts`, `src/shared/types/student.ts`, `src/features/roadmaps/server/roadmaps.ts` (+ test), `src/features/roadmaps/actions.ts` (+ test), `src/app/(app)/road/page.tsx`; create the migration `0004_roadmap_archived_at.sql` (`bun run db:generate` with the name `roadmap_archived_at`; a plain `ALTER TABLE "roadmap" ADD COLUMN "archived_at" timestamp with time zone;`, applied with `bun scripts/migrate.ts`), `src/features/road/model/board-facts.ts` (+ test).
+**Kind:** judgement
+Read first: part 1's server module and its tests (the harness, `softDeleteRoadmap`/`restoreRoadmap` as the pattern, `listRoadmaps`'s order), src/features/road/model/scene.ts (`buildScene`, `sessionFrom`, `Scene.lit`, `Scene.next`, `Scene.rows`), src/features/road/model/fixture.ts (`walk.rows`, each tile's `when`), the reference's `item()` in logic/roadmaps-2.js (`prog`, `next`, `hereWord`).
+- [ ] Step 1: failing tests.
+  - `server/roadmaps.test.ts` (DB): `archiveRoadmap(userId, id)` sets `archivedAt` on a finished, alive roadmap and returns true; false for another student's, a deleted one, or the only non-archived roadmap (the guard as the delete's: lock, count, then update); `restoreArchived(userId, id)` clears it; `listRoadmaps` returns archived roadmaps with `archivedAt` set, in the same order rule; `copyRoadmap` of an archived source still works (it is her roadmap).
+  - `actions.test.ts`: `archiveRoadmapAction(id)` and `restoreArchivedAction(id)` through `asStudent`, a bad id refused, the only-roadmap refusal with "Keep one roadmap out of the archive." (sentence case, no exclamation).
+  - `board-facts.test.ts` (pure): with `{}` choices, `boardFacts(road, {})` is `{ walked: 4, steps: 7, next: 'Student visa', nextWhen: 'Late 2026', hereWord: 'At the course' }` (walked = `scene.lit.length`, steps = `scene.rows.length`, next = the scene's `next[1]` tile's `name` and `when`); with `{ city: true }` walked is 3 and next is the course ("Cyber Security"), hereWord "Choosing a course"; with `{ swapped: true }` next is still the visa and the course line's name is Data Science (the caller's business; here only `walked`/`next`). Pin the numbers from the fixture, not the prose.
+- [ ] Step 2: run — FAIL.
+- [ ] Step 3: implement; `/road/page.tsx` picks the last opened among non-archived (`listRoadmaps(...).find(r => !r.archivedAt)`).
+- [ ] Step 4: `bun test src/features/roadmaps src/features/road/model`, the DB test, `bun run type-check`, `bun run lint` — PASS.
+- [ ] Step 5: commit `feat(roadmaps): archive in the data, and each board's facts`.
+
+## Task 7: The list page — rows, the bar, the table, the archived fold
+**Delivers:** criteria 37–42 (the page), 44.
+**Files:** modify `src/features/roadmaps/model/roadmap.ts` (+ test), `src/features/roadmaps/components/RoadmapsPage.tsx` (+ test), `CardMenu.tsx`, `roadmaps.module.css`, `src/features/roadmaps/index.ts`, `src/app/(app)/roadmaps/page.tsx`; create `RoadmapRow.tsx`, `RoadmapTable.tsx`, `ListBar.tsx`, `RoadGlyph.tsx`, `ArchivedFold.tsx`, `src/features/roadmaps/hooks/useListView.ts` (+ test); delete `RoadmapCard.tsx`, `RoadmapThumb.tsx` and their CSS.
+**Kind:** judgement
+Read first: task 6's diff; the current RoadmapsPage.tsx and its test (keep every behaviour test that still applies: menus, rename, delete with Undo, the New dialog, the toast on `?made=`); logic/roadmaps-2.js `renderVals` and roadmaps-2-template.html in full; canvas/roadmaps.css; src/design-systems/industry/DESIGN.md; src/shared/components/ui/select.tsx (the shared Select: use it for Sort, labelled "Sort"); the shared `Button` (the view switch is two `Button variant="square"` with `aria-pressed`, in a `role="group"` "Show as"); the shared `Toast`.
+- [ ] Step 1: failing tests.
+  - `roadmap.test.ts`: `SORTS` is `[['opened','Last opened'],['made','Date made'],['name','Name']]`; `orderRoadmaps` already covers each key.
+  - `useListView.test.ts`: starts `'cards'`; `set('table')` stores `ofcourse:roadmaps-view`; a stored `'table'` is read on start; storage refused (throwing `localStorage`) → cards, no error.
+  - `RoadmapsPage.test.tsx`: the count "3 roadmaps" / "1 roadmap" counts non-archived; the lead text; Sort changes the order on screen (Name A→Z; Date made newest first); Cards/Table switch: the table (`role="table"`) shows one row per roadmap with the columns' text (progress "4 of 7 steps walked", next "Student visa · Late 2026"), the Roadmap and Last opened headers sort and carry `aria-sort`; in cards the last-opened row is marked (a data attribute or class the test reads); Archive from the menu removes the row from the main list, shows the toast with Undo, and the "Archived (1)" fold appears closed; opening the fold lists it at reduced opacity with a "Restore <name>" button that restores it (toast "Restored."); Undo on the archive toast restores it; Archive and Delete are absent with one non-archived roadmap; an archived roadmap's menu is Restore and Delete; the copy list in the New dialog excludes archived ones; focus returns to the "…" button after the menu closes.
+- [ ] Step 2: run — FAIL.
+- [ ] Step 3: implement. `page.tsx` builds `RoadmapSummary` with `course` ("Cyber Security · ECU"), `city`, `line` ("Cyber Security · ECU · Perth"), `progress: { walked, steps }`, `next` ("Student visa · Late 2026" or "Pick a course in Perth" when `next` is null), `pointB`, `archived`, `isLastOpened` (the first non-archived by the opened order). The glyph is `RoadGlyph` (a 3px line and a rotated 0.625rem square, tokens: `bg-foreground/25`, accent when on). Rows: `ul` in a grid `repeat(auto-fill, minmax(min(22rem,100%), 1fr))`, each `li` a `Link`-styled row plus the menu. The table: a real `<table>` with `<caption class="sr-only">`, `th scope="col"` with `aria-sort`, `th scope="row"` for the name cell; on phone (`@max-xl:`) the stacked layout with `data-k` labels via `::before` in the CSS module. The archived fold: a `button aria-expanded` "Archived (n)" with a chevron, then the same rows/table for archived ones at `opacity-75`, the row's action restoring. Sort: the shared Select; the view switch remembered by `useListView`. Toasts: "Archived. Restore it any time from Archived." (Undo), "Restored.", plus the existing ones. Sizes from the roles (`text-h1`, `text-h4` for row names, `text-caption`, `text-overline`), rem, container queries; no arbitrary values, no per-breakpoint sizes.
+- [ ] Step 4: `bun test src/features/roadmaps`, `bun run type-check`, `bun run lint` — PASS.
+- [ ] Step 5: commit `feat(roadmaps): the list as rows or a table, sorted, with archive`.
+
+## Task 8: Docs and the map
+**Delivers:** the record.
+**Files:** modify `PRODUCT.md` (the list's description: rows or a table, sort, archive), `docs/roadmaps/smoke.md` (a "Part 2" section with steps for 37–44, and the build report rows), `CLAUDE.md` only if a route rule changed (none expected).
+**Kind:** transcription (the controller writes it; no dispatch).
+
+## Criteria coverage (part 2)
+| Criterion | Task | Test that proves it |
+| --- | --- | --- |
+| 37 count and lead | 7 | RoadmapsPage.test (count rule, lead) |
+| 38 sort and view switch, remembered | 7 | RoadmapsPage.test (order on screen, the table appears); useListView.test (storage) |
+| 39 rows, glyph, last-opened mark, whole row opens | 7 | RoadmapsPage.test (row contents, the mark, the link); look: smoke test |
+| 40 the table, its columns, sortable headers, phone stacking | 7 | RoadmapsPage.test (columns' text, `aria-sort`); phone look: smoke test |
+| 41 the menus per state | 7 | RoadmapsPage.test |
+| 42 archive, fold, restore, toasts, excluded from count/copy//road | 6, 7 | roadmaps.test (DB), actions.test, RoadmapsPage.test; `/road`: smoke test |
+| 43 progress and next from the board | 6 | board-facts.test |
+| 44 keyboard and focus | 7 | RoadmapsPage.test (focus returns); the rest are native controls |

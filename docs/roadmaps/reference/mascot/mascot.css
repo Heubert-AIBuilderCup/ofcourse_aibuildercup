@@ -1,0 +1,36 @@
+/* OfCourse mascot: the plush duck */
+.ms{box-sizing:border-box;width:100%;min-height:100%;padding:3.5rem 4rem;background:var(--color-bg,#f6f7f9);color:var(--color-fg,#1d1f20);font-family:var(--font-body,'Barlow',sans-serif)}
+.ms *{box-sizing:border-box}
+.ms-head{max-width:46rem;margin-bottom:2.5rem}
+.ms-kicker{display:block;font-family:var(--font-heading,'Barlow Condensed',sans-serif);font-weight:600;font-size:0.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--color-fg-muted,#5b6470)}
+.ms-title{margin:0.5rem 0 0.75rem;font-family:var(--font-heading,'Barlow Condensed',sans-serif);font-weight:600;font-size:2.5rem;line-height:1.05}
+.ms-lead{margin:0;font-size:1.0625rem;line-height:1.5;color:var(--color-fg-muted,#5b6470)}
+.ms-k{display:block;font-family:var(--font-heading,'Barlow Condensed',sans-serif);font-weight:600;font-size:1.375rem}
+.ms-d{display:block;margin-top:0.25rem;font-size:0.9375rem;line-height:1.4;color:var(--color-fg-muted,#5b6470)}
+figure{margin:0}
+.ms-duck svg,.ms-cast-duck svg,.ms-mood-duck svg,.ms-size svg{display:block;width:100%;height:auto}
+
+/* lineup: the four outfits on a soft pastel stage */
+.ms-stage{display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;padding:2rem 2rem 1.75rem;border-radius:1.25rem;background:linear-gradient(100deg,#e3f0f6 0%,#eaf0fb 50%,#efeafb 100%)}
+.ms-cast{display:flex;flex-direction:column;align-items:center;text-align:center}
+.ms-cast-duck{width:100%;max-width:17rem}
+.ms-cast figcaption{margin-top:0.75rem}
+
+/* moods */
+.ms-moodrow{display:grid;grid-template-columns:repeat(6,1fr);gap:1rem}
+.ms-mood{display:flex;flex-direction:column;padding:1.25rem 1rem 1.125rem;border-radius:1rem;background:linear-gradient(160deg,#e8f2f8,#eeecfa)}
+.ms-mood-duck{width:100%;max-width:11rem;margin:0 auto 0.75rem}
+.ms-mood .ms-k{font-size:1.125rem}
+.ms-mood .ms-d{font-size:0.875rem}
+.ms-sizes{margin-top:2.5rem;padding-top:1.75rem;border-top:1px solid var(--color-border,#dfe3e8)}
+.ms-sizerow{display:flex;align-items:flex-end;gap:2.5rem;margin-top:1rem}
+.ms-size{display:flex;flex-direction:column;align-items:center;gap:0.5rem}
+.ms-size figcaption{font-size:0.8125rem;color:var(--color-fg-muted,#5b6470)}
+.ms-note{margin:1rem 0 0;font-size:0.875rem;color:var(--color-fg-muted,#5b6470)}
+
+/* round 2: studio band, ducks cropped by the bottom edge */
+.ms-band{position:relative;display:flex;justify-content:center;align-items:flex-end;gap:0;height:25rem;overflow:hidden;border-radius:1.25rem 1.25rem 0 0;background:linear-gradient(100deg,#dfeef5 0%,#e8eefa 50%,#ede8fa 100%)}
+.ms-band-duck{width:21rem;margin:0 -1rem;transform:translateY(10%)}
+.ms-band-duck svg{display:block;width:100%;height:auto}
+.ms-caps{display:flex;justify-content:center;gap:0;padding:1.25rem 0 0;border-top:0.5rem solid #eef0f4}
+.ms-cap{width:19rem;text-align:center}

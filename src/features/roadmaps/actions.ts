@@ -7,10 +7,13 @@ import { asStudent, fail } from '@/shared/lib/auth/as-student'
 import type { ActionResult } from '@/shared/types/action-result'
 import { ROADMAP_NAME_MAX, type RoadmapChoices, roadmapChoicesSchema } from '@/shared/types/student'
 import {
+  archiveRoadmap,
   ensureDraft,
   finishRoadmap,
   getDraft,
+  hasArchived,
   renameRoadmap,
+  restoreArchived,
   restoreRoadmap,
   saveChoices,
   softDeleteRoadmap,
@@ -24,6 +27,7 @@ const COINS_FIRST = 'Place your coins, or leave them for later, first.'
 const NOT_FOUND = "We couldn't find that roadmap. Reload the page and try again."
 const NAME_RULE = `A name has 1 to ${ROADMAP_NAME_MAX} characters.`
 const ONLY_ONE = 'Your only roadmap stays. Make another before you delete this one.'
+const KEEP_ONE = 'Keep one roadmap out of the archive.'
 const BAD_CHOICES = "We couldn't save that change. Reload the page and try again."
 const ALREADY_ANSWERING =
   "You're already answering a new roadmap. Finish its questions, or pick up where you left off."
@@ -80,14 +84,18 @@ export async function renameRoadmapAction(id: string, name: string): Promise<Act
   })
 }
 
-/** Delete, undoable (restoreRoadmapAction). Her only roadmap is never deleted. */
+/**
+ * Delete, undoable (restoreRoadmapAction). Her only roadmap out of the archive is never deleted
+ * (with archived ones beside it, she is told to keep one out of the archive); an archived one may
+ * always go.
+ */
 export async function deleteRoadmapAction(id: string): Promise<ActionResult> {
   return asStudent('roadmaps.deleteRoadmap', async (userId) => {
     const roadmapId = idSchema.safeParse(id)
     if (!roadmapId.success) return fail(NOT_FOUND)
-    const { finished } = await getProfile(userId)
-    if (finished <= 1) return fail(ONLY_ONE)
-    if (!(await softDeleteRoadmap(userId, roadmapId.data))) return fail(NOT_FOUND)
+    const deleted = await softDeleteRoadmap(userId, roadmapId.data)
+    if (deleted === 'not-found') return fail(NOT_FOUND)
+    if (deleted === 'kept-one') return fail((await hasArchived(userId)) ? KEEP_ONE : ONLY_ONE)
     return { ok: true }
   })
 }
@@ -98,6 +106,28 @@ export async function restoreRoadmapAction(id: string): Promise<ActionResult> {
     const roadmapId = idSchema.safeParse(id)
     if (!roadmapId.success) return fail(NOT_FOUND)
     if (!(await restoreRoadmap(userId, roadmapId.data))) return fail(NOT_FOUND)
+    return { ok: true }
+  })
+}
+
+/** Archive, undoable (restoreArchivedAction). One of her roadmaps always stays out of the archive. */
+export async function archiveRoadmapAction(id: string): Promise<ActionResult> {
+  return asStudent('roadmaps.archiveRoadmap', async (userId) => {
+    const roadmapId = idSchema.safeParse(id)
+    if (!roadmapId.success) return fail(NOT_FOUND)
+    const archived = await archiveRoadmap(userId, roadmapId.data)
+    if (archived === 'not-found') return fail(NOT_FOUND)
+    if (archived === 'kept-one') return fail(KEEP_ONE)
+    return { ok: true }
+  })
+}
+
+/** Back into her list from Archived, and the Undo of an archive. */
+export async function restoreArchivedAction(id: string): Promise<ActionResult> {
+  return asStudent('roadmaps.restoreArchived', async (userId) => {
+    const roadmapId = idSchema.safeParse(id)
+    if (!roadmapId.success) return fail(NOT_FOUND)
+    if (!(await restoreArchived(userId, roadmapId.data))) return fail(NOT_FOUND)
     return { ok: true }
   })
 }

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { AccountMenu, onboardingResumePath } from '@/features/opening'
 import { getProfile } from '@/features/opening/server/profile'
-import { getRoad } from '@/features/road'
+import { boardFacts, getRoad } from '@/features/road'
 import {
   answerDiffs,
   isNew,
@@ -11,8 +11,10 @@ import {
   roadmapName,
 } from '@/features/roadmaps'
 import {
+  archiveRoadmapAction,
   deleteRoadmapAction,
   renameRoadmapAction,
+  restoreArchivedAction,
   restoreRoadmapAction,
   startFromScratchAction,
 } from '@/features/roadmaps/actions'
@@ -20,36 +22,32 @@ import { listRoadmaps } from '@/features/roadmaps/server/roadmaps'
 import { Duck } from '@/shared/components/Duck'
 import { requireStudent } from '@/shared/lib/auth/session'
 import { SITE_NAME } from '@/shared/lib/site'
-import type { Roadmap } from '@/shared/types/student'
 
-/** What every card reads from the road (Priya's mock road for now, the same for each roadmap). */
+const join = (...parts: (string | null | undefined)[]) => parts.filter(Boolean).join(' · ')
+
+/** What every row reads from the road (Priya's mock road for now, the same for each roadmap). */
 function roadWords() {
   const road = getRoad()
   const tile = (id: string | undefined) => road.tiles.find((t) => t.id === id)
   const here = tile(road.walk.here)
-  const course = tile(road.walk.courseStep)
   const pointB = tile(road.walk.ahead.at(-1))
   const city = tile(road.walk.cityLine[0])
-  const join = (...parts: (string | undefined)[]) => parts.filter(Boolean).join(' · ')
   return {
+    road,
     names: { here: here?.name ?? '', city: city?.name ?? '' },
-    // "Master's · ECU · Perth": the study step and where the course is.
-    line: join(course?.short ?? course?.name, road.here[road.walk.here]?.sub),
+    // "Cyber Security · ECU · Perth": her course, its university and city.
+    line: join(here?.name, road.here[road.walk.here]?.sub),
     // "Permanent residency · 2032": the road's last step and when.
     pointB: join(pointB?.name, pointB?.when),
-    // "Australia · Perth": the country (where the first arrival stands her) and the city.
-    place: join(tile(road.arrival.walk.here)?.name, city?.name),
   }
 }
 
-/** Where she stands on its road: 3 at her course, 2 walked back to its city, 1 to her country. */
-const hereOf = ({ choices }: Roadmap) => (choices.country ? 1 : choices.city ? 2 : 3)
-
 /**
  * "Your roadmaps", where she lands once she has finished one; before that, on to where she left
- * off. Each card is resolved here, on the server, from her roadmaps (last opened first) and the
- * road; the screen does the rest. `?made=` names the roadmap the loader just made: passed on only
- * when it is one of hers, so its toast never opens anything else.
+ * off. Each row is resolved here, on the server, from her roadmaps (last opened first, archived
+ * ones flagged) and the road, its progress and next step read from its board; the screen does the
+ * rest. `?made=` names the roadmap the loader just made: passed on only when it is one of hers, so
+ * its toast never opens anything else.
  */
 export default async function RoadmapsRoute({ searchParams }: PageProps<'/roadmaps'>) {
   const { user } = await requireStudent()
@@ -69,12 +67,15 @@ export default async function RoadmapsRoute({ searchParams }: PageProps<'/roadma
   const summaries: RoadmapSummary[] = roadmaps.map((r) => {
     // A deleted source is not in the list (only Undo reaches it).
     const source = r.copiedFrom ? byId.get(r.copiedFrom) : undefined
+    const facts = boardFacts(words.road, r.choices)
     return {
       id: r.id,
       name: named.get(r.id) ?? '',
       line: words.line,
       pointB: words.pointB,
-      place: words.place,
+      progress: { walked: facts.walked, steps: facts.steps },
+      // "Student visa · Late 2026"; nothing next on its board, the choice still to make.
+      next: facts.next ? join(facts.next, facts.nextWhen) : `Pick a course in ${words.names.city}`,
       from:
         r.copiedFrom === null
           ? 'From onboarding'
@@ -84,7 +85,9 @@ export default async function RoadmapsRoute({ searchParams }: PageProps<'/roadma
       diffs: answerDiffs(source?.answers ?? null, r.answers),
       openedLabel: openedLabel(r.lastOpenedAt, r.createdAt, now),
       isNew: isNew(r),
-      thumb: { here: hereOf(r), alt: !!r.choices.swapped },
+      archived: r.archivedAt !== null,
+      createdAt: r.createdAt,
+      lastOpenedAt: r.lastOpenedAt,
     }
   })
 
@@ -104,6 +107,8 @@ export default async function RoadmapsRoute({ searchParams }: PageProps<'/roadma
         deleteRoadmapAction={deleteRoadmapAction}
         restoreRoadmapAction={restoreRoadmapAction}
         startFromScratchAction={startFromScratchAction}
+        archiveRoadmapAction={archiveRoadmapAction}
+        restoreArchivedAction={restoreArchivedAction}
       />
     </div>
   )

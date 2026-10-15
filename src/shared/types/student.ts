@@ -116,6 +116,8 @@ export type Roadmap = {
   createdAt: Date
   finishedAt: Date | null
   lastOpenedAt: Date | null
+  /** Null: in her list; set: archived (not counted, not copied from the list, never `/road`'s). */
+  archivedAt: Date | null
 }
 
 export type Profile = {

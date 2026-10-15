@@ -30,6 +30,7 @@ const roadmap = (over: Partial<Roadmap> = {}): Roadmap => ({
   createdAt: new Date('2026-10-14T09:00:00Z'),
   finishedAt: null,
   lastOpenedAt: null,
+  archivedAt: null,
   ...over,
 })
 
@@ -62,12 +63,19 @@ const finishRoadmap = mock(
   async (_userId: string): Promise<Roadmap | null> => roadmap({ finishedAt: new Date() }),
 )
 const ensureDraft = mock(async (_userId: string) => roadmap())
-/** What the repository answers for rename, delete and restore: false when not hers. */
+/** What the repository answers for rename, restore and choices: false when not hers. */
 let found = true
+/** What it answers for a delete or an archive: done, or why it was refused. */
+let putAway: true | 'kept-one' | 'not-found' = true
+/** Whether she has an archived roadmap. */
+let archivedOnes = false
 const renameRoadmap = mock(async (_userId: string, _id: string, _name: string) => found)
-const softDeleteRoadmap = mock(async (_userId: string, _id: string) => found)
+const softDeleteRoadmap = mock(async (_userId: string, _id: string) => putAway)
 const restoreRoadmap = mock(async (_userId: string, _id: string) => found)
 const saveChoices = mock(async (_userId: string, _id: string, _choices: unknown) => found)
+const archiveRoadmap = mock(async (_userId: string, _id: string) => putAway)
+const restoreArchived = mock(async (_userId: string, _id: string) => found)
+const hasArchived = mock(async (_userId: string) => archivedOnes)
 // The writes, counted together; the reads are apart, so a check before a write does not count.
 const writes = {
   finishRoadmap,
@@ -76,17 +84,21 @@ const writes = {
   softDeleteRoadmap,
   restoreRoadmap,
   saveChoices,
+  archiveRoadmap,
+  restoreArchived,
 }
-mock.module('./server/roadmaps', () => ({ ...writes, getDraft }))
+mock.module('./server/roadmaps', () => ({ ...writes, getDraft, hasArchived }))
 
 // Outside a request, Next's own would throw; here it only says it was asked.
 const refresh = mock(() => {})
 mock.module('next/cache', () => ({ refresh }))
 
 const {
+  archiveRoadmapAction,
   deleteRoadmapAction,
   finishOnboardingAction,
   renameRoadmapAction,
+  restoreArchivedAction,
   restoreRoadmapAction,
   saveChoicesAction,
   refreshAfterOnboardingAction,
@@ -104,6 +116,8 @@ const calls = [
   ['deleteRoadmapAction', () => deleteRoadmapAction('rm-1')],
   ['restoreRoadmapAction', () => restoreRoadmapAction('rm-1')],
   ['saveChoicesAction', () => saveChoicesAction('rm-1', { swapped: true })],
+  ['archiveRoadmapAction', () => archiveRoadmapAction('rm-1')],
+  ['restoreArchivedAction', () => restoreArchivedAction('rm-1')],
   ['refreshAfterOnboardingAction', () => refreshAfterOnboardingAction()],
 ] as const
 
@@ -115,12 +129,17 @@ afterEach(() => {
   storedCoins = { state: 'later' }
   draft = null
   found = true
+  putAway = true
+  archivedOnes = false
   finishedCount = 2
   getProfile.mockClear()
   renameRoadmap.mockClear()
   softDeleteRoadmap.mockClear()
   restoreRoadmap.mockClear()
   saveChoices.mockClear()
+  archiveRoadmap.mockClear()
+  restoreArchived.mockClear()
+  hasArchived.mockClear()
   getDraft.mockClear()
   refresh.mockClear()
   finishRoadmap.mockReset()
@@ -261,20 +280,31 @@ describe('deleteRoadmapAction', () => {
     expect(softDeleteRoadmap).toHaveBeenCalledWith('student-1', 'rm-1')
   })
 
-  it('refuses to delete her only roadmap, and deletes nothing', async () => {
+  it('refused as her only roadmap, says it stays', async () => {
     session = student()
-    finishedCount = 1
+    putAway = 'kept-one'
     expect(await deleteRoadmapAction('rm-1')).toEqual({
       ok: false,
       error: 'Your only roadmap stays. Make another before you delete this one.',
     })
-    expect(softDeleteRoadmap).not.toHaveBeenCalled()
+    expect(hasArchived).toHaveBeenCalledWith('student-1')
+  })
+
+  it('refused as her only roadmap out of the archive, says one stays out of it', async () => {
+    session = student()
+    putAway = 'kept-one'
+    archivedOnes = true
+    expect(await deleteRoadmapAction('rm-1')).toEqual({
+      ok: false,
+      error: 'Keep one roadmap out of the archive.',
+    })
   })
 
   it('says it cannot find a roadmap that is not hers, deleted or unknown', async () => {
     session = student()
-    found = false
+    putAway = 'not-found'
     expect(await deleteRoadmapAction('rm-2')).toEqual({ ok: false, error: NOT_FOUND })
+    expect(hasArchived).not.toHaveBeenCalled()
   })
 
   it('refuses what is not a string id, and deletes nothing', async () => {
@@ -350,5 +380,58 @@ describe('saveChoicesAction', () => {
     session = student()
     found = false
     expect(await saveChoicesAction('rm-2', choices)).toEqual({ ok: false, error: NOT_FOUND })
+  })
+})
+
+describe('archiveRoadmapAction', () => {
+  it("archives her roadmap, on the session's own account", async () => {
+    session = student()
+    expect(await archiveRoadmapAction('rm-1')).toEqual({ ok: true })
+    expect(archiveRoadmap).toHaveBeenCalledWith('student-1', 'rm-1')
+  })
+
+  it('refused as her only roadmap out of the archive, says one stays out of it', async () => {
+    session = student()
+    putAway = 'kept-one'
+    expect(await archiveRoadmapAction('rm-1')).toEqual({
+      ok: false,
+      error: 'Keep one roadmap out of the archive.',
+    })
+  })
+
+  it('says it cannot find a roadmap that is not hers, deleted, archived or unknown', async () => {
+    session = student()
+    putAway = 'not-found'
+    expect(await archiveRoadmapAction('rm-9')).toEqual({ ok: false, error: NOT_FOUND })
+  })
+
+  it('refuses what is not a string id, and archives nothing', async () => {
+    session = student()
+    const loose = archiveRoadmapAction as (id: unknown) => Promise<unknown>
+    expect(await loose(['rm-1'])).toEqual({ ok: false, error: NOT_FOUND })
+    expect(await loose('')).toEqual({ ok: false, error: NOT_FOUND })
+    expect(await loose('x'.repeat(65))).toEqual({ ok: false, error: NOT_FOUND })
+    expect(archiveRoadmap).not.toHaveBeenCalled()
+  })
+})
+
+describe('restoreArchivedAction', () => {
+  it("brings her archived roadmap back into the list, on the session's own account", async () => {
+    session = student()
+    expect(await restoreArchivedAction('rm-1')).toEqual({ ok: true })
+    expect(restoreArchived).toHaveBeenCalledWith('student-1', 'rm-1')
+  })
+
+  it('says it cannot find a roadmap that is not hers or not archived', async () => {
+    session = student()
+    found = false
+    expect(await restoreArchivedAction('rm-2')).toEqual({ ok: false, error: NOT_FOUND })
+  })
+
+  it('refuses what is not a string id, and restores nothing', async () => {
+    session = student()
+    const loose = restoreArchivedAction as (id: unknown) => Promise<unknown>
+    expect(await loose({ id: 'rm-1' })).toEqual({ ok: false, error: NOT_FOUND })
+    expect(restoreArchived).not.toHaveBeenCalled()
   })
 })

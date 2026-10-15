@@ -14,6 +14,7 @@ const draft: Roadmap = {
   createdAt: new Date('2026-10-13T09:00:00Z'),
   finishedAt: null,
   lastOpenedAt: null,
+  archivedAt: null,
 }
 
 type Profile = Parameters<typeof roadRedirect>[0]

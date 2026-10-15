@@ -58,55 +58,12 @@ body{margin:0}
 
 <main class="rm-main" aria-labelledby="rm-h">
 <div class="rm-wrap">
-<div class="rm-top">
-<div class="rm-intro">
-<h1 class="rm-h" id="rm-h" tabIndex="-1" ref="{{headRef}}">Your roadmaps</h1>
-<p class="rm-lead">{{lead}}</p>
-</div>
-<button type="button" class="btn btn-primary aa blueprint rm-newbtn" onClick="{{openNew}}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>New roadmap</button>
-</div>
-
-<ul class="rm-grid" aria-label="Your roadmaps, last opened first">
-<sc-for list="{{cards}}" as="c" hint-placeholder-count="3">
-<li class="{{c.cls}}">
-<button type="button" class="rm-open" onClick="{{c.open}}">
-<span class="rm-thumb rd-map grid-paper field-dark" data-theme="light" aria-hidden="true">
-<svg class="rm-thumb-svg" viewBox="0 0 260 132" preserveAspectRatio="xMidYMid meet">
-<path class="rm-thumb-road" d="{{c.roadD}}"></path>
-<sc-for list="{{c.tiles}}" as="t" hint-placeholder-count="6"><g class="{{t.cls}}"><polygon class="rd-face-l" points="{{t.l}}"></polygon><polygon class="rd-face-r" points="{{t.r}}"></polygon><polygon class="rd-face-t" points="{{t.t}}"></polygon></g></sc-for>
-</svg>
-<img class="rm-thumb-duck" src="/_blob/ef89572a2eb568c31292d17bbd6f4ded" alt="" style="left: {{c.duckX}}%; top: {{c.duckY}}%">
-<span class="rm-thumb-k">{{c.place}}</span>
-</span>
-<span class="rm-body">
-<sc-if value="{{c.isNew}}" hint-placeholder-val="{{false}}"><span class="rm-newtag">New</span></sc-if>
-<span class="rm-name">{{c.name}}</span>
-<span class="rm-line">{{c.line}}</span>
-<span class="rm-pb"><span class="rm-pb-k">Point B</span> {{c.pb}}</span>
-</span>
-</button>
-<div class="rm-meta">
-<p class="rm-from">{{c.from}}</p>
-<sc-if value="{{c.hasDiffs}}" hint-placeholder-val="{{true}}"><ul class="rm-diffs" aria-label="Different from the roadmap it was copied from"><sc-for list="{{c.diffs}}" as="d" hint-placeholder-count="1"><li class="rm-diff">{{d.t}}</li></sc-for></ul></sc-if>
-</div>
-<div class="rm-foot">
-<span class="rm-when">{{c.when}}</span>
-<div class="rm-morewrap">
-<button type="button" class="rm-more" aria-label="{{c.moreLabel}}" aria-haspopup="menu" aria-expanded="{{c.menuExpanded}}" onClick="{{c.toggleMenu}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg></button>
-<sc-if value="{{c.menuOpen}}" hint-placeholder-val="{{false}}">
-<div class="hdr-menu rm-cmenu" role="menu" aria-label="{{c.moreLabel}}">
-<button type="button" role="menuitem" class="hdr-item" onClick="{{c.open}}"><span class="hdr-label">Open</span></button>
-<button type="button" role="menuitem" class="hdr-item" onClick="{{c.copy}}"><span class="hdr-label">Copy and change answers</span></button>
-<button type="button" role="menuitem" class="hdr-item" onClick="{{c.rename}}"><span class="hdr-label">Rename</span></button>
-<sc-if value="{{c.canDelete}}" hint-placeholder-val="{{true}}"><div class="hdr-sep" role="separator"></div><button type="button" role="menuitem" class="hdr-item rm-danger" onClick="{{c.del}}"><span class="hdr-label">Delete</span></button></sc-if>
-</div>
-</sc-if>
-</div>
-</div>
-</li>
-</sc-for>
-</ul>
-<p class="rm-note">Roadmaps are never ranked. Each shows where one set of answers leads.</p>
+<div class="rm-top"><div class="rm-intro"><p class="rm-count">{{count}}</p><h1 class="rm-h" id="rm-h" tabIndex="-1" ref="{{headRef}}">Your roadmaps</h1><p class="rm-lead">{{lead}}</p></div><button type="button" class="btn btn-primary aa blueprint rm-newbtn" onClick="{{openNew}}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>New roadmap</button></div>
+<div class="rm-bar"><label class="rm-sort"><span class="rm-sort-k">Sort</span><select class="rm-select" onChange="{{pickSort}}" value="{{sortVal}}"><sc-for list="{{sorts}}" as="o" hint-placeholder-count="3"><option value="{{o.key}}">{{o.label}}</option></sc-for></select></label><div class="rm-segs" role="group" aria-label="Show as"><button type="button" class="{{cardsCls}}" aria-pressed="{{cardsOn}}" onClick="{{showCards}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3"></rect><rect width="7" height="7" x="14" y="3"></rect><rect width="7" height="7" x="14" y="14"></rect><rect width="7" height="7" x="3" y="14"></rect></svg>Cards</button><button type="button" class="{{tableCls}}" aria-pressed="{{tableOn}}" onClick="{{showTable}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18"></path><path d="M3 12h18"></path><path d="M3 19h18"></path></svg>Table</button></div></div>
+<sc-if value="{{isCards}}" hint-placeholder-val="{{true}}"><ul class="rm-cards" aria-label="Your roadmaps"><sc-for list="{{items}}" as="c" hint-placeholder-count="3"><li class="{{c.cardCls}}"><button type="button" class="rm-row-open" aria-label="{{c.openLabel}}" onClick="{{c.open}}"><span class="rm-glyph" aria-hidden="true"><i></i></span><span class="rm-row-txt"><sc-if value="{{c.isNew}}" hint-placeholder-val="{{false}}"><span class="rm-newtag">New</span></sc-if><span class="rm-row-name">{{c.name}}</span><span class="rm-row-line">{{c.line}}</span><span class="rm-row-end"><span class="rm-pb-k">Point B</span> {{c.pb}}</span><sc-if value="{{c.hasDiffs}}" hint-placeholder-val="{{true}}"><span class="rm-diffs"><sc-for list="{{c.diffs}}" as="d" hint-placeholder-count="1"><span class="rm-diff">{{d.t}}</span></sc-for></span></sc-if><span class="rm-row-meta">{{c.from}} · {{c.when}}</span></span></button><div class="rm-morewrap"><button type="button" class="rm-more" aria-label="{{c.moreLabel}}" aria-haspopup="menu" aria-expanded="{{c.menuExpanded}}" onClick="{{c.toggleMenu}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg></button><sc-if value="{{c.menuOpen}}" hint-placeholder-val="{{false}}"><div class="hdr-menu rm-cmenu" role="menu" aria-label="{{c.moreLabel}}"><sc-if value="{{c.isArch}}" hint-placeholder-val="{{false}}"><button type="button" role="menuitem" class="hdr-item" onClick="{{c.restore}}"><span class="hdr-label">Restore</span></button></sc-if><sc-if value="{{c.notArch}}" hint-placeholder-val="{{true}}"><button type="button" role="menuitem" class="hdr-item" onClick="{{c.open}}"><span class="hdr-label">Open</span></button><button type="button" role="menuitem" class="hdr-item" onClick="{{c.copy}}"><span class="hdr-label">Copy and change answers</span></button><button type="button" role="menuitem" class="hdr-item" onClick="{{c.rename}}"><span class="hdr-label">Rename</span></button></sc-if><sc-if value="{{c.canArchive}}" hint-placeholder-val="{{true}}"><button type="button" role="menuitem" class="hdr-item" onClick="{{c.archive}}"><span class="hdr-label">Archive</span></button></sc-if><sc-if value="{{c.canDelete}}" hint-placeholder-val="{{true}}"><div class="hdr-sep" role="separator"></div><button type="button" role="menuitem" class="hdr-item rm-danger" onClick="{{c.del}}"><span class="hdr-label">Delete</span></button></sc-if></div></sc-if></div></li></sc-for></ul></sc-if><sc-if value="{{isFacts}}" hint-placeholder-val="{{false}}"><ul class="rm-grid" aria-label="Your roadmaps"><sc-for list="{{items}}" as="c" hint-placeholder-count="3"><li class="{{c.cls}}"><button type="button" class="rm-open" aria-label="{{c.openLabel}}" onClick="{{c.open}}"><span class="rm-facts rd-map grid-paper field-dark" data-theme="light"><span class="rm-fact"><span class="rm-fact-v">{{c.city}}</span><span class="rm-fact-k">City</span></span><span class="rm-fact"><span class="rm-fact-v">{{c.courseName}}</span><span class="rm-fact-k">Course · {{c.uni}}</span></span><span class="rm-fact-row"><span class="rm-fact-here"><img class="rm-fact-duck" src="/_blob/ef89572a2eb568c31292d17bbd6f4ded" alt="">{{c.hereWord}}</span><span class="rm-fact-arrow" aria-hidden="true">→</span><span class="rm-fact-pb"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"></path></svg>{{c.pbShort}}</span></span></span><span class="rm-body"><sc-if value="{{c.isNew}}" hint-placeholder-val="{{false}}"><span class="rm-newtag">New</span></sc-if><span class="rm-name">{{c.name}}</span><sc-if value="{{c.hasDiffs}}" hint-placeholder-val="{{true}}"><span class="rm-diffs"><sc-for list="{{c.diffs}}" as="d" hint-placeholder-count="1"><span class="rm-diff">{{d.t}}</span></sc-for></span></sc-if></span></button><div class="rm-foot"><span class="rm-when">{{c.from}} · {{c.when}}</span><div class="rm-morewrap"><button type="button" class="rm-more" aria-label="{{c.moreLabel}}" aria-haspopup="menu" aria-expanded="{{c.menuExpanded}}" onClick="{{c.toggleMenu}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg></button><sc-if value="{{c.menuOpen}}" hint-placeholder-val="{{false}}"><div class="hdr-menu rm-cmenu" role="menu" aria-label="{{c.moreLabel}}"><sc-if value="{{c.isArch}}" hint-placeholder-val="{{false}}"><button type="button" role="menuitem" class="hdr-item" onClick="{{c.restore}}"><span class="hdr-label">Restore</span></button></sc-if><sc-if value="{{c.notArch}}" hint-placeholder-val="{{true}}"><button type="button" role="menuitem" class="hdr-item" onClick="{{c.open}}"><span class="hdr-label">Open</span></button><button type="button" role="menuitem" class="hdr-item" onClick="{{c.copy}}"><span class="hdr-label">Copy and change answers</span></button><button type="button" role="menuitem" class="hdr-item" onClick="{{c.rename}}"><span class="hdr-label">Rename</span></button></sc-if><sc-if value="{{c.canArchive}}" hint-placeholder-val="{{true}}"><button type="button" role="menuitem" class="hdr-item" onClick="{{c.archive}}"><span class="hdr-label">Archive</span></button></sc-if><sc-if value="{{c.canDelete}}" hint-placeholder-val="{{true}}"><div class="hdr-sep" role="separator"></div><button type="button" role="menuitem" class="hdr-item rm-danger" onClick="{{c.del}}"><span class="hdr-label">Delete</span></button></sc-if></div></sc-if></div></div></li></sc-for></ul></sc-if>
+<sc-if value="{{isTable}}" hint-placeholder-val="{{false}}"><div class="rm-tablewrap"><table class="rm-table"><caption class="rm-sr">Your roadmaps</caption><thead><tr><th scope="col" aria-sort="{{hName.sortAttr}}"><button type="button" class="{{hName.cls}}" onClick="{{hName.go}}">Roadmap</button></th><th scope="col">Course · city</th><th scope="col">Progress</th><th scope="col">Next</th><th scope="col">Point B</th><th scope="col" aria-sort="{{hOpened.sortAttr}}"><button type="button" class="{{hOpened.cls}}" onClick="{{hOpened.go}}">Last opened</button></th><th scope="col"><span class="rm-sr">More</span></th></tr></thead><tbody><sc-for list="{{items}}" as="r" hint-placeholder-count="3"><tr class="{{r.rowCls}}"><th scope="row" class="rm-td-name"><button type="button" class="rm-row-btn" aria-label="{{r.openLabel}}" onClick="{{r.open}}"><span class="rm-glyph" aria-hidden="true"><i></i></span><span class="rm-td-txt"><sc-if value="{{r.isNew}}" hint-placeholder-val="{{false}}"><span class="rm-newtag">New</span></sc-if><span class="rm-td-n">{{r.name}}</span><span class="rm-td-from">{{r.from}}</span><sc-if value="{{r.hasDiffs}}" hint-placeholder-val="{{false}}"><span class="rm-diffs"><sc-for list="{{r.diffs}}" as="d" hint-placeholder-count="1"><span class="rm-diff">{{d.t}}</span></sc-for></span></sc-if></span></button></th><td data-k="Course · city">{{r.line}}</td><td data-k="Progress"><span class="rm-prog is-tight"><span class="rm-prog-bar"><i style="width: {{r.progPct}}"></i></span><span class="rm-prog-t">{{r.prog}}</span></span></td><td data-k="Next">{{r.next}}</td><td data-k="Point B">{{r.pb}}</td><td data-k="Last opened">{{r.when}}</td><td class="rm-td-more"><div class="rm-morewrap"><button type="button" class="rm-more" aria-label="{{r.moreLabel}}" aria-haspopup="menu" aria-expanded="{{r.menuExpanded}}" onClick="{{r.toggleMenu}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg></button><sc-if value="{{r.menuOpen}}" hint-placeholder-val="{{false}}"><div class="hdr-menu rm-cmenu" role="menu" aria-label="{{r.moreLabel}}"><sc-if value="{{r.isArch}}" hint-placeholder-val="{{false}}"><button type="button" role="menuitem" class="hdr-item" onClick="{{r.restore}}"><span class="hdr-label">Restore</span></button></sc-if><sc-if value="{{r.notArch}}" hint-placeholder-val="{{true}}"><button type="button" role="menuitem" class="hdr-item" onClick="{{r.open}}"><span class="hdr-label">Open</span></button><button type="button" role="menuitem" class="hdr-item" onClick="{{r.copy}}"><span class="hdr-label">Copy and change answers</span></button><button type="button" role="menuitem" class="hdr-item" onClick="{{r.rename}}"><span class="hdr-label">Rename</span></button></sc-if><sc-if value="{{r.canArchive}}" hint-placeholder-val="{{true}}"><button type="button" role="menuitem" class="hdr-item" onClick="{{r.archive}}"><span class="hdr-label">Archive</span></button></sc-if><sc-if value="{{r.canDelete}}" hint-placeholder-val="{{true}}"><div class="hdr-sep" role="separator"></div><button type="button" role="menuitem" class="hdr-item rm-danger" onClick="{{r.del}}"><span class="hdr-label">Delete</span></button></sc-if></div></sc-if></div></td></tr></sc-for></tbody></table></div></sc-if>
+<sc-if value="{{hasArch}}" hint-placeholder-val="{{true}}"><section class="rm-arch" aria-label="Archived roadmaps"><button type="button" class="rm-arch-btn" aria-expanded="{{archExpanded}}" onClick="{{toggleArch}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>{{archCount}}</button><sc-if value="{{archOpen}}" hint-placeholder-val="{{false}}"><sc-if value="{{isCards}}" hint-placeholder-val="{{true}}"><ul class="rm-cards" aria-label="Your roadmaps"><sc-for list="{{archItems}}" as="c" hint-placeholder-count="3"><li class="{{c.cardCls}}"><button type="button" class="rm-row-open" aria-label="{{c.openLabel}}" onClick="{{c.open}}"><span class="rm-glyph" aria-hidden="true"><i></i></span><span class="rm-row-txt"><sc-if value="{{c.isNew}}" hint-placeholder-val="{{false}}"><span class="rm-newtag">New</span></sc-if><span class="rm-row-name">{{c.name}}</span><span class="rm-row-line">{{c.line}}</span><span class="rm-row-end"><span class="rm-pb-k">Point B</span> {{c.pb}}</span><sc-if value="{{c.hasDiffs}}" hint-placeholder-val="{{true}}"><span class="rm-diffs"><sc-for list="{{c.diffs}}" as="d" hint-placeholder-count="1"><span class="rm-diff">{{d.t}}</span></sc-for></span></sc-if><span class="rm-row-meta">{{c.from}} · {{c.when}}</span></span></button><div class="rm-morewrap"><button type="button" class="rm-more" aria-label="{{c.moreLabel}}" aria-haspopup="menu" aria-expanded="{{c.menuExpanded}}" onClick="{{c.toggleMenu}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg></button><sc-if value="{{c.menuOpen}}" hint-placeholder-val="{{false}}"><div class="hdr-menu rm-cmenu" role="menu" aria-label="{{c.moreLabel}}"><sc-if value="{{c.isArch}}" hint-placeholder-val="{{false}}"><button type="button" role="menuitem" class="hdr-item" onClick="{{c.restore}}"><span class="hdr-label">Restore</span></button></sc-if><sc-if value="{{c.notArch}}" hint-placeholder-val="{{true}}"><button type="button" role="menuitem" class="hdr-item" onClick="{{c.open}}"><span class="hdr-label">Open</span></button><button type="button" role="menuitem" class="hdr-item" onClick="{{c.copy}}"><span class="hdr-label">Copy and change answers</span></button><button type="button" role="menuitem" class="hdr-item" onClick="{{c.rename}}"><span class="hdr-label">Rename</span></button></sc-if><sc-if value="{{c.canArchive}}" hint-placeholder-val="{{true}}"><button type="button" role="menuitem" class="hdr-item" onClick="{{c.archive}}"><span class="hdr-label">Archive</span></button></sc-if><sc-if value="{{c.canDelete}}" hint-placeholder-val="{{true}}"><div class="hdr-sep" role="separator"></div><button type="button" role="menuitem" class="hdr-item rm-danger" onClick="{{c.del}}"><span class="hdr-label">Delete</span></button></sc-if></div></sc-if></div></li></sc-for></ul></sc-if><sc-if value="{{isFacts}}" hint-placeholder-val="{{false}}"><ul class="rm-grid" aria-label="Your roadmaps"><sc-for list="{{archItems}}" as="c" hint-placeholder-count="3"><li class="{{c.cls}}"><button type="button" class="rm-open" aria-label="{{c.openLabel}}" onClick="{{c.open}}"><span class="rm-facts rd-map grid-paper field-dark" data-theme="light"><span class="rm-fact"><span class="rm-fact-v">{{c.city}}</span><span class="rm-fact-k">City</span></span><span class="rm-fact"><span class="rm-fact-v">{{c.courseName}}</span><span class="rm-fact-k">Course · {{c.uni}}</span></span><span class="rm-fact-row"><span class="rm-fact-here"><img class="rm-fact-duck" src="/_blob/ef89572a2eb568c31292d17bbd6f4ded" alt="">{{c.hereWord}}</span><span class="rm-fact-arrow" aria-hidden="true">→</span><span class="rm-fact-pb"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"></path></svg>{{c.pbShort}}</span></span></span><span class="rm-body"><sc-if value="{{c.isNew}}" hint-placeholder-val="{{false}}"><span class="rm-newtag">New</span></sc-if><span class="rm-name">{{c.name}}</span><sc-if value="{{c.hasDiffs}}" hint-placeholder-val="{{true}}"><span class="rm-diffs"><sc-for list="{{c.diffs}}" as="d" hint-placeholder-count="1"><span class="rm-diff">{{d.t}}</span></sc-for></span></sc-if></span></button><div class="rm-foot"><span class="rm-when">{{c.from}} · {{c.when}}</span><div class="rm-morewrap"><button type="button" class="rm-more" aria-label="{{c.moreLabel}}" aria-haspopup="menu" aria-expanded="{{c.menuExpanded}}" onClick="{{c.toggleMenu}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg></button><sc-if value="{{c.menuOpen}}" hint-placeholder-val="{{false}}"><div class="hdr-menu rm-cmenu" role="menu" aria-label="{{c.moreLabel}}"><sc-if value="{{c.isArch}}" hint-placeholder-val="{{false}}"><button type="button" role="menuitem" class="hdr-item" onClick="{{c.restore}}"><span class="hdr-label">Restore</span></button></sc-if><sc-if value="{{c.notArch}}" hint-placeholder-val="{{true}}"><button type="button" role="menuitem" class="hdr-item" onClick="{{c.open}}"><span class="hdr-label">Open</span></button><button type="button" role="menuitem" class="hdr-item" onClick="{{c.copy}}"><span class="hdr-label">Copy and change answers</span></button><button type="button" role="menuitem" class="hdr-item" onClick="{{c.rename}}"><span class="hdr-label">Rename</span></button></sc-if><sc-if value="{{c.canArchive}}" hint-placeholder-val="{{true}}"><button type="button" role="menuitem" class="hdr-item" onClick="{{c.archive}}"><span class="hdr-label">Archive</span></button></sc-if><sc-if value="{{c.canDelete}}" hint-placeholder-val="{{true}}"><div class="hdr-sep" role="separator"></div><button type="button" role="menuitem" class="hdr-item rm-danger" onClick="{{c.del}}"><span class="hdr-label">Delete</span></button></sc-if></div></sc-if></div></div></li></sc-for></ul></sc-if><sc-if value="{{isTable}}" hint-placeholder-val="{{false}}"><div class="rm-tablewrap"><table class="rm-table"><caption class="rm-sr">Archived roadmaps</caption><thead><tr><th scope="col" aria-sort="{{hName.sortAttr}}"><button type="button" class="{{hName.cls}}" onClick="{{hName.go}}">Roadmap</button></th><th scope="col">Course · city</th><th scope="col">Progress</th><th scope="col">Next</th><th scope="col">Point B</th><th scope="col" aria-sort="{{hOpened.sortAttr}}"><button type="button" class="{{hOpened.cls}}" onClick="{{hOpened.go}}">Last opened</button></th><th scope="col"><span class="rm-sr">More</span></th></tr></thead><tbody><sc-for list="{{archItems}}" as="r" hint-placeholder-count="3"><tr class="{{r.rowCls}}"><th scope="row" class="rm-td-name"><button type="button" class="rm-row-btn" aria-label="{{r.openLabel}}" onClick="{{r.open}}"><span class="rm-glyph" aria-hidden="true"><i></i></span><span class="rm-td-txt"><sc-if value="{{r.isNew}}" hint-placeholder-val="{{false}}"><span class="rm-newtag">New</span></sc-if><span class="rm-td-n">{{r.name}}</span><span class="rm-td-from">{{r.from}}</span><sc-if value="{{r.hasDiffs}}" hint-placeholder-val="{{false}}"><span class="rm-diffs"><sc-for list="{{r.diffs}}" as="d" hint-placeholder-count="1"><span class="rm-diff">{{d.t}}</span></sc-for></span></sc-if></span></button></th><td data-k="Course · city">{{r.line}}</td><td data-k="Progress"><span class="rm-prog is-tight"><span class="rm-prog-bar"><i style="width: {{r.progPct}}"></i></span><span class="rm-prog-t">{{r.prog}}</span></span></td><td data-k="Next">{{r.next}}</td><td data-k="Point B">{{r.pb}}</td><td data-k="Last opened">{{r.when}}</td><td class="rm-td-more"><div class="rm-morewrap"><button type="button" class="rm-more" aria-label="{{r.moreLabel}}" aria-haspopup="menu" aria-expanded="{{r.menuExpanded}}" onClick="{{r.toggleMenu}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg></button><sc-if value="{{r.menuOpen}}" hint-placeholder-val="{{false}}"><div class="hdr-menu rm-cmenu" role="menu" aria-label="{{r.moreLabel}}"><sc-if value="{{r.isArch}}" hint-placeholder-val="{{false}}"><button type="button" role="menuitem" class="hdr-item" onClick="{{r.restore}}"><span class="hdr-label">Restore</span></button></sc-if><sc-if value="{{r.notArch}}" hint-placeholder-val="{{true}}"><button type="button" role="menuitem" class="hdr-item" onClick="{{r.open}}"><span class="hdr-label">Open</span></button><button type="button" role="menuitem" class="hdr-item" onClick="{{r.copy}}"><span class="hdr-label">Copy and change answers</span></button><button type="button" role="menuitem" class="hdr-item" onClick="{{r.rename}}"><span class="hdr-label">Rename</span></button></sc-if><sc-if value="{{r.canArchive}}" hint-placeholder-val="{{true}}"><button type="button" role="menuitem" class="hdr-item" onClick="{{r.archive}}"><span class="hdr-label">Archive</span></button></sc-if><sc-if value="{{r.canDelete}}" hint-placeholder-val="{{true}}"><div class="hdr-sep" role="separator"></div><button type="button" role="menuitem" class="hdr-item rm-danger" onClick="{{r.del}}"><span class="hdr-label">Delete</span></button></sc-if></div></sc-if></div></td></tr></sc-for></tbody></table></div></sc-if></sc-if></section></sc-if>
+<p class="rm-note">Roadmaps are never ranked. Each one shows where one set of answers leads.</p>
 </div>
 </main>
 
@@ -160,7 +117,7 @@ body{margin:0}
 </sc-if>
 
 <sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
-<div class="rb-toast rm-toast" role="status"><span>{{toastText}}</span><sc-if value="{{toastOpen}}" hint-placeholder-val="{{false}}"><button type="button" class="rb-undo" onClick="{{openNewest}}">Open it</button></sc-if><sc-if value="{{toastUndo}}" hint-placeholder-val="{{false}}"><button type="button" class="rb-undo" onClick="{{undoDelete}}">Undo</button></sc-if></div>
+<div class="rb-toast rm-toast" role="status"><span>{{toastText}}</span><sc-if value="{{toastOpen}}" hint-placeholder-val="{{false}}"><button type="button" class="rb-undo" onClick="{{openNewest}}">Open it</button></sc-if><sc-if value="{{toastUndo}}" hint-placeholder-val="{{false}}"><button type="button" class="rb-undo" onClick="{{undoToast}}">Undo</button></sc-if></div>
 </sc-if>
 
 <sc-if value="{{loadOn}}" hint-placeholder-val="{{false}}">
@@ -182,55 +139,46 @@ body{margin:0}
 </div>
 
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark","auto"],"default":"light"},"onTheme":{"editor":null},"state":{"editor":"enum","options":["live","first","new","menu","rename","delete","loading","slow","error","ready"],"default":"live"},"arrive":{"editor":"boolean","default":false},"kind":{"editor":"enum","options":["new","first"],"default":"new"},"motion":{"editor":"boolean","default":true},"$preview":{"width":1440,"height":900}}'>
-// Your roadmaps (/roadmaps) — every roadmap she has made, last opened first. Never ranked.
-// A roadmap = one set of answers and the choices she made on its board (swaps, courses put on it).
-// Open one: its board (RoadB) with "Your roadmaps" in the header to come back.
-// New roadmap: copy one and change some answers (its board opens as a draft, the answers panel ready),
-// or start from scratch (onboarding from question 00). Creating runs the full-screen loader, then lands here
-// with the new card marked New. First time (from "You're all set"): the loader, then this page with one card.
-// All figures are mock.
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark","auto"],"default":"light"},"onTheme":{"editor":null},"state":{"editor":"enum","options":["live","first","new","menu","rename","delete","loading","slow","error","ready"],"default":"live"},"arrive":{"editor":"boolean","default":false},"kind":{"editor":"enum","options":["new","first"],"default":"new"},"bigCards":{"editor":"boolean","default":false},"view":{"editor":"enum","options":["","cards","table"],"default":""},"motion":{"editor":"boolean","default":true},"$preview":{"width":1440,"height":900}}'>
+// Your roadmaps (/roadmaps): every roadmap she has made, as cards or as a table. Never ranked.
+// Cards: compact rows with a small vertical road glyph (a line ending in a diamond; accent on the one opened last),
+// the name, course · university · city, Point B, chips for changed answers, and where it came from.
+// Table: the same roadmaps as rows (the same glyph in the name cell), sortable by name, date made or last opened (never by "best").
+// (bigCards is a design alternative only: big cards with key facts. Not part of this build.)
+// Open: the whole card or row opens that roadmap's board. New roadmap: copy one and change some answers,
+// or start from scratch. Creating runs the full-screen loader, then the new one is first, marked New.
+// Archive folds a roadmap away (restorable); Delete removes it, with Undo. All figures are mock.
 const BASE_RMS = [
-  { id: 'perth', name: 'Cyber Security in Perth', line: 'Master’s · ECU · Perth', pb: 'Permanent residency · 2032', from: 'From onboarding', diffs: [], when: 'Opened today', scene: 'course', place: 'Australia · Perth', here: 3 },
-  { id: 'budget', name: 'On a AUD 30k budget', line: 'Master’s · ECU · Perth · a stretch on budget', pb: 'Permanent residency · 2032', from: 'Copy of Cyber Security in Perth', diffs: ['Budget: AUD 30k'], when: 'Opened yesterday', scene: 'budget-saved', place: 'Australia · Perth', here: 3 },
-  { id: 'ds', name: 'Data Science instead', line: 'Master’s · UWA · Perth', pb: 'Permanent residency · 2032', from: 'Copy of Cyber Security in Perth', diffs: ['Course: Data Science, swapped on its board'], when: 'Opened 3 days ago', scene: 'swapped', place: 'Australia · Perth', here: 3 }
+  { id: 'perth', name: 'Cyber Security in Perth', course: 'Cyber Security', uni: 'ECU', city: 'Perth', walked: 4, steps: 9, next: 'Student visa', nextWhen: 'late 2026', end: 'Permanent residency', endY: 2032, scene: 'course', from: 'From onboarding', diffs: [], made: 4, opened: 0 },
+  { id: 'budget', name: 'On a AUD 24k budget', course: 'Cyber Security', uni: 'UniSA', city: 'Adelaide', walked: 3, steps: 9, next: 'Pick a course in Adelaide', nextWhen: '', end: '191 · permanent', endY: 2034, scene: 'cost', from: 'Copy of Cyber Security in Perth', diffs: ['Budget: AUD 24k'], made: 3, opened: 1 },
+  { id: 'ds', name: 'Data Science instead', course: 'Data Science', uni: 'UWA', city: 'Perth', walked: 4, steps: 9, next: 'Student visa', nextWhen: 'late 2026', end: 'Permanent residency', endY: 2032, scene: 'swapped', from: 'Copy of Cyber Security in Perth', diffs: ['Course: Data Science'], made: 2, opened: 3 },
+  { id: 'syd', name: 'Sydney, career first', course: 'Cyber Security', uni: 'UTS', city: 'Sydney', walked: 3, steps: 8, next: 'Pick a course in Sydney', nextWhen: '', end: 'Employer sponsorship', endY: 2031, scene: 'career', from: 'Copy of Cyber Security in Perth', diffs: ['Kind of place: big city', 'Career-focused'], made: 1, opened: 14, archived: true }
 ];
+const OPENED = (d) => d === 0 ? 'Today' : d === 1 ? 'Yesterday' : d < 7 ? d + ' days ago' : Math.round(d / 7) + (Math.round(d / 7) === 1 ? ' week ago' : ' weeks ago');
+const SORTS = [['opened', 'Last opened'], ['made', 'Date made'], ['name', 'Name']];
 const STEPS_FIRST = ['Reading your answers', 'Drawing your first roadmap', 'Opening your roadmaps'];
 const STEPS_NEW = ['Reading your answers', 'Drawing your new roadmap', 'Adding it to your roadmaps'];
 const LT = { L1: 1300, L2: 2800, L3: 3900, FADE: 450 };
 const LFRAME = { loading: 2000, slow: 2000, error: 2000 };
-// a small drawing of the road for each card: tiles on a diagonal, walked ones lit
-const tilePts = (cx, cy) => {
-  const w = 17, h = 8.5, d = 5;
-  const T = [cx, cy - h], R = [cx + w, cy], B = [cx, cy + h], L = [cx - w, cy];
-  const p = (a) => a.map(v => v[0].toFixed(1) + ',' + v[1].toFixed(1)).join(' ');
-  return { t: p([T, R, B, L]), l: p([L, B, [B[0], B[1] + d], [L[0], L[1] + d]]), r: p([B, R, [R[0], R[1] + d], [B[0], B[1] + d]]) };
-};
-const thumb = (here, alt) => {
-  const pts = [0, 1, 2, 3, 4, 5, 6].map(i => [46 + i * 32, 42 + i * 13]);
-  const tiles = pts.map((c, i) => Object.assign({ cls: 'rd-tile ' + (i <= here ? 's-lit' : i === here + 1 ? 's-next' : 's-fog') }, tilePts(c[0], c[1])));
-  if (alt) { const a = tilePts(pts[here][0] + 30, pts[here][1] - 26); tiles.splice(here, 0, Object.assign({ cls: 'rd-tile s-alt' }, a)); }
-  return { tiles, roadD: 'M' + pts.map(c => c[0] + ' ' + c[1]).join(' L'), duckX: ((pts[here][0] - 9) / 260 * 100).toFixed(1), duckY: ((pts[here][1] - 26) / 132 * 100).toFixed(1) };
-};
-
 class Component extends DCLogic {
   constructor(props) {
     super(props);
     const st = props.state || 'live';
-    let list = BASE_RMS.slice();
     const firstKind = props.arrive || props.kind === 'first';
+    let list = BASE_RMS.map(r => Object.assign({}, r));
     if (st === 'first' || firstKind) list = [Object.assign({}, BASE_RMS[0], { isNew: true })];
     this.seq = 0;
     if (st === 'ready') list = [this.made(BASE_RMS[0], ['Budget: AUD 24k', 'English test: IELTS 7.5 or more'])].concat(list);
-    this.seq = 0;
+    let view = props.view === 'table' ? 'table' : 'cards';
+    try { const v = window.localStorage.getItem('ofc.roadmaps.view'); if (!props.view && (v === 'table' || v === 'cards')) view = v; } catch (e) {}
     this.state = {
-      list, view: 'list', openId: null, dlg: st === 'new' ? 'new' : st === 'delete' ? 'del' : st === 'rename' ? 'ren' : null,
+      list, view: 'list', mode: view, sort: 'opened', openId: null,
+      dlg: st === 'new' ? 'new' : st === 'delete' ? 'del' : st === 'rename' ? 'ren' : null,
       choice: 'copy', fromId: 'perth', menuFor: st === 'menu' ? 'budget' : null, delFor: st === 'delete' ? 'ds' : null, renFor: null, renameVal: '',
-      toast: st === 'ready' ? 'ready' : null, newest: st === 'ready' ? list[0].id : null, removed: null,
+      showArchived: st === 'archived', toast: st === 'ready' ? 'ready' : null, removed: null,
       t: LFRAME[st] ?? (props.arrive ? 0 : null), kind: firstKind ? 'first' : 'new', loadErr: st === 'error',
       first: st === 'first' || firstKind, draftFrom: null, away: null, status: ''
     };
-    this.seq = 0;
   }
   componentDidMount() { this.watchOS(); if (this.props.arrive) this.play('first'); }
   componentWillUnmount() { this.unwatchOS(); if (this.raf) cancelAnimationFrame(this.raf); }
@@ -275,11 +223,12 @@ class Component extends DCLogic {
     };
   }
   reduced() { try { return !(this.props.motion ?? true) || window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
-  // a new roadmap from another one, with what is different from it
+  // a copy, with what is different from the roadmap it came from (mock)
   made(src, diffs) {
     this.seq += 1;
-    return Object.assign({}, src, { id: 'new' + this.seq, name: 'Copy of ' + src.name, from: 'Copy of ' + src.name, diffs, when: 'Made just now', isNew: true,
-      scene: diffs.some(d => /^Budget: AUD (24|30)k|^Budget: Not sure/.test(d)) ? 'budget-saved' : src.scene });
+    const budget = diffs.some(d => /^Budget/.test(d));
+    return Object.assign({}, src, { id: 'new' + this.seq, name: 'Copy of ' + src.name, from: 'Copy of ' + src.name, diffs, made: -1, opened: -1, isNew: true, archived: false,
+      walked: budget ? 3 : src.walked, next: budget ? 'Pick a city that fits AUD 24k' : src.next, nextWhen: budget ? '' : src.nextWhen, scene: budget ? 'budget-saved' : src.scene });
   }
   play(kind) {
     if (this.raf) cancelAnimationFrame(this.raf);
@@ -300,33 +249,51 @@ class Component extends DCLogic {
   }
   open(id) {
     const r = this.state.list.find(x => x.id === id); if (!r) return;
-    const list = this.state.list.map(x => x.id === id ? Object.assign({}, x, { when: 'Opened today', isNew: false }) : x);
-    // last opened first
-    list.sort((a, b) => (a.id === id ? -1 : b.id === id ? 1 : 0));
+    const list = this.state.list.map(x => x.id === id ? Object.assign({}, x, { opened: -1, isNew: false }) : x);
     // the first time a roadmap opens, its board shows the map key
     this.setState({ list, view: 'board', openId: id, boardKey: !!r.isNew, menuFor: null, toast: null, first: false, status: 'Opened ' + r.name });
+  }
+  setMode(m) { try { window.localStorage.setItem('ofc.roadmaps.view', m); } catch (e) {} this.setState({ mode: m, menuFor: null, status: m === 'table' ? 'Table view' : 'Card view' }); }
+  setArchived(id, on) {
+    const r = this.state.list.find(x => x.id === id); if (!r) return;
+    this.setState({ list: this.state.list.map(x => x.id === id ? Object.assign({}, x, { archived: on, isNew: false }) : x), menuFor: null, toast: on ? 'archived' : 'restored', undoArch: on ? id : null, status: on ? 'Archived ' + r.name : 'Restored ' + r.name });
   }
   renderVals() {
     const s = this.state;
     const motion = this.props.motion ?? true;
     const mv = this.menuVals(() => this.setState({ away: 'login', status: 'Signed out' }));
     const tv = this.themeVals();
-    const one = s.list.length === 1;
-    const cards = s.list.map((r, i) => {
-      const th = thumb(r.here, r.scene === 'swapped');
+    const by = { opened: (a, b) => a.opened - b.opened, made: (a, b) => a.made - b.made, name: (a, b) => a.name.localeCompare(b.name) }[s.sort];
+    const active = s.list.filter(r => !r.archived).slice().sort(by), archived = s.list.filter(r => r.archived).slice().sort(by);
+    const one = active.length === 1;
+    // the one she opened last is marked (accent edge and road)
+    const lastId = (s.list.filter(x => !x.archived).slice().sort((a, b) => a.opened - b.opened)[0] || {}).id;
+    const item = (r) => {
       const menuOpen = s.menuFor === r.id;
-      return Object.assign({
-        name: r.name, line: r.line, pb: r.pb, from: r.from, when: r.when, place: r.place, isNew: !!r.isNew,
-        hasDiffs: r.diffs.length > 0, diffs: r.diffs.map(t => ({ t })),
-        cls: 'rm-card' + (r.isNew ? ' is-new' : '') + (menuOpen ? ' has-menu' : ''),
-        moreLabel: 'More for ' + r.name, menuOpen, menuExpanded: menuOpen ? 'true' : 'false', canDelete: !one,
-        open: () => this.open(r.id),
+      return {
+        name: r.name, line: r.course + ' · ' + r.uni + ' · ' + r.city, courseName: r.course, uni: r.uni,
+        hereWord: r.walked >= 4 ? 'At the course' : 'Choosing a course', pbShort: (r.end === 'Permanent residency' ? 'PR' : r.end) + ' · ' + r.endY, course: r.course + ' · ' + r.uni, city: r.city,
+        pb: r.end + ' · ' + r.endY, end: r.end, endY: String(r.endY),
+        next: r.next + (r.nextWhen ? ' · ' + r.nextWhen : ''), hasNext: !!r.next,
+        prog: r.walked + ' of ' + r.steps + ' steps walked', progPct: Math.round(r.walked / r.steps * 100) + '%', progVal: String(r.walked), progMax: String(r.steps),
+        from: r.from, when: r.opened < 0 ? 'Just now' : OPENED(r.opened), isNew: !!r.isNew,
+        hasDiffs: r.diffs.length > 0, diffs: r.diffs.map(t => ({ t })), diffsText: r.diffs.length ? r.diffs.join(' · ') : '—',
+        cls: 'rm-card' + (r.isNew ? ' is-new' : '') + (menuOpen ? ' has-menu' : '') + (r.archived ? ' is-arch' : ''),
+        cardCls: 'rm-row' + (r.id === lastId && !r.archived ? ' is-on' : '') + (r.isNew ? ' is-new' : '') + (menuOpen ? ' has-menu' : '') + (r.archived ? ' is-arch' : ''),
+        rowCls: 'rm-tr' + (r.id === lastId && !r.archived ? ' is-on' : '') + (r.isNew ? ' is-new' : '') + (menuOpen ? ' has-menu' : '') + (r.archived ? ' is-arch' : ''),
+        moreLabel: 'More for ' + r.name, menuOpen, menuExpanded: menuOpen ? 'true' : 'false',
+        canDelete: r.archived || !one, canArchive: !r.archived && !one, isArch: !!r.archived, notArch: !r.archived,
+        openLabel: r.archived ? 'Restore ' + r.name : 'Open ' + r.name,
+        open: () => r.archived ? this.setArchived(r.id, false) : this.open(r.id),
         toggleMenu: () => this.setState({ menuFor: menuOpen ? null : r.id }),
         copy: () => this.setState({ menuFor: null, view: 'draft', draftFrom: r.id, status: 'New roadmap, a copy of ' + r.name }),
         rename: () => this.setState({ menuFor: null, dlg: 'ren', renFor: r.id, renameVal: r.name }),
+        archive: () => this.setArchived(r.id, true), restore: () => this.setArchived(r.id, false),
         del: () => this.setState({ menuFor: null, dlg: 'del', delFor: r.id })
-      }, th);
-    });
+      };
+    };
+    const head = (key, label) => ({ label, key, on: s.sort === key, sortAttr: s.sort === key ? (key === 'name' ? 'ascending' : key === 'opened' ? 'ascending' : 'ascending') : 'none', cls: 'rm-th-btn' + (s.sort === key ? ' is-on' : ''), go: () => this.setState({ sort: key, status: 'Sorted by ' + label.toLowerCase() }) });
+    // ── the loader ──
     const steps = s.kind === 'first' ? STEPS_FIRST : STEPS_NEW;
     const at = s.t, loading = at != null;
     const stepAt = [LT.L1, LT.L2, LT.L3];
@@ -337,47 +304,56 @@ class Component extends DCLogic {
       const now = loading && !done && (i === 0 || at >= stepAt[i - 1]) && !(failed && i > 1);
       return { t, cls: 'rb-ls' + (bad ? ' is-bad' : done ? ' is-done' : now ? ' is-now' : ' is-next'), isDone: done && !bad, isBad: bad };
     });
-    const from = s.list.find(x => x.id === s.fromId) || s.list[0];
+    const from = active.find(x => x.id === s.fromId) || active[0];
     const opened = s.list.find(x => x.id === s.openId);
     const draftSrc = s.list.find(x => x.id === s.draftFrom);
     const delR = s.list.find(x => x.id === s.delFor);
     const close = () => this.setState({ dlg: null });
-    const toastText = s.toast === 'ready' ? 'Your new roadmap is ready.' : s.toast === 'deleted' ? 'Roadmap deleted.' : s.toast === 'scratch' ? 'In the product, this opens onboarding at question 00, your character.' : s.toast === 'renamed' ? 'Renamed.' : '';
+    const TOAST = { ready: 'Your new roadmap is ready.', deleted: 'Roadmap deleted.', archived: 'Archived. Restore it any time from Archived.', restored: 'Restored.', scratch: 'In the product, this opens onboarding at question 00, your character.', renamed: 'Renamed.' };
+    const cards = s.mode === 'cards';
     return {
       menuOpen: mv.menuOpen, menuExpanded: mv.menuExpanded, toggleMenu: mv.toggleMenu, closeMenu: mv.closeMenu, menuKey: mv.menuKey, menuBtnRef: mv.menuBtnRef, firstItemRef: mv.firstItemRef, menuSignOut: mv.menuSignOut,
       themeAttr: tv.themeAttr, themePref: tv.themePref, setTheme: tv.setTheme, showMoon: tv.showMoon, showSun: tv.showSun, darkChecked: tv.darkChecked, toggleLabel: tv.toggleLabel, toggleTheme: tv.toggleTheme,
       menuRoadmaps: () => this.setState({ menuOpen: false }), menuAnswers: () => this.setState({ menuOpen: false }),
-      rootClass: 'rd rm ' + (motion ? 'motion-on' : 'motion-off') + (loading ? ' is-loading-full' : ''),
+      rootClass: 'rd rm ' + (motion ? 'motion-on' : 'motion-off') + (loading ? ' is-loading-full' : '') + ' v-' + s.mode,
       showSelf: !s.away && s.view === 'list', showLogin: s.away === 'login', showBoard: !s.away && s.view === 'board', showDraft: !s.away && s.view === 'draft',
-      backHere: () => this.setState({ away: null, status: '' }), motion,
-      lead: s.first ? 'Your first roadmap is ready. Open it to explore, or make another with different answers.' : 'Each roadmap is one set of answers and the road it draws. Copy one and change a few answers to see another way.',
-      cards,
-      openNew: () => this.setState({ dlg: 'new', choice: 'copy', fromId: s.list[0].id, menuFor: null }),
+      backHere: () => this.setState({ away: null, status: '' }), motion, headRef: (el) => { this.headEl = el; },
+      lead: s.first ? 'Your first roadmap is ready. Open it to explore, or make another with different answers.' : 'Each roadmap is one set of answers and where it leads. Copy one and change a few answers to see another way.',
+      count: active.length + (active.length === 1 ? ' roadmap' : ' roadmaps'),
+      isCards: cards && !this.props.bigCards, isFacts: cards && !!this.props.bigCards, isTable: !cards,
+      cardsOn: cards ? 'true' : 'false', tableOn: cards ? 'false' : 'true', cardsCls: 'rm-seg' + (cards ? ' is-on' : ''), tableCls: 'rm-seg' + (cards ? '' : ' is-on'),
+      showCards: () => this.setMode('cards'), showTable: () => this.setMode('table'),
+      sorts: SORTS.map(([k, l]) => ({ key: k, label: l })), sortVal: s.sort,
+      pickSort: (e) => { const k = e.target.value; const l = (SORTS.find(x => x[0] === k) || SORTS[0])[1]; this.setState({ sort: k, status: 'Sorted by ' + l.toLowerCase() }); },
+      sortLabel: (SORTS.find(x => x[0] === s.sort) || SORTS[0])[1],
+      hName: head('name', 'Name'), hMade: head('made', 'Made'), hOpened: head('opened', 'Last opened'),
+      items: active.map(item), archItems: archived.map(item), hasArch: archived.length > 0, archCount: 'Archived (' + archived.length + ')',
+      archOpen: !!s.showArchived, archExpanded: s.showArchived ? 'true' : 'false', toggleArch: () => this.setState({ showArchived: !s.showArchived }),
+      openNew: () => this.setState({ dlg: 'new', choice: 'copy', fromId: (active[0] || {}).id, menuFor: null }),
       dlgNew: s.dlg === 'new', dlgDel: s.dlg === 'del' && !!delR, dlgRename: s.dlg === 'ren', closeDlg: close,
       dlgKey: (e) => { if (e.key === 'Escape') close(); },
       copyOn: s.choice === 'copy' ? 'true' : 'false', scratchOn: s.choice === 'scratch' ? 'true' : 'false', copyIs: s.choice === 'copy',
       copyCls: 'rm-choice' + (s.choice === 'copy' ? ' is-on' : ''), scratchCls: 'rm-choice' + (s.choice === 'scratch' ? ' is-on' : ''),
       pickCopy: () => this.setState({ choice: 'copy' }), pickScratch: () => this.setState({ choice: 'scratch' }),
-      fromList: s.list.map(r => ({ name: r.name, on: r.id === from.id ? 'true' : 'false', cls: 'rm-fromrow' + (r.id === from.id ? ' is-on' : ''), pick: () => this.setState({ fromId: r.id }) })),
+      fromList: active.map(r => ({ name: r.name, on: from && r.id === from.id ? 'true' : 'false', cls: 'rm-fromrow' + (from && r.id === from.id ? ' is-on' : ''), pick: () => this.setState({ fromId: r.id }) })),
       goNewLabel: s.choice === 'copy' ? 'Copy and change answers' : 'Start the questions',
       goNew: () => s.choice === 'copy' ? this.setState({ dlg: null, view: 'draft', draftFrom: from.id, status: 'New roadmap, a copy of ' + from.name }) : this.setState({ dlg: null, toast: 'scratch' }),
       delTitle: delR ? 'Delete “' + delR.name + '”?' : '',
       doDelete: () => { const i = s.list.findIndex(x => x.id === s.delFor); if (i < 0) return close(); this.setState({ list: s.list.filter(x => x.id !== s.delFor), removed: { r: s.list[i], i }, dlg: null, toast: 'deleted', status: 'Roadmap deleted' }); },
-      undoDelete: () => { const rm = s.removed; if (!rm) return; const list = s.list.slice(); list.splice(rm.i, 0, rm.r); this.setState({ list, removed: null, toast: null, status: 'Restored ' + rm.r.name }); },
+      undoToast: () => { if (s.toast === 'deleted' && s.removed) { const list = s.list.slice(); list.splice(s.removed.i, 0, s.removed.r); return this.setState({ list, removed: null, toast: null, status: 'Restored ' + s.removed.r.name }); } if (s.toast === 'archived' && s.undoArch) { const id = s.undoArch; this.setState({ list: s.list.map(x => x.id === id ? Object.assign({}, x, { archived: false }) : x), undoArch: null, toast: null, status: 'Restored' }); } },
       renameVal: s.renameVal, renameInput: (e) => this.setState({ renameVal: e.target.value }),
       doRename: () => { const v = (s.renameVal || '').trim(); if (!v) return; this.setState({ list: s.list.map(x => x.id === s.renFor ? Object.assign({}, x, { name: v }) : x), dlg: null, toast: 'renamed', status: 'Renamed to ' + v }); },
-      hasToast: !!s.toast && !loading, toastText, toastOpen: s.toast === 'ready', toastUndo: s.toast === 'deleted',
-      openNewest: () => this.open(s.list[0].id),
+      hasToast: !!s.toast && !loading, toastText: TOAST[s.toast] || '', toastOpen: s.toast === 'ready', toastUndo: s.toast === 'deleted' || s.toast === 'archived',
+      openNewest: () => this.open((active.find(r => r.isNew) || active[0]).id),
       // the board of the roadmap she opened, and a new one's draft
-      boardScene: opened ? opened.scene : 'course', boardKey: !!s.boardKey, boardName: opened ? opened.name : '', backToList: () => this.setState({ view: 'list', status: 'Your roadmaps' }),
+      boardScene: opened ? opened.scene : 'course', boardName: opened ? opened.name : '', boardKey: !!s.boardKey, backToList: () => this.setState({ view: 'list', status: 'Your roadmaps' }),
       draftScene: draftSrc ? draftSrc.scene : 'course', draftFrom: draftSrc ? draftSrc.name : '',
-      create: (diffs) => { const nr = this.made(draftSrc || s.list[0], diffs || []); this.setState({ list: [nr].concat(s.list.map(x => Object.assign({}, x, { isNew: false }))), newest: nr.id, draftFrom: null }); this.play('new'); },
+      create: (diffs) => { const nr = this.made(draftSrc || active[0], diffs || []); this.setState({ list: [nr].concat(s.list.map(x => Object.assign({}, x, { isNew: false }))), sort: 'opened', draftFrom: null }); this.play('new'); },
       cancelDraft: () => this.setState({ view: 'list', draftFrom: null, status: 'No new roadmap made' }),
       loadOn: loading, loadOp: (failed ? 1 : 1 - Math.max(0, Math.min(1, (at - LT.L3) / LT.FADE))).toFixed(2), loadSteps,
       loadSlow: slow && !failed, loadErr: failed,
       errText: s.kind === 'first' ? 'We couldn’t draw your roadmap. Your answers are saved.' : 'We couldn’t draw this roadmap. Your answers are saved.',
       retry: () => this.play(s.kind),
-      headRef: (el) => { this.headEl = el; },
       statusText: s.status
     };
   }
