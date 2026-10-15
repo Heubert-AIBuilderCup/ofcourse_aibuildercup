@@ -291,10 +291,22 @@ export async function hasEdgeLine(
 /**
  * How an element paints: the colour most of its pixels have (its fill, under text and icons), and
  * the column colours across its left edge, from 3px outside to 6px inside (where its rule is).
+ *
+ * The screenshot fast-forwards finite animations and transitions to their last frame, so the box
+ * is measured in that frame too: once the element's own have finished (a chosen answer card
+ * presses to 0.96 for 0.4 s, which moves its left edge in by 4px while it runs).
  */
 export async function painted(locator: Locator): Promise<{ fill: Rgba; leftEdge: Rgba[] }> {
   const page = locator.page()
   await expect(locator).toBeVisible()
+  await locator.evaluate((el) =>
+    Promise.all(
+      el
+        .getAnimations({ subtree: true })
+        .filter((a) => a.effect?.getTiming().iterations !== Number.POSITIVE_INFINITY)
+        .map((a) => a.finished),
+    ),
+  )
   const box = await locator.boundingBox()
   if (!box) throw new Error('no box')
   const all = (await pixels(page, box)).flat()

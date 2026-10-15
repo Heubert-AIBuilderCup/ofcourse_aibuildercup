@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { UserPage } from '@/features/admin'
 import {
   reactivateAccount,
+  setCapabilities,
   setRole,
   signOutEverywhere,
   suspendAccount,
@@ -12,6 +13,7 @@ import { requireAdmin } from '@/shared/lib/auth/session'
 
 const actions = {
   setRole,
+  setCapabilities,
   suspendAccount,
   reactivateAccount,
   signOutEverywhere,

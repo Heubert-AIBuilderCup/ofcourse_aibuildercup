@@ -1,8 +1,10 @@
 // The sign-up and sign-in hooks in auth/index.ts: the first account ever is a superadmin, a role
-// waiting on an address applies, anyone else is a user, and no session for a suspended account.
-// Then the two sign-in pages: the student page makes only users and refuses admin accounts, the
-// admin page makes only the first account or an invited one and refuses users; and the email
-// codes, with their 30-second resend guard, their five tries and their ten minutes.
+// and the content capabilities waiting on an address apply, anyone else is a user, and no session
+// for a suspended account.
+// Then the two sign-in pages: the student page makes only users and refuses staff accounts (an
+// admin, a superadmin, an editor or a reviewer), the admin page makes only the first account or an
+// invited one and refuses students; and the email codes, with their 30-second resend guard, their
+// five tries and their ten minutes.
 // Each account case goes through Better Auth's own internal adapter, as Google and the dev sign-in
 // do, so the hooks run exactly as they do there; the code cases go through the server API, so the
 // hooks see the code paths.
@@ -25,6 +27,18 @@ mock.module('server-only', () => ({}))
 const enabled = process.env.DB_TESTS === '1'
 const DOMAIN = 'hooks.e2e.test'
 const at = (local: string) => `${local}@${DOMAIN}`
+
+// What a call that should be refused threw, or null when it went through. Bun 1.3's
+// `expect(…).rejects` never settles on a sign-up refused inside the adapter's transaction, so the
+// file hangs; awaiting the promise in a try/catch does settle (the content DB tests do the same).
+async function failureOf(work: PromiseLike<unknown>): Promise<unknown> {
+  try {
+    await work
+    return null
+  } catch (error) {
+    return error
+  }
+}
 
 let db: typeof import('@/shared/lib/db').db
 
@@ -101,6 +115,12 @@ describe.skipIf(!enabled)('sign-up and sign-in hooks against the database', () =
   const waitWithRole = (email: string, role: 'admin' | 'superadmin') =>
     db.insert(schema.roleInvite).values({ email, role })
 
+  // What a superadmin can leave waiting: a role, the capabilities, or both (ADR-108).
+  const waitWith = (
+    email: string,
+    invite: { role: 'admin' | 'superadmin' | null; editor?: boolean; reviewer?: boolean },
+  ) => db.insert(schema.roleInvite).values({ email, ...invite })
+
   // Make sure this is not the first account ever.
   async function notFirst() {
     if (!(await hasAccounts())) await signUp(at('someone'))
@@ -141,6 +161,19 @@ describe.skipIf(!enabled)('sign-up and sign-in hooks against the database', () =
       .from(schema.user)
       .where(eq(schema.user.email, email))
     return row?.role
+  }
+
+  // The role and the two capabilities stored for an account.
+  async function accessOf(email: string) {
+    const [row] = await db
+      .select({
+        role: schema.user.role,
+        editor: schema.user.editor,
+        reviewer: schema.user.reviewer,
+      })
+      .from(schema.user)
+      .where(eq(schema.user.email, email))
+    return row
   }
 
   async function isWaiting(email: string): Promise<boolean> {
@@ -219,6 +252,26 @@ describe.skipIf(!enabled)('sign-up and sign-in hooks against the database', () =
     expect(await isWaiting(at('case'))).toBe(false)
   })
 
+  test('capabilities waiting without a role make a user who edits and reviews', async () => {
+    if (!(await hasAccounts())) await signUp(at('someone'))
+    await waitWith(at('caps'), { role: null, editor: true, reviewer: true })
+    await signUp(at('caps'))
+    expect(await accessOf(at('caps'))).toEqual({ role: 'user', editor: true, reviewer: true })
+    expect(await isWaiting(at('caps'))).toBe(false)
+  })
+
+  test('a role and a capability waiting together both apply', async () => {
+    if (!(await hasAccounts())) await signUp(at('someone'))
+    await waitWith(at('admin-reviewer'), { role: 'admin', reviewer: true })
+    await signUp(at('admin-reviewer'))
+    expect(await accessOf(at('admin-reviewer'))).toEqual({
+      role: 'admin',
+      editor: false,
+      reviewer: true,
+    })
+    expect(await isWaiting(at('admin-reviewer'))).toBe(false)
+  })
+
   test('with no waiting role, a later account is a user', async () => {
     await signUp(at('user'))
     expect(await roleOf(at('user'))).toBe('user')
@@ -231,7 +284,7 @@ describe.skipIf(!enabled)('sign-up and sign-in hooks against the database', () =
       .set({ suspendedAt: new Date(), suspendReason: 'Hooks test' })
       .where(eq(schema.user.id, user.id))
     const ctx = await auth.$context
-    await expect(ctx.internalAdapter.createSession(user.id, false)).rejects.toMatchObject({
+    expect(await failureOf(ctx.internalAdapter.createSession(user.id, false))).toMatchObject({
       body: { code: 'ACCOUNT_SUSPENDED' },
     })
     expect(await sessionsOf(user.id)).toBe(0)
@@ -254,7 +307,7 @@ describe.skipIf(!enabled)('sign-up and sign-in hooks against the database', () =
 
   test('the student page refuses an address an admin role waits for, and keeps the role', async () => {
     await waitWithRole(at('stu-invited'), 'admin')
-    await expect(signUpOn('student', at('stu-invited'))).rejects.toMatchObject({
+    expect(await failureOf(signUpOn('student', at('stu-invited')))).toMatchObject({
       body: { code: 'STUDENT_PAGE_ONLY' },
     })
     expect(await roleOf(at('stu-invited'))).toBeUndefined()
@@ -263,7 +316,7 @@ describe.skipIf(!enabled)('sign-up and sign-in hooks against the database', () =
 
   test('the admin page refuses an address with no account and no waiting role', async () => {
     await notFirst()
-    await expect(signUpOn('admin', at('adm-nobody'))).rejects.toMatchObject({
+    expect(await failureOf(signUpOn('admin', at('adm-nobody')))).toMatchObject({
       body: { code: 'NOT_ADMIN' },
     })
     expect(await roleOf(at('adm-nobody'))).toBeUndefined()
@@ -281,7 +334,7 @@ describe.skipIf(!enabled)('sign-up and sign-in hooks against the database', () =
     await notFirst()
     await waitWithRole(at('sess-admin'), 'admin')
     const admin = await signUp(at('sess-admin'))
-    await expect(sessionOn('student', admin.id)).rejects.toMatchObject({
+    expect(await failureOf(sessionOn('student', admin.id))).toMatchObject({
       body: { code: 'STUDENT_PAGE_ONLY' },
     })
     expect(await sessionsOf(admin.id)).toBe(0)
@@ -290,7 +343,7 @@ describe.skipIf(!enabled)('sign-up and sign-in hooks against the database', () =
   test('the admin page opens no session for a user account and leaves it unchanged', async () => {
     await notFirst()
     const user = await signUp(at('sess-user'))
-    await expect(sessionOn('admin', user.id)).rejects.toMatchObject({
+    expect(await failureOf(sessionOn('admin', user.id))).toMatchObject({
       body: { code: 'NOT_ADMIN' },
     })
     expect(await sessionsOf(user.id)).toBe(0)
@@ -308,6 +361,41 @@ describe.skipIf(!enabled)('sign-up and sign-in hooks against the database', () =
     expect(await sessionsOf(admin.id)).toBe(1)
   })
 
+  // ── The two sign-in pages and the content capabilities (ADR-108) ──────────────────────────
+
+  test('the admin page makes a user who edits of an address only a capability waits for', async () => {
+    await notFirst()
+    await waitWith(at('adm-editor'), { role: null, editor: true })
+    await signUpOn('admin', at('adm-editor'))
+    expect(await accessOf(at('adm-editor'))).toEqual({
+      role: 'user',
+      editor: true,
+      reviewer: false,
+    })
+    expect(await isWaiting(at('adm-editor'))).toBe(false)
+  })
+
+  test('the student page refuses an address a capability waits for, and keeps it waiting', async () => {
+    await waitWith(at('stu-reviewer'), { role: null, reviewer: true })
+    expect(await failureOf(signUpOn('student', at('stu-reviewer')))).toMatchObject({
+      body: { code: 'STUDENT_PAGE_ONLY' },
+    })
+    expect(await roleOf(at('stu-reviewer'))).toBeUndefined()
+    expect(await isWaiting(at('stu-reviewer'))).toBe(true)
+  })
+
+  test('a user with a capability gets a session on the admin page and none on the student page', async () => {
+    await notFirst()
+    await waitWith(at('sess-editor'), { role: null, editor: true })
+    const editor = await signUp(at('sess-editor'))
+    expect(await failureOf(sessionOn('student', editor.id))).toMatchObject({
+      body: { code: 'STUDENT_PAGE_ONLY' },
+    })
+    expect(await sessionsOf(editor.id)).toBe(0)
+    await sessionOn('admin', editor.id)
+    expect(await sessionsOf(editor.id)).toBe(1)
+  })
+
   // ── Email codes, through the server API ───────────────────────────────────────────────────
 
   test('a six-digit code signs a new address in as a user', async () => {
@@ -322,7 +410,7 @@ describe.skipIf(!enabled)('sign-up and sign-in hooks against the database', () =
 
   test('a second code within 30 seconds is refused', async () => {
     await sendCode(at('again'))
-    await expect(sendCode(at('again'))).rejects.toMatchObject({
+    expect(await failureOf(sendCode(at('again')))).toMatchObject({
       body: { code: 'CODE_RECENTLY_SENT' },
     })
   })
@@ -336,7 +424,7 @@ describe.skipIf(!enabled)('sign-up and sign-in hooks against the database', () =
     // The new code repeats the old digits one time in a million; only then is there nothing to
     // refuse.
     if (latest !== previous) {
-      await expect(signInWithCode(at('resend'), previous)).rejects.toMatchObject({
+      expect(await failureOf(signInWithCode(at('resend'), previous))).toMatchObject({
         body: { code: 'INVALID_OTP' },
       })
     }
@@ -349,11 +437,11 @@ describe.skipIf(!enabled)('sign-up and sign-in hooks against the database', () =
     const code = await codeFor(at('tries'))
     const wrong = code === '000000' ? '111111' : '000000'
     for (let attempt = 1; attempt <= 5; attempt++) {
-      await expect(signInWithCode(at('tries'), wrong)).rejects.toMatchObject({
+      expect(await failureOf(signInWithCode(at('tries'), wrong))).toMatchObject({
         body: { code: 'INVALID_OTP' },
       })
     }
-    await expect(signInWithCode(at('tries'), code)).rejects.toMatchObject({
+    expect(await failureOf(signInWithCode(at('tries'), code))).toMatchObject({
       body: { code: 'TOO_MANY_ATTEMPTS' },
     })
     expect(await roleOf(at('tries'))).toBeUndefined()
@@ -366,7 +454,7 @@ describe.skipIf(!enabled)('sign-up and sign-in hooks against the database', () =
     expect(left).toBeGreaterThan(590)
     expect(left).toBeLessThanOrEqual(600)
     await shiftCodeExpiry(at('expired'), -601)
-    await expect(signInWithCode(at('expired'), code)).rejects.toMatchObject({
+    expect(await failureOf(signInWithCode(at('expired'), code))).toMatchObject({
       body: { code: 'OTP_EXPIRED' },
     })
     expect(await roleOf(at('expired'))).toBeUndefined()
@@ -377,18 +465,18 @@ describe.skipIf(!enabled)('sign-up and sign-in hooks against the database', () =
     await waitWithRole(at('code-admin'), 'admin')
     const admin = await signUp(at('code-admin'))
     await sendCode(at('code-admin'))
-    await expect(
-      signInWithCode(at('code-admin'), await codeFor(at('code-admin'))),
-    ).rejects.toMatchObject({ body: { code: 'STUDENT_PAGE_ONLY' } })
+    expect(
+      await failureOf(signInWithCode(at('code-admin'), await codeFor(at('code-admin')))),
+    ).toMatchObject({ body: { code: 'STUDENT_PAGE_ONLY' } })
     expect(await sessionsOf(admin.id)).toBe(0)
   })
 
   test('an address an admin role waits for cannot sign up with a code', async () => {
     await waitWithRole(at('code-invited'), 'admin')
     await sendCode(at('code-invited'))
-    await expect(
-      signInWithCode(at('code-invited'), await codeFor(at('code-invited'))),
-    ).rejects.toMatchObject({ body: { code: 'STUDENT_PAGE_ONLY' } })
+    expect(
+      await failureOf(signInWithCode(at('code-invited'), await codeFor(at('code-invited')))),
+    ).toMatchObject({ body: { code: 'STUDENT_PAGE_ONLY' } })
     expect(await roleOf(at('code-invited'))).toBeUndefined()
     expect(await isWaiting(at('code-invited'))).toBe(true)
   })
@@ -398,25 +486,29 @@ describe.skipIf(!enabled)('sign-up and sign-in hooks against the database', () =
     await signUp(email)
     const refused = { body: { code: 'EMAIL_CODE_SIGN_IN_ONLY' } }
     for (const type of ['forget-password', 'email-verification', 'change-email'] as const) {
-      await expect(auth.api.sendVerificationOTP({ body: { email, type } })).rejects.toMatchObject(
-        refused,
-      )
+      expect(
+        await failureOf(auth.api.sendVerificationOTP({ body: { email, type } })),
+      ).toMatchObject(refused)
     }
-    await expect(auth.api.forgetPasswordEmailOTP({ body: { email } })).rejects.toMatchObject(
+    expect(await failureOf(auth.api.forgetPasswordEmailOTP({ body: { email } }))).toMatchObject(
       refused,
     )
-    await expect(auth.api.requestPasswordResetEmailOTP({ body: { email } })).rejects.toMatchObject(
-      refused,
-    )
-    await expect(
-      auth.api.checkVerificationOTP({ body: { email, type: 'sign-in', otp: '123456' } }),
-    ).rejects.toMatchObject(refused)
-    await expect(auth.api.verifyEmailOTP({ body: { email, otp: '123456' } })).rejects.toMatchObject(
-      refused,
-    )
-    await expect(
-      auth.api.resetPasswordEmailOTP({ body: { email, otp: '123456', password: 'not-used-1' } }),
-    ).rejects.toMatchObject(refused)
+    expect(
+      await failureOf(auth.api.requestPasswordResetEmailOTP({ body: { email } })),
+    ).toMatchObject(refused)
+    expect(
+      await failureOf(
+        auth.api.checkVerificationOTP({ body: { email, type: 'sign-in', otp: '123456' } }),
+      ),
+    ).toMatchObject(refused)
+    expect(
+      await failureOf(auth.api.verifyEmailOTP({ body: { email, otp: '123456' } })),
+    ).toMatchObject(refused)
+    expect(
+      await failureOf(
+        auth.api.resetPasswordEmailOTP({ body: { email, otp: '123456', password: 'not-used-1' } }),
+      ),
+    ).toMatchObject(refused)
     const codes = await db
       .select({ id: schema.verification.id })
       .from(schema.verification)

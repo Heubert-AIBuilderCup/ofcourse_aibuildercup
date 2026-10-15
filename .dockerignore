@@ -1,0 +1,19 @@
+# Kept out of the image's build context. No secret reaches the image: .env* stays here, and
+# Cloud Run passes every secret as an environment variable at run time.
+.env*
+node_modules
+.next
+.git
+test-results
+playwright-report
+reports
+research_notes
+.heubert
+.claude
+.agent
+.agents
+.playwright-mcp
+.vercel
+coverage
+*.pem
+*.tsbuildinfo

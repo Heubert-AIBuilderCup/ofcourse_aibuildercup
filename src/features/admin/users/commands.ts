@@ -7,6 +7,7 @@ import {
   accountActionError,
   canManageRoles,
   canUseAdmin,
+  contentRolesError,
   INVITE_ROLES,
   type InviteRole,
   isRole,
@@ -123,8 +124,10 @@ async function guardedUpdate(
 
 // ── Roles ───────────────────────────────────────────────────────────────────────────────────
 
-/** Change a role (superadmins only) and end every session, so the new role applies at once. */
-export async function setRoleAs(actor: Actor, userId: string, role: string): Promise<ActionResult> {
+type RoleChange = { ok: true; current: Role; role: Role } | { ok: false; error: string }
+
+/** The access.ts rule for changing the account's role to `role`, its current role read fresh. */
+async function checkRoleChange(actor: Actor, userId: string, role: string): Promise<RoleChange> {
   // Refused before anything is read: roleChangeError would refuse it too, once it had the target.
   if (!canManageRoles(actor.role)) return fail(ACCESS_ERRORS.rolesSuperadminOnly)
   const [current, activeSuperadmins] = await Promise.all([roleOf(userId), countActiveSuperadmins()])
@@ -139,23 +142,69 @@ export async function setRoleAs(actor: Actor, userId: string, role: string): Pro
   })
   if (error) return fail(error)
   if (!isRole(role)) return fail(ACCESS_ERRORS.invalidRole)
-  const demotion = current === 'superadmin' && role !== 'superadmin'
+  return { ok: true, current, role }
+}
+
+/** The role update inside a transaction, as long as the role is still the one checked. */
+async function writeRole(tx: Tx, userId: string, change: { current: Role; role: Role }) {
+  const demotion = change.current === 'superadmin' && change.role !== 'superadmin'
+  if (demotion) await lockActiveSuperadmins(tx)
+  const rows = await tx
+    .update(user)
+    .set({ role: change.role, updatedAt: new Date() })
+    .where(and(eq(user.id, userId), eq(user.role, change.current)))
+    .returning({ id: user.id })
+  if (rows.length === 0) throw new Refused(CHANGED)
+  // Re-checked inside the transaction: two demotions racing cannot remove the last superadmin.
+  if (demotion && (await activeSuperadminsIn(tx)) === 0) {
+    throw new Refused(ACCESS_ERRORS.lastSuperadminRole)
+  }
+}
+
+/** Change a role (superadmins only) and end every session, so the new role applies at once. */
+export async function setRoleAs(actor: Actor, userId: string, role: string): Promise<ActionResult> {
+  const change = await checkRoleChange(actor, userId, role)
+  if (!change.ok) return change
   return attempt('setRole', () =>
     db.transaction(async (tx) => {
-      if (demotion) await lockActiveSuperadmins(tx)
-      const rows = await tx
-        .update(user)
-        .set({ role, updatedAt: new Date() })
-        .where(and(eq(user.id, userId), eq(user.role, current)))
-        .returning({ id: user.id })
-      if (rows.length === 0) throw new Refused(CHANGED)
-      // Re-checked inside the transaction: two demotions racing cannot remove the last superadmin.
-      if (demotion && (await activeSuperadminsIn(tx)) === 0) {
-        throw new Refused(ACCESS_ERRORS.lastSuperadminRole)
-      }
+      await writeRole(tx, userId, change)
       await tx.delete(session).where(eq(session.userId, userId))
     }),
   )
+}
+
+/** The two content capabilities (ADR-108), as stored on an account or a waiting invite. */
+export type Capabilities = { editor: boolean; reviewer: boolean }
+
+const NO_CAPABILITIES: Capabilities = { editor: false, reviewer: false }
+
+/**
+ * Give or remove editor and reviewer (superadmins only), ending every session in the same
+ * transaction so the change applies at once.
+ */
+export async function setCapabilitiesAs(
+  actor: Actor,
+  userId: string,
+  caps: Capabilities,
+): Promise<ActionResult> {
+  const refused = contentRolesError({ actorRole: actor.role })
+  if (refused) return fail(refused)
+  return attempt('setCapabilities', () =>
+    db.transaction(async (tx) => {
+      await writeCapabilities(tx, userId, caps)
+      await tx.delete(session).where(eq(session.userId, userId))
+    }),
+  )
+}
+
+/** The capability update inside a transaction. */
+async function writeCapabilities(tx: Tx, userId: string, caps: Capabilities): Promise<void> {
+  const rows = await tx
+    .update(user)
+    .set({ editor: caps.editor, reviewer: caps.reviewer, updatedAt: new Date() })
+    .where(eq(user.id, userId))
+    .returning({ id: user.id })
+  if (rows.length === 0) throw new Refused(UNKNOWN)
 }
 
 const isInviteRole = (role: string): role is InviteRole =>
@@ -168,40 +217,74 @@ function inviteAddress(email: string): string | null {
   return address
 }
 
+const CAPABILITY_KEYS = ['editor', 'reviewer'] as const satisfies readonly (keyof Capabilities)[]
+
+/** What an invite did: waits for a first sign-in, changed an account, or asks before removing ticks. */
+export type InviteApplied =
+  | { applied: 'invite' | 'account' }
+  | { applied: 'confirm'; removes: (keyof Capabilities)[] }
+
 /**
- * Give an address a role before its first sign-in (superadmins only). An address that already
- * has an account has that account's role changed at once instead, and nothing waits. Nothing is
- * sent to the address: the team tells the person.
+ * Give an address a role, the content capabilities or both before its first sign-in
+ * (superadmins only); `role` is null when only capabilities are given. An address that already
+ * has an account has that account's role (when one is given) and capabilities changed at once
+ * instead, in one transaction, and nothing waits. The form is the truth: a capability the account
+ * holds and the form leaves unticked is removed, but only once `confirmed`; until then nothing
+ * changes and the answer names what would go. Nothing is sent to the address: the team tells the
+ * person.
  */
 export async function addRoleInviteAs(
   actor: Actor,
   email: string,
-  role: string,
-): Promise<ActionResult<{ applied: 'invite' | 'account' }>> {
+  role: string | null,
+  caps: Capabilities = NO_CAPABILITIES,
+  confirmed = false,
+): Promise<ActionResult<InviteApplied>> {
   if (!canManageRoles(actor.role)) return fail(ACCESS_ERRORS.rolesSuperadminOnly)
-  if (!isInviteRole(role)) return fail(ACCESS_ERRORS.invalidRole)
+  if (role !== null && !isInviteRole(role)) return fail(ACCESS_ERRORS.invalidRole)
+  if (role === null && !caps.editor && !caps.reviewer) return fail(ACCESS_ERRORS.invalidRole)
   const address = inviteAddress(email)
   if (!address) return fail(INVALID_EMAIL)
   // Accounts are stored with their email lowercased (Better Auth), so the unique index finds it.
   const [existing] = await db
-    .select({ id: user.id })
+    .select({ id: user.id, editor: user.editor, reviewer: user.reviewer })
     .from(user)
     .where(eq(user.email, address))
     .limit(1)
-  if (existing) {
-    const changed = await setRoleAs(actor, existing.id, role)
-    return changed.ok ? { ok: true, applied: 'account' } : changed
-  }
+  if (existing) return applyToAccount(actor, existing, role, caps, confirmed)
+  const access = { role, editor: caps.editor, reviewer: caps.reviewer }
   const saved = await attempt('addRoleInvite', async () => {
     await db
       .insert(roleInvite)
-      .values({ email: address, role, createdByUserId: actor.id })
+      .values({ email: address, ...access, createdByUserId: actor.id })
       .onConflictDoUpdate({
         target: roleInvite.email,
-        set: { role, createdByUserId: actor.id, createdAt: new Date() },
+        set: { ...access, createdByUserId: actor.id, createdAt: new Date() },
       })
   })
   return saved.ok ? { ok: true, applied: 'invite' } : saved
+}
+
+/** An invite to an address that has an account: its role and capabilities, in one transaction. */
+async function applyToAccount(
+  actor: Actor,
+  account: { id: string } & Capabilities,
+  role: string | null,
+  caps: Capabilities,
+  confirmed: boolean,
+): Promise<ActionResult<InviteApplied>> {
+  const change = role === null ? null : await checkRoleChange(actor, account.id, role)
+  if (change && !change.ok) return change
+  const removes = CAPABILITY_KEYS.filter((c) => account[c] && !caps[c])
+  if (removes.length > 0 && !confirmed) return { ok: true, applied: 'confirm', removes }
+  const saved = await attempt('addRoleInvite', () =>
+    db.transaction(async (tx) => {
+      if (change) await writeRole(tx, account.id, change)
+      await writeCapabilities(tx, account.id, caps)
+      await tx.delete(session).where(eq(session.userId, account.id))
+    }),
+  )
+  return saved.ok ? { ok: true, applied: 'account' } : saved
 }
 
 /** Stop an address waiting with a role (superadmins only); its first sign-in follows the usual rules. */

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "hopeful",
+    "label": "Hopeful",
+    "tone": "Forward-looking and warm: what gets better, and what the reader can do next."
+  },
+  {
+    "id": "calm",
+    "label": "Calm",
+    "tone": "Even and unhurried: plain statements, no alarm, nothing to rush."
+  },
+  {
+    "id": "curious",
+    "label": "Curious",
+    "tone": "Asks before it tells: open questions, a finding framed as worth looking into."
+  },
+  {
+    "id": "reassuring",
+    "label": "Reassuring",
+    "tone": "Steadying: name the worry, then what the facts say about it."
+  },
+  {
+    "id": "urgent",
+    "label": "Urgent",
+    "tone": "Direct and time-aware: what matters now and why it cannot wait, without hype."
+  },
+  {
+    "id": "playful",
+    "label": "Playful",
+    "tone": "Light and friendly: a wink in the wording, never at the facts' expense."
+  }
+]

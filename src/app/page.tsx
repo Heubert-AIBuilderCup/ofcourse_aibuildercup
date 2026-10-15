@@ -6,9 +6,9 @@ import { signedInLanding } from '@/features/opening'
 import { getProfile } from '@/features/opening/server/profile'
 import motion from '@/shared/components/motion.module.css'
 import { ThemeToggle } from '@/shared/components/ThemeToggle'
-import { canUseAdmin } from '@/shared/lib/auth/access'
+import { isStudent } from '@/shared/lib/auth/access'
 import {
-  ADMIN_HOME,
+  adminHome,
   HOME_PATH,
   SIGNIN_MESSAGES,
   SIGNIN_PATH,
@@ -38,7 +38,7 @@ export default async function SignInPage({ searchParams }: PageProps<'/'>) {
   const asked = safeNextPath(first(params.next))
   const askedFor = asked && asked !== SIGNIN_PATH ? asked : null
   if (session) {
-    if (canUseAdmin(session.user.role)) redirect(ADMIN_HOME)
+    if (!isStudent(session.user)) redirect(adminHome(session.user))
     redirect(signedInLanding(await getProfile(session.user.id), askedFor))
   }
   // After Google, the browser returns to /start, which answers where she left off.

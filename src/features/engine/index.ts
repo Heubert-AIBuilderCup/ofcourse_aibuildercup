@@ -13,3 +13,4 @@ export {
   placeLabel,
 } from './catalogue'
 export { minutesBetween, whoOf } from './geo'
+export { DIMENSION_LABELS, DIMENSIONS, type Dimension } from './types'

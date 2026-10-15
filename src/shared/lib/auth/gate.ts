@@ -1,8 +1,8 @@
-// Who may see which page: the pure rules behind src/proxy.ts and the (app) layout.
+// Who may see which page: the pure rules behind src/proxy.ts and the (app) and (feed) layouts.
 // The proxy is an optimistic cookie check; every page and server action still reads the
 // session itself (getSession / requireSession / requireAdmin in ./session).
 
-import { SURFACE_ERRORS } from './access'
+import { canEdit, canReview, isStudent, type Staff, SURFACE_ERRORS } from './access'
 
 /** Public: the sign-in page. Signed in, it moves on to HOME_PATH. */
 export const SIGNIN_PATH = '/'
@@ -16,16 +16,46 @@ export const SIGNIN_ERROR_PATH = '/signin-error'
 /** The code of a sign-in refused because the account is suspended (the session hook in ./index). */
 export const ACCOUNT_SUSPENDED = 'ACCOUNT_SUSPENDED'
 
-/** The admin console, and the admin sign-in page, which sits outside its admin-only layout. */
+/** The admin console, and the admin sign-in page, which sits outside its staff-only layout. */
 export const ADMIN_PATH = '/admin'
 export const ADMIN_SIGNIN_PATH = '/admin/sign-in'
-/** Where an admin lands: the console's first page, so no redirect has to pass through /admin. */
-export const ADMIN_HOME = '/admin/users'
 /** Public: where Better Auth sends a failed admin Google sign-in, appending `?error=<code>`. */
 export const ADMIN_SIGNIN_ERROR_PATH = '/signin-error/admin'
+/** The admin's Board: where editors, reviewers and superadmins land in the admin. */
+export const BOARD_PATH = '/admin/board'
+/** The users admin: where an admin with neither editor nor reviewer lands. */
+export const USERS_PATH = '/admin/users'
 
-/** The student app. Keep in step with the proxy matcher in src/proxy.ts. */
-export const APP_PATHS = ['/start', '/onboarding', '/roadmaps', '/road'] as const
+/** The admin's first page for this account: the Board for anyone who edits or reviews, else Users. */
+export function adminHome(s: Staff): string {
+  return canEdit(s) || canReview(s) ? BOARD_PATH : USERS_PATH
+}
+
+/** The feed, for every signed-in account (ADR-121); its post pages and image route sit under it. */
+export const FEED_PATH = '/feed'
+
+/**
+ * Public: a live post's own page and its images, for anyone, signed in or not (criterion 107,
+ * ADR-131), so the last slide's "search OfCourse <title>" finds it. Never in APP_PATHS; the proxy
+ * only rate-limits it, and the page and its image route show only live posts.
+ */
+export const POSTS_PATH = '/posts'
+
+/** The public post pages' images, counted apart from the pages by the proxy's rate limit. */
+const POST_ASSETS_PATH = `${POSTS_PATH}/assets`
+
+/**
+ * Public: a live blog's own page and its pictures, for anyone, signed in or not (BR9, BR10), so
+ * search engines, AI crawlers and its "search OfCourse <title>" line find it. As POSTS_PATH: never
+ * in APP_PATHS; the proxy only rate-limits it, and the page and its image route show only live blogs.
+ */
+export const BLOG_PATH = '/blog'
+
+/** The public blog pages' pictures, counted with the posts' images by the proxy's rate limit. */
+const BLOG_ASSETS_PATH = `${BLOG_PATH}/assets`
+
+/** The signed-in pages, the student app's and the feed. Keep in step with the proxy matcher in src/proxy.ts. */
+export const APP_PATHS = ['/start', '/onboarding', '/roadmaps', '/road', FEED_PATH] as const
 
 // Pages a sign-in may return to.
 const RETURN_PATHS = [...APP_PATHS, ADMIN_PATH] as const
@@ -33,12 +63,43 @@ const RETURN_PATHS = [...APP_PATHS, ADMIN_PATH] as const
 const underPrefix = (pathname: string, prefix: string) =>
   pathname === prefix || pathname.startsWith(`${prefix}/`)
 
+export function isAppPath(pathname: string): boolean {
+  return APP_PATHS.some((prefix) => underPrefix(pathname, prefix))
+}
+
 export function isAdminPath(pathname: string): boolean {
   return underPrefix(pathname, ADMIN_PATH)
 }
 
+/**
+ * Which public post or blog path this is, for the proxy's rate limit: a page, an image, or none.
+ * Posts and blogs share each count.
+ */
+export function publicPathKind(pathname: string): 'page' | 'image' | null {
+  if (underPrefix(pathname, POST_ASSETS_PATH) || underPrefix(pathname, BLOG_ASSETS_PATH)) {
+    return 'image'
+  }
+  return underPrefix(pathname, POSTS_PATH) || underPrefix(pathname, BLOG_PATH) ? 'page' : null
+}
+
+/**
+ * Where a signed-in account that asked for a page of the app goes instead, or null when it may
+ * open it: a suspended account to the suspended page; staff (an editor, a reviewer, an admin or a
+ * superadmin) straight to their admin home (adminHome, so no redirect passes through /admin) from
+ * every page but the feed, which is for every account (ADR-121).
+ */
+export function appPageRedirect(
+  pathname: string,
+  account: Staff & { suspendedAt?: Date | null },
+): string | null {
+  if (account.suspendedAt) return SUSPENDED_PATH
+  if (underPrefix(pathname, FEED_PATH) || isStudent(account)) return null
+  return adminHome(account)
+}
+
+/** The one admin page a signed-out visitor may open: the admin sign-in page itself. */
 export function isAdminSignInPath(pathname: string): boolean {
-  return underPrefix(pathname, ADMIN_SIGNIN_PATH)
+  return pathname === ADMIN_SIGNIN_PATH
 }
 
 /**

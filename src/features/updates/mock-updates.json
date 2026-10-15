@@ -1,0 +1,23 @@
+{
+  "mock": true,
+  "updates": [
+    {
+      "id": "visa-fee-change",
+      "overline": "Impact · Rule change",
+      "title": "Student visa fee change",
+      "status": "Live · 1,920 students · email + feed"
+    },
+    {
+      "id": "curtin-nursing-intake",
+      "overline": "Impact · Intake",
+      "title": "Curtin Nursing: February intake moved",
+      "status": "Live · 214 students · plans flagged"
+    },
+    {
+      "id": "perth-cyber-internship",
+      "overline": "Opportunity · Internship",
+      "title": "Perth cyber internship (summer)",
+      "status": "Expired 15 Sep · 96 reached"
+    }
+  ]
+}

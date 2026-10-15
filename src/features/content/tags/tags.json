@@ -1,0 +1,14 @@
+[
+  { "id": "destination:AU", "group": "destination", "label": "Australia" },
+  { "id": "destination:UK", "group": "destination", "label": "United Kingdom" },
+  { "id": "destination:NZ", "group": "destination", "label": "New Zealand" },
+  { "id": "destination:US", "group": "destination", "label": "United States" },
+  { "id": "home:NP", "group": "home", "label": "Nepal" },
+  { "id": "home:IN", "group": "home", "label": "India" },
+  { "id": "home:TH", "group": "home", "label": "Thailand" },
+  { "id": "theme:work-study-life", "group": "theme", "label": "Work and study life" },
+  { "id": "theme:books-movies", "group": "theme", "label": "Books and movies" },
+  { "id": "age:under-21", "group": "age", "label": "Under 21" },
+  { "id": "age:21-25", "group": "age", "label": "21–25" },
+  { "id": "age:over-25", "group": "age", "label": "Over 25" }
+]

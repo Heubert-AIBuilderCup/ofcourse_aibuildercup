@@ -11,15 +11,26 @@ const { AdminNav } = await import('./AdminNav')
 
 afterEach(cleanup)
 
-it('links every admin section and marks the current one', () => {
-  render(<AdminNav />)
+it('links every section a superadmin may open and marks the current one', () => {
+  pathname = '/admin/users'
+  render(<AdminNav viewer={{ role: 'superadmin' }} />)
   const nav = screen.getByRole('navigation', { name: 'Admin sections' })
-  expect(nav.querySelectorAll('a')).toHaveLength(1)
+  expect(nav.querySelectorAll('a')).toHaveLength(6)
   expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('aria-current', 'page')
+  expect(screen.getByRole('link', { name: 'Board' })).not.toHaveAttribute('aria-current')
 })
 
 it('keeps the section marked on its sub-pages', () => {
   pathname = '/admin/users/u1'
-  render(<AdminNav />)
+  render(<AdminNav viewer={{ role: 'admin' }} />)
   expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('aria-current', 'page')
+})
+
+it('shows an editor the Board and Comic gaps, without a Users link', () => {
+  pathname = '/admin/board'
+  render(<AdminNav viewer={{ role: 'user', editor: true }} />)
+  const nav = screen.getByRole('navigation', { name: 'Admin sections' })
+  expect(nav.querySelectorAll('a')).toHaveLength(5)
+  expect(screen.getByRole('link', { name: 'Board' })).toHaveAttribute('aria-current', 'page')
+  expect(screen.queryByRole('link', { name: 'Users' })).toBeNull()
 })

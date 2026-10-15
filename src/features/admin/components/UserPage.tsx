@@ -24,6 +24,7 @@ import {
   ACCESS_ERRORS,
   type AccountAction,
   accountActionError,
+  contentRolesError,
   ROLES,
   type Role,
   roleChangeError,
@@ -34,8 +35,9 @@ import { describeUserAgent } from '@/shared/lib/user-agent'
 import { cn } from '@/shared/lib/utils'
 import type { ActionResult } from '@/shared/types/action-result'
 import { NETWORK_ERROR } from '../hooks/useAdminAction'
-import { ROLE_LABELS } from '../lib/labels'
+import { CAPABILITY_LABELS, ROLE_LABELS } from '../lib/labels'
 import type { UserDetail } from '../users/server'
+import { CheckField } from './CheckField'
 import { Field } from './Field'
 import { chipStrong, hint } from './styles'
 
@@ -48,6 +50,7 @@ export type UserPageProps = {
   activeSuperadmins: number
   actions: {
     setRole: (userId: string, role: string) => Promise<ActionResult>
+    setCapabilities: (userId: string, editor: boolean, reviewer: boolean) => Promise<ActionResult>
     suspendAccount: (userId: string, reason: string) => Promise<ActionResult>
     reactivateAccount: (userId: string) => Promise<ActionResult>
     signOutEverywhere: (userId: string) => Promise<ActionResult>
@@ -106,6 +109,7 @@ export function UserPage({ user, viewer, now, activeSuperadmins, actions }: User
   // Keeping the current role is allowed whenever any change is: the select shows only then.
   const canChangeRole = roleRefusal(user.role) === null
   const outranked = accountActionError({ ...guard, action: 'signOut' }) === ACCESS_ERRORS.hierarchy
+  const capabilitiesRefusal = contentRolesError({ actorRole: viewer.role })
 
   return (
     <div className="flex flex-col gap-6">
@@ -123,6 +127,15 @@ export function UserPage({ user, viewer, now, activeSuperadmins, actions }: User
             role={user.role}
             refusal={roleRefusal}
             onChange={(role) => actions.setRole(user.id, role)}
+          />
+        )}
+        {capabilitiesRefusal ? (
+          <p className="text-foreground">{capabilitiesRefusal}</p>
+        ) : (
+          <CapabilityChecks
+            name={name}
+            caps={{ editor: user.editor, reviewer: user.reviewer }}
+            onChange={(caps) => actions.setCapabilities(user.id, caps.editor, caps.reviewer)}
           />
         )}
       </Section>
@@ -256,6 +269,60 @@ function RoleSelect({
         onConfirm={() => asking && run(() => onChange(asking), close)}
       />
     </form>
+  )
+}
+
+type Capability = keyof typeof CAPABILITY_LABELS
+type Capabilities = Record<Capability, boolean>
+const CAPABILITIES: readonly Capability[] = ['editor', 'reviewer']
+
+/**
+ * Editor and Reviewer, which an account can hold together. Each box shows the stored value and
+ * changes only after the confirm dialog, when the action's revalidatePath refreshes the page.
+ */
+function CapabilityChecks({
+  name,
+  caps,
+  onChange,
+}: {
+  name: string
+  caps: Capabilities
+  onChange: (caps: Capabilities) => Promise<ActionResult>
+}) {
+  const [asking, setAsking] = useState<{ capability: Capability; on: boolean } | null>(null)
+  const { pending, error, run, clear } = useControl()
+  const close = () => {
+    setAsking(null)
+    clear()
+  }
+  const label = asking ? CAPABILITY_LABELS[asking.capability] : ''
+  const change = asking?.on ? `Give ${name} ${label}?` : `Remove ${label} from ${name}?`
+  return (
+    <fieldset className="flex flex-col gap-1">
+      <legend className="text-caption font-medium">Content roles</legend>
+      <div className="flex flex-wrap gap-4">
+        {CAPABILITIES.map((c) => (
+          <CheckField
+            key={c}
+            label={CAPABILITY_LABELS[c]}
+            checked={caps[c]}
+            onChange={(on) => setAsking({ capability: c, on })}
+          />
+        ))}
+      </div>
+      <Confirm
+        open={asking !== null}
+        title="Change access"
+        question={`${change} They are signed out of every session.`}
+        confirmLabel="Change access"
+        pending={pending}
+        error={error}
+        onCancel={close}
+        onConfirm={() =>
+          asking && run(() => onChange({ ...caps, [asking.capability]: asking.on }), close)
+        }
+      />
+    </fieldset>
   )
 }
 

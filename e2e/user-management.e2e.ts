@@ -127,7 +127,7 @@ test('a role change applies at once', async ({ page, browser }) => {
     await p.page.goto('/start')
     await expect(p.page).toHaveURL(/\/$/)
     await devLogin(p.page, p.email)
-    await p.page.goto('/admin')
+    await p.page.goto('/admin/users')
     await expect(p.page).toHaveURL(/\/admin\/users$/)
     await expect(p.page.getByRole('heading', { level: 1, name: 'Users' })).toBeVisible()
   } finally {

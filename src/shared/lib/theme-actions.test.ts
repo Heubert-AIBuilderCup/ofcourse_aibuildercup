@@ -8,7 +8,10 @@ const set = mock((_name: string, _value: string, _options: object) => {})
 const del = mock((_name: string) => {})
 mock.module('next/headers', () => ({ cookies: async () => ({ set, delete: del }) }))
 
-const { setThemeChoice } = await import('./theme-actions')
+// Component tests replace this module with a mock for the whole run (Bun keeps module mocks
+// across files), so the query makes Bun load the real file as its own module.
+const real = './theme-actions.ts?real'
+const { setThemeChoice } = (await import(real)) as typeof import('./theme-actions')
 
 const options = expect.objectContaining({
   httpOnly: true,

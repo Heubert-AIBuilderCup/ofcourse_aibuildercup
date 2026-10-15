@@ -41,6 +41,8 @@ export type UserListRow = {
   name: string
   email: string
   role: Role
+  editor: boolean
+  reviewer: boolean
   suspended: boolean
   lastSeenMs: number | null
   createdAt: Date
@@ -68,6 +70,8 @@ export async function getUsers(
         name: user.name,
         email: user.email,
         role: user.role,
+        editor: user.editor,
+        reviewer: user.reviewer,
         suspended: sql<boolean>`${user.suspendedAt} is not null`,
         lastSeenAt: user.lastSeenAt,
         createdAt: user.createdAt,
@@ -100,6 +104,8 @@ export type UserDetail = {
   email: string
   name: string
   role: Role
+  editor: boolean
+  reviewer: boolean
   suspendedAt: Date | null
   suspendReason: string | null
   createdAt: Date
@@ -116,6 +122,8 @@ export async function getUserDetail(id: string): Promise<UserDetail | null> {
         email: user.email,
         name: user.name,
         role: user.role,
+        editor: user.editor,
+        reviewer: user.reviewer,
         suspendedAt: user.suspendedAt,
         suspendReason: user.suspendReason,
         createdAt: user.createdAt,
@@ -138,17 +146,22 @@ export async function getUserDetail(id: string): Promise<UserDetail | null> {
 
 export type WaitingInvite = {
   email: string
-  role: InviteRole
+  // Null when only capabilities wait.
+  role: InviteRole | null
+  editor: boolean
+  reviewer: boolean
   createdAt: Date
   createdByName: string | null
 }
 
-/** The addresses a superadmin gave a role before their first sign-in, newest first. */
+/** The addresses a superadmin gave a role or capabilities before their first sign-in, newest first. */
 export async function getWaitingInvites(): Promise<WaitingInvite[]> {
   return db
     .select({
       email: roleInvite.email,
       role: roleInvite.role,
+      editor: roleInvite.editor,
+      reviewer: roleInvite.reviewer,
       createdAt: roleInvite.createdAt,
       createdByName: user.name,
     })

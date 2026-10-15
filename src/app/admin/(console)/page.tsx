@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation'
-import { ADMIN_HOME } from '@/shared/lib/auth/gate'
+import { adminHome } from '@/shared/lib/auth/gate'
+import { requireBoard } from '@/shared/lib/auth/session'
 
-/** The admin opens on its first section. */
-export default function AdminPage() {
-  redirect(ADMIN_HOME)
+/** The admin opens on the Board for editors, reviewers and superadmins, and on Users for an admin. */
+export default async function AdminPage() {
+  const { user } = await requireBoard()
+  redirect(adminHome(user))
 }

@@ -1,0 +1,34 @@
+{
+  "id": "main",
+  "name": "Main",
+  "kind": "page",
+  "fonts": {
+    "heading": {
+      "family": "Barlow Condensed",
+      "file": "BarlowCondensed-Bold.ttf"
+    },
+    "body": {
+      "family": "Barlow",
+      "file": "Barlow-Regular.ttf"
+    }
+  },
+  "tone": "Clear and confident. Speaks to every student.",
+  "byline": "OfCourse",
+  "themes": [
+    {
+      "id": "main",
+      "name": "Main",
+      "bg": "#1877F2",
+      "ink": "#FFFFFF",
+      "highlight": "#F5C542",
+      "muted": "#E3EDFD"
+    }
+  ],
+  "instagram": {
+    "handle": "ofcourse_ai",
+    "url": "https://www.instagram.com/ofcourse_ai/"
+  },
+  "linkedin": {
+    "url": "https://www.linkedin.com/company/ofcourse-ai/"
+  }
+}

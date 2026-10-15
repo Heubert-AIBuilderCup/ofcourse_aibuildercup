@@ -110,6 +110,8 @@ describe.skipIf(!enabled)('the users server against the database', () => {
           name: 'Asha Zqname',
           email: `${P}a@um.e2e.test`,
           role: 'user',
+          editor: false,
+          reviewer: false,
           suspended: false,
           lastSeenMs: expect.any(Number),
           createdAt: expect.any(Date),
@@ -132,7 +134,7 @@ describe.skipIf(!enabled)('the users server against the database', () => {
 
     test('has its access, suspension, open sessions and last visit', async () => {
       const a = await server.getUserDetail(`${P}a`)
-      expect(a).toMatchObject({ role: 'user', suspendedAt: null })
+      expect(a).toMatchObject({ role: 'user', editor: false, reviewer: false, suspendedAt: null })
       expect(a?.sessions.map((s) => s.id)).toEqual([`${P}a-s1`])
       expect(a?.lastSeenMs).toEqual(expect.any(Number))
       const c = await server.getUserDetail(`${P}c`)
@@ -146,6 +148,8 @@ describe.skipIf(!enabled)('the users server against the database', () => {
     const waiting = await server.getWaitingInvites()
     expect(waiting.find((w) => w.email === WAITING)).toMatchObject({
       role: 'admin',
+      editor: false,
+      reviewer: false,
       createdByName: 'UM d',
     })
   })

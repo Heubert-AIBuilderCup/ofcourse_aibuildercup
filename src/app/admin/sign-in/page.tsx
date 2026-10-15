@@ -6,10 +6,11 @@ import styles from '@/features/auth/components/sign-in.module.css'
 import { Blueprint } from '@/shared/components/Blueprint'
 import motion from '@/shared/components/motion.module.css'
 import { ThemeToggle } from '@/shared/components/ThemeToggle'
-import { canUseAdmin } from '@/shared/lib/auth/access'
+import { canSeeBoard } from '@/shared/lib/auth/access'
 import {
-  ADMIN_HOME,
+  ADMIN_PATH,
   ADMIN_SIGNIN_ERROR_PATH,
+  adminHome,
   isAdminPath,
   SIGNIN_MESSAGES,
   safeNextPath,
@@ -29,16 +30,19 @@ const first = (value: string | string[] | undefined) => (Array.isArray(value) ? 
 /**
  * Public: the admin sign-in page, outside the admin console's admin-only layout (the proxy lets it
  * through). The sign-in page's Industry layout, with Google as the only way in: the hooks refuse an
- * account without admin access, which comes back here with its message. Signed in as an admin: on
- * to the admin page asked for, else the admin. Signed in as a student: the page, since a student
- * session is no admin session.
+ * account without admin access, which comes back here with its message. Signed in as staff (an
+ * admin, a superadmin, an editor or a reviewer): on to the admin page asked for, else the admin.
+ * Signed in as a student: the page, since a student session is no admin session.
  */
 export default async function AdminSignInPage({ searchParams }: PageProps<'/admin/sign-in'>) {
   const [params, session] = await Promise.all([searchParams, getSession()])
   // Only an admin page of this app, never another origin (gate.ts).
   const asked = safeNextPath(first(params.next))
-  const next = asked && isAdminPath(asked) ? asked : ADMIN_HOME
-  if (session && canUseAdmin(session.user.role)) redirect(next)
+  const askedAdmin = asked && isAdminPath(asked) ? asked : null
+  // Signed in, in one hop: the page asked for, else this account's admin home.
+  if (session && canSeeBoard(session.user)) redirect(askedAdmin ?? adminHome(session.user))
+  // After Google the account is not yet known, so /admin picks its home.
+  const next = askedAdmin ?? ADMIN_PATH
   // Only this page's two messages; anything else in the URL is ignored, never echoed.
   const error = first(params.error)
   const message = error === 'signin' || error === 'not-admin' ? SIGNIN_MESSAGES[error] : null

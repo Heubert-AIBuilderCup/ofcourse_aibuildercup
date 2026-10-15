@@ -17,6 +17,8 @@ const user: UserDetail = {
   email: 'alex@example.com',
   name: 'Alex Doe',
   role: 'user',
+  editor: false,
+  reviewer: false,
   suspendedAt: null,
   suspendReason: null,
   createdAt: new Date(Date.UTC(2026, 8, 1, 8, 30)),
@@ -27,6 +29,7 @@ const user: UserDetail = {
 const ok = async (): Promise<ActionResult> => ({ ok: true })
 const actions = {
   setRole: mock(async (_id: string, _role: string) => ok()),
+  setCapabilities: mock(async (_id: string, _editor: boolean, _reviewer: boolean) => ok()),
   suspendAccount: mock(async (_id: string, _reason: string) => ok()),
   reactivateAccount: mock(async (_id: string) => ok()),
   signOutEverywhere: mock(async (_id: string) => ok()),
@@ -87,6 +90,51 @@ it('offers an admin on an admin no account control, and says why', () => {
 it('offers a superadmin on a user the role select', () => {
   view({ viewer: SUPERADMIN })
   expect(screen.getByRole('combobox', { name: 'Role' })).toBeInTheDocument()
+})
+
+const SUPERADMIN_ONLY = 'Only a superadmin can change roles.'
+
+it('shows an admin no Editor or Reviewer control, and says why', () => {
+  view()
+  expect(screen.getByText(SUPERADMIN_ONLY)).toBeInTheDocument()
+  expect(screen.queryByRole('checkbox', { name: 'Editor' })).toBeNull()
+  expect(screen.queryByRole('checkbox', { name: 'Reviewer' })).toBeNull()
+})
+
+it('offers a superadmin the Editor and Reviewer checkboxes, showing what the account holds', () => {
+  view({ viewer: SUPERADMIN, user: { ...user, reviewer: true } })
+  expect(screen.getByRole('checkbox', { name: 'Editor' })).not.toBeChecked()
+  expect(screen.getByRole('checkbox', { name: 'Reviewer' })).toBeChecked()
+  expect(screen.queryByText(SUPERADMIN_ONLY)).toBeNull()
+})
+
+it('asks before giving a capability, then saves both flags', async () => {
+  view({ viewer: SUPERADMIN, user: { ...user, reviewer: true } })
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Editor' }))
+  const dialog = screen.getByRole('dialog')
+  expect(
+    within(dialog).getByText('Give Alex Doe Editor? They are signed out of every session.'),
+  ).toBeInTheDocument()
+  expect(actions.setCapabilities).not.toHaveBeenCalled()
+  await act(async () => {
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Change access' }))
+  })
+  expect(actions.setCapabilities).toHaveBeenCalledWith('u1', true, true)
+})
+
+it('asks before removing a capability', async () => {
+  view({ viewer: SUPERADMIN, user: { ...user, reviewer: true } })
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Reviewer' }))
+  const dialog = screen.getByRole('dialog')
+  expect(
+    within(dialog).getByText(
+      'Remove Reviewer from Alex Doe? They are signed out of every session.',
+    ),
+  ).toBeInTheDocument()
+  await act(async () => {
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Change access' }))
+  })
+  expect(actions.setCapabilities).toHaveBeenCalledWith('u1', false, false)
 })
 
 it('offers the viewer only "Sign out everywhere" on their own page', () => {

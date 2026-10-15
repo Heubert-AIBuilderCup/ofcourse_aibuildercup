@@ -1,0 +1,34 @@
+{
+  "id": "cerebral",
+  "name": "Cerebral",
+  "kind": "page",
+  "fonts": {
+    "heading": {
+      "family": "Barlow Condensed",
+      "file": "BarlowCondensed-Bold.ttf"
+    },
+    "body": {
+      "family": "Barlow",
+      "file": "Barlow-Regular.ttf"
+    }
+  },
+  "tone": "Thoughtful and precise. Ideas first.",
+  "byline": "OfCourse Cerebral",
+  "themes": [
+    {
+      "id": "cerebral",
+      "name": "Cerebral",
+      "bg": "#16191B",
+      "ink": "#F4EFE6",
+      "highlight": "#F5C542",
+      "muted": "#B3AFA6"
+    }
+  ],
+  "instagram": {
+    "handle": "ofcourse_philosophy",
+    "url": "https://www.instagram.com/ofcourse_philosophy/"
+  },
+  "linkedin": {
+    "url": "https://www.linkedin.com/company/ofcourse-philosophy/"
+  }
+}

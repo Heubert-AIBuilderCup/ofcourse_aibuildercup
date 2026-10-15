@@ -1,0 +1,2 @@
+ALTER TABLE "ai_call" DROP CONSTRAINT "ai_call_tier_check";--> statement-breakpoint
+ALTER TABLE "ai_call" ADD CONSTRAINT "ai_call_tier_check" CHECK ("ai_call"."tier" in ('lite', 'flash', 'pro', 'image'));

@@ -147,6 +147,21 @@
 }
 
 /*
+ * The warning yellow (the admin design's render gate): words on the board's band, which is drawn in
+ * the foreground colour, so the yellow is light on the dark band of the light theme and a deep
+ * amber on the light band of the dark theme.
+ */
+@theme inline {
+  --color-warning: var(--warning);
+}
+:root {
+  --warning: oklch(0.86 0.16 90);
+}
+:root[data-theme='dark'] {
+  --warning: oklch(0.48 0.11 75);
+}
+
+/*
  * The brand ground (the canvas's login.css): in light mode the steel fields (the sign-in panel, the
  * onboarding panel and the Hero band) and the strong button take one blue, #0062c4, a shade deeper
  * than the splash's, with white type: 5.9:1, 5.3:1 against the page; hover #00509f is 7.9:1. Dark

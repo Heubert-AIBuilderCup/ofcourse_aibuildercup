@@ -52,24 +52,46 @@ async function firstSuperadminId(): Promise<string | null> {
   return rows[0]?.id ?? null
 }
 
-/** The role a superadmin left waiting for this address's first sign-in, or null. */
-async function waitingRole(email: string): Promise<InviteRole | null> {
+type WaitingInvite = { role: InviteRole | null; editor: boolean; reviewer: boolean }
+
+/** The role and capabilities a superadmin left waiting for this address's first sign-in, or null. */
+async function waitingInvite(email: string): Promise<WaitingInvite | null> {
   const rows = await db
-    .select({ role: schema.roleInvite.role })
+    .select({
+      role: schema.roleInvite.role,
+      editor: schema.roleInvite.editor,
+      reviewer: schema.roleInvite.reviewer,
+    })
     .from(schema.roleInvite)
     .where(eq(schema.roleInvite.email, inviteKey(email)))
     .limit(1)
-  return rows[0]?.role ?? null
+  return rows[0] ?? null
 }
 
-/** An account's role and whether it is suspended, in one read. */
-async function accountStatus(userId: string): Promise<{ role: string | null; suspended: boolean }> {
+/** An account's role, its content capabilities and whether it is suspended, in one read. */
+async function accountStatus(userId: string): Promise<{
+  role: string | null
+  editor: boolean
+  reviewer: boolean
+  suspended: boolean
+}> {
   const rows = await db
-    .select({ role: schema.user.role, suspendedAt: schema.user.suspendedAt })
+    .select({
+      role: schema.user.role,
+      editor: schema.user.editor,
+      reviewer: schema.user.reviewer,
+      suspendedAt: schema.user.suspendedAt,
+    })
     .from(schema.user)
     .where(eq(schema.user.id, userId))
     .limit(1)
-  return { role: rows[0]?.role ?? null, suspended: rows[0]?.suspendedAt != null }
+  const row = rows[0]
+  return {
+    role: row?.role ?? null,
+    editor: row?.editor ?? false,
+    reviewer: row?.reviewer ?? false,
+    suspended: row?.suspendedAt != null,
+  }
 }
 
 /** The refusal of an email-code path other than sending and using a sign-in code. */
@@ -106,6 +128,9 @@ export const auth = betterAuth({
     // change only through the create hook below and the admin's server actions.
     additionalFields: {
       role: { type: 'string', required: false, defaultValue: 'user', input: false },
+      // The content capabilities (ADR-108): from a waiting invite at sign-up, then only a superadmin.
+      editor: { type: 'boolean', required: false, defaultValue: false, input: false },
+      reviewer: { type: 'boolean', required: false, defaultValue: false, input: false },
       // Set while an admin has the account suspended. No new session is made then (the session
       // hook below), and auth/session.ts treats a session made before the suspension as signed out.
       suspendedAt: { type: 'date', required: false, input: false },
@@ -165,23 +190,36 @@ export const auth = betterAuth({
     user: {
       create: {
         // Registration is open. On the student page every new account is a user; on the admin
-        // page only the first account ever (superadmin) or an address a role waits for may sign
-        // up (./access, surfaceSignup). The dev login without a page keeps the starter's rule: the
-        // first account ever is the superadmin, then a waiting role, else user.
+        // page only the first account ever (superadmin) or an address a role or a content
+        // capability waits for may sign up (./access, surfaceSignup). The dev login without a page
+        // keeps the starter's rule: the first account ever is the superadmin, then a waiting role,
+        // else user. The capabilities waiting on the address are copied as they are.
         before: async (newUser, ctx) => {
-          const [first, invited, surface] = await Promise.all([
+          const [first, invite, surface] = await Promise.all([
             noAccountsYet(),
-            waitingRole(newUser.email),
+            waitingInvite(newUser.email),
             currentSurface(ctx),
           ])
-          if (surface === 'any') {
-            return { data: { ...newUser, role: resolveSignupRole(first, invited) } }
+          const invitedRole = invite?.role ?? null
+          const capabilities = {
+            editor: invite?.editor ?? false,
+            reviewer: invite?.reviewer ?? false,
           }
-          const decision = surfaceSignup({ surface, firstAccount: first, invitedRole: invited })
+          if (surface === 'any') {
+            return {
+              data: { ...newUser, role: resolveSignupRole(first, invitedRole), ...capabilities },
+            }
+          }
+          const decision = surfaceSignup({
+            surface,
+            firstAccount: first,
+            invitedRole,
+            invitedCapability: capabilities.editor || capabilities.reviewer,
+          })
           if ('refuse' in decision) throw surfaceRefusal(decision.refuse)
-          return { data: { ...newUser, role: decision.role } }
+          return { data: { ...newUser, role: decision.role, ...capabilities } }
         },
-        // The waiting role is used up only once the account exists (after the commit, on a
+        // The waiting invite is used up only once the account exists (after the commit, on a
         // Google sign-up), so a sign-up that fails keeps it for the next try.
         after: async (created) => {
           // The hook above decides from a read that nothing serialises: two sign-ups overlapping
@@ -192,11 +230,11 @@ export const auth = betterAuth({
           // for all of them, so exactly one survives.
           // The hook's user type does not carry the additional fields, so read the role as text.
           const createdRole = typeof created.role === 'string' ? created.role : ''
-          const invited = await waitingRole(created.email)
+          const invite = await waitingInvite(created.email)
           const settled = settleFirstAccountRole({
             createdId: created.id,
             createdRole,
-            invitedRole: invited,
+            invitedRole: invite?.role ?? null,
             firstSuperadminId: createdRole === 'superadmin' ? await firstSuperadminId() : null,
           })
           if (settled !== null) {
@@ -215,8 +253,9 @@ export const auth = betterAuth({
       create: {
         // A suspended account is never given a session, by Google, a code or the dev sign-in. A
         // Google sign-in refused here ends on its page's error path with `?error=<code>`. Each
-        // page then refuses the other kind of account: the student page opens sessions for users
-        // only, the admin page for admins and superadmins only.
+        // page then refuses the other kind of account: the student page opens sessions for
+        // students only (role user, no content capability), the admin page for anyone who may see
+        // the Board (an admin, a superadmin, an editor or a reviewer).
         before: async (newSession, ctx) => {
           const [account, surface] = await Promise.all([
             accountStatus(newSession.userId),
@@ -229,7 +268,7 @@ export const auth = betterAuth({
             })
           }
           if (surface === 'any') return
-          const refused = surfaceSessionError(surface, account.role)
+          const refused = surfaceSessionError(surface, account.role, account)
           if (refused) throw surfaceRefusal(refused)
         },
       },

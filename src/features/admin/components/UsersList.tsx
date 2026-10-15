@@ -28,14 +28,16 @@ import { lastSeenLabel } from '@/shared/lib/presence'
 import { cn } from '@/shared/lib/utils'
 import type { ActionResult } from '@/shared/types/action-result'
 import { NETWORK_ERROR, useAdminAction } from '../hooks/useAdminAction'
-import { ROLE_LABELS } from '../lib/labels'
+import { CAPABILITY_LABELS, ROLE_LABELS } from '../lib/labels'
 import {
   USER_STATUS_FILTERS,
   USERS_PAGE_SIZE,
   type UserStatusFilter,
   type UsersParams,
 } from '../lib/params'
+import type { InviteApplied } from '../users/commands'
 import type { UserListRow, WaitingInvite } from '../users/server'
+import { CheckField } from './CheckField'
 import { Field } from './Field'
 import { Pager } from './Pager'
 import { chip, hint } from './styles'
@@ -44,6 +46,51 @@ const STATUS_LABELS: Record<UserStatusFilter, string> = {
   all: 'All',
   active: 'Active',
   suspended: 'Suspended',
+}
+
+type Capability = keyof typeof CAPABILITY_LABELS
+type Capabilities = Record<Capability, boolean>
+const CAPABILITIES: readonly Capability[] = ['editor', 'reviewer']
+
+/** The invite form's role choice for an address that gets only capabilities. */
+const NO_ROLE = 'none'
+type InviteChoice = InviteRole | typeof NO_ROLE
+const INVITE_CHOICE_LABELS: Record<InviteChoice, string> = {
+  none: 'No admin role',
+  admin: ROLE_LABELS.admin,
+  superadmin: ROLE_LABELS.superadmin,
+}
+
+/** A chip per capability the account or the invite holds. */
+function CapabilityChips({ caps }: { caps: Capabilities }) {
+  return CAPABILITIES.filter((c) => caps[c]).map((c) => (
+    <span key={c} className={cn(chip, 'text-caption')}>
+      {CAPABILITY_LABELS[c]}
+    </span>
+  ))
+}
+
+/** "Editor", "Editor and Reviewer": the capabilities named, joined. */
+function capabilityList(caps: readonly Capability[]): string {
+  const names = caps.map((c) => CAPABILITY_LABELS[c])
+  const last = names.pop() ?? ''
+  return names.length ? `${names.join(', ')} and ${last}` : last
+}
+
+/** "<address> already has Editor; saving without Editor removes it." */
+function removalWarning(address: string, removes: readonly Capability[]): string {
+  const list = capabilityList(removes)
+  return `${address} already has ${list}; saving without ${list} removes ${removes.length > 1 ? 'them' : 'it'}.`
+}
+
+/** "Admin", "Editor and Reviewer", "Admin, Editor and Reviewer": what an address gets. */
+function accessLabel(role: InviteRole | null, caps: Capabilities): string {
+  const names = [
+    ...(role ? [ROLE_LABELS[role]] : []),
+    ...CAPABILITIES.filter((c) => caps[c]).map((c) => CAPABILITY_LABELS[c]),
+  ]
+  const last = names.pop() ?? ''
+  return names.length ? `${names.join(', ')} and ${last}` : last
 }
 
 export type UsersListProps = {
@@ -56,10 +103,16 @@ export type UsersListProps = {
   canManageRoles: boolean
   /** The addresses waiting on a first sign-in; empty for admins. */
   waiting: WaitingInvite[]
+  /**
+   * `role` is null for no admin role, when only capabilities are given. An existing account
+   * that would lose a capability answers `confirm` until `confirmed` is true.
+   */
   addRoleInvite: (
     email: string,
-    role: string,
-  ) => Promise<ActionResult<{ applied: 'invite' | 'account' }>>
+    role: string | null,
+    caps: Capabilities,
+    confirmed?: boolean,
+  ) => Promise<ActionResult<InviteApplied>>
   removeRoleInvite: (email: string) => Promise<ActionResult>
 }
 
@@ -267,7 +320,12 @@ function UserRow({ user: u, now }: { user: UserListRow; now: number }) {
         </Link>
       </TableCell>
       <TableCell>{u.email}</TableCell>
-      <TableCell>{ROLE_LABELS[u.role]}</TableCell>
+      <TableCell>
+        <span className="flex flex-wrap items-center gap-1">
+          {ROLE_LABELS[u.role]}
+          <CapabilityChips caps={u} />
+        </span>
+      </TableCell>
       <TableCell>
         <ul className="flex flex-wrap gap-1">
           {u.suspended && <li className={chip}>Suspended</li>}
@@ -289,19 +347,32 @@ function UserRow({ user: u, now }: { user: UserListRow; now: number }) {
 
 function AddByEmail({ addRoleInvite }: Pick<UsersListProps, 'addRoleInvite'>) {
   const [email, setEmail] = useState('')
-  const [role, setRole] = useState<InviteRole>('admin')
+  const [choice, setChoice] = useState<InviteChoice>('admin')
+  const [caps, setCaps] = useState<Capabilities>({ editor: false, reviewer: false })
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
+  /** The ticks an existing account would lose, asked about before anything is saved. */
+  const [confirming, setConfirming] = useState<{ address: string; removes: Capability[] } | null>(
+    null,
+  )
   const [pending, startTransition] = useTransition()
 
-  const submit = (e: FormEvent) => {
-    e.preventDefault()
+  const save = (confirmed: boolean) => {
     const address = email.trim()
-    const roleName = ROLE_LABELS[role]
+    const role = choice === NO_ROLE ? null : choice
+    const roleName = accessLabel(role, caps)
     startTransition(async () => {
       try {
-        const res = await addRoleInvite(address, role)
+        const res = confirmed
+          ? await addRoleInvite(address, role, caps, true)
+          : await addRoleInvite(address, role, caps)
+        setConfirming(null)
         if (!res.ok) {
           setNotice({ ok: false, text: res.error })
+          return
+        }
+        if (res.applied === 'confirm') {
+          setNotice(null)
+          setConfirming({ address, removes: res.removes })
           return
         }
         setEmail('')
@@ -317,6 +388,10 @@ function AddByEmail({ addRoleInvite }: Pick<UsersListProps, 'addRoleInvite'>) {
       }
     })
   }
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    save(false)
+  }
 
   return (
     <Card as="section" className="p-5" aria-labelledby="add-by-email">
@@ -324,8 +399,8 @@ function AddByEmail({ addRoleInvite }: Pick<UsersListProps, 'addRoleInvite'>) {
         Add by email
       </h2>
       <p className={cn(hint, 'mt-1 max-w-prose')}>
-        Give an address a role before its first sign-in. An address that already has an account gets
-        the role at once.
+        Give an address a role, Editor or Reviewer before its first sign-in. An address that already
+        has an account gets them at once.
       </p>
       <form
         aria-labelledby="add-by-email"
@@ -347,24 +422,47 @@ function AddByEmail({ addRoleInvite }: Pick<UsersListProps, 'addRoleInvite'>) {
         </Field>
         <Field label="Role">
           {(id) => (
-            <Select value={role} onValueChange={(v) => setRole(v as InviteRole)}>
+            <Select value={choice} onValueChange={(v) => setChoice(v as InviteChoice)}>
               <SelectTrigger id={id} className="w-40">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {INVITE_ROLES.map((r) => (
+                {([NO_ROLE, ...INVITE_ROLES] as const).map((r) => (
                   <SelectItem key={r} value={r}>
-                    {ROLE_LABELS[r]}
+                    {INVITE_CHOICE_LABELS[r]}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           )}
         </Field>
+        {CAPABILITIES.map((c) => (
+          <CheckField
+            key={c}
+            label={CAPABILITY_LABELS[c]}
+            checked={caps[c]}
+            onChange={(on) => setCaps((prev) => ({ ...prev, [c]: on }))}
+          />
+        ))}
         <Button type="submit" disabled={pending}>
           Add
         </Button>
       </form>
+      {confirming && (
+        <div className="mt-3 flex flex-col gap-2">
+          <p role="alert" className="text-caption">
+            {removalWarning(confirming.address, confirming.removes)}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" disabled={pending} onClick={() => save(true)}>
+              Save and remove
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setConfirming(null)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
       {notice?.ok && (
         <output className={cn(hint, 'mt-3 block text-foreground')}>{notice.text}</output>
       )}
@@ -395,7 +493,8 @@ function WaitingList({
             <li key={w.email} className="flex items-center justify-between gap-3 py-2">
               <span className="text-sm text-foreground">
                 <span className="font-semibold">{w.email}</span>{' '}
-                <span className={chip}>{ROLE_LABELS[w.role]}</span>
+                {w.role && <span className={cn(chip, 'text-caption')}>{ROLE_LABELS[w.role]}</span>}{' '}
+                <CapabilityChips caps={w} />
               </span>
               <Button
                 variant="outline"

@@ -1,0 +1,83 @@
+{
+  "mock": true,
+  "scope": { "country": "Australia", "window": "last 30 days", "students": 18420 },
+  "ai": { "callsPerSession": 3.4, "costPerStudentWeekAud": 0.05 },
+  "evidenceGaps": [
+    {
+      "claim": "A smaller IT job market than Perth",
+      "shown": "Trade-off card · Adelaide vs Perth",
+      "evidence": { "state": "none" },
+      "students": 1284
+    },
+    {
+      "claim": "Regional rent about 30% lower",
+      "shown": "Future card · built around cost",
+      "evidence": { "state": "weak", "note": "one 2024 listings sample" },
+      "students": 962
+    },
+    {
+      "claim": "Most graduates find work within six months",
+      "shown": "Route step · 485 visa",
+      "evidence": { "state": "out_of_date", "note": "survey 2021" },
+      "students": 811
+    },
+    {
+      "claim": "Part-time jobs are easy to find in Hobart",
+      "shown": "Trade-off card · Hobart vs Melbourne",
+      "evidence": { "state": "none" },
+      "students": 540
+    },
+    {
+      "claim": "Nursing placements are mostly in metro hospitals",
+      "shown": "Route step · Curtin Nursing",
+      "evidence": { "state": "conflicting", "note": "two sources" },
+      "students": 318
+    }
+  ],
+  "dimensions": { "cost": 68, "pr": 54, "work": 47, "career": 39, "time": 28, "location": 22 },
+  "routes": [
+    { "route": "ECU · Cyber Security · Perth", "students": 1140, "firstShare": 46 },
+    { "route": "Curtin · Nursing · Perth", "students": 960, "firstShare": 52 },
+    { "route": "Deakin · IT · Melbourne", "students": 820, "firstShare": 38 },
+    { "route": "UQ · Data Science · Brisbane", "students": 610, "firstShare": 31 },
+    { "route": "UniSA · Accounting · Adelaide", "students": 540, "firstShare": 29 }
+  ],
+  "blockers": [
+    { "label": "IELTS below requirement", "share": 41 },
+    { "label": "Budget below fees", "share": 27 },
+    { "label": "Missing prerequisite", "share": 14 },
+    { "label": "Gap in study history", "share": 10 },
+    { "label": "Intake closed", "share": 8 }
+  ],
+  "performance": [
+    {
+      "title": "485 visa: the post-study rules",
+      "views": 2310,
+      "saves": 184,
+      "completion": 71,
+      "intoStudio": 96
+    },
+    {
+      "title": "The Slow Semester, explained",
+      "views": 1840,
+      "saves": 122,
+      "completion": 64,
+      "intoStudio": 58
+    },
+    {
+      "title": "Why sleep beats cramming",
+      "views": 1420,
+      "saves": 97,
+      "completion": 68,
+      "intoStudio": 31
+    },
+    {
+      "title": "A weekend in Hobart",
+      "views": 980,
+      "saves": 41,
+      "completion": 55,
+      "intoStudio": 22
+    }
+  ],
+  "updateReach": { "title": "ECU International Scholarship", "matched": 412 }
+}

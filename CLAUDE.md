@@ -17,6 +17,7 @@ A full-stack Next.js starter: Google sign-in, roles, a users admin, Postgres wit
 - No end-to-end code without being asked: no new specs, no throwaway Playwright scripts for screenshots, no browser automation inside a build. The standing specs under e2e/ are updated only when a change alters what they cover. The look of a screen is the developer's smoke test; a screenshot comparison against the design boards happens only when they ask for one.
 - Dev login for e2e: `POST /api/dev-login` `{ email, name? }` with header `x-dev-login-secret: $DEV_LOGIN_SECRET` signs in as that email; 404 in production or without the secret (playwright.config.ts passes it to the server it starts)
 - `bun run build`
+- `docker build -t ofcourse .` — the Cloud Run image (Dockerfile: `output: 'standalone'` on node:24-slim, port 8080, no secret inside); migrations run from it as a job with `bun scripts/migrate.ts`
 
 ## Git
 

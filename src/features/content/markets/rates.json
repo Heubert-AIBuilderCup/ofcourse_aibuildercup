@@ -1,0 +1,14 @@
+[
+  { "from": "AUD", "to": "NPR", "rate": 88, "source": "mock rate", "date": "2026-10-01" },
+  { "from": "AUD", "to": "INR", "rate": 55, "source": "mock rate", "date": "2026-10-01" },
+  { "from": "AUD", "to": "THB", "rate": 23, "source": "mock rate", "date": "2026-10-01" },
+  { "from": "GBP", "to": "NPR", "rate": 170, "source": "mock rate", "date": "2026-10-01" },
+  { "from": "GBP", "to": "INR", "rate": 106, "source": "mock rate", "date": "2026-10-01" },
+  { "from": "GBP", "to": "THB", "rate": 44, "source": "mock rate", "date": "2026-10-01" },
+  { "from": "NZD", "to": "NPR", "rate": 80, "source": "mock rate", "date": "2026-10-01" },
+  { "from": "NZD", "to": "INR", "rate": 50, "source": "mock rate", "date": "2026-10-01" },
+  { "from": "NZD", "to": "THB", "rate": 21, "source": "mock rate", "date": "2026-10-01" },
+  { "from": "USD", "to": "NPR", "rate": 134, "source": "mock rate", "date": "2026-10-01" },
+  { "from": "USD", "to": "INR", "rate": 84, "source": "mock rate", "date": "2026-10-01" },
+  { "from": "USD", "to": "THB", "rate": 35, "source": "mock rate", "date": "2026-10-01" }
+]

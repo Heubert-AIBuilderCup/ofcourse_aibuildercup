@@ -87,28 +87,39 @@ export const SURFACE_ERRORS = {
  * A first sign-in on a page: the role the new account gets, or the code to refuse it with (no
  * account is created then). The student page always makes a user, even on an empty database, so
  * nobody becomes superadmin by signing up as a student; an address an admin role is waiting for
- * belongs on the admin page. The admin page makes the first account ever a superadmin, applies a
- * waiting role, and refuses everyone else.
+ * belongs on the admin page, as does one a content capability is waiting for (ADR-108). The admin
+ * page makes the first account ever a superadmin, applies a waiting role, makes a user of an
+ * address only a capability waits for (the capabilities are copied by the caller), and refuses
+ * everyone else.
  */
 export function surfaceSignup(i: {
   surface: Surface
   firstAccount: boolean
   invitedRole: InviteRole | null
+  invitedCapability?: boolean
 }): { role: Role } | { refuse: string } {
   if (i.surface === 'student') {
-    return i.invitedRole ? { refuse: SURFACE_ERRORS.studentPageOnly } : { role: 'user' }
+    return i.invitedRole || i.invitedCapability
+      ? { refuse: SURFACE_ERRORS.studentPageOnly }
+      : { role: 'user' }
   }
   if (i.firstAccount) return { role: 'superadmin' }
-  return i.invitedRole ? { role: i.invitedRole } : { refuse: SURFACE_ERRORS.notAdmin }
+  if (i.invitedRole) return { role: i.invitedRole }
+  return i.invitedCapability ? { role: 'user' } : { refuse: SURFACE_ERRORS.notAdmin }
 }
 
-/** A session about to open on a page: the code to refuse it with, or null. */
+/**
+ * A session about to open on a page: the code to refuse it with, or null. The student page opens
+ * sessions for students only (isStudent); the admin page for anyone who may see the Board.
+ */
 export function surfaceSessionError(
   surface: Surface,
   role: string | null | undefined,
+  capabilities: { editor?: boolean | null; reviewer?: boolean | null } = {},
 ): string | null {
-  if (surface === 'student') return role === 'user' ? null : SURFACE_ERRORS.studentPageOnly
-  return canUseAdmin(role) ? null : SURFACE_ERRORS.notAdmin
+  const account = { role, ...capabilities }
+  if (surface === 'student') return isStudent(account) ? null : SURFACE_ERRORS.studentPageOnly
+  return canSeeBoard(account) ? null : SURFACE_ERRORS.notAdmin
 }
 
 /** The student app (onboarding): accounts with role user only. */
@@ -128,6 +139,41 @@ export const ACCESS_ERRORS = {
   ownAccount: "You can't do that to your own account.",
   hierarchy: 'Only a superadmin can act on admins and superadmins.',
 } as const
+
+/**
+ * An account for the content rules: its role plus the two content capabilities (ADR-108), read
+ * from the session or the database, never from a request. Missing flags count as false.
+ */
+export type Staff = {
+  role: string | null | undefined
+  editor?: boolean | null
+  reviewer?: boolean | null
+}
+
+/** Making posts on the board: an editor, or a superadmin. */
+export function canEdit(s: Staff): boolean {
+  return s.role === 'superadmin' || s.editor === true
+}
+
+/** Approving and publishing posts: a reviewer, or a superadmin. */
+export function canReview(s: Staff): boolean {
+  return s.role === 'superadmin' || s.reviewer === true
+}
+
+/** Opening the admin's board: anyone who can edit or review, and every admin (read-only without a capability). */
+export function canSeeBoard(s: Staff): boolean {
+  return canEdit(s) || canReview(s) || canUseAdmin(s.role)
+}
+
+/** A student account, for the student app's sign-in page: role user with no content capability. */
+export function isStudent(s: Staff): boolean {
+  return s.role === 'user' && s.editor !== true && s.reviewer !== true
+}
+
+/** Why a change to an account's content capabilities must be refused, or null: superadmins only. */
+export function contentRolesError(i: { actorRole: string | null | undefined }): string | null {
+  return canManageRoles(i.actorRole) ? null : ACCESS_ERRORS.rolesSuperadminOnly
+}
 
 /**
  * Why a role change must be refused, or null when it may go ahead. Checked in this order, the

@@ -1,0 +1,30 @@
+{
+  "en": {
+    "search": "To find this again, search “OfCourse {title}”",
+    "guide": "Read the full guide",
+    "sources": "Sources",
+    "swipe": "Swipe",
+    "captionSources": "Sources"
+  },
+  "ne": {
+    "search": "यो फेरि भेट्टाउन “OfCourse {title}” खोज्नुहोस्",
+    "guide": "पूरा गाइड पढ्नुहोस्",
+    "sources": "स्रोतहरू",
+    "swipe": "स्वाइप गर्नुहोस्",
+    "captionSources": "स्रोतहरू"
+  },
+  "hi": {
+    "search": "इसे फिर से ढूँढने के लिए “OfCourse {title}” खोजें",
+    "guide": "पूरी गाइड पढ़ें",
+    "sources": "स्रोत",
+    "swipe": "स्वाइप करें",
+    "captionSources": "स्रोत"
+  },
+  "th": {
+    "search": "หากต้องการกลับมาอ่านอีกครั้ง ให้ค้นหา “OfCourse {title}”",
+    "guide": "อ่านคู่มือฉบับเต็ม",
+    "sources": "แหล่งที่มา",
+    "swipe": "ปัดเพื่อดูต่อ",
+    "captionSources": "แหล่งที่มา"
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "mock": true,
+  "ideas": [
+    {
+      "id": "part-time-work-rules",
+      "group": "content",
+      "kind": "research",
+      "title": "Part-time work rules: 48 hours a fortnight",
+      "evidence": "31 students asked about part-time work rules this month; no feed post answers it.",
+      "from": "Ask questions",
+      "suggested": { "format": "Sketch insight", "destination": "Portal feed → Cerebral" },
+      "sources": [
+        "Home Affairs: student visa work conditions",
+        "Research summary: paid work and grades"
+      ]
+    },
+    {
+      "id": "perth-student-budget",
+      "group": "content",
+      "kind": "research",
+      "title": "Perth on a student budget",
+      "evidence": "Top comic gap (Perth vs Sydney, 268 students); \"Paid work & grades\" saved 3× the feed average.",
+      "from": "Gap list + engagement",
+      "suggested": { "format": "Article carousel", "destination": "Portal feed → Main" },
+      "sources": ["Perth median rents (mock)", "ECU cost-of-living guide"]
+    },
+    {
+      "id": "genuine-student-requirement",
+      "group": "content",
+      "kind": "research",
+      "title": "What the Genuine Student requirement asks",
+      "evidence": "The student visa stage is next for 640 ranked routes within 60 days.",
+      "from": "Calendar",
+      "suggested": { "format": "Article carousel", "destination": "Portal feed (personal)" },
+      "sources": ["Home Affairs: Genuine Student requirement", "Counsellor notes (internal)"]
+    },
+    {
+      "id": "ecu-scholarship-deadline",
+      "group": "content",
+      "kind": "research",
+      "title": "ECU scholarship: 60 days to the deadline",
+      "evidence": "412 matched students; 57 still unsure if they're eligible.",
+      "from": "Catalog change",
+      "suggested": { "format": "Sketch insight", "destination": "Portal feed (personal)" },
+      "sources": ["ECU international scholarships page"]
+    },
+    {
+      "id": "ielts-or-bridging",
+      "group": "content",
+      "kind": "research",
+      "title": "Retake IELTS or take a bridging course?",
+      "evidence": "41% of courses not yet reachable are blocked by an IELTS score.",
+      "from": "Insights · sealing reasons",
+      "suggested": { "format": "Article carousel", "destination": "Portal feed → Main" },
+      "sources": ["ECU and Deakin English requirements", "IELTS test fees (mock)"]
+    },
+    {
+      "id": "perth-financial-counselling",
+      "group": "expansion",
+      "kind": "event",
+      "title": "Financial-counselling workshop · Perth",
+      "evidence": "142 money questions from students on Perth routes in 30 days (rent, budgeting, sending money home).",
+      "from": "Ask questions",
+      "suggested": {
+        "format": "Workshop · 90 minutes, online, evening AWST",
+        "destination": "Event update to the matched audience"
+      },
+      "deliveredBy": ["A licensed financial counsellor (partner)", "Moneysmart budgeting tools"]
+    }
+  ]
+}

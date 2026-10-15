@@ -118,3 +118,99 @@ export async function deleteRoleInvites(emails: string[]): Promise<void> {
   const own = emails.filter((e) => e.endsWith(`@${E2E_DOMAIN}`))
   if (own.length > 0) await sql`delete from role_invite where email in ${sql(own)}`
 }
+
+/** Give an e2e account the content capabilities straight in the database (ADR-108). */
+export async function setCapabilities(
+  email: string,
+  caps: { editor: boolean; reviewer: boolean },
+): Promise<void> {
+  if (!email.endsWith(`@${E2E_DOMAIN}`)) throw new Error(`Not an e2e account: ${email}`)
+  await sql`update "user" set editor = ${caps.editor}, reviewer = ${caps.reviewer}
+    where email = ${email}`
+}
+
+/** An account's role and content capabilities; null when there is no account. */
+export async function accountOf(
+  email: string,
+): Promise<{ role: string; editor: boolean; reviewer: boolean } | null> {
+  const [row] = await sql<{ role: string; editor: boolean; reviewer: boolean }[]>`
+    select role, editor, reviewer from "user" where email = ${email}`
+  return row ?? null
+}
+
+/** How many posts an account has made. */
+export async function countPostsBy(email: string): Promise<number> {
+  const [row] = await sql<{ c: number }[]>`
+    select count(*)::int as c from content_post p
+    join "user" u on u.id = p.created_by_user_id
+    where u.email = ${email}`
+  return row?.c ?? 0
+}
+
+/**
+ * Delete the posts e2e accounts made (their records, steps and social versions go by cascade).
+ * Run before deleteUsers: deleting an account only clears its posts' creator.
+ */
+export async function deletePostsBy(emails: string[]): Promise<void> {
+  const own = emails.filter((e) => e.endsWith(`@${E2E_DOMAIN}`))
+  if (own.length === 0) return
+  await sql`delete from content_post p using "user" u
+    where u.id = p.created_by_user_id and u.email in ${sql(own)}`
+}
+
+/** The art prompt of a post's current render, or null when it has none. */
+export async function renderedArtPrompt(postId: string): Promise<string | null> {
+  const [row] = await sql<{ prompt: string | null }[]>`
+    select a.body->'art'->>'prompt' as prompt from content_post p
+    join content_artifact a on a.id = p.pointers->>'renderId'
+    where p.id = ${postId}`
+  return row?.prompt ?? null
+}
+
+/** A post's public page slug (content_post.slug), set when it first goes live; null before. */
+export async function postSlug(postId: string): Promise<string | null> {
+  const [row] = await sql<{ slug: string | null }[]>`
+    select slug from content_post where id = ${postId}`
+  return row?.slug ?? null
+}
+
+/** Whether a post's current render has art on its cover. */
+export async function renderHasArt(postId: string): Promise<boolean> {
+  const [row] = await sql<{ art: boolean }[]>`
+    select a.body->'art'->>'assetId' is not null as art from content_post p
+    join content_artifact a on a.id = p.pointers->>'renderId'
+    where p.id = ${postId}`
+  return row?.art ?? false
+}
+
+/**
+ * Stand in for the image model answering at last: an image cached under `key` (an art cache key,
+ * computed as src/features/content/ai/art.ts does), so the next art call for that prompt gets it.
+ * Remove both with forgetCachedArt.
+ */
+export async function cacheArt(key: string, assetId: string, png: Uint8Array): Promise<void> {
+  await sql`insert into content_asset (id, mime, bytes) values (${assetId}, 'image/png', ${png})
+    on conflict do nothing`
+  await sql`insert into ai_cache (key, use_case, model, prompt_version, value)
+    values (${key}, 'art', 'e2e', 'image.v1', ${sql.json({ assetId })})
+    on conflict (key) do nothing`
+}
+
+export async function forgetCachedArt(key: string, assetId: string): Promise<void> {
+  await sql`delete from ai_cache where key = ${key}`
+  await sql`delete from content_asset where id = ${assetId}`
+}
+
+/**
+ * Turn a post at its idea cards into a post from before the looks (GD8), as no screen makes one
+ * any more: no idea cards, no versions, and `templates` (legacy template ids, the-line first)
+ * ticked, so its Text step offers the legacy templates and "Draft versions". The version moves
+ * on, so a page opened before reloads instead of saving over it.
+ */
+export async function makeLegacy(postId: string, templates: string[]): Promise<void> {
+  const pointers = { ideasId: null, draftsId: null, picked: null, themeId: null, ticked: templates }
+  const done = await sql`update content_post
+    set pointers = pointers || ${sql.json(pointers)}::jsonb, version = version + 1
+    where id = ${postId} and stage = 'structures' and kind = 'feed'`
+  if (done.count !== 1) throw new Error(`Post ${postId} is not a feed post at its text`)
+}

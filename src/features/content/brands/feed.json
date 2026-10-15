@@ -1,0 +1,43 @@
+{
+  "id": "feed",
+  "name": "OfCourse feed",
+  "kind": "feed",
+  "fonts": {
+    "heading": {
+      "family": "Barlow Condensed",
+      "file": "BarlowCondensed-Bold.ttf"
+    },
+    "body": {
+      "family": "Barlow",
+      "file": "Barlow-Regular.ttf"
+    }
+  },
+  "tone": "Plain, warm, exact. Short sentences. Never hype.",
+  "byline": "OfCourse",
+  "themes": [
+    {
+      "id": "paper",
+      "name": "Paper",
+      "bg": "#F4EFE6",
+      "ink": "#1D1F20",
+      "highlight": "#F5C542",
+      "muted": "#5F5D58"
+    },
+    {
+      "id": "ink",
+      "name": "Ink",
+      "bg": "#16191B",
+      "ink": "#F4EFE6",
+      "highlight": "#F5C542",
+      "muted": "#B3AFA6"
+    },
+    {
+      "id": "signal",
+      "name": "Signal",
+      "bg": "#1877F2",
+      "ink": "#FFFFFF",
+      "highlight": "#F5C542",
+      "muted": "#E3EDFD"
+    }
+  ]
+}

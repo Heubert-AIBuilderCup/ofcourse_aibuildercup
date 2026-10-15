@@ -1,6 +1,17 @@
 // The engine's one definition of its types. Pure: the engine runs on the server and in the
 // browser, and the UI imports these type-only.
 
+// The six dimensions a route is weighed on; Insights ranks and labels its tables by them.
+export const DIMENSIONS = ['cost', 'time', 'work', 'pr', 'location', 'career'] as const
+export type Dimension = (typeof DIMENSIONS)[number]
+export const DIMENSION_LABELS: Record<Dimension, string> = {
+  cost: 'Cost',
+  time: 'Time',
+  work: 'Work',
+  pr: 'PR',
+  location: 'Location',
+  career: 'Career',
+}
 export type Effect = 'gives' | 'neutral' | 'costs'
 export type DataState = 'confirmed' | 'estimated' | 'unknown' | 'out of date' | 'conflicting'
 export type Pips = 1 | 2 | 3 | 4 | 5

@@ -7,6 +7,7 @@ export const E2E_DOMAIN = 'e2e.starter.test'
 
 export const SUPERADMINS = {
   users: `superadmin-users@${E2E_DOMAIN}`,
+  content: `superadmin-content@${E2E_DOMAIN}`,
 } as const
 
 /** A fresh address: unique per call, per run, per worker. */
