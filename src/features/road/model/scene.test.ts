@@ -14,6 +14,7 @@ const MASTERS = 'masters-cyber-security-ecu'
 const AHEAD = [
   MASTERS,
   'graduate-visa-485',
+  'two-ways-to-pr',
   'state-nomination-190',
   'permanent-residency',
   'regional-491',
@@ -48,6 +49,57 @@ describe('the default scene: at the course', () => {
     expect(states(sc, [DS, 'adelaide'])).toEqual(['alt', 'alt'])
     expect(tile(sc, IS)).toBeUndefined()
     expect(sc.hint).toBeNull()
+  })
+
+  it('runs the road ahead through the junction after the 485, on to Point B', () => {
+    expect(scene().ahead).toEqual([
+      'student-visa-500',
+      MASTERS,
+      'graduate-visa-485',
+      'two-ways-to-pr',
+      'state-nomination-190',
+      'permanent-residency',
+    ])
+  })
+
+  it('puts a small junction, "2 ways to PR", just after the 485 ends', () => {
+    const sc = scene()
+    const g485 = tile(sc, 'graduate-visa-485')!
+    const junction = tile(sc, 'two-ways-to-pr')!
+    expect(junction).toMatchObject({ kind: 'junction', state: 'fog', name: '2 ways to PR', gy: 0 })
+    expect(junction.gx).toBeCloseTo((g485.gx1 ?? g485.gx) + 0.35)
+    // Unnamed at Whole road, as the reference's lgFork leaves it.
+    expect(junction.lab).toEqual({ whole: 'none', level: 'above', tile: 'above' })
+  })
+
+  it('sends both ways forward: the 190 straight on, the 491 an angled lane on the far side', () => {
+    const sc = scene()
+    const j = tile(sc, 'two-ways-to-pr')!.gx
+    expect(tile(sc, 'state-nomination-190')).toMatchObject({ gy: 0 })
+    expect(tile(sc, 'state-nomination-190')!.gx).toBeCloseTo(j + 1.3)
+    expect(tile(sc, 'permanent-residency')!.gx).toBeCloseTo(j + 2.7)
+    const lane = tile(sc, 'regional-491')!
+    expect(lane).toMatchObject({ kind: 'slab', gy: -1.25, gy1: -2.1, w: 0.26 })
+    expect(lane.gx).toBeCloseTo(j + 1.0)
+    // The lane ends at the 2034 tick.
+    const tick2034 = sc.ruler.ticks.find((t) => t.year === 2034)!.gx
+    expect(Math.abs((lane.gx1 ?? 0) - tick2034)).toBeLessThan(0.2)
+    const end = tile(sc, 'permanent-191')!
+    expect(end.gx).toBeGreaterThan(lane.gx1 ?? 0)
+    expect(end.gy).toBeLessThan(lane.gy1 ?? 0)
+  })
+
+  it('moves the years ruler to the other side of the road from the 491 lane', () => {
+    const sc = scene()
+    const lane = tile(sc, 'regional-491')!
+    expect(Math.sign(sc.ruler.gy)).toBe(-Math.sign(lane.gy))
+    expect(sc.ruler.gy).toBe(2.1)
+  })
+
+  it('names the country at every stop, and Adelaide above itself at Level', () => {
+    const sc = scene()
+    expect(tile(sc, 'australia')?.lab).toEqual({ whole: 'above', level: 'above', tile: 'above' })
+    expect(tile(sc, 'adelaide')?.lab.level).toBe('above')
   })
 
   it('carries each tile’s label placement per stop', () => {

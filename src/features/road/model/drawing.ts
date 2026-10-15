@@ -1,6 +1,6 @@
 // What the map draws for a camera, in px on the map: the roads, the year ruler, each tile's faces,
-// rings and hit area, its label, the duck and the road-ahead plate. The reference build's
-// renderVals maths (road-logic.txt), pure; the map component only places what it returns.
+// rings, icon and hit area, its label, the duck and the road-ahead plate. The reference build's
+// renderVals maths (road-logic.txt, board.js), pure; the map component only places what it returns.
 
 import { type Camera, project, TILE_DEPTH, TILE_SIZE } from './camera'
 import type { BadgeId, LabelPlace, Stop, Tile } from './road-data'
@@ -24,9 +24,9 @@ export const toScreen =
     return [ox + x * u, oy + y * u]
   }
 
-/** A tile's middle on the ground: a slab's is halfway along it. */
+/** A tile's middle on the ground: a slab's is halfway along it (an angled one's too). */
 const middle = (t: Tile): Point =>
-  t.kind === 'slab' ? [(t.gx + (t.gx1 ?? t.gx)) / 2, t.gy] : [t.gx, t.gy]
+  t.kind === 'slab' ? [(t.gx + (t.gx1 ?? t.gx)) / 2, (t.gy + (t.gy1 ?? t.gy)) / 2] : [t.gx, t.gy]
 
 /** Where the road runs through these tiles, in grid units: a slab gives both its ends. */
 function ends(ids: string[], byId: Map<string, Tile>): Point[] {
@@ -36,7 +36,7 @@ function ends(ids: string[], byId: Map<string, Tile>): Point[] {
     return t.kind === 'slab'
       ? [
           [t.gx, t.gy],
-          [t.gx1 ?? t.gx, t.gy],
+          [t.gx1 ?? t.gx, t.gy1 ?? t.gy],
         ]
       : [[t.gx, t.gy]]
   })
@@ -71,7 +71,7 @@ export function roadLines(scene: Scene, cam: Camera): RoadLine[] {
   if (scene.ahead.length > 1)
     out.push({ id: 'fog', kind: 'fog', d: line(ends(scene.ahead, byId)), width: u * 0.36 })
 
-  // The thinner road off the trunk: from the end of the step before the branch starts.
+  // The thinner road off the trunk: from the step before the branch starts (the junction).
   const branch = scene.tiles.filter((t) => t.branch)
   const trunk = scene.ahead
     .map((id) => byId.get(id))
@@ -86,7 +86,7 @@ export function roadLines(scene: Scene, cam: Camera): RoadLine[] {
         byId,
       ),
     ])
-    out.push({ id: 'fork', kind: 'fork', d, width: u * 0.2 })
+    out.push({ id: 'fork', kind: 'fork', d, width: u * 0.3 })
   }
 
   if (scene.next.length > 1)
@@ -139,6 +139,8 @@ export type TileDraw = {
   size: number
   depth: number
   top: number
+  /** How far it is lifted, in px. */
+  lift: number
   /** The grid box it covers. */
   box: { x0: number; x1: number; y0: number; y1: number }
 }
@@ -152,18 +154,47 @@ export function drawTile(t: Tile, cam: Camera, lift: number): TileDraw {
   const half = t.kind === 'slab' ? (t.w ?? size) : size
   const box =
     t.kind === 'slab'
-      ? { x0: t.gx, x1: t.gx1 ?? t.gx, y0: t.gy - half, y1: t.gy + half }
+      ? {
+          x0: t.gx,
+          x1: t.gx1 ?? t.gx,
+          y0: Math.min(t.gy, t.gy1 ?? t.gy) - half,
+          y1: Math.max(t.gy, t.gy1 ?? t.gy) + half,
+        }
       : { x0: t.gx - size, x1: t.gx + size, y0: t.gy - size, y1: t.gy + size }
+  const [mx, my] = middle(t)
+
+  /** The top face's corners (back, right, front, left), k times its size about the middle; an angled slab runs along its own line. */
+  const quad = (k: number): Point[] => {
+    if (t.kind === 'slab' && t.gy1 !== undefined) {
+      const dx = (t.gx1 ?? t.gx) - t.gx
+      const dy = t.gy1 - t.gy
+      const len = Math.hypot(dx, dy)
+      const nx = (-dy / len) * half * k
+      const ny = (dx / len) * half * k
+      const ex = (dx / 2) * k
+      const ey = (dy / 2) * k
+      return [
+        [mx - ex - nx, my - ey - ny],
+        [mx + ex - nx, my + ey - ny],
+        [mx + ex + nx, my + ey + ny],
+        [mx - ex + nx, my - ey + ny],
+      ]
+    }
+    const hx = ((box.x1 - box.x0) / 2) * k
+    const hy = ((box.y1 - box.y0) / 2) * k
+    return [
+      [mx - hx, my - hy],
+      [mx + hx, my - hy],
+      [mx + hx, my + hy],
+      [mx - hx, my + hy],
+    ]
+  }
 
   const layerAt = (up: number): Faces => {
-    const c = (gx: number, gy: number): Point => {
+    const [T, R, B, L] = quad(1).map(([gx, gy]): Point => {
       const [x, y] = at(gx, gy)
       return [x, y - up]
-    }
-    const T = c(box.x0, box.y0)
-    const R = c(box.x1, box.y0)
-    const B = c(box.x1, box.y1)
-    const L = c(box.x0, box.y1)
+    })
     return {
       top: toPoints([T, R, B, L]),
       left: toPoints([L, B, [B[0], B[1] + depth], [L[0], L[1] + depth]]),
@@ -175,20 +206,15 @@ export function drawTile(t: Tile, cam: Camera, lift: number): TileDraw {
     ? [layerAt(lift), layerAt(lift + depth * 1.6), layerAt(lift + depth * 3.2)]
     : [layerAt(lift)]
   const top = stack ? depth * 3.2 : 0
-  const [mx, my] = middle(t)
   const centre = at(mx, my)
 
-  const ring = (k: number) => {
-    const hx = ((box.x1 - box.x0) / 2) * k
-    const hy = ((box.y1 - box.y0) / 2) * k
-    const corners: Point[] = [
-      at(mx - hx, my - hy),
-      at(mx + hx, my - hy),
-      at(mx + hx, my + hy),
-      at(mx - hx, my + hy),
-    ]
-    return toPoints(corners.map(([x, y]) => [x, y - lift - top]))
-  }
+  const ring = (k: number) =>
+    toPoints(
+      quad(k).map(([gx, gy]) => {
+        const [x, y] = at(gx, gy)
+        return [x, y - lift - top]
+      }),
+    )
 
   const width = Math.max(44, (t.kind === 'slab' ? box.x1 - box.x0 + 2 * size : 4 * size) * u)
   const height = Math.max(
@@ -208,8 +234,32 @@ export function drawTile(t: Tile, cam: Camera, lift: number): TileDraw {
     size,
     depth,
     top,
+    lift,
     box,
   }
+}
+
+/**
+ * The icon printed on a tile's top face, upright and flattened so it reads as a mark on the tile:
+ * an SVG transform for a 24-unit icon (the reference's `icoM`). Two-thirds of the tile (half on a
+ * stack, most of the junction); on a slab, near its start along its own line.
+ */
+export function iconOn(drawn: TileDraw, t: Tile, cam: Camera): string {
+  let [gx, gy] = middle(t)
+  let size = drawn.size * (t.kind === 'stack' ? 0.5 : t.kind === 'junction' ? 0.8 : 0.66)
+  if (t.kind === 'slab') {
+    const dx = (t.gx1 ?? t.gx) - t.gx
+    const dy = (t.gy1 ?? t.gy) - t.gy
+    const len = Math.hypot(dx, dy)
+    const a = Math.min(0.55, len / 2)
+    gx = t.gx + (dx / len) * a
+    gy = t.gy + (dy / len) * a
+    size = (t.w ?? drawn.size) * 0.8
+  }
+  const [x, y] = toScreen(cam)(gx, gy)
+  const k = (size * cam.u * 2) / 24
+  const m = [k, 0, 0, k * 0.56, x - 12 * k, y - drawn.lift - drawn.top - 12 * k * 0.56]
+  return `matrix(${m.map((v) => v.toFixed(3)).join(',')})`
 }
 
 /** The duck standing on the tile she is on: as wide as 1.5 grid units, held between 34 and 76px. */
@@ -233,13 +283,16 @@ export type LabelDraw = {
   y: number
   /** Shown only while hovered: an unlabelled tile's name. */
   hint: boolean
-  /** Where she is at the Tile stop: the full label, with badges and the why line. */
+  /** Where she is at the Tile stop: the full label, with badges and the trade-off lines. */
   full: boolean
+  /** The kind word, then the tile's own kicker: "Course · Visited". */
   kicker?: string
   when?: string
   name: string
   sub?: string
-  why?: string
+  /** "Good for: …" and "Less good for: …", each on its own line. */
+  gains?: string
+  costs?: string
   badges: BadgeId[]
 }
 
@@ -249,18 +302,39 @@ export type LabelContext = {
   hovered: boolean
   /** Looking at the road ahead: its steps carry their Whole road labels at Level. */
   ahead: boolean
-  /** The tile before where she is on the walked road. */
-  parent: boolean
   openLevel: Scene['openLevel']
   phone: boolean
   lift: number
+  /** Pressed: open in the card. */
+  pressed: boolean
+  /** The root font size in px: labels hang 0.75rem from their tile. */
+  rem: number
+  /** The map's size in px: a name its edge would cut is hidden. Null: no edge. */
+  map: { width: number; height: number } | null
+  /** The tile's kind word (kindOf), worked out once per scene. */
+  kind: string
+}
+
+/** A label's plate would cross the map's edge: 7rem beside, 3rem above, below and across. */
+function cut(place: LabelDraw['place'], x: number, y: number, c: LabelContext): boolean {
+  if (!c.map) return false
+  const { width, height } = c.map
+  const r = c.rem
+  if (place === 'right') return x + 7 * r > width
+  if (place === 'left') return x - 7 * r < 0
+  if (x < 3 * r || x > width - 3 * r) return true
+  return place === 'above' ? y < 3 * r : y > height - 3 * r
 }
 
 /** A tile's label at this stop, or null: its place, what it says, and where it sits in px. */
 export function labelOf(t: Tile, drawn: TileDraw, cam: Camera, c: LabelContext): LabelDraw | null {
   const { stop, here } = c
   const looked = t.state === 'fog' || t.state === 'seen'
-  const pos = stop === 'level' && c.ahead && looked ? t.lab.whole : t.lab[stop]
+  let pos = stop === 'level' && c.ahead && looked ? t.lab.whole : t.lab[stop]
+  // On a phone the icon says what a tile is, so names stay few: another city's name sits beside
+  // it, and the steps ahead are named at Level only where she is or when pressed.
+  if (c.phone && t.kind === 'place' && t.state === 'alt' && pos === 'above') pos = 'left'
+  if (c.phone && stop === 'level' && t.state === 'fog' && !here && !c.pressed) pos = 'none'
   const hint = pos === 'none' && c.hovered && !here
   if (pos === 'none' && !hint) return null
   const place = pos === 'none' ? 'above' : pos
@@ -268,36 +342,44 @@ export function labelOf(t: Tile, drawn: TileDraw, cam: Camera, c: LabelContext):
   const { u } = cam
   const { centre, size, depth, top, box } = drawn
   const hw = t.kind === 'slab' ? (box.x1 - box.x0) / 2 + size : 2 * size
+  // The label hangs on a 0.75rem line from its tile.
+  const hang = 0.75 * c.rem
   const x =
     place === 'left'
-      ? centre[0] - hw * u - 6
+      ? centre[0] - hw * u - hang
       : place === 'right'
-        ? centre[0] + hw * u + 6
+        ? centre[0] + hw * u + hang
         : centre[0]
   const y =
     place === 'below'
-      ? centre[1] + size * u + depth + 6 - c.lift
+      ? centre[1] + size * u + depth + hang - c.lift
       : place === 'above'
-        ? centre[1] - size * u - top - 8 - c.lift
+        ? centre[1] - size * u - top - hang - c.lift
         : centre[1] - c.lift - top / 2
+  // A name the map's edge would cut waits until the camera brings its tile in.
+  if (!here && cut(place, x, y, c)) return null
 
   const full = here && stop === 'tile'
   const level = stop === 'level' && !c.phone
   const open = !!t.level && t.level === c.openLevel
+  // The kind word first; "You" and "Point B" are kind words already.
+  const own = t.kicker && t.kicker !== 'You' && t.kicker !== 'Point B' ? t.kicker : undefined
+  const trade = (level && (open || (here && t.kind === 'course'))) || full
   return {
     place,
     x,
     y,
     hint,
     full,
-    kicker: t.kicker && stop !== 'tile' ? t.kicker : undefined,
+    kicker: c.phone && !here ? undefined : [c.kind, own].filter(Boolean).join(' · '),
     when: t.when && stop !== 'whole' && t.kind !== 'step' ? t.when : undefined,
     name: stop === 'whole' ? (t.short ?? t.name) : t.name,
     sub:
-      t.sub && ((t.kind === 'stack' && stop !== 'whole') || (level && (c.parent || here)) || full)
+      t.sub && ((t.kind === 'stack' && stop !== 'whole') || (level && here) || full)
         ? t.sub
         : undefined,
-    why: t.why && ((level && (open || (here && t.kind === 'course'))) || full) ? t.why : undefined,
+    gains: trade ? t.gains : undefined,
+    costs: trade ? t.costs : undefined,
     badges: full ? (t.badges ?? []) : [],
   }
 }

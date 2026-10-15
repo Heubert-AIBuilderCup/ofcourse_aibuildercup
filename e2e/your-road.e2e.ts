@@ -62,7 +62,7 @@ test.describe('on a laptop', () => {
       await expect(stop(page, 'Level')).toHaveAttribute('aria-pressed', 'true')
 
       // The wheel: one stop per gesture, out for a scroll down, in for a scroll up.
-      const map = page.getByRole('region', { name: 'Your road, map' })
+      const map = page.getByRole('region', { name: 'Your roadmap, map' })
       const box = await map.boundingBox()
       if (!box) throw new Error('The map has no box')
       await page.mouse.move(box.x + box.width * 0.15, box.y + box.height * 0.2)
@@ -84,11 +84,11 @@ test.describe('on a laptop', () => {
       await page.goto(`${board}?tile=data-science-uwa-perth`)
       await expect(card(page).getByText('Not visited · Course')).toBeVisible()
 
-      await card(page).getByRole('button', { name: 'Swap onto your road' }).click()
+      await card(page).getByRole('button', { name: 'Swap onto your roadmap' }).click()
       await expect(card(page).getByRole('heading', { level: 1 })).toHaveText('Data Science')
       await expect(card(page).getByText('You are here · Course')).toBeVisible()
       const toast = page.getByText(
-        'Data Science is on your road now. The road ahead re-routed through it.',
+        'Data Science is on your roadmap now. The road ahead re-routed through it.',
       )
       await expect(toast).toBeVisible()
       await expect(page).toHaveURL(at(board))
@@ -164,15 +164,15 @@ test.describe('on a phone', () => {
     const { email, board } = await finishedStudent(page, 'road-phone')
     try {
       await page.goto(board)
-      const views = page.getByRole('group', { name: 'Show your road as' })
-      const list = page.getByRole('list', { name: 'Your road' })
-      const map = page.getByRole('region', { name: 'Your road, map' })
+      const views = page.getByRole('group', { name: 'Show your roadmap as' })
+      const list = page.getByRole('list', { name: 'Your roadmap' })
+      const map = page.getByRole('region', { name: 'Your roadmap, map' })
       await expect(views.getByRole('button', { name: 'Road' })).toHaveAttribute(
         'aria-pressed',
         'true',
       )
       await expect(list).toBeVisible()
-      await expect(list.getByText('Late 2026 · Next · Route step')).toBeVisible()
+      await expect(list.getByText('Late 2026 · Next · Visa')).toBeVisible()
       await expect(map).toHaveCount(0)
 
       await views.getByRole('button', { name: 'Map' }).click()

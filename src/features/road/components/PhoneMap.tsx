@@ -12,11 +12,14 @@ import { RoadMap } from './RoadMap'
 
 const ACTION = 'h-11 flex-1'
 
-/** The peek's one line: a pressed tile's trade-off, else its guide; where she is, her tile's why. */
-function peekLine(card: Card, why: string | undefined) {
-  if (card.kind === 'here') return why ?? card.sub
-  if (card.gains && card.costs) return `${card.gains} · ${card.costs}`
-  return card.guide ?? card.sub
+/**
+ * The peek's lines: a pressed tile's trade-off (good for, then less good for), else its guide;
+ * where she is, her tile's trade-off, else her card's sub.
+ */
+function peekLines(card: Card, trade: string[]): string[] {
+  if (card.kind === 'here') return trade.length ? trade : [card.sub]
+  if (card.gains && card.costs) return [card.gains, card.costs]
+  return [card.guide ?? card.sub]
 }
 
 /**
@@ -36,7 +39,8 @@ export function PhoneMap({
   onPrimary?: () => void
 }) {
   const here = card.kind === 'here'
-  const why = map.scene.tiles.find((t) => t.id === map.scene.here)?.why
+  const hereTile = map.scene.tiles.find((t) => t.id === map.scene.here)
+  const trade = [hereTile?.gains, hereTile?.costs].filter((x): x is string => !!x)
   const board = useBoardPath()
   return (
     <RoadMap {...map}>
@@ -47,7 +51,11 @@ export function PhoneMap({
       >
         <p className="m-0 text-overline text-muted-foreground uppercase">{card.kicker}</p>
         <h1 className="m-0 text-h3 leading-tight">{card.name}</h1>
-        <p className="m-0 text-sm text-muted-foreground">{peekLine(card, why)}</p>
+        <p className="m-0 flex flex-col text-sm text-muted-foreground">
+          {peekLines(card, trade).map((line) => (
+            <span key={line}>{line}</span>
+          ))}
+        </p>
         <div className="mt-2 flex gap-2">
           {card.primary && card.kind === 'look' && card.routeId ? (
             <Link

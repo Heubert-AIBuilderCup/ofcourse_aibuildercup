@@ -82,6 +82,26 @@ describe('fit', () => {
     expect(x).toBeCloseTo(pad.l + (size.width - pad.l - pad.r) / 2)
     expect(y).toBeCloseTo(pad.t + (size.height - pad.t - pad.b) / 2)
   })
+
+  it('at Tile frames the angled 491 lane along its angle: centred, its far end inside', () => {
+    const size = SIZES.wide
+    const cam = fit('tile', 'regional-491', size, scene)
+    const pad = mapPadding(size)
+    const lane = scene.tiles.find((t) => t.id === 'regional-491')!
+    const at = (gx: number, gy: number) => {
+      const [x, y] = project(gx, gy)
+      return [cam.ox + x * cam.u, cam.oy + y * cam.u]
+    }
+    const [mx, my] = at((lane.gx + lane.gx1!) / 2, (lane.gy + lane.gy1!) / 2)
+    expect(mx).toBeCloseTo(pad.l + (size.width - pad.l - pad.r) / 2)
+    expect(my).toBeCloseTo(pad.t + (size.height - pad.t - pad.b) / 2)
+    for (const gy of [lane.gy1! - lane.w!, lane.gy1! + lane.w!]) {
+      const [x, y] = at(lane.gx1!, gy)
+      expect(x >= pad.l && x <= size.width - pad.r && y >= pad.t && y <= size.height - pad.b).toBe(
+        true,
+      )
+    }
+  })
 })
 
 describe('frame', () => {

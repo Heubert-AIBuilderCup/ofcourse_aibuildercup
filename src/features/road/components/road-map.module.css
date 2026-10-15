@@ -1,13 +1,14 @@
 /*
  * The map's look, for what Tailwind cannot say: the field (the brand field: blue in light, steel in
  * dark) and its ink, and every colour the map mixes from those two, so both themes follow; the
- * tile faces per state; the hit areas clipped to a tile's shape; the duck's bob and the hint's
- * pulse. From the reference build's road.css (rd-*, rb-*). Animations are declared only under
+ * tile faces per state and the icons on them; the labels' hanging lines; the hit areas clipped to
+ * a tile's shape; the hover's rise, the duck's bob and the hint's pulse. From the reference build's
+ * road.css (rd-*, rb-*). Transitions and animations are declared only under
  * prefers-reduced-motion: no-preference, so under reduce nothing moves.
  */
 
 .map,
-.swatch {
+.key {
   /* What darkens the field (fog, forks, plates, edges, the duck's shadow): the one raw colour. */
   --shade: black;
 }
@@ -114,6 +115,25 @@
   --edge: color-mix(in oklch, var(--ink) 60%, var(--fld));
 }
 
+/* The icon on a tile's top face: the field's colour on the lit ink, the ink on dim tiles. */
+.icon path {
+  stroke: var(--fld);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+.tile[data-state="alt"] .icon path,
+.tile[data-state="next"] .icon path,
+.tile[data-state="seen"] .icon path {
+  stroke: var(--ink);
+}
+.tile[data-state="fog"] .icon path {
+  stroke: color-mix(in oklch, var(--ink) 62%, var(--fld));
+}
+.tile[data-state="unknown"] .icon path {
+  stroke: var(--ink);
+  opacity: 0.7;
+}
+
 /* Not picked yet (the empty road's destination): a dotted outline, nothing filled. */
 .tile[data-state="unknown"] {
   --top: transparent;
@@ -158,10 +178,42 @@
 
 /* Labels sit on a plate of the field; a dark tile's on the darkened field. */
 .label {
-  background: color-mix(in oklch, var(--fld) 84%, transparent);
+  background: color-mix(in oklch, var(--fld) 94%, var(--shade));
 }
 .label[data-state="fog"] {
-  background: color-mix(in oklch, var(--shade) 26%, var(--fld));
+  background: color-mix(in oklch, var(--shade) 30%, var(--fld));
+}
+/* Each hangs on a 0.75rem line to its tile (labelOf leaves the gap). */
+.label::after {
+  content: "";
+  position: absolute;
+  background: var(--ink);
+  opacity: 0.75;
+  pointer-events: none;
+}
+.label[data-place="above"]::after,
+.label[data-place="below"]::after {
+  left: 50%;
+  width: 1px;
+  height: 0.75rem;
+}
+.label[data-place="above"]::after {
+  top: 100%;
+}
+.label[data-place="below"]::after {
+  bottom: 100%;
+}
+.label[data-place="left"]::after,
+.label[data-place="right"]::after {
+  top: 50%;
+  width: 0.75rem;
+  height: 1px;
+}
+.label[data-place="left"]::after {
+  left: 100%;
+}
+.label[data-place="right"]::after {
+  right: 100%;
 }
 .label[data-state="unknown"] {
   background: transparent;
@@ -210,31 +262,18 @@
   );
 }
 
-/* The map key's swatches: the field's lights, small, on the key's light ground. */
-.swatch {
-  flex: none;
-  width: 1.75rem;
-  height: 1rem;
-  border: 1px solid color-mix(in oklch, var(--foreground) 40%, transparent);
+/* The key strip: the field darkened a little, in its ink; its swatches are tiles (.tile). */
+.key {
+  --fld: var(--panel);
+  --ink: var(--panel-foreground);
+  background: color-mix(in oklch, var(--fld) 90%, var(--shade));
+  border: 1px solid color-mix(in oklch, var(--ink) 45%, transparent);
+  color: var(--ink);
 }
-.swatch[data-light="lit"] {
-  background: var(--panel-foreground);
-}
-.swatch[data-light="alt"] {
-  background: color-mix(in oklch, var(--panel-foreground) 30%, var(--panel));
-}
-.swatch[data-light="fog"] {
-  background: color-mix(in oklch, var(--shade) 26%, var(--panel));
-}
-.swatch[data-light="hatch"] {
-  background: repeating-linear-gradient(
-    135deg,
-    var(--panel) 0 0.1875rem,
-    var(--panel-foreground) 0.1875rem 0.25rem
-  );
-}
-.swatch[data-light="dot"] {
-  border: 1.5px dotted var(--foreground);
+
+/* Hovered, a tile rises about as far as a pressed one is drawn lifted (LIFT, RoadMap.tsx). */
+.tile[data-hover] {
+  transform: translateY(-0.375rem);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -243,6 +282,30 @@
   }
   .hint {
     animation: pulse 1.6s ease-in-out infinite;
+  }
+  .tile {
+    transition: transform 0.18s cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  /*
+   * A pressed tile is drawn lifted (its geometry), so the hover's rise it loses must not ease
+   * back: pressed while hovered, the two would add up to twice the lift for a moment.
+   */
+  .tile[data-pressed] {
+    transition: none;
+  }
+  .tile polygon {
+    transition: fill 0.18s ease-out;
+  }
+  .label[data-hint] {
+    animation: label-in 0.16s ease-out both;
+  }
+}
+
+/* A hovered tile's name: a quick fade, up from just below. */
+@keyframes label-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.25rem);
   }
 }
 

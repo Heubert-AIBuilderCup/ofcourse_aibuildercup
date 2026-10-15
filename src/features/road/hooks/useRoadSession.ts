@@ -130,12 +130,6 @@ export function useRoadSession(
     setStatus(next === 'map' ? 'Map view' : 'Road view')
   }
 
-  function back(tileId: string) {
-    setSession(settled)
-    go({ ...state, tile: tileId, zoom: 'level', open: null })
-    setStatus(`${nameIn(scene, tileId)} open in the card.`)
-  }
-
   function primary() {
     const action = primaryAction(road, scene, state.tile)
     if (!action) return
@@ -148,7 +142,7 @@ export function useRoadSession(
       change(
         { ...settled, swapped: !settled.swapped },
         (after) =>
-          `${nameIn(after, after.here)} is on your road now. The road ahead re-routed through it.`,
+          `${nameIn(after, after.here)} is on your roadmap now. The road ahead re-routed through it.`,
       )
     } else {
       change(
@@ -170,7 +164,7 @@ export function useRoadSession(
     change(
       { ...settled, added: true },
       (after) =>
-        `${nameIn(after, after.alternative)} is on your board, beside your road. ${nameIn(scene, scene.alternative)} folded into the stack.`,
+        `${nameIn(after, after.alternative)} is on your board, beside your roadmap. ${nameIn(scene, scene.alternative)} folded into the stack.`,
       { focus: tileId },
     )
     closeList()
@@ -203,7 +197,6 @@ export function useRoadSession(
     zoom,
     close,
     view,
-    back,
     primary,
     closeList,
     put,
@@ -222,5 +215,10 @@ export function useRoadSession(
       setToast(null)
     },
     dismissToast: () => setToast(null),
+    /** A toast that only says something: what is not here yet. */
+    say: (text: string) => {
+      toasts.current += 1
+      setToast({ id: toasts.current, text, undo: null })
+    },
   }
 }

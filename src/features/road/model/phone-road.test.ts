@@ -26,15 +26,15 @@ describe('the phone road', () => {
     ])
   })
 
-  it('leads each kicker with the step’s date, then its state and its kind', () => {
+  it('leads each kicker with the step’s date, then its state and its kind word', () => {
     const list = rows()
     expect(list.flatMap((r) => (r.kind === 'step' ? [r.kicker] : []))).toEqual([
       'You',
-      'Destination',
+      'Country',
       'City',
-      'Late 2026 · Next · Route step',
-      'Feb 2027 – Dec 2028 · Route step',
-      'From 2029 · Route step',
+      'Late 2026 · Next · Visa',
+      'Feb 2027 – Dec 2028 · Study',
+      'From 2029 · Work visa',
     ])
     expect(step(list, 'perth').state).toBe('lit')
     expect(step(list, 'student-visa-500').state).toBe('next')
@@ -59,7 +59,8 @@ describe('the phone road', () => {
   it('draws the two ways to PR side by side, the thinner one dashed', () => {
     const fork = rows().at(-1)
     if (fork?.kind !== 'fork') throw new Error('No fork row')
-    expect(fork.kicker).toBe('2031 – 2034 · 2 ways to PR')
+    expect(fork.kicker).toBe('2031 – 2034 · Fork · 2 ways to PR')
+    expect(fork.tiles[0]).toBe('two-ways-to-pr')
     expect(fork.ways).toEqual([
       {
         id: 'state-nomination-190',
@@ -82,7 +83,7 @@ describe('the phone road', () => {
 
   it('after the lesson, its steps show as looked at and offer it no more', () => {
     const masters = step(rows({ read: true }), 'masters-cyber-security-ecu')
-    expect(masters.kicker).toBe('Feb 2027 – Dec 2028 · Looked at · Route step')
+    expect(masters.kicker).toBe('Feb 2027 – Dec 2028 · Looked at · Study')
     expect(masters.lesson).toBeUndefined()
   })
 
@@ -112,6 +113,7 @@ describe('the row a tile sits in', () => {
     expect(rowFor(list, 'adelaide')?.id).toBe('perth')
     expect(rowFor(list, 'data-science-uwa-perth')?.kind).toBe('here')
     expect(rowFor(list, 'permanent-191')?.kind).toBe('fork')
+    expect(rowFor(list, 'two-ways-to-pr')?.kind).toBe('fork')
     expect(rowFor(list, 'nowhere')).toBeUndefined()
   })
 })

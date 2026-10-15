@@ -18,11 +18,18 @@ import { MockTag } from './MockTag'
 
 const BADGE_ICONS = { layers: Layers, alert: CircleAlert, split: Split }
 
-/** A sibling's second line: a stack's count, a visited course's why, else its kicker or why. */
-function siblingLine(t: Tile) {
-  if (t.kind === 'stack') return t.sub
-  if (t.kicker === 'Visited') return `Visited · ${t.why ?? ''}`
-  return t.kicker ?? t.why ?? t.sub
+/**
+ * A sibling's lines under its name: a stack's count; a visited course's trade-off after "Visited";
+ * else its kicker, or its trade-off, what it is good for over what it is less good for.
+ */
+function siblingLines(t: Tile): string[] {
+  const trade = [t.gains, t.costs].filter((x): x is string => !!x)
+  if (t.kind === 'stack') return t.sub ? [t.sub] : []
+  if (t.kicker === 'Visited')
+    return trade.length ? [`Visited · ${trade[0]}`, ...trade.slice(1)] : ['Visited']
+  if (t.kicker) return [t.kicker]
+  if (trade.length) return trade
+  return t.sub ? [t.sub] : []
 }
 
 const ACTION = 'h-12 w-full'
@@ -79,16 +86,13 @@ export function RoadCard({
               Your guide
             </span>
           )}
-          <p className="m-0">
-            {trade ? (
-              <>
-                <span className="font-medium text-accent-800">{card.gains}</span> ·{' '}
-                <span className="font-medium text-danger-700">{card.costs}</span>
-                {here ? ' ' : '. '}
-              </>
-            ) : null}
-            {card.guide}
-          </p>
+          {trade ? (
+            <p className="m-0 flex flex-col">
+              <span className="font-medium text-accent-800">{card.gains}</span>
+              <span className="font-medium text-danger-700">{card.costs}</span>
+            </p>
+          ) : null}
+          {card.guide ? <p className="m-0">{card.guide}</p> : null}
           <p className="m-0 flex items-center gap-1 text-caption text-muted-foreground">
             Source: OfCourse preview data ·
             <MockTag />
@@ -130,7 +134,11 @@ export function RoadCard({
                   </span>
                 )}
               </span>
-              <span className="text-caption text-muted-foreground">{siblingLine(t)}</span>
+              <span className="flex flex-col text-caption text-muted-foreground">
+                {siblingLines(t).map((line) => (
+                  <span key={line}>{line}</span>
+                ))}
+              </span>
             </Button>
           ))}
         </div>

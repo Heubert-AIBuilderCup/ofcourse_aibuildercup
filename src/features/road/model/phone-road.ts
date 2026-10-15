@@ -2,6 +2,7 @@
 // rb-road). Each step's date leads its kicker, so the road needs no date column; where she is, the
 // row is her card; the two ways to PR end it side by side. Pure: rows from the road and its scene.
 
+import { kindOf } from './kinds'
 import { siblingsOf } from './press'
 import type { Road, Tile } from './road-data'
 import type { Scene } from './scene'
@@ -56,19 +57,10 @@ const rowState = (t: Tile): RowState =>
 
 const STATE_LEAD: Partial<Record<RowState, string>> = { next: 'Next', seen: 'Looked at' }
 
-const KIND_WORD = { course: 'Course', step: 'Route step', slab: 'Route step', stack: 'Stack' }
-
-/** "Late 2026 · Next · Route step": the date, the state (next, looked at), then the kind. */
+/** "Late 2026 · Next · Visa": the date, the state (next, looked at), then the kind word. */
 function kickerOf(t: Tile, scene: Scene, state: RowState): string {
   const city = t.kind === 'place' && scene.cityLine.includes(t.id)
-  const kind =
-    t.kind === 'point'
-      ? t.kicker
-      : t.kind === 'place'
-        ? city
-          ? 'City'
-          : 'Destination'
-        : KIND_WORD[t.kind]
+  const kind = kindOf(t, scene).word
   // Where she starts and the country she picked carry no state.
   const lead = t.kind === 'point' || (t.kind === 'place' && !city) ? undefined : STATE_LEAD[state]
   return [t.when, lead, kind].filter(Boolean).join(' · ')
@@ -106,25 +98,28 @@ function way(road: Road, steps: Tile[], thin: boolean): Way {
   }
 }
 
-/** The ways to PR after the last row: the trunk's steps, then the branch's. */
+/** The ways to PR after the last row, from the junction: the trunk's steps, then the branch's. */
 function forkOf(road: Road, scene: Scene): PhoneRow | null {
   if (!scene.fork) return null
-  const trunk = scene.ahead
+  const after = scene.ahead
     .filter((id) => !scene.rows.includes(id))
     .map((id) => scene.tiles.find((t) => t.id === id))
     .filter((t): t is Tile => !!t)
+  const junction = after.find((t) => t.kind === 'junction')
+  const trunk = after.filter((t) => t !== junction)
   const branch = scene.tiles.filter((t) => t.branch)
   const lines = [trunk, branch].filter((l) => l.length > 0)
   if (lines.length === 0) return null
   const ways = lines.map((l, i) => way(road, l, i > 0))
   const from = startOf(lines[0][0])
   const to = endOf(lines[lines.length - 1].at(-1))
+  const word = junction ? kindOf(junction, scene).word : undefined
   return {
     kind: 'fork',
     id: 'fork',
-    kicker: `${from} – ${to} · ${ways.length} ways to PR`,
+    kicker: [`${from} – ${to}`, word, `${ways.length} ways to PR`].filter(Boolean).join(' · '),
     ways,
-    tiles: lines.flat().map((t) => t.id),
+    tiles: [...(junction ? [junction] : []), ...lines.flat()].map((t) => t.id),
   }
 }
 

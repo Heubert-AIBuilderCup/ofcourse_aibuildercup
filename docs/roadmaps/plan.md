@@ -234,3 +234,79 @@ Read first: task 6's diff; the current RoadmapsPage.tsx and its test (keep every
 | 42 archive, fold, restore, toasts, excluded from count/copy//road | 6, 7 | roadmaps.test (DB), actions.test, RoadmapsPage.test; `/road`: smoke test |
 | 43 progress and next from the board | 6 | board-facts.test |
 | 44 keyboard and focus | 7 | RoadmapsPage.test (focus returns); the rest are native controls |
+
+---
+
+# Part 3: the board, round 3 — Implementation Plan
+
+**Intent:** docs/roadmaps/intent.md, criteria 12–22 (and 20's "every button does what it says", already true except Ask and Compare). **Reference:** docs/roadmaps/reference/logic/board.js — lines 17–50 (`lgKind`, `ICO`, `plain`), 268–284 (the fork: `jn`, the 190/PR shift, the 491 slab, `lgFork`), 664–672 (`icoM`), 674–686 (label placement, the phone rules, the edge rule), 691 (`kick`), 808–810 (`lgKeyOn`, `toggleKey`), 820–825 (`fx`, `showFog`); logic/board-template.html lines 8–12 (the breadcrumb), 90–108 (the Map key button and the key strip); canvas/road.css lines 641–685 (the legible board: icons, hanging labels, the key strip) and 719–734 (controls round 3, hover). Canvas boards: Board page prototype (ProtoDesk, ProtoPhone, Proto1920) and the Your answers page's frozen states 1–12 (RoadBDesk, RoadBPhone, RoadBPhoneMap, RoadBTablet, RoadB1920, RBKeyDesk/Phone, RBFirstDesk/Phone, RBMenuDesk/Phone).
+**Goal:** the board reads at a glance: every tile says what it is, labels hang on their tile, the fork heads forward, the key explains the light, and the controls are the breadcrumb, Map key and the zoom.
+**Approach:** the rules go in the pure model (a tile's kind word and icon; the plain trade-off lines; the fork's geometry in the fixture; label placement with the hanging offset, the phone rules and the edge rule in `drawing.ts`), then the map draws them (an icon layer on the top face, labels with a hanging line, the key strip, the Map key button, hover transitions in CSS), the header gets the breadcrumb, and "your road" becomes "your roadmap" in copy.
+**Test layers:** unit only: every criterion here is a rule inside the road model or a component's behaviour (which word, which icon, where a label sits and whether it hides, what the key strip shows and when, what the buttons do). The look (icons flat on tiles, the hover motion, the strip's layout) is the smoke test. No database, no e2e.
+**Constraints:** as part 1's, verbatim above, plus CLAUDE.md's "No end-to-end code without being asked".
+
+## Files
+| Path | Create or modify | Responsibility |
+| --- | --- | --- |
+| `src/features/road/model/kinds.ts` (+ test) | create | `kindOf(tile, scene)` → `{ word, icon }`; the icon paths (`ICONS`, the reference's `ICO`) |
+| `src/features/road/model/fixture.ts` | modify | Plain trade-offs; the junction tile; the 190/PR/491/191 geometry; Australia named; Adelaide's label above; the ruler on the other side (`years.gy` positive) |
+| `src/features/road/model/road-data.ts` | modify | `Tile.kind` gains `'junction'`; `gains`/`costs` on tiles replace `why`; `Tile.icon?` not stored (derived) |
+| `src/features/road/model/scene.ts` (+ test) | modify | The junction rides in `ahead` after the 485 |
+| `src/features/road/model/drawing.ts` (+ test) | modify | `labelOf`: the kind word, the hanging offset (0.75rem), the phone rules, the edge rule (`LabelContext` gains `map: { width, height }` and `rem`); `iconOn(drawn, tile, cam)` → the flattened transform |
+| `src/features/road/model/phone-road.ts` (+ test) | modify | Kind words from `kindOf` |
+| `src/features/road/components/RoadMap.tsx`, `road-map.module.css` | modify | Icons; hanging labels; the key strip; the Map key button; no Back, no View; hover transitions |
+| `src/features/road/components/KeyStrip.tsx` (+ test) | create | The four swatches, "Got it"; shown on first visit, toggled by Map key |
+| `src/features/road/components/ViewMenu.tsx`, `MapKey.tsx` | delete | Replaced by the strip |
+| `src/features/road/components/RoadHeader.tsx` (+ test), `RoadBoard.tsx`, `ControlsBar.tsx` | modify | The breadcrumb "Your roadmaps / {name}"; Ask and Compare show the toast |
+| `src/features/road/components/RoadCard.tsx`, `PhoneMap.tsx`, `PhoneRoad.tsx` | modify | Trade-offs on two lines |
+| `src/features/road/hooks/useRoadSession.ts`, `RoadBoard.tsx`, `fixture.ts` | modify | "your roadmap" wording |
+| `src/app/(app)/roadmaps/[id]/layout.tsx` | modify | Passes `name` (resolved by `roadmapName`) in `roadmap` |
+
+## Task 9: The model — kinds, plain trade-offs, the fork, label rules
+**Delivers:** criteria 12 (the words), 13 (the icons' choice), 14 (placement rules), 15 (the copy), 16 (the geometry), 21 (the copy).
+**Files:** create `src/features/road/model/kinds.ts` (+ test); modify `road-data.ts`, `fixture.ts`, `scene.ts` (+ test), `drawing.ts` (+ test), `phone-road.ts` (+ test), `src/features/road/hooks/useRoadSession.ts` (toast copy), `src/features/road/components/RoadBoard.tsx` (copy only).
+**Kind:** judgement
+Read first: the reference lines named above; the current road-data.ts, fixture.ts (every `why`, the route steps' `gx`/`gx1`/`gy`, `years`), scene.ts (`buildScene`, `walkBack`, `toCountry`), drawing.ts (`labelOf`, `drawTile`, `LabelContext`), phone-road.ts (`kickerOf`, `KIND_WORD`) and their tests.
+- [ ] Step 1: failing tests.
+  - `kinds.test.ts`: `kindOf(t, scene)` gives `['You','you']` for point-a; `['Point B','flag']` for permanent-residency and permanent-191; `['Country','globe']` for australia; `['Fork','fork']` for the junction; `['Not looked at','more']` for a stack; `['City','city']` / `['Other city','city']` for a place on / off her road (state `alt`); `['Course','course']` / `['Other course','course']`; `['Study','study']` for the Master's slab; `['Work visa','work']` for the 485; `['Visa','visa']` for the 500, 190, 491. `ICONS[icon]` is an array of SVG path `d` strings for every icon named (the reference's `ICO`, verbatim).
+  - `scene.test.ts`: the default scene's `ahead` runs `student-visa-500, masters-cyber-security-ecu, graduate-visa-485, two-ways-to-pr, state-nomination-190, permanent-residency`; the junction tile is `kind: 'junction'`, `state: 'fog'`, named "2 ways to PR", placed just after the 485's end; regional-491 is a slab with `gy1` (angled), permanent-191 beyond it; `years.gy` is on the opposite side of the road from the 491 lane (positive gy when the lane's gy is negative, as the reference sets `s491.gy = -1.25`).
+  - `drawing.test.ts`: `labelOf` at Level names every tile on her road including australia (its `lab.level` is no longer 'none'); adelaide's label is `above`; the label's offset from the tile is 0.75rem × `rem` (the context's root size) in the hanging direction; with `phone: true`, a fog step at Level gets no label unless it is here or pressed, and a non-here label carries no kicker; with `map: { width, height }` a label whose plate would cross the map's edge (the reference's thresholds: right/left 7rem, above/below 3rem) returns null; `kicker` is the kind word, then the old kicker when there is one ("Course · Visited"), never "You"/"Point B" twice; `iconOn(drawn, t, cam)` gives `matrix(k,0,0,k*0.56,tx,ty)` with k = size × u × 2 / 24 (0.5 for stacks, 0.8 for the junction, 0.66 else) centred on the top face (the reference's `icoM`), and for an angled slab a point 0.55 units along it.
+  - `phone-road.test.ts`: kickers use `kindOf` ("Late 2026 · Next · Visa"; "Study"; "Work visa"; the junction row reads "Fork").
+  - A copy test (in `scene.test.ts` or a new `copy.test.ts`): no tile, card or toast string in the fixture contains "▲", "▼", "Strong on", "Costs you on" or "your road" (except "Whole road"); every `gains` starts "Good for" and every `costs` "Less good for"; criteria are lower-case except "PR" ("Good for: PR, career", "Less good for: location"); the here-card's gains starts "Good for what matters most to you:".
+- [ ] Step 2: run `bun test src/features/road/model` — FAIL.
+- [ ] Step 3: implement. Fixture: split each `why` into `gains` and `costs` (two fields; the card, label and peek render them on their own lines); the junction tile `two-ways-to-pr` (`kind: 'junction'`, `gx: g485.gx1 + 0.35`, `gy: 0`, `lab` above at every stop); `state-nomination-190.gx = J + 1.3`, `permanent-residency.gx = J + 2.7`; `regional-491`: `gx: J + 1.0, gy: -1.25, gx1: 20.9, gy1: -2.1, w: 0.26` (the reference's numbers, in the fixture's units: check `gxAt(2031)` ≈ the reference's `g485.gx1`, and keep the lane's end at the 2034 tick); `permanent-191`: `gx: 21.45, gy: -2.24`; `years.gy = +1.45` (the ruler on the far side from the lane); australia `lab` above at every stop; adelaide above at Level. Model: `kindOf` reads `t.id`, `t.kind`, `t.state` and the scene; `ICONS` verbatim from the reference. `drawing.ts`: `LabelContext` gains `rem: number` and `map: { width: number; height: number } | null`; the hanging offset replaces the 6/8px ones; the phone and edge rules as the reference's lines 674–686; `iconOn` as `icoM`. `phone-road.ts`: `KIND_WORD` goes, `kindOf` instead. Copy: "your road" → "your roadmap" in the fixture's cards and toasts and in useRoadSession's toasts ("Walked to …" unchanged); "Whole road" stays.
+- [ ] Step 4: `bun test src/features/road`, `bun run type-check`, `bun run lint` — PASS (component tests that pinned the old words or `why` get updated to the new copy, nothing else).
+- [ ] Step 5: commit `feat(road): kind words, icons, plain trade-offs, the forward fork and the label rules`.
+
+## Task 10: The map, the key strip, the controls and the header
+**Delivers:** criteria 12–19 (drawn), 20 (Ask and Compare), 22 (checked by the smoke test).
+**Files:** modify `src/features/road/components/RoadMap.tsx` (+ test), `road-map.module.css`, `RoadHeader.tsx` (+ test), `RoadBoard.tsx` (+ test), `ControlsBar.tsx`, `RoadCard.tsx`, `PhoneMap.tsx`, `PhoneRoad.tsx`, `src/app/(app)/roadmaps/[id]/layout.tsx`; create `KeyStrip.tsx` (+ test); delete `ViewMenu.tsx`, `MapKey.tsx` (and their tests).
+**Kind:** judgement
+Read first: task 9's diff; RoadMap.tsx in full (the layers, `Label`, the hit buttons, `MAP_BUTTON`, the Back button, the ViewMenu, the hint), road-map.module.css, RoadHeader.tsx, RoadBoard.tsx (the `roadmap` prop, the toast), ControlsBar.tsx; the reference's template lines 8–12 and 90–108 and road.css 641–685 and 719–734; src/shared/components/Toast.tsx; DESIGN.md.
+- [ ] Step 1: failing tests.
+  - `RoadMap.test.tsx` / `RoadBoard.test.tsx`: every tile's label shows its kind word above its name ("COURSE" over "Cyber Security", "OTHER COURSE" over "Data Science", "NOT LOOKED AT" over the stack, "COUNTRY" over "Australia"); each tile's top face carries an icon (`data-icon="course"` etc., an `svg` with the icon's paths, `aria-hidden`); no "Back to …" button on the map; no "View" button; a "Map key" button with `aria-pressed`; with `roadmap.firstVisit` true the key strip (`role="note"`, "How to read the map") shows with "On your roadmap", "Other options", "More to look at", "Ahead, not open yet" and "Got it"; "Got it" hides it and sets the button's `aria-pressed` false; the button shows it again; with `firstVisit` false the strip is hidden until the button; the hit button's box does not change when its tile is hovered (`data-lift` is on the tile group, not the button); hovering an unlabelled tile shows its name (as today).
+  - `RoadHeader.test.tsx`: given `roadmapName`, a `nav` "Breadcrumb" with a link "Your roadmaps" to `/roadmaps` and the name with `aria-current="page"`; "Ask · 1" and "Compare" press → the toast "Ask and Compare come in a later round." (RoadBoard owns the toast; the header takes an `onLater` prop; the ControlsBar's Ask and Compare do the same).
+  - `RoadCard.test` (or in RoadBoard.test): the here-card shows "Good for what matters most to you: PR, career" and "Less good for: location" as two lines (`gains` and `costs` elements); a pressed card and the phone peek show "Good for: …" / "Less good for: …" on two lines.
+- [ ] Step 2: run — FAIL.
+- [ ] Step 3: implement. Icons: one `<g transform={iconOn(...)}>` per tile after its faces, paths from `ICONS`, stroke 1.5 with `vector-effect: non-scaling-stroke`, colour by state as the reference's `.rb-ico` rules (field blue on lit — the tile's top is ink there; ink on alt/next/seen; muted on fog). Labels: `::after` hanging line (1px × 0.75rem, ink at 75%) per place, the kind word row in `text-overline`, the name, the sub/why as today; a hidden label is simply not rendered. Hover: `transition: transform .18s cubic-bezier(.2,.7,.3,1)` on the tile group and `fill .18s ease-out` on its polygons; the hint name fades in `.16s`; the hit button is positioned from the unlifted geometry; `motion-reduce:` none; during the camera's move the classes stay (the arrival is gone). The key strip: `KeyStrip` top-left (`absolute top-4 left-4`), four `svg` swatches drawn as 30×20 isometric tiles in the lit/alt/stacked/fog fills, "Got it" a `Button variant="outline"`; on phone (`@max-xl:`) under the top controls as a two-column grid with "Got it" spanning the rows. State in RoadBoard: `keyShown` starts as `roadmap.firstVisit`; the Map key `Button variant="square"` with a circled "?" (`text-micro` in a `size-icon` ring) and `aria-pressed={keyShown}`, top-right where View was. The Back button and `ViewMenu`/`MapKey` go; the first-arrival hint ring and bubble stay. Header: `RoadHeader` gets `roadmapName` and renders the breadcrumb between the wordmark and the tag (`nav aria-label="Breadcrumb"`, `Link` "Your roadmaps" with a chevron, a "/" `aria-hidden`, the name `aria-current="page"` in `font-heading`; below `@5xl` only the link shows, as the reference's `rb-crumb-sep`/`rb-crumb-now` hide). The layout passes `name: roadmapName(...)` in `roadmap`. Ask/Compare: `onLater` → `setToast("Ask and Compare come in a later round.")`. Trade-offs: `gains`/`costs` on their own lines in RoadCard (the here-card and a pressed card), the sibling lines, PhoneMap's peek and PhoneRoad's rows. Wording: "Swap onto your roadmap" etc. from task 9's fixture.
+- [ ] Step 4: `bun test src/features/road`, `bun run type-check`, `bun run lint` — PASS. No screenshots and no throwaway specs: the look is the developer's smoke test.
+- [ ] Step 5: commit `feat(road): the legible board: icons, hanging labels, the key strip, the breadcrumb`.
+
+## Task 11: Docs and the map (the controller)
+**Files:** `docs/roadmaps/smoke.md` (a "Part 3" section for 12–22, the build report), `PRODUCT.md` (the board's controls line if it names View or Back), `CLAUDE.md` unchanged.
+**Kind:** transcription (no dispatch).
+
+## Criteria coverage (part 3)
+| Criterion | Task | Test that proves it |
+| --- | --- | --- |
+| 12 kind words | 9, 10 | kinds.test; RoadMap/RoadBoard.test (the word over the name); phone-road.test |
+| 13 icons and their colours | 9, 10 | kinds.test (`ICONS`), drawing.test (`iconOn`); RoadMap.test (an icon per tile); colours: smoke test |
+| 14 hanging labels, every road tile named, Adelaide above, edge rule, phone rules | 9 | drawing.test; look: smoke test |
+| 15 plain trade-offs everywhere | 9, 10 | copy test; RoadCard/peek tests |
+| 16 the forward fork and the ruler's side | 9 | scene.test (ahead, the junction, the slab, `years.gy`); look: smoke test |
+| 17 the key strip: content, when, phone layout | 10 | KeyStrip/RoadBoard.test (first visit, Got it, the button); phone layout: smoke test |
+| 18 no Back, breadcrumb, Map key replaces View | 10 | RoadMap.test (absent/present), RoadHeader.test |
+| 19 hover | 10 | RoadMap.test (the hit box unchanged on hover); the motion: smoke test |
+| 20 every button acts; Ask and Compare's toast | 10 | RoadHeader/RoadBoard.test |
+| 21 "roadmap" wording | 9 | copy test |
+| 22 sizes at phone, tablet, 1440, 1920 | — | Not automatable: the smoke test at each width against the 1920 artboards |

@@ -1,7 +1,9 @@
 // Priya's road (spec §5): business degree, IELTS 7.0, cousin Anjali in Cannington, Perth. All
 // figures are mock; dates after 2028 are a guide (one note on the map and the road says so). The
 // reference build's BASE, CARD, HERE, STACK, OVERVIEW and lesson, with stable ids. Grid
-// coordinates and label placements are the reference's.
+// coordinates and label placements are the reference's, with its legible board's (board.js
+// `lgFork`): the two ways to PR leave a junction after the 485 and both head forward, the 491 lane
+// bearing away across the road, the year ruler on the other side.
 
 import type { LabelPlace, Road, Stop, Tile } from './road-data'
 
@@ -17,6 +19,12 @@ const lab = (whole: LabelPlace, level: LabelPlace, tile: LabelPlace): Record<Sto
   tile,
 })
 const NONE = lab('none', 'none', 'none')
+const ABOVE = lab('above', 'above', 'above')
+const BELOW = lab('below', 'below', 'below')
+
+// The fork: the junction sits just after the 485 ends; the two ways to PR are placed from it.
+const END_485 = gxAt(2031) - 0.15
+const J = END_485 + 0.35
 
 const TILES: Tile[] = [
   {
@@ -40,7 +48,7 @@ const TILES: Tile[] = [
     name: 'Australia',
     short: 'Australia · 19 cities',
     sub: '19 cities to choose from.',
-    lab: NONE,
+    lab: ABOVE,
   },
   {
     id: 'perth',
@@ -61,9 +69,10 @@ const TILES: Tile[] = [
     state: 'alt',
     name: 'Adelaide',
     sub: 'Nepali community: moderate · 3½-hour flight from Anjali',
-    why: '▲ Strong on Cost, PR · ▼ Costs you on: Career',
+    gains: 'Good for: cost, PR',
+    costs: 'Less good for: career',
     level: 'city',
-    lab: lab('none', 'left', 'none'),
+    lab: lab('none', 'above', 'none'),
   },
   {
     id: 'more-cities',
@@ -85,7 +94,8 @@ const TILES: Tile[] = [
     name: 'Cyber Security',
     short: 'Cyber Security',
     sub: 'ECU · Perth',
-    why: '▲ Strong on PR, Career · ▼ Costs you on: Location',
+    gains: 'Good for: PR, career',
+    costs: 'Less good for: location',
     badges: ['offerings', 'ielts', 'fork'],
     level: 'course',
     courseStepName: 'Master’s · Cyber Security',
@@ -99,7 +109,8 @@ const TILES: Tile[] = [
     state: 'alt',
     name: 'Data Science',
     sub: 'UWA · Perth',
-    why: '▲ Strong on Career · ▼ Costs you on: Cost, PR',
+    gains: 'Good for: career',
+    costs: 'Less good for: cost, PR',
     badges: ['maths'],
     level: 'course',
     courseStepName: 'Master’s · Data Science',
@@ -139,37 +150,48 @@ const TILES: Tile[] = [
     short: 'Master’s',
     when: 'Feb 2027 – Dec 2028',
     routeId: 'masters-cyber-security-ecu',
-    lab: lab('below', 'below', 'none'),
+    lab: lab('above', 'below', 'none'),
   },
   {
     id: 'graduate-visa-485',
     kind: 'slab',
     gx: gxAt(2029),
-    gx1: gxAt(2031) - 0.15,
+    gx1: END_485,
     gy: 0,
     state: 'fog',
     name: 'Graduate visa · 485',
     short: '485',
     when: 'From 2029',
     routeId: 'graduate-visa-485',
-    lab: lab('below', 'none', 'none'),
+    lab: lab('above', 'none', 'none'),
+  },
+  {
+    id: 'two-ways-to-pr',
+    kind: 'junction',
+    gx: J,
+    gy: 0,
+    state: 'fog',
+    name: '2 ways to PR',
+    short: '2 ways to PR',
+    // Unnamed at Whole road, as the reference's lgFork leaves it.
+    lab: lab('none', 'above', 'above'),
   },
   {
     id: 'state-nomination-190',
     kind: 'step',
-    gx: gxAt(2031) + 0.35,
+    gx: J + 1.3,
     gy: 0,
     state: 'fog',
     name: '190 · state nomination',
     short: '190',
     when: '2031',
     routeId: 'state-nomination-190',
-    lab: lab('above', 'none', 'none'),
+    lab: ABOVE,
   },
   {
     id: 'permanent-residency',
     kind: 'point',
-    gx: gxAt(2032),
+    gx: J + 2.7,
     gy: 0,
     state: 'fog',
     kicker: 'Point B',
@@ -177,28 +199,30 @@ const TILES: Tile[] = [
     short: 'Permanent residency',
     when: '2032',
     routeId: 'permanent-residency',
-    lab: lab('right', 'none', 'none'),
+    lab: BELOW,
   },
   {
     id: 'regional-491',
     kind: 'slab',
-    gx: gxAt(2031) + 0.35,
-    gx1: gxAt(2034) - 0.15,
-    gy: 1.9,
-    w: 0.3,
+    // One angled slab off the junction, ending just before the 2034 tick.
+    gx: J + 1.0,
+    gx1: 20.9,
+    gy: -1.25,
+    gy1: -2.1,
+    w: 0.26,
     state: 'fog',
     name: '491 · regional',
     short: '491 · regional',
     when: '2031 – 2034',
     branch: true,
     routeId: 'regional-491',
-    lab: lab('below', 'none', 'none'),
+    lab: ABOVE,
   },
   {
     id: 'permanent-191',
     kind: 'point',
-    gx: gxAt(2034) + 0.3,
-    gy: 1.9,
+    gx: 21.45,
+    gy: -2.24,
     sz: 0.46,
     state: 'fog',
     name: '191 · permanent',
@@ -206,7 +230,7 @@ const TILES: Tile[] = [
     when: '2034',
     branch: true,
     routeId: 'permanent-191',
-    lab: lab('below', 'none', 'none'),
+    lab: BELOW,
   },
   {
     // In the stack until "Put on my board"; then it takes the alternative's place.
@@ -269,8 +293,8 @@ export const PRIYA: Road = {
     perth: {
       kicker: 'Visited · City',
       sub: 'Western Australia',
-      gains: '▲ Strong on PR, Work',
-      costs: '▼ Costs you on: Location',
+      gains: 'Good for: PR, work',
+      costs: 'Less good for: location',
       guide:
         'A capital that counts as regional: extra points and the longest post-study stay. Curtin Bentley: about 25 min from Anjali in Cannington · ECU Joondalup: about 50 min.',
       because: 'The city you picked',
@@ -279,11 +303,11 @@ export const PRIYA: Road = {
     adelaide: {
       kicker: 'Not visited · City',
       sub: 'South Australia',
-      gains: '▲ Strong on Cost, PR',
-      costs: '▼ Costs you on: Career',
+      gains: 'Good for: cost, PR',
+      costs: 'Less good for: career',
       guide: 'Nepali community: moderate. A 3½-hour flight from Anjali in Perth.',
-      because: 'The next closest fit: swap it onto your road',
-      primary: 'Swap onto your road',
+      because: 'The next closest fit: swap it onto your roadmap',
+      primary: 'Swap onto your roadmap',
     },
     'more-cities': {
       kicker: 'Stack · City',
@@ -295,21 +319,21 @@ export const PRIYA: Road = {
     'cyber-security-ecu-perth': {
       kicker: 'Visited · Course',
       sub: 'ECU · Perth',
-      gains: '▲ Strong on PR, Career',
-      costs: '▼ Costs you on: Location',
+      gains: 'Good for: PR, career',
+      costs: 'Less good for: location',
       guide: 'ECU Joondalup: about 50 min from Anjali in Cannington.',
       because: 'The course you were on',
-      primary: 'Swap onto your road',
+      primary: 'Swap onto your roadmap',
     },
     'data-science-uwa-perth': {
       kicker: 'Not visited · Course',
       sub: 'UWA · Perth',
-      gains: '▲ Strong on Career',
-      costs: '▼ Costs you on: Cost, PR',
+      gains: 'Good for: career',
+      costs: 'Less good for: cost, PR',
       guide:
         'Strong demand in WA, but a bigger step from business. The road ahead re-routes through UWA.',
-      because: 'The next closest fit: swap it onto your road',
-      primary: 'Swap onto your road',
+      because: 'The next closest fit: swap it onto your roadmap',
+      primary: 'Swap onto your roadmap',
     },
     'more-courses-perth': {
       kicker: 'Stack · Course',
@@ -321,7 +345,7 @@ export const PRIYA: Road = {
     'student-visa-500': {
       sub: 'Late 2026',
       guide: 'Lodge once the offer and health cover are in hand.',
-      because: 'The next step on your road',
+      because: 'The next step on your roadmap',
     },
     'masters-cyber-security-ecu': {
       sub: 'Feb 2027 – Dec 2028',
@@ -333,6 +357,12 @@ export const PRIYA: Road = {
       sub: 'From 2029',
       guide: 'Up to five years of work rights.',
       because: 'It follows the Master’s',
+    },
+    'two-ways-to-pr': {
+      kicker: 'Fork',
+      sub: '2031',
+      guide: 'Two ways to PR from here: the 190 straight on, or the 491 and then the 191.',
+      because: 'It follows the 485',
     },
     'state-nomination-190': {
       sub: '2031',
@@ -357,18 +387,18 @@ export const PRIYA: Road = {
     'information-systems-curtin-perth': {
       kicker: 'Added · from your stack · Course',
       sub: 'Curtin · Perth',
-      guide: 'On your board, beside your road.',
+      guide: 'On your board, beside your roadmap.',
       because: 'You put it on your board',
-      primary: 'Swap onto your road',
+      primary: 'Swap onto your roadmap',
     },
   },
   here: {
     'cyber-security-ecu-perth': {
       kicker: 'You are here · Course',
       sub: 'ECU · Perth',
-      gains: '▲ Strong on what you weight most: PR, Career',
+      gains: 'Good for what matters most to you: PR, career',
       costs:
-        '▼ Costs you on: Cost (only AUD 3k spare) and Location (far from the east-coast job market).',
+        'Less good for: cost (only AUD 3k spare) and location (far from the east-coast job market).',
       guide: 'ECU Joondalup: about 50 min from Anjali in Cannington.',
       badges: ['offerings', 'ielts', 'fork'],
       because: 'The course you’re on',
@@ -379,8 +409,8 @@ export const PRIYA: Road = {
     'data-science-uwa-perth': {
       kicker: 'You are here · Course',
       sub: 'UWA · Perth',
-      gains: '▲ Strong on Career',
-      costs: '▼ Costs you on: Cost, PR',
+      gains: 'Good for: career',
+      costs: 'Less good for: cost, PR',
       guide:
         'Strong demand in WA, but a bigger step from business. The road ahead re-routes through UWA.',
       badges: ['maths'],
@@ -392,8 +422,8 @@ export const PRIYA: Road = {
     perth: {
       kicker: 'You are here · City',
       sub: 'Western Australia',
-      gains: '▲ Strong on PR, Work',
-      costs: '▼ Costs you on: Location',
+      gains: 'Good for: PR, work',
+      costs: 'Less good for: location',
       guide:
         'A capital that counts as regional: extra points and the longest post-study stay. Curtin Bentley: about 25 min from Anjali in Cannington · ECU Joondalup: about 50 min.',
       badges: [],
@@ -413,7 +443,7 @@ export const PRIYA: Road = {
     'point-a': {
       kicker: 'You are here · Point A',
       sub: 'Business degree · 72% · IELTS 7.0 · AUD 36.5k a year for fees.',
-      guide: 'Your road starts here. Pick a destination to draw the rest.',
+      guide: 'Your roadmap starts here. Pick a destination to draw the rest.',
       badges: [],
       because: 'Where you start',
       primary: 'Pick a destination',
@@ -469,7 +499,7 @@ export const PRIYA: Road = {
     now: gxAt(2026.3),
     from: gxAt(2026.15),
     to: gxAt(2034.6),
-    gy: -1.45,
+    gy: 2.1,
   },
   weights: [
     { name: 'Cost', weight: 2 },
@@ -489,6 +519,7 @@ export const PRIYA: Road = {
       'student-visa-500',
       'masters-cyber-security-ecu',
       'graduate-visa-485',
+      'two-ways-to-pr',
       'state-nomination-190',
       'permanent-residency',
     ],
@@ -529,6 +560,7 @@ export const PRIYA: Road = {
         'student-visa-500',
         'masters-cyber-security-ecu',
         'graduate-visa-485',
+        'two-ways-to-pr',
         'state-nomination-190',
         'permanent-residency',
       ],

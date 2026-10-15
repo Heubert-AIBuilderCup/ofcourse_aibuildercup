@@ -171,3 +171,78 @@ See     one column of rows; the table becomes stacked rows, each cell led by its
 
 **Result**
 15 Oct 2026, local dev. Run by Jenish by hand: steps 1–3 (the page, sort and the view switch, archive and restore), "seems to be working as expected"; he asked why the last-opened row is blue (the canvas's mark; kept). Step 4 (phone) and the three decisions not settled: the defaults stand (shared Select, the Cards flash left, the table scrolling between 576 and 1024). He then said "review, fix and push".
+---
+
+**Smoke test — roadmaps, part 3 (the board, round 3)** · local dev · `http://localhost:3000`
+
+**Before you start**
+- `bun run dev` on `feat/board-round-3` (no migration). A roadmap never opened shows the key strip on its first open; to see it again, use the Map key button.
+- Boards: the Board page's prototype (ProtoDesk, ProtoPhone, Proto1920) and the Your answers page's frozen states (RoadBDesk, RoadBPhone, RoadBPhoneMap, RoadBTablet, RoadB1920, RBKeyDesk/Phone, RBFirstDesk/Phone). Check 390, 768, 1440 and 1920, light and dark.
+
+**1 · Reading the map** — AC 12, 13, 14, 15
+```
+Go to   a roadmap's board at 1440, Level
+Do      read each label; hover a tile with no label; press Cyber Security
+See     a small uppercase word above every name (YOU, COUNTRY, CITY, COURSE, OTHER COURSE, NOT LOOKED AT, VISA, STUDY, WORK VISA, FORK, POINT B; "COURSE · VISITED" where a kicker follows); an icon drawn flat on each tile's top (person, globe, buildings, cap, document, book, briefcase, flag, split, +), field-blue on lit tiles, white on other options, muted ahead; every tile on her roadmap named, Australia included, Adelaide's name above Adelaide; each label hangs on a short line to its tile; a name the edge would cut stays hidden until you drag the tile in; the card reads "Good for what matters most to you: PR, career" and "Less good for: …" on two lines (tile labels and the phone peek: "Good for: …" / "Less good for: …")
+```
+
+**2 · The fork** — AC 16
+```
+Go to   the board; zoom to Whole road, then Level, and drag to the road's end
+See     after the 485 a small junction tile "2 ways to PR"; the 190 → Permanent residency lane straight on; the 491 → 191 lane leaving the junction and bearing away on the far side as one angled slab, both heading forward on screen; the years ruler on the other side of the road, never crossed by the branch
+```
+
+**3 · The key strip and the controls** — AC 17, 18
+```
+Go to   /roadmaps; open a roadmap you have never opened (make one from scratch if needed)
+Do      read the strip; press Got it; press Map key; press it again; look for Back and View
+See     top-left a strip with four swatches "On your roadmap · Other options · More to look at · Ahead, not open yet" and Got it; Got it hides it and Map key (a circled ? + "Map key", pressed while shown) brings it back; no "Back to …" button, no View menu, no Pick a goal or Layers; the header reads "Your roadmaps / <name>", and "Your roadmaps" takes you to the list; a roadmap opened before does not show the strip until you press Map key
+```
+
+**4 · Hover** — AC 19
+```
+Go to   the board at 1440
+Do      move the pointer over tiles, slowly, across their edges; then the OS's reduce-motion setting on and again
+See     a tile rises about 6px with an eased lift and its top colour eases; an unlabelled tile's name fades in; the pointer never slips off (no flicker at the edge); with reduced motion no transitions
+```
+
+**5 · Every button, and the wording** — AC 20, 21
+```
+Go to   the board
+Do      press Ask · 1 and Compare (header at 1440; the controls bar at 768 and 390); press Data Science → Swap onto your roadmap; Undo
+See     the toast "Ask and Compare come in a later round."; "Swap onto your roadmap", the toast "Data Science is on your roadmap now…"; nowhere "your road" except "Whole road" on the zoom bar
+```
+
+**6 · Phone and sizes** — AC 14, 17, 22
+```
+Go to   the board at 390 (Road and Map), 768, 1440, 1920
+See     phone: labels drop the kind word except where she is; steps ahead unnamed at Level; the key strip under the top controls as a two-column grid; the breadcrumb is only the chevron; 1920 is the 1440 design scaled, against the Proto1920 board
+```
+
+**No need to click** — AC 12, 13, 14, 15, 16, 21: `kinds.test.ts`, `drawing.test.ts` (placement, the hanging offset, phone and edge rules, `iconOn`), `scene.test.ts` (the fork's tiles and the ruler's side), `copy.test.ts` (no "▲/▼", "Strong on", "your road"), `phone-road.test.ts` · AC 17, 18, 19, 20: `RoadBoard.test.tsx`, `KeyStrip.test.tsx`, `RoadHeader.test.tsx` (the strip on first visit and by the button; no Back or View; the hit box fixed under hover; the Ask/Compare toast) · the standing specs `e2e/your-road.e2e.ts` (its strings updated to the new wording) and `e2e/routes.e2e.ts`: 13 passed.
+
+**Needs a decision** — from Jenish
+1. The label where she stands is now centred under its tile (the reference does this), where it used to sit shifted left. Keep?
+2. Label plates are solid (the field darkened 6%, 30% on dark tiles). Keep, or back to translucent?
+3. The ruler sits at the reference's 2.1 units (the plan said 1.45). Keep the reference.
+
+**Worth a glance** — the first-arrival hint ring and bubble on Perth still show on a never-opened roadmap (unchanged) · the junction has a card ("Fork") when pressed · the phone's "where you are" row shows the two trade-off lines through the shared card.
+
+**Build report** — each dispatch as its usage report gave it
+| Task | Model | Time | Tokens | Commits |
+| --- | --- | --- | --- | --- |
+| 9 · the model: kinds, icons, plain trade-offs, the fork, label rules | opus | 10m 05s | 173,408 | `a2758b7` |
+| 10 · the legible board: icons, hanging labels, the key strip, the breadcrumb | opus | 8m 20s | 192,959 | `bfade8b` |
+| review · part 3 | opus | 5m 19s | 207,214 | `docs/roadmaps/review-3.md` |
+| fix · the review's 10 findings | opus | 17m 23s | 139,282 | `49f3ba1` |
+| **Total** | | **41m 07s** | **712,863** | 4 |
+
+**Changed by a smoke finding** (`c87e6a6`)
+```
+Go to   the board; press Australia → Go to Australia
+Do      press the Perth tile → Go to Perth; then the Cyber Security tile → Walk to Cyber Security
+See     the duck walks to Perth, then on to the course (the next place or course, pressed on the map, walks from its own card)
+```
+
+**Result**
+15 Oct 2026, local dev. Run by Jenish by hand: the board's walks (he found "Go to Perth" dead after walking to Australia when Perth was pressed on the map; fixed, `c87e6a6`). Steps 1–6 not reported step by step; he then said "code review, fix and push". The three look decisions stay at the implementer's choices.

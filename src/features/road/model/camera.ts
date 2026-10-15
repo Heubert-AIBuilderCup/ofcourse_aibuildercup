@@ -25,6 +25,7 @@ export const TILE_SIZE: Readonly<Record<TileKind, number>> = {
   step: 0.42,
   stack: 0.66,
   slab: 0.42,
+  junction: 0.22,
 }
 
 /** A tile's depth in grid units, per kind. */
@@ -35,6 +36,7 @@ export const TILE_DEPTH: Readonly<Record<TileKind, number>> = {
   step: 0.16,
   stack: 0.14,
   slab: 0.16,
+  junction: 0.1,
 }
 
 /** The most px per grid unit each stop allows, at rs 1. */
@@ -63,15 +65,16 @@ export const ease = (x: number) => 1 - (1 - x) ** 3
 const focusTile = (focusId: string | null, scene: Scene) =>
   scene.tiles.find((t) => t.id === focusId) ?? scene.tiles.find((t) => t.id === scene.here)!
 
-/** The projected corners of a tile, grown by pad grid units. */
+/** The projected corners of a tile, grown by pad grid units; an angled slab's far end at its gy1. */
 function corners(t: Tile, pad: number): [number, number][] {
   if (t.kind === 'slab') {
     const w = (t.w ?? TILE_SIZE.slab) + pad
     const gx1 = t.gx1 ?? t.gx
+    const gy1 = t.gy1 ?? t.gy
     return [
       project(t.gx - pad, t.gy - w),
-      project(gx1 + pad, t.gy - w),
-      project(gx1 + pad, t.gy + w),
+      project(gx1 + pad, gy1 - w),
+      project(gx1 + pad, gy1 + w),
       project(t.gx - pad, t.gy + w),
     ]
   }

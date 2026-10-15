@@ -84,7 +84,7 @@ export function PhoneRoad({
           <MockTag />
         </p>
       ) : null}
-      <ol ref={listRef} aria-label="Your road" className="m-0 list-none p-0">
+      <ol ref={listRef} aria-label="Your roadmap" className="m-0 list-none p-0">
         {rows.map((row) =>
           row.kind === 'here' ? (
             <li

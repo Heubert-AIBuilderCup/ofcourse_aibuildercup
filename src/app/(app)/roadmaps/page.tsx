@@ -9,6 +9,7 @@ import {
   type RoadmapSummary,
   RoadmapsPage,
   roadmapName,
+  roadNames,
 } from '@/features/roadmaps'
 import {
   archiveRoadmapAction,
@@ -31,10 +32,9 @@ function roadWords() {
   const tile = (id: string | undefined) => road.tiles.find((t) => t.id === id)
   const here = tile(road.walk.here)
   const pointB = tile(road.walk.ahead.at(-1))
-  const city = tile(road.walk.cityLine[0])
   return {
     road,
-    names: { here: here?.name ?? '', city: city?.name ?? '' },
+    names: roadNames(road),
     // "Cyber Security · ECU · Perth": her course, its university and city.
     line: join(here?.name, road.here[road.walk.here]?.sub),
     // "Permanent residency · 2032": the road's last step and when.

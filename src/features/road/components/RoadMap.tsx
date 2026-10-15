@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft, CircleAlert, Layers, Minus, Plus, Split } from 'lucide-react'
+import { CircleAlert, Layers, Minus, Plus, Split } from 'lucide-react'
 import { type ReactNode, useMemo, useRef, useState } from 'react'
 import { Duck } from '@/shared/components/Duck'
 import motion from '@/shared/components/motion.module.css'
@@ -13,6 +13,7 @@ import {
   depthOrder,
   drawTile,
   duckOn,
+  iconOn,
   type LabelDraw,
   labelOf,
   type RoadKind,
@@ -21,6 +22,7 @@ import {
   type TileDraw,
   toScreen,
 } from '../model/drawing'
+import { ICONS, type IconName, kindOf } from '../model/kinds'
 import {
   type BadgeId,
   type Road,
@@ -32,12 +34,12 @@ import {
 } from '../model/road-data'
 import type { RoadState } from '../model/road-url'
 import type { Scene } from '../model/scene'
+import { KeyStrip } from './KeyStrip'
 import { LessonLink } from './LessonLink'
 import { MockTag } from './MockTag'
 import styles from './road-map.module.css'
-import { ViewMenu } from './ViewMenu'
 
-/** A hovered or pressed tile lifts this much (px). */
+/** A pressed tile lifts this much (px); a hovered one rises about as far by CSS (road-map.module.css). */
 const LIFT = 6
 
 const STATE_WORDS: Record<TileState, string> = {
@@ -75,12 +77,11 @@ type Props = {
   layout: Layout
   onPress: (tileId: string) => void
   onZoom: (stop: Stop) => void
-  /** Back to the tile before where she is. */
-  onBack: (tileId: string) => void
   /** The lesson link was followed from the map. */
   onLesson: () => void
-  /** On a phone, View's Map key opens through the board (a sheet) instead of under View. */
-  onKey?: () => void
+  /** The key strip shows (the board's: on her first visit, then Map key's). */
+  keyShown: boolean
+  onKeyShown: (shown: boolean) => void
   /** Over the map: the toast, or the phone's peek. */
   children?: ReactNode
 }
@@ -88,8 +89,10 @@ type Props = {
 /**
  * The map: the road as isometric tiles on the brand field, an SVG of tile faces and roads with
  * HTML over it for the year ruler, the labels, the duck and the controls, and an invisible real
- * button over each tile (44px or more, clipped to its shape). A press opens the tile in the card;
- * hovering lifts it and names an unlabelled tile, nothing more. The camera is useMapCamera's.
+ * button over each tile (44px or more, clipped to its shape). Each tile says what it is: an icon
+ * on its top face and its kind word over its name. A press opens the tile in the card; hovering
+ * lifts it (its button stays put) and names an unlabelled tile, nothing more. Map key shows and
+ * hides the key strip. The camera is useMapCamera's.
  */
 export function RoadMap({
   road,
@@ -98,9 +101,9 @@ export function RoadMap({
   layout,
   onPress,
   onZoom,
-  onBack,
   onLesson,
-  onKey,
+  keyShown,
+  onKeyShown,
   children,
 }: Props) {
   const mapRef = useRef<HTMLElement>(null)
@@ -115,12 +118,12 @@ export function RoadMap({
     onStep: (dir) => onZoom(stepStop(stop, dir)),
   })
   const [hover, setHover] = useState<string | null>(null)
+  const keyRef = useRef<HTMLButtonElement>(null)
 
   // The camera re-renders the map every frame of a move: look tiles up by id, once per scene.
   const tiles = useMemo(() => new Map(scene.tiles.map((t) => [t.id, t])), [scene.tiles])
   const byId = (id: string | null) => (id === null ? undefined : tiles.get(id))
   const here = byId(scene.here)
-  const parent = byId(scene.lit[scene.lit.indexOf(scene.here) - 1] ?? null)
   const open = byId(state.tile)
   const ahead =
     stop === 'level' &&
@@ -131,7 +134,7 @@ export function RoadMap({
   return (
     <section
       ref={mapRef}
-      aria-label="Your road, map"
+      aria-label="Your roadmap, map"
       // The field keeps Industry's light tokens inside a dark page, as the onboarding panel does.
       data-theme="light"
       data-dragging={dragging || undefined}
@@ -151,7 +154,6 @@ export function RoadMap({
           openId={state.tile}
           hover={hover}
           ahead={ahead}
-          parentId={parent?.id ?? null}
           badges={road.badges}
           onPress={onPress}
           onHover={setHover}
@@ -169,27 +171,42 @@ export function RoadMap({
         />
       ) : null}
 
-      {parent ? (
-        <div data-map-control className="absolute top-4 left-4 z-30">
-          <Button
-            type="button"
-            variant="square"
-            className={MAP_BUTTON}
-            onClick={() => onBack(parent.id)}
-          >
-            <ArrowLeft aria-hidden="true" strokeWidth={1.5} className="size-icon-sm" />
-            {layout === 'wide' ? `Back to ${parent.name}` : 'Back'}
-          </Button>
-        </div>
+      {keyShown ? (
+        <KeyStrip
+          onClose={() => {
+            onKeyShown(false)
+            // Its Got it goes with it: keyboard focus lands on Map key, not the page.
+            keyRef.current?.focus()
+          }}
+        />
       ) : null}
-      <ViewMenu className={MAP_BUTTON} onKey={onKey} />
+      <Button
+        ref={keyRef}
+        type="button"
+        variant="square"
+        data-map-control
+        aria-pressed={keyShown}
+        onClick={() => onKeyShown(!keyShown)}
+        className={cn(
+          MAP_BUTTON,
+          'absolute top-4 right-4 z-30 aria-pressed:bg-panel-foreground/16 @max-xl:top-3 @max-xl:right-auto @max-xl:left-3',
+        )}
+      >
+        <span
+          aria-hidden="true"
+          className="inline-grid size-icon place-items-center rounded-full border border-current text-micro leading-none font-bold"
+        >
+          ?
+        </span>
+        Map key
+      </Button>
 
       {moving ? (
         <span
           role="status"
           className="absolute top-4 left-1/2 z-30 inline-flex min-h-11 -translate-x-1/2 items-center bg-background px-4 font-semibold text-brand-hover shadow-lg @max-xl:top-18"
         >
-          Swapping onto your road
+          Swapping onto your roadmap
         </span>
       ) : (
         <span className="absolute top-18 left-3 z-30 hidden min-h-7 items-center border border-dashed border-panel-foreground/60 bg-panel/80 px-2.5 text-micro whitespace-nowrap uppercase @max-xl:inline-flex">
@@ -246,7 +263,6 @@ function Drawing({
   openId,
   hover,
   ahead,
-  parentId,
   badges,
   onPress,
   onHover,
@@ -259,7 +275,6 @@ function Drawing({
   openId: string | null
   hover: string | null
   ahead: boolean
-  parentId: string | null
   badges: Road['badges']
   onPress: (tileId: string) => void
   onHover: (tileId: string | null) => void
@@ -268,20 +283,26 @@ function Drawing({
   // Drawn every frame of a camera move: the depth order and each tile's place in it, once per scene.
   const order = useMemo(() => depthOrder(scene.tiles), [scene.tiles])
   const depth = useMemo(() => new Map(order.map((t, i) => [t.id, i])), [order])
+  // What each tile is (its word and icon) depends on the scene alone, not the camera.
+  const kinds = useMemo(() => new Map(scene.tiles.map((t) => [t.id, kindOf(t, scene)])), [scene])
   const drawn = new Map<string, { tile: Tile; draw: TileDraw; label: LabelDraw | null }>()
   for (const t of order) {
     const isHere = t.id === scene.here
-    const lift = (t.id === hover || t.id === openId) && !isHere ? LIFT : 0
+    // Pressed, it is drawn lifted; hovered, it rises by CSS, so its button and label stay put.
+    const lift = t.id === openId && !isHere ? LIFT : 0
     const draw = drawTile(t, cam, lift)
     const label = labelOf(t, draw, cam, {
       stop,
       here: isHere,
       hovered: t.id === hover,
       ahead,
-      parent: t.id === parentId,
       openLevel: scene.openLevel,
       phone: size.layout === 'phone',
       lift,
+      pressed: t.id === openId,
+      rem: 16 * size.rs,
+      map: { width: size.width, height: size.height },
+      kind: kinds.get(t.id)!.word,
     })
     drawn.set(t.id, { tile: t, draw, label })
   }
@@ -313,12 +334,17 @@ function Drawing({
           const { draw } = drawn.get(t.id)!
           const isHere = t.id === scene.here
           const pressed = t.id === openId
+          const hovered = t.id === hover && !pressed && !isHere
           return (
             <g
               key={t.id}
               className={styles.tile}
+              data-tile={t.id}
               data-state={isHere ? 'here' : t.state}
-              data-lift={(t.id === hover || pressed) && !isHere ? '' : undefined}
+              data-lift={hovered || (pressed && !isHere) ? '' : undefined}
+              data-hover={hovered ? '' : undefined}
+              // Drawn lifted, it does not ease (road-map.module.css): pressed while hovered, it stays put.
+              data-pressed={pressed && !isHere ? '' : undefined}
             >
               {t.id === scene.hint ? (
                 <polygon className={styles.hint} points={draw.ring(1.6)} />
@@ -330,6 +356,7 @@ function Drawing({
                   <polygon className={styles.top} points={l.top} />
                 </g>
               ))}
+              <TileIcon tile={t} icon={kinds.get(t.id)!.icon} draw={draw} cam={cam} />
               {isHere || pressed ? (
                 <polygon
                   className={styles.ring}
@@ -431,6 +458,27 @@ function Drawing({
   )
 }
 
+/** The icon printed flat on a tile's top face (iconOn), in the tile's state's ink. */
+function TileIcon({
+  tile,
+  icon,
+  draw,
+  cam,
+}: {
+  tile: Tile
+  icon: IconName
+  draw: TileDraw
+  cam: Camera
+}) {
+  return (
+    <g className={styles.icon} data-icon={icon} transform={iconOn(draw, tile, cam)}>
+      {ICONS[icon].map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </g>
+  )
+}
+
 function Year({
   at,
   now = false,
@@ -461,7 +509,11 @@ const PLACE: Record<LabelDraw['place'], string> = {
   right: '-translate-y-1/2 items-start text-left max-w-60',
 }
 
-/** A tile's label: its plate of the field, white where she is; the full label at the Tile stop. */
+/**
+ * A tile's label, hung on a short line from its tile: its kind word, its name, its sub and
+ * trade-off as the stop asks; its plate of the field, white where she is; the full label at the
+ * Tile stop. A hovered tile's name fades in.
+ */
 function Label({
   label,
   tile,
@@ -482,18 +534,21 @@ function Label({
       aria-hidden="true"
       data-state={tile.state}
       data-here={here || undefined}
+      data-place={label.place}
+      data-hint={label.hint || undefined}
       className={cn(
         styles.label,
-        'pointer-events-none absolute z-20 flex max-w-52 flex-col items-center gap-0.5 px-2 py-1 text-center',
+        'pointer-events-none absolute z-20 flex w-max max-w-52 flex-col items-center gap-0.5 px-2 py-1 text-center',
         PLACE[label.place],
-        here && label.place === 'below' && '-translate-x-4/5',
         label.hint && 'opacity-95',
         full && 'max-w-68 items-start gap-1.5 px-3 py-2.5 text-left shadow-lg',
       )}
       style={{ left: px(label.x), top: px(label.y) }}
     >
       {label.kicker ? (
-        <span className="text-overline uppercase opacity-86">{label.kicker}</span>
+        <span className="font-heading text-overline font-medium uppercase opacity-90">
+          {label.kicker}
+        </span>
       ) : null}
       {label.when ? <span className="text-overline uppercase opacity-80">{label.when}</span> : null}
       <span
@@ -511,8 +566,11 @@ function Label({
         </span>
       ) : null}
       {label.badges.length ? <LabelBadges ids={label.badges} badges={badges} /> : null}
-      {label.why ? (
-        <span className={cn('text-caption', full && 'border-t pt-1.5')}>{label.why}</span>
+      {label.gains || label.costs ? (
+        <span className={cn('flex flex-col text-caption', full && 'border-t pt-1.5')}>
+          {label.gains ? <span>{label.gains}</span> : null}
+          {label.costs ? <span>{label.costs}</span> : null}
+        </span>
       ) : null}
     </div>
   )

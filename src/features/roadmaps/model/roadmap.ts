@@ -32,6 +32,18 @@ export type RoadmapSummary = {
 /** The names a roadmap without her own name is called by: the course where she is, its city. */
 export type RoadNames = { here: string; city: string }
 
+/** What a road says for its names: its tiles' names, where she is and the cities on her road. */
+type NamedRoad = {
+  tiles: readonly { id: string; name: string }[]
+  walk: { here: string; cityLine: readonly string[] }
+}
+
+/** The road's names for `roadmapName`, read once for the board's breadcrumb and the list alike. */
+export function roadNames(road: NamedRoad): RoadNames {
+  const nameOf = (id: string | undefined) => road.tiles.find((t) => t.id === id)?.name ?? ''
+  return { here: nameOf(road.walk.here), city: nameOf(road.walk.cityLine[0]) }
+}
+
 /** Her own name for it, else "Cyber Security in Perth" from where she is on its road. */
 export const roadmapName = (r: Pick<Roadmap, 'name'>, road: RoadNames): string =>
   r.name ?? `${road.here} in ${road.city}`

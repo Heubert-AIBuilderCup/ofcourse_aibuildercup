@@ -65,7 +65,7 @@ describe('cardFor', () => {
     expect(cardFor(road, atCourse, DS)).toMatchObject({
       kind: 'course',
       kicker: 'Not visited · Course',
-      primary: 'Swap onto your road',
+      primary: 'Swap onto your roadmap',
       secondary: 'Cancel',
       badges: ['maths'],
     })
@@ -103,6 +103,12 @@ describe('cardFor', () => {
   it('offers the lesson on the Master’s years only', () => {
     expect(cardFor(road, atCourse, 'masters-cyber-security-ecu').lesson).toBe('masters-years')
     expect(cardFor(road, atCourse, 'graduate-visa-485').lesson).toBeUndefined()
+  })
+
+  it('the junction: the two ways to PR, nothing to act on', () => {
+    const card = cardFor(road, atCourse, 'two-ways-to-pr')
+    expect(card).toMatchObject({ kind: 'junction', kicker: 'Fork', secondary: 'Cancel' })
+    expect(card.primary).toBeUndefined()
   })
 
   it('Point A: where she starts, nothing to act on', () => {
@@ -152,6 +158,15 @@ describe('primaryAction: what the card’s primary does', () => {
 
   it('at her city, walks on to her course', () => {
     expect(primaryAction(road, city, null)).toEqual({ kind: 'walk', to: 'course' })
+  })
+
+  it('walks on to the next place or course from its own card, pressed on the map', () => {
+    const atCountry = buildScene(road, { ...NEW_SESSION, country: true })
+    const atCity = buildScene(road, { ...NEW_SESSION, city: true })
+    expect(primaryAction(road, atCountry, 'perth')).toEqual({ kind: 'walk', to: 'city' })
+    expect(primaryAction(road, atCity, CYBER)).toEqual({ kind: 'walk', to: 'course' })
+    // A route step ahead is a look, never a walk.
+    expect(primaryAction(road, atCourse, 'student-visa-500')).toBeNull()
   })
 
   it('walks back to her country from its card, from her course or her city', () => {

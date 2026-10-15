@@ -46,7 +46,7 @@ const { RoadBoard } = await import('./RoadBoard')
 
 const road = getRoad()
 /** A roadmap she has opened before, its board untouched. */
-const ROADMAP = { id: 'rm-1', choices: {}, firstVisit: false }
+const ROADMAP = { id: 'rm-1', name: 'Cyber Security in Perth', choices: {}, firstVisit: false }
 const props = { roadmap: ROADMAP, saveChoicesAction }
 
 // The map measures itself: give every element a 1440 × 900 box, as on a laptop.
@@ -169,6 +169,93 @@ describe('the map', () => {
     expect(screen.getByText('Not visited · City')).toBeInTheDocument()
   })
 
+  /** The map's label for a tile: the plate whose name line is `name`. */
+  const labelFor = (name: string) => {
+    const plate = screen
+      .getAllByText(name, { exact: true })
+      .map((el) => el.closest('[aria-hidden="true"]'))
+      .find((el) => el?.tagName === 'DIV')
+    if (!plate) throw new Error(`No label for ${name}`)
+    return plate as HTMLElement
+  }
+
+  it('heads every label with its kind word, over its name', () => {
+    board()
+    for (const [word, name] of [
+      ['Course', 'Cyber Security'],
+      ['Other course', 'Data Science'],
+      ['Not looked at', '13 more in Perth'],
+      ['Country', 'Australia'],
+    ]) {
+      const label = labelFor(name)
+      const kind = within(label).getByText(word)
+      const named = within(label).getByText(name)
+      expect(kind.compareDocumentPosition(named) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    }
+  })
+
+  it('prints each tile’s icon on its top face, hidden from assistive tech', () => {
+    const { container } = board()
+    const icon = (id: string, name: string) =>
+      container.querySelector(`g[data-tile="${id}"] [data-icon="${name}"]`)
+    const course = icon('cyber-security-ecu-perth', 'course')
+    expect(course?.querySelectorAll('path')).toHaveLength(3)
+    expect(course?.closest('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(icon('australia', 'globe')).not.toBeNull()
+    expect(icon('perth', 'city')).not.toBeNull()
+    expect(icon('more-courses-perth', 'more')).not.toBeNull()
+    expect(icon('student-visa-500', 'visa')).not.toBeNull()
+  })
+
+  it('lifts a hovered tile, never its button: the hit area stays where the tile rests', () => {
+    const { container } = board()
+    const hit = tile('Data Science, not visited. Open in the card')
+    const before = hit.getAttribute('style')
+    act(() => {
+      fireEvent.pointerEnter(hit)
+    })
+    expect(container.querySelector('g[data-tile="data-science-uwa-perth"]')).toHaveAttribute(
+      'data-lift',
+    )
+    expect(hit).not.toHaveAttribute('data-lift')
+    expect(hit.getAttribute('style')).toBe(before)
+  })
+
+  it('pressed while hovered, hands the hover’s rise to the drawn lift, marked so it does not ease', () => {
+    const { container } = board()
+    const g = () => container.querySelector('g[data-tile="data-science-uwa-perth"]')
+    const hit = tile('Data Science, not visited. Open in the card')
+    act(() => {
+      fireEvent.pointerEnter(hit)
+    })
+    expect(g()).not.toHaveAttribute('data-pressed')
+    press(hit)
+    expect(g()).toHaveAttribute('data-pressed')
+    expect(g()).not.toHaveAttribute('data-hover')
+    expect(g()).toHaveAttribute('data-lift')
+  })
+
+  it('names an unlabelled tile while it is hovered', () => {
+    board()
+    const hit = tile('Graduate visa · 485, unexplored. Open in the card')
+    expect(screen.queryByText('Graduate visa · 485')).not.toBeInTheDocument()
+    act(() => {
+      fireEvent.pointerEnter(hit)
+    })
+    expect(labelFor('Graduate visa · 485')).toBeInTheDocument()
+    act(() => {
+      fireEvent.pointerLeave(hit)
+    })
+    expect(screen.queryByText('Graduate visa · 485')).not.toBeInTheDocument()
+  })
+
+  it('has no Back and no View over the map: the header’s Your roadmaps leaves the board', () => {
+    query = 'zoom=tile'
+    board()
+    expect(screen.queryByRole('button', { name: /^Back to Perth$|^Back$/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'View' })).not.toBeInTheDocument()
+  })
+
   it('closes the card with its Cancel, back to where she is', () => {
     query = 'tile=adelaide'
     board()
@@ -246,16 +333,16 @@ describe('the card column', () => {
     segments = ['route', 'student-visa-500']
     board()
     expect(screen.getByText('Route detail comes in the next round.')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Back to your road' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Back to your roadmap' })).toHaveAttribute(
       'href',
       `${BOARD}`,
     )
   })
 })
 
-const SWAP_TOAST = 'Data Science is on your road now. The road ahead re-routed through it.'
+const SWAP_TOAST = 'Data Science is on your roadmap now. The road ahead re-routed through it.'
 const ADD_TOAST =
-  'Information Systems is on your board, beside your road. Data Science folded into the stack.'
+  'Information Systems is on your board, beside your roadmap. Data Science folded into the stack.'
 const READ_TOAST = 'Lesson read. The Master’s years now show as looked at.'
 
 describe('the card’s actions', () => {
@@ -263,7 +350,7 @@ describe('the card’s actions', () => {
     reduceMotion()
     query = 'tile=data-science-uwa-perth'
     board()
-    press(button('Swap onto your road'))
+    press(button('Swap onto your roadmap'))
 
     expect(heading()).toHaveTextContent('Data Science')
     expect(screen.getByText('You are here · Course')).toBeInTheDocument()
@@ -280,18 +367,18 @@ describe('the card’s actions', () => {
     jest.useFakeTimers()
     query = 'tile=data-science-uwa-perth'
     board()
-    press(button('Swap onto your road'))
-    expect(screen.getByText('Swapping onto your road')).toBeInTheDocument()
+    press(button('Swap onto your roadmap'))
+    expect(screen.getByText('Swapping onto your roadmap')).toBeInTheDocument()
     act(() => {
       jest.advanceTimersByTime(650)
     })
-    expect(screen.queryByText('Swapping onto your road')).not.toBeInTheDocument()
+    expect(screen.queryByText('Swapping onto your roadmap')).not.toBeInTheDocument()
 
     cleanup()
     reduceMotion()
     board()
-    press(button('Swap onto your road'))
-    expect(screen.queryByText('Swapping onto your road')).not.toBeInTheDocument()
+    press(button('Swap onto your roadmap'))
+    expect(screen.queryByText('Swapping onto your roadmap')).not.toBeInTheDocument()
   })
 
   it('looks ahead at the next step, and Back to Cyber Security returns to where she is', () => {
@@ -347,12 +434,14 @@ describe('the card’s actions', () => {
     expect(screen.getByText('You are here · City')).toBeInTheDocument()
   })
 
-  it('goes back to the tile before where she is: its card, at Level', () => {
-    query = 'zoom=tile'
+  it('at her country, pressing Perth on the map and then its Go to Perth walks her there', () => {
+    query = 'tile=australia'
     board()
-    press(button('Back to Perth'))
-    expect(screen.getByText('Visited · City')).toBeInTheDocument()
-    expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?tile=perth`)
+    press(button('Go to Australia'))
+    press(screen.getByRole('button', { name: /^Perth,/ }))
+    press(button(/^Go to Perth/))
+    expect(screen.getByText('You are here · City')).toBeInTheDocument()
+    expect(screen.getByText('Walked to Perth')).toBeInTheDocument()
   })
 })
 
@@ -485,33 +574,75 @@ describe('Whole road', () => {
   })
 })
 
-describe('View', () => {
-  it('opens its menu; Escape closes it and gives focus back to View', () => {
-    board()
-    const view = button('View')
-    press(view)
-    const menu = screen.getByRole('menu', { name: 'View' })
-    expect(within(menu).getByRole('menuitem', { name: 'Pick a goal' })).toBeInTheDocument()
-    expect(
-      within(menu).getByRole('menuitem', { name: 'Layers · off by default' }),
-    ).toBeInTheDocument()
+describe('the map key', () => {
+  const keyButton = () => button('Map key')
+  const strip = () => screen.queryByRole('note', { name: 'How to read the map' })
 
-    act(() => {
-      fireEvent.keyDown(menu, { key: 'Escape' })
-    })
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
-    expect(document.activeElement).toBe(view)
+  it('on her first visit shows the strip, pressed; Got it hides it and Map key brings it back', () => {
+    board(null, { firstVisit: true })
+    expect(strip()).toBeInTheDocument()
+    expect(keyButton()).toHaveAttribute('aria-pressed', 'true')
+
+    press(within(strip()!).getByRole('button', { name: 'Got it' }))
+    expect(strip()).not.toBeInTheDocument()
+    expect(keyButton()).toHaveAttribute('aria-pressed', 'false')
+    // Keyboard focus is not lost with the strip: it lands on Map key.
+    expect(document.activeElement === keyButton()).toBe(true)
+
+    press(keyButton())
+    expect(strip()).toBeInTheDocument()
+    expect(keyButton()).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('opens the map key', () => {
+  it('after her first visit stays hidden until Map key, which toggles it', () => {
     board()
-    press(button('View'))
-    press(screen.getByRole('menuitem', { name: 'Map key' }))
-    const key = screen.getByRole('dialog', { name: 'Map key' })
-    expect(within(key).getByText('What you can press')).toBeInTheDocument()
-    expect(within(key).getByText('What the light means')).toBeInTheDocument()
-    press(within(key).getByRole('button', { name: 'Close' }))
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(strip()).not.toBeInTheDocument()
+    expect(keyButton()).toHaveAttribute('aria-pressed', 'false')
+    press(keyButton())
+    expect(strip()).toBeInTheDocument()
+    press(keyButton())
+    expect(strip()).not.toBeInTheDocument()
+  })
+})
+
+const LATER_TOAST = 'Ask and Compare come in a later round.'
+
+describe('Ask and Compare', () => {
+  it('say in a toast that they come later', () => {
+    board()
+    const header = screen.getByRole('banner')
+    press(within(header).getByRole('button', { name: 'Ask · 1' }))
+    expect(screen.getByText(LATER_TOAST)).toBeInTheDocument()
+    press(within(header).getByRole('button', { name: 'Compare' }))
+    expect(screen.getByText(LATER_TOAST)).toBeInTheDocument()
+  })
+})
+
+const tradeLines = (gains: string, costs: string, within_: HTMLElement = document.body) => {
+  const g = within(within_).getByText(gains, { exact: true })
+  const c = within(within_).getByText(costs, { exact: true })
+  // Two lines of their own: nothing joins them.
+  expect(g.parentElement).toBe(c.parentElement)
+  expect(g.parentElement?.textContent).toBe(gains + costs)
+}
+
+describe('trade-offs', () => {
+  it('sit on two lines in the card where she is, and in a pressed card', () => {
+    board()
+    tradeLines(
+      'Good for what matters most to you: PR, career',
+      'Less good for: cost (only AUD 3k spare) and location (far from the east-coast job market).',
+    )
+    cleanup()
+    query = 'tile=data-science-uwa-perth'
+    board()
+    tradeLines('Good for: career', 'Less good for: cost, PR', screen.getByRole('complementary'))
+  })
+
+  it('sit on two lines in a sibling', () => {
+    board()
+    const sibling = button(/^Data Science ·/)
+    tradeLines('Good for: career', 'Less good for: cost, PR', sibling)
   })
 })
 
@@ -521,7 +652,7 @@ describe('toasts', () => {
     reduceMotion()
     query = 'tile=data-science-uwa-perth'
     board()
-    press(button('Swap onto your road'))
+    press(button('Swap onto your roadmap'))
     act(() => {
       jest.advanceTimersByTime(4400)
     })
@@ -550,7 +681,7 @@ describe('toasts', () => {
     reduceMotion()
     query = 'tile=data-science-uwa-perth'
     board()
-    press(button('Swap onto your road'))
+    press(button('Swap onto your roadmap'))
     expect(screen.getByText(SWAP_TOAST).closest('[role="status"]')).toHaveAttribute(
       'aria-live',
       'polite',
@@ -596,7 +727,7 @@ describe('an empty road', () => {
     expect(heading()).toHaveTextContent('Point A')
     expect(screen.getByText('You are here · Point A')).toBeInTheDocument()
     expect(
-      screen.getByText('Your road starts here. Pick a destination to draw the rest.'),
+      screen.getByText('Your roadmap starts here. Pick a destination to draw the rest.'),
     ).toBeInTheDocument()
     expect(button('Pick a destination')).toBeInTheDocument()
     expect(tile('Point A, you are here. Open in the card')).toBeInTheDocument()
@@ -620,8 +751,8 @@ describe('on a phone', () => {
     HTMLElement.prototype.scrollIntoView = realScroll
   })
 
-  const switcher = () => screen.getByRole('group', { name: 'Show your road as' })
-  const roadList = () => screen.getByRole('list', { name: 'Your road' })
+  const switcher = () => screen.getByRole('group', { name: 'Show your roadmap as' })
+  const roadList = () => screen.getByRole('list', { name: 'Your roadmap' })
   const rowButtons = () =>
     within(roadList())
       .getAllByRole('button', { name: /\. Open$/ })
@@ -634,12 +765,12 @@ describe('on a phone', () => {
       'true',
     )
     expect(roadList()).toBeInTheDocument()
-    expect(screen.queryByRole('region', { name: 'Your road, map' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Your roadmap, map' })).not.toBeInTheDocument()
 
     press(within(switcher()).getByRole('button', { name: 'Map' }))
     expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?view=map`)
-    expect(screen.getByRole('region', { name: 'Your road, map' })).toBeInTheDocument()
-    expect(screen.queryByRole('list', { name: 'Your road' })).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Your roadmap, map' })).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Your roadmap' })).not.toBeInTheDocument()
 
     press(within(switcher()).getByRole('button', { name: 'Road' }))
     expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}`)
@@ -655,7 +786,7 @@ describe('on a phone', () => {
       'Master’s · Cyber Security, unexplored. Open',
       'Graduate visa · 485, unexplored. Open',
     ])
-    expect(screen.getByText('Late 2026 · Next · Route step')).toBeInTheDocument()
+    expect(screen.getByText('Late 2026 · Next · Visa')).toBeInTheDocument()
     const here = within(roadList()).getAllByRole('listitem')[3]
     expect(within(here).getByRole('heading', { level: 1 })).toHaveTextContent('Cyber Security')
     expect(within(here).getByText('You are here · Course')).toBeInTheDocument()
@@ -692,9 +823,7 @@ describe('on a phone', () => {
     board()
     let peek = screen.getByRole('region', { name: 'Where you are' })
     expect(within(peek).getByText('You are here · Course')).toBeInTheDocument()
-    expect(
-      within(peek).getByText('▲ Strong on PR, Career · ▼ Costs you on: Location'),
-    ).toBeInTheDocument()
+    tradeLines('Good for: PR, career', 'Less good for: location', peek)
     expect(
       within(peek).getByRole('button', { name: 'Look ahead: Student visa · 500' }),
     ).toBeInTheDocument()
@@ -704,10 +833,8 @@ describe('on a phone', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     peek = screen.getByRole('region', { name: 'The tile you pressed' })
     expect(within(peek).getByText('Not visited · Course')).toBeInTheDocument()
-    expect(
-      within(peek).getByText('▲ Strong on Career · ▼ Costs you on: Cost, PR'),
-    ).toBeInTheDocument()
-    expect(within(peek).getByRole('button', { name: 'Swap onto your road' })).toBeInTheDocument()
+    tradeLines('Good for: career', 'Less good for: cost, PR', peek)
+    expect(within(peek).getByRole('button', { name: 'Swap onto your roadmap' })).toBeInTheDocument()
 
     press(within(peek).getByRole('button', { name: 'Cancel' }))
     expect(screen.getByRole('region', { name: 'Where you are' })).toBeInTheDocument()
@@ -727,10 +854,10 @@ describe('on a phone', () => {
 
     const lesson = screen.getByRole('dialog', { name: 'The Master’s years, in 3 minutes' })
     press(within(lesson).getByRole('button', { name: 'Done reading' }))
-    expect(scrolled.at(-1)?.textContent).toContain('Feb 2027 – Dec 2028 · Looked at · Route step')
+    expect(scrolled.at(-1)?.textContent).toContain('Feb 2027 – Dec 2028 · Looked at · Study')
   })
 
-  it('opens the stack’s list, the overview and the map key as sheets', () => {
+  it('opens the stack’s list and the overview as sheets', () => {
     query = 'tile=more-courses-perth&open=list'
     board()
     expect(screen.getByRole('dialog', { name: '13 more in Perth' })).toBeInTheDocument()
@@ -744,15 +871,13 @@ describe('on a phone', () => {
     })
     expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?view=map`)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
 
-    press(button('View'))
-    press(screen.getByRole('menuitem', { name: 'Map key' }))
-    const key = screen.getByRole('dialog', { name: 'Map key' })
-    expect(within(key).getByText('What you can press')).toBeInTheDocument()
-    act(() => {
-      fireEvent.keyDown(key, { key: 'Escape' })
-    })
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  it('says Ask and Compare come later from the controls bar', () => {
+    board()
+    const controls = screen.getByRole('navigation', { name: 'Controls' })
+    press(within(controls).getByRole('button', { name: 'Ask · 1' }))
+    expect(screen.getByText(LATER_TOAST)).toBeInTheDocument()
   })
 })
 
@@ -772,7 +897,7 @@ describe('her roadmap’s choices', () => {
     reduceMotion()
     query = 'tile=data-science-uwa-perth'
     board()
-    press(button('Swap onto your road'))
+    press(button('Swap onto your roadmap'))
     await settle()
     expect(saveChoicesAction).toHaveBeenLastCalledWith('rm-1', { ...NOTHING_CHOSEN, swapped: true })
 
@@ -790,7 +915,7 @@ describe('her roadmap’s choices', () => {
     saveChoicesAction.mockImplementationOnce(
       () => new Promise<ActionResult>((resolve) => (answerSwap = resolve)),
     )
-    press(button('Swap onto your road'))
+    press(button('Swap onto your roadmap'))
     press(button('Undo'))
     await settle()
     // The Undo waits, so it can never land before the swap it undoes.
@@ -811,7 +936,7 @@ describe('her roadmap’s choices', () => {
       ok: false,
       error: 'Could not save. Please try again.',
     }))
-    press(button('Swap onto your road'))
+    press(button('Swap onto your roadmap'))
     await settle()
     expect(screen.getByText(SWAP_TOAST)).toBeInTheDocument()
     expect(screen.getByText(SAVE_NOTE)).toBeInTheDocument()

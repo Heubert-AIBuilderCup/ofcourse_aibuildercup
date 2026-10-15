@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { Roadmap } from '@/shared/types/student'
-import { isNew, lastOpenedOut, openedLabel, orderRoadmaps, roadmapName } from './roadmap'
+import { isNew, lastOpenedOut, openedLabel, orderRoadmaps, roadmapName, roadNames } from './roadmap'
 
 const at = (day: number, hour = 12) => new Date(2026, 9, day, hour)
 
@@ -30,6 +30,24 @@ describe('roadmapName', () => {
 
   test('is named from its road when she gave none', () => {
     expect(roadmapName(make({ name: null }), names)).toBe('Cyber Security in Perth')
+  })
+})
+
+describe('roadNames', () => {
+  const tiles = [
+    { id: 'perth', name: 'Perth' },
+    { id: 'cyber', name: 'Cyber Security' },
+  ]
+
+  test('reads the course where she is and the first city on her road', () => {
+    expect(roadNames({ tiles, walk: { here: 'cyber', cityLine: ['perth'] } })).toEqual(names)
+  })
+
+  test('leaves a name it cannot find empty', () => {
+    expect(roadNames({ tiles, walk: { here: 'gone', cityLine: [] } })).toEqual({
+      here: '',
+      city: '',
+    })
   })
 })
 

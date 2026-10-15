@@ -15,4 +15,5 @@ export {
   type RoadmapOrder,
   type RoadmapSummary,
   roadmapName,
+  roadNames,
 } from './model/roadmap'

@@ -8,12 +8,12 @@ const CONTROL =
 
 /**
  * Below 64rem the board's controls sit in a bar along its foot: Ask, Weights (her weights as bars),
- * Compare. None acts this round.
+ * Compare. Ask and Compare are not here yet (`onLater` says so); Weights does nothing this round.
  */
-export function ControlsBar({ weights }: { weights: Weight[] }) {
+export function ControlsBar({ weights, onLater }: { weights: Weight[]; onLater: () => void }) {
   return (
     <nav aria-label="Controls" className="hidden grid-cols-3 border-t bg-background @max-5xl:grid">
-      <Button type="button" variant="ghost" className={CONTROL}>
+      <Button type="button" variant="ghost" className={CONTROL} onClick={onLater}>
         <MessageCircle aria-hidden="true" strokeWidth={1.5} className="size-icon-lg" />
         Ask · 1
       </Button>
@@ -29,7 +29,7 @@ export function ControlsBar({ weights }: { weights: Weight[] }) {
         </span>
         Weights
       </Button>
-      <Button type="button" variant="ghost" className={cn(CONTROL, 'border-l')}>
+      <Button type="button" variant="ghost" className={cn(CONTROL, 'border-l')} onClick={onLater}>
         <Columns2 aria-hidden="true" strokeWidth={1.5} className="size-icon-lg" />
         Compare
       </Button>

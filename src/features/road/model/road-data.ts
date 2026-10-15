@@ -16,7 +16,8 @@ export const STOP_NAMES: Readonly<Record<Stop, string>> = {
   tile: 'Tile',
 }
 
-export type TileKind = 'point' | 'place' | 'course' | 'step' | 'stack' | 'slab'
+/** junction: the small tile where the road forks after the 485. */
+export type TileKind = 'point' | 'place' | 'course' | 'step' | 'stack' | 'slab' | 'junction'
 
 /**
  * lit: visited · here: where she is · alt: not visited · next: the next step · fog: unexplored,
@@ -47,6 +48,8 @@ export type Tile = {
   gy: number
   /** A slab's end along the road: a slab is as long as its step lasts. */
   gx1?: number
+  /** An angled slab's end across the road: it runs along its own line from (gx, gy). */
+  gy1?: number
   /** A slab's half-width across the road, when not the kind's. */
   w?: number
   /** The tile's half-size, when not the kind's. */
@@ -58,8 +61,10 @@ export type Tile = {
   short?: string
   kicker?: string
   sub?: string
-  /** "▲ Strong on … · ▼ Costs you on …" */
-  why?: string
+  /** "Good for: PR, career": shown on its own line, over `costs`. */
+  gains?: string
+  /** "Less good for: location" */
+  costs?: string
   when?: string
   badges?: BadgeId[]
   /** On the thinner road that forks off after the 485. */
@@ -138,7 +143,7 @@ export type Ruler = {
   now: number
   from: number
   to: number
-  /** Across the road, on its up-right side. */
+  /** Across the road, on the far side from the fork's lane, so the lane never crosses it. */
   gy: number
 }
 

@@ -113,6 +113,9 @@ export function primaryAction(road: Road, scene: Scene, tileId: string | null): 
   const fromStack = road.tiles.find((t) => t.id === tileId)?.inStack
   if (tileId === scene.alternative && !fromStack) return { kind: 'swap', tileId }
   if (tile?.kind === 'stack' && tile.level === 'course') return { kind: 'list' }
+  // The next place or course on her road, pressed on the map: its card walks her on to it.
+  if (tileId === next?.id && (tile?.kind === 'place' || tile?.kind === 'course'))
+    return { kind: 'walk', to: tile.kind === 'place' ? 'city' : 'course' }
   if (tileId === scene.cityLine[0] && scene.lit.includes(tileId))
     return { kind: 'walk', to: 'city' }
   // Her country is where the first arrival stands her.

@@ -21,7 +21,6 @@ import { panelAt } from '../model/routes'
 import { BottomSheet } from './BottomSheet'
 import { ControlsBar } from './ControlsBar'
 import { LessonPanel } from './LessonPanel'
-import { MapKey } from './MapKey'
 import { Overview } from './Overview'
 import { PhoneMap } from './PhoneMap'
 import { PhoneRoad } from './PhoneRoad'
@@ -48,8 +47,16 @@ function useLayout(ref: RefObject<HTMLElement | null>): Layout | null {
   return layout
 }
 
-/** The roadmap a board draws: its id, what she did on it, and whether she has opened it before. */
-export type BoardRoadmap = { id: string; choices: RoadmapChoices; firstVisit: boolean }
+/**
+ * The roadmap a board draws: its id, its name (resolved: hers, else from its road), what she did on
+ * it, and whether she has opened it before.
+ */
+export type BoardRoadmap = {
+  id: string
+  name: string
+  choices: RoadmapChoices
+  firstVisit: boolean
+}
 
 /**
  * One roadmap's board, at `/roadmaps/<id>`: its lesson and route links and its ways back stay under
@@ -77,7 +84,7 @@ export function RoadBoard({
 }
 
 /**
- * "Your road": rendered once by the roadmap's layout, so it stays mounted (the camera, the
+ * "Your roadmap": rendered once by the roadmap's layout, so it stays mounted (the camera, the
  * session) across the board, its lesson and its route steps; the route says what the card column
  * shows (`<board>/learn/<lesson>`, `<board>/route/<route-id>`, else the query's card). The header;
  * the map and the card column side by side from 64rem, or stacked below it (map, card, then the
@@ -112,7 +119,6 @@ function Board({
     zoom,
     close,
     view,
-    back,
     primary,
     closeList,
     put,
@@ -122,13 +128,15 @@ function Board({
     onLesson,
     undo,
     dismissToast,
+    say,
   } = useRoadSession(road, panel, roadmap, saveChoicesAction)
   const rootRef = useRef<HTMLDivElement>(null)
   const measured = useLayout(rootRef)
   const layout = measured ?? 'wide'
   const phone = layout === 'phone'
-  // The phone's map key, as a sheet.
-  const [keyOpen, setKeyOpen] = useState(false)
+  // The map's key strip: shown on her first visit, then as Map key says.
+  const [keyShown, setKeyShown] = useState(roadmap.firstVisit)
+  const onLater = () => say('Ask and Compare come in a later round.')
 
   const card = cardFor(road, scene, state.tile)
   const stack = scene.tiles.find((t) => t.id === state.tile && t.kind === 'stack')
@@ -194,12 +202,6 @@ function Board({
         body: <RouteCard step={panel.step} />,
       }
     if (stack && list) return { label: stack.name, onClose: closeList, body: stackList }
-    if (keyOpen)
-      return {
-        label: 'Map key',
-        onClose: () => setKeyOpen(false),
-        body: <MapKey inSheet onClose={() => setKeyOpen(false)} />,
-      }
     if (state.view === 'map' && state.zoom === 'whole')
       return { label: 'Overview', onClose: () => zoom('level'), body: overview }
     if (state.view === 'road' && card.kind !== 'here')
@@ -254,8 +256,9 @@ function Board({
     layout,
     onPress: press,
     onZoom: zoom,
-    onBack: back,
     onLesson,
+    keyShown,
+    onKeyShown: setKeyShown,
   }
 
   const phoneSheet = sheet()
@@ -268,19 +271,13 @@ function Board({
           measured === null && 'invisible',
         )}
       >
-        <RoadHeader />
+        <RoadHeader roadmapName={roadmap.name} onLater={onLater} />
         {phone ? (
           <>
             <ViewSwitch view={state.view} onView={view} />
             <div className="relative grid min-h-0 flex-1">
               {state.view === 'map' ? (
-                <PhoneMap
-                  {...mapProps}
-                  card={card}
-                  onClose={close}
-                  onPrimary={onPrimary}
-                  onKey={() => setKeyOpen(true)}
-                />
+                <PhoneMap {...mapProps} card={card} onClose={close} onPrimary={onPrimary} />
               ) : (
                 <PhoneRoad
                   road={road}
@@ -308,7 +305,7 @@ function Board({
             </aside>
           </div>
         )}
-        <ControlsBar weights={road.weights} />
+        <ControlsBar weights={road.weights} onLater={onLater} />
       </div>
       <BottomSheet
         open={phoneSheet !== null}
@@ -332,7 +329,7 @@ const SEGMENT =
 function ViewSwitch({ view, onView }: { view: View; onView: (view: View) => void }) {
   return (
     <div className="flex items-center border-b bg-background px-4 py-2">
-      <fieldset aria-label="Show your road as" className="m-0 flex min-w-0 border p-0">
+      <fieldset aria-label="Show your roadmap as" className="m-0 flex min-w-0 border p-0">
         <Button
           type="button"
           variant="square"
@@ -366,7 +363,7 @@ function RouteCard({ step }: { step: Tile }) {
       <h2 className="m-0 text-h3">{step.name}</h2>
       <p className="m-0 text-muted-foreground">Route detail comes in the next round.</p>
       <Link href={board} className={cn(buttonVariants({ variant: 'text' }), 'self-start')}>
-        Back to your road
+        Back to your roadmap
       </Link>
     </section>
   )
