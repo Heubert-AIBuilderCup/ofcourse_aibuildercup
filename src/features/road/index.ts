@@ -5,5 +5,5 @@
 export { RoadBoard } from './components/RoadBoard'
 export { type BoardFacts, boardFacts } from './model/board-facts'
 export { roadRedirect } from './model/redirect'
-export { getRoad } from './model/road-data'
+export { getRoad, type Road } from './model/road-data'
 export { lessonById, routeStep } from './model/routes'

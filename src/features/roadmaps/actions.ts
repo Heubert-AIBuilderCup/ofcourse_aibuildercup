@@ -2,20 +2,31 @@
 
 import { refresh } from 'next/cache'
 import { z } from 'zod'
+import { parseAnswer } from '@/features/opening/model/questions'
 import { getProfile } from '@/features/opening/server/profile'
+import { getRoad } from '@/features/road'
 import { asStudent, fail } from '@/shared/lib/auth/as-student'
 import type { ActionResult } from '@/shared/types/action-result'
-import { ROADMAP_NAME_MAX, type RoadmapChoices, roadmapChoicesSchema } from '@/shared/types/student'
+import {
+  QUESTION_KEYS,
+  type QuestionKey,
+  ROADMAP_NAME_MAX,
+  type RoadmapChoices,
+  roadmapChoicesSchema,
+  type StoredAnswers,
+} from '@/shared/types/student'
+import { copyName, roadmapName, roadNames } from './model/roadmap'
 import {
   archiveRoadmap,
-  ensureDraft,
+  createRoadmap,
   finishRoadmap,
-  getDraft,
+  getRoadmap,
   hasArchived,
   renameRoadmap,
   restoreArchived,
   restoreRoadmap,
   saveChoices,
+  saveRoadmapAnswers,
   softDeleteRoadmap,
 } from './server/roadmaps'
 
@@ -29,8 +40,7 @@ const NAME_RULE = `A name has 1 to ${ROADMAP_NAME_MAX} characters.`
 const ONLY_ONE = 'Your only roadmap stays. Make another before you delete this one.'
 const KEEP_ONE = 'Keep one roadmap out of the archive.'
 const BAD_CHOICES = "We couldn't save that change. Reload the page and try again."
-const ALREADY_ANSWERING =
-  "You're already answering a new roadmap. Finish its questions, or pick up where you left off."
+const BAD_ANSWERS = "We couldn't save your answers. Reload the page and try again."
 
 /** A roadmap id from the request: a claim, checked against her own rows by the repository. */
 const idSchema = z.string().min(1).max(64)
@@ -57,18 +67,6 @@ export async function finishOnboardingAction(): Promise<ActionResult<{ id: strin
     // Coins are stored only on the roadmap she is answering; none left means it was just finished.
     if (finished === null) return fail(COINS_FIRST)
     return { ok: true, id: finished.id }
-  })
-}
-
-/**
- * "Start from scratch": an empty roadmap for her to answer from step 00. Refused while she is
- * answering another (one at a time).
- */
-export async function startFromScratchAction(): Promise<ActionResult> {
-  return asStudent('roadmaps.startFromScratch', async (userId) => {
-    if (await getDraft(userId)) return fail(ALREADY_ANSWERING)
-    await ensureDraft(userId)
-    return { ok: true }
   })
 }
 
@@ -144,6 +142,74 @@ export async function saveChoicesAction(
     if (!parsed.success) return fail(BAD_CHOICES)
     if (!(await saveChoices(userId, roadmapId.data, parsed.data))) return fail(NOT_FOUND)
     return { ok: true }
+  })
+}
+
+const isQuestionKey = (key: string): key is QuestionKey =>
+  (QUESTION_KEYS as readonly string[]).includes(key)
+
+/**
+ * Each entry parsed against its question as onboarding's own write parses it (an option, "Not
+ * sure" or a stored answer), or null when one is not an answer to its question.
+ */
+function parseAnswers(answers: unknown): StoredAnswers | null {
+  if (typeof answers !== 'object' || answers === null || Array.isArray(answers)) return null
+  const parsed: StoredAnswers = {}
+  for (const [key, raw] of Object.entries(answers)) {
+    if (!isQuestionKey(key)) return null
+    const answer = parseAnswer(key, raw)
+    if (!answer) return null
+    parsed[key] = answer
+  }
+  return parsed
+}
+
+/**
+ * "Save changes" in Your answers, and its Undo: the whole set of one of her roadmaps' answers,
+ * never the profile's nor another roadmap's. Every entry must be an answer to its question, or
+ * nothing is saved.
+ */
+export async function saveRoadmapAnswersAction(
+  id: string,
+  answers: StoredAnswers,
+): Promise<ActionResult> {
+  return asStudent('roadmaps.saveRoadmapAnswers', async (userId) => {
+    const roadmapId = idSchema.safeParse(id)
+    if (!roadmapId.success) return fail(NOT_FOUND)
+    const parsed = parseAnswers(answers)
+    if (!parsed) return fail(BAD_ANSWERS)
+    const saved = await saveRoadmapAnswers(userId, roadmapId.data, parsed)
+    if (saved === 'bad-answers') return fail(BAD_ANSWERS)
+    if (saved === 'not-found') return fail(NOT_FOUND)
+    return { ok: true }
+  })
+}
+
+/**
+ * "Create roadmap" on a new roadmap's draft: a copy of one of hers (`fromId`), named "Copy of" its
+ * source's name as her list shows it, or from scratch without one, unnamed, with the draft's answers, the whole set, each parsed against its question (or
+ * nothing is made). Returns its id, for the loader to land on her roadmaps with it marked. No
+ * refresh: the list is read fresh when she lands on it.
+ */
+export async function createRoadmapAction(input: {
+  fromId?: string
+  answers: StoredAnswers
+}): Promise<ActionResult<{ id: string }>> {
+  return asStudent('roadmaps.createRoadmap', async (userId) => {
+    const fromId = input?.fromId === undefined ? null : idSchema.safeParse(input.fromId)
+    if (fromId && !fromId.success) return fail(NOT_FOUND)
+    const answers = parseAnswers(input?.answers)
+    if (!answers) return fail(BAD_ANSWERS)
+    let copy: { fromId: string; name: string } | null = null
+    if (fromId) {
+      const source = await getRoadmap(userId, fromId.data)
+      if (!source) return fail(NOT_FOUND)
+      copy = { fromId: source.id, name: copyName(roadmapName(source, roadNames(getRoad()))) }
+    }
+    const made = await createRoadmap(userId, copy ? { ...copy, answers } : { answers })
+    if (made === 'not-found') return fail(NOT_FOUND)
+    if (made === 'bad-answers') return fail(BAD_ANSWERS)
+    return { ok: true, id: made.id }
   })
 }
 

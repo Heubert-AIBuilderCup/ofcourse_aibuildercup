@@ -310,3 +310,120 @@ Read first: task 9's diff; RoadMap.tsx in full (the layers, `Label`, the hit but
 | 20 every button acts; Ask and Compare's toast | 10 | RoadHeader/RoadBoard.test |
 | 21 "roadmap" wording | 9 | copy test |
 | 22 sizes at phone, tablet, 1440, 1920 | — | Not automatable: the smoke test at each width against the 1920 artboards |
+
+---
+
+# Part 4: Your answers over the board — Implementation Plan
+
+**Intent:** docs/roadmaps/intent.md, criteria 23–27 and the "Part 4 decisions". **Reference:** docs/roadmaps/reference/logic/board.js lines 115–160 (`ANS`, `ANS_ROW`, `ansLabel`, the effects `eff`, `BUDGET_IF`, `TOASTS.budget`/`nochange`), 236–243 (the `budget-preview` and `budget-saved` scenes), 502–544 (`press` while answering, `openAnswers`, `closeAnswers`, `saveAnswers`), 636–638 and 700 (`prevMap`, the dashed `prevRing`), 683–686 (phone: the map names only what would change), 860–897 (`ansSteps`, the bar, the ask, the labels); canvas/RoadB.dc.html's `panelAnswers` block (the markup); canvas/road.css lines 562–640 (`rb-ans*`, the bar, the ask, the phone sheet at 62%, the preview tag); canvas boards RBAnsDesk, RBAnsPhone, RBAnsBudgetDesk, RBAnsBudgetPhone, RBAnsTwoDesk, RBAnsAskDesk, RBAnsSavedDesk, RBAnsSavedPhone, and ANNotes.
+**Goal:** she changes any onboarding answer over the live board, sees what would move before it moves, and saves to the open roadmap only.
+**Approach:** a pure answers model in the opening feature (the rows from the question model, the two mock effects) and a scene hook in the road model (preview rings and the saved budget's marks); one server write for a roadmap's answers with an action; the panel as URL state over the board (desktop: the card column; phone: a 62% sheet over the Map view), the bar and the ask, the preview tag, tiles waiting while she edits.
+**Test layers:** unit plus integration: `saveRoadmapAnswers` crosses the database (`DB_TESTS=1 bun test src/features/roadmaps/server/roadmaps.test.ts`); the rest is unit: the rows and effects, the scene's preview and saved marks, the URL state, the panel's behaviour (pending, discard, save, Undo, the phone switch). The look is the smoke test. No e2e.
+**Constraints:** as part 1's, verbatim above, plus CLAUDE.md's "No end-to-end code without being asked".
+
+## Files
+| Path | Create or modify | Responsibility |
+| --- | --- | --- |
+| `src/features/opening/model/answers-panel.ts` (+ test) | create | `answerGroups(answers, persona, relative, coins)` → the six groups' rows; `optionsFor(key)`; `answerLabel(key, value)`; `effectOf(road, key, value, answers)` → `{ lines, prev }` |
+| `src/features/road/model/scene.ts` (+ test), `road-data.ts` | modify | `Session.preview?: Record<tileId,string>`; `applyAnswers(scene, answers)` for the saved budget marks; `Tile.prev?` |
+| `src/features/road/model/road-url.ts` (+ test) | modify | `open: 'list' \| 'answers' \| null`; `answers` pushes |
+| `src/features/roadmaps/server/roadmaps.ts` (+ test), `actions.ts` (+ test) | modify | `saveRoadmapAnswers(userId, id, answers)` (a full set, parsed); `saveRoadmapAnswersAction(id, answers)` |
+| `src/features/opening/actions.ts` | reuse | `savePersonaAction` for the character |
+| `src/features/road/components/AnswersPanel.tsx` (+ test), `answers.module.css` | create | The panel: groups, rows, option cards, flags, "If you save", the bar, the ask |
+| `src/features/road/components/RoadBoard.tsx` (+ test), `RoadMap.tsx`, `road-map.module.css`, `PhoneMap.tsx`, `RoadHeader.tsx`, `useRoadSession.ts`, `useMapCamera.ts` | modify | The panel in the column / the sheet; the preview tag and rings; presses wait; the phone's Map view and framing; the menu item; the toasts |
+| `src/features/opening/components/AccountMenu.tsx` | modify | An optional second item "Your answers" (`onAnswers` or `answersHref`) |
+| `src/app/(app)/roadmaps/[id]/layout.tsx` | modify | Passes the roadmap's `answers`, `relative`, `coins` and the profile's `persona` |
+
+## Task 12: The answers model, the scene's preview, the URL state and the write
+**Delivers:** criteria 23 (the data side), 24 (the effects and the preview marks), 26 (the saved marks and the "nothing changes" rule).
+**Files:** create `src/features/opening/model/answers-panel.ts` (+ test); modify `src/features/road/model/scene.ts` (+ test), `road-data.ts`, `road-url.ts` (+ test), `src/features/roadmaps/server/roadmaps.ts` (+ test), `src/features/roadmaps/actions.ts` (+ test), `src/features/opening/index.ts`, `src/features/road/index.ts`.
+**Kind:** judgement
+Read first: src/features/opening/model/questions.ts (`SCREENS`, `Question` with `control`, `optionsFor`-like helpers `questionOf`, `display`, `effective`, `isAssumed`, `isVisible`), onboarding.ts (`QUESTION_STEPS`: each step's questions with `why`), src/shared/types/student.ts (`StoredAnswers`, `Coins`, `Relative`, `PERSONAS`), the reference's `ANS`/`eff` block; src/features/road/model/scene.ts and fixture.ts (badges: add `over` — "Condition · Over budget by AUD 3.5k", exp "Your budget is AUD 30k a year for fees, roughly. This course is AUD 33.5k a year."); road-url.ts and its test; the roadmaps server module and its tests.
+- [ ] Step 1: failing tests.
+  - `answers-panel.test.ts`: `answerGroups` gives six groups numbered "00"–"05" with names "Your comic character", "Facts about you", "What you'd study", "Where and how you'd live", "After you graduate", "Your attention"; each row `{ key, question, shown, open, editable, why, options }`: shown is the stored answer's label (`display`), a skipped optional question shows `open: 'Skipped'` and no answer, an assumed answer shows its default with " · assumed"; the character row's options are the three personas with `editable: true`; the relative row shows "<name>, <relationship> · <place>" with `editable: false`; the coins row shows "10 coins to spend" (later) or "Placed" (spent) with `editable: false`; hidden questions (`isVisible` false) are left out. `effectOf(road, 'amount', 30, answers)` gives lines about Perth being a stretch and Cyber Security AUD 3.5k over, and `prev` keys `perth` and `cyber-security-ecu-perth`; 24 → 9.5k over; 42 → "Nothing on your roadmap moves…" with empty `prev`; 'english' = "Not taken yet" → the condition line and `prev` for the course; any other key → `{ lines: ['Nothing on your roadmap changes.'], prev: {} }`. (The course's fees are 33.5k in the mock: put `fees: 33.5` on the fixture's here-card or the course tile and read it, never a literal in the model.)
+  - `scene.test.ts`: `buildScene(road, { ...NEW_SESSION, preview: { perth: 'A stretch on your budget' } })` sets `tiles[perth].prev` to that text; `applyAnswers(scene, { amount: { value: 30, state: 'stated' } })` marks Perth's kicker "A stretch on your budget", adds the `over` badge first on the course and sets its `costs` to "Less good for: cost (AUD 3.5k a year over budget)"; with 42 nothing changes; with `english` "Not taken yet" the course's `ielts` badge value becomes "Not met: IELTS 6.5 by March" (or the badge text the reference uses: pin one).
+  - `road-url.test.ts`: `open=answers` parses regardless of the tile; serializes; `historyMode` is push when open becomes 'answers'.
+  - `roadmaps.test.ts` (DB): `saveRoadmapAnswers(userId, id, answers)` replaces the roadmap's answers (parsed by `storedAnswersSchema`; a bad entry refuses the whole write), never a draft's or another student's; `actions.test.ts`: `saveRoadmapAnswersAction(id, answers)` through `asStudent`, a bad id refused.
+- [ ] Step 2: run — FAIL.
+- [ ] Step 3: implement. The opening model owns the rows and the effects (it knows the questions); the effects read the road through its public data (`road.here[...]`, tiles) — opening may import the road's types only (`import type`), and the effect's tile ids come from the road passed in. The scene: `Session.preview` is session-only (never saved); `applyAnswers` runs inside `buildScene` when the caller passes `answers` (`buildScene(road, session, answers?)`).
+- [ ] Step 4: `bun test src/features/opening/model src/features/road/model src/features/roadmaps`, the DB test, `bun run type-check`, `bun run lint` — PASS.
+- [ ] Step 5: commit `feat(road): the answers model, the preview in the scene, and a roadmap's answers write`.
+
+## Task 13: The panel over the board
+**Delivers:** criteria 23, 24, 25, 26, 27.
+**Files:** create `src/features/road/components/AnswersPanel.tsx` (+ test), `answers.module.css`; modify `RoadBoard.tsx` (+ test), `RoadMap.tsx`, `road-map.module.css`, `PhoneMap.tsx`, `RoadHeader.tsx`, `hooks/useRoadSession.ts`, `hooks/useMapCamera.ts`, `src/features/opening/components/AccountMenu.tsx` (+ test), `src/app/(app)/roadmaps/[id]/layout.tsx`.
+**Kind:** judgement
+Read first: task 12's diff; RoadBoard.tsx (the column and the phone sheet, `useRoadUrl`, `go`, the toasts via `say`), RoadMap.tsx (the preview tag spot near the swap tag, the rings, the hit buttons), PhoneMap.tsx, useMapCamera.ts (`fit` with a focus; the phone padding when a sheet is up), AccountMenu.tsx; the reference's markup and road.css lines named above; DESIGN.md; the shared `Button`, `Note`, `Toast`, `Sheet`.
+- [ ] Step 1: failing tests.
+  - `AccountMenu.test.tsx`: with `onAnswers` the menu's second item is "Your answers" and calls it; without, absent.
+  - `AnswersPanel.test.tsx`: renders the groups and rows; a row's Change expands its options (`radiogroup` named by the question) with the current one checked; picking another marks the row "Not saved", shows "If you save, on your roadmap" with the effect's lines and calls `onPreview(prev)`; picking the current one again clears it; the bar reads "1 change not saved" / "2 changes not saved" with Discard and Save changes; Save calls `onSave(answers)` with the merged answers; Close with changes shows "Discard 1 change?" / "Your answers and your roadmap stay as they are." with Discard / Keep editing; Discard calls `onClose` and clears; after a save the row reads "Changed just now"; the character row's pick calls `onPersona`; the relative and coins rows have no Change.
+  - `RoadBoard.test.tsx`: "Your answers" in the menu and a press on Point A open the panel (`?open=answers` pushed; the kicker "From onboarding · change any of them", title "Your answers", lead "Pick one to change it. Your roadmap shows what would move before anything moves."); while open, pressing a tile does not open its card and the status says "Close your answers to open a tile."; a budget pick shows the "Preview · not saved" tag and the dashed ring with "If you save" on Perth and the course; Save calls `saveRoadmapAnswersAction` and shows the toast "Budget changed. Cyber Security now goes AUD 3.5k a year over it." with Undo, the here-card then shows the over badge and the costs line; Undo saves the previous answers back and the marks go; a no-effect save shows "Saved. Nothing on your roadmap changes."; Back (popstate) closes the panel; on phone (`layout: 'phone'`) opening switches to the Map view and the panel is the sheet.
+- [ ] Step 2: run — FAIL.
+- [ ] Step 3: implement. Also: `NewRoadmapDialog` hides the "Start from scratch" choice until part 5 (Copy only; `startFromScratchAction` stays). The panel is a client component with `groups`, `pending` state, `onPreview`, `onSave`, `onPersona`, `onClose`; rows are `Button variant="text"`-styled `button aria-expanded`; option cards reuse the onboarding chip look (the `fx-card` radios: a `role="radio"` button group); the bar and the ask are sticky at the panel's foot (`Note` for the ask's text, `Button` strong/outline). RoadBoard: `open === 'answers'` renders the panel in the card column (desktop; the column widens to 28rem as the reference's `.rb.is-answers .rd-body`) or in the shared `Sheet` from the bottom at 62% height with no scrim on phone, switching `view` to map; `session.preview` from `onPreview`; the map shows the "Preview · not saved" tag (where the swap tag sits) and dashed rings (`styles.prevRing`) with the "If you save" line under the label while `preview` has entries; presses set the status only; the camera frames the previewed tiles on phone (`fit` with those ids, padding for the sheet). Save → `saveRoadmapAnswersAction(roadmap.id, answers)`; on `{ ok }` the board re-reads its answers (`router.refresh()`) and shows the toast (`say`, with Undo when the effect moved something: Undo saves the previous set); the character goes through `savePersonaAction`. The menu item: `AccountMenu` gets `onAnswers`; the board's header passes it. Phone sheet: the map above drops its controls (as the reference's `is-answers` rules) and names only previewed tiles and where she is (task 9's label rule already reads `LabelContext.preview`? if not, add `previewIds` to it).
+- [ ] Step 4: `bun test src/features/road src/features/opening/components/AccountMenu.test.tsx`, `bun run type-check`, `bun run lint` — PASS. No screenshots and no throwaway specs.
+- [ ] Step 5: commit `feat(road): Your answers over the board`.
+
+## Criteria coverage (part 4)
+| Criterion | Task | Test that proves it |
+| --- | --- | --- |
+| 23 the panel from the menu and Point A; every answer; only the open roadmap | 12, 13 | AccountMenu.test, RoadBoard.test (both doors), AnswersPanel.test (rows), roadmaps.test (DB: the roadmap's answers only) |
+| 24 the map previews; the panel says it; tiles wait | 12, 13 | answers-panel.test (effects), scene.test (`prev`), RoadBoard.test (tag, rings, presses wait) |
+| 25 changes wait together; closing asks | 13 | AnswersPanel.test (the bar, the ask) |
+| 26 saved: the road changes, Undo, "Changed just now"; nothing-changes copy; open answers never nagged | 12, 13 | scene.test (`applyAnswers`), RoadBoard.test (toasts, Undo), AnswersPanel.test (flags, Skipped / 10 coins rows) |
+| 27 phone: Map view, the 62% sheet, the map frames what would change | 13 | RoadBoard.test (the switch and the sheet); the framing and the look: smoke test |
+
+---
+
+# Part 5: New roadmap — the draft (copy, or from scratch through the panel) — Implementation Plan
+
+**Intent:** docs/roadmaps/intent.md, criteria 28–32 and the "Part 4 decisions" last bullet (scratch through the panel, never onboarding). **Reference:** docs/roadmaps/reference/logic/board.js (`props.draft` in the constructor, `closeAnswers`/`saveAnswers`'s draft branches at 520–538, the `ans*` labels at 880–892), logic/roadmaps.js (`made`, `create`, `play('new')`), canvas boards RMDraftDesk, RMDraftPhone, RMLoadDesk, RMReadyDesk, RMNew1920.
+**Goal:** a new roadmap from a copy she changes, or from scratch through the same panel; Create runs the loader and lands on the list with it marked New.
+**Approach:** the draft is a page, `/roadmaps/new?from=<id>` (or no `from` for scratch), that renders the board with the source's road and choices (or the empty road) and the answers panel open in Create mode; nothing is stored until Create, which creates the roadmap with the panel's answers in one server call and then runs the loader. Built on part 4's panel: one `mode: 'edit' | 'draft'` prop changes its labels, bar and close rule.
+**Test layers:** unit plus integration (`createRoadmap` writes the database: `DB_TESTS=1 bun test src/features/roadmaps/server/roadmaps.test.ts`); the rest unit. No e2e.
+**Constraints:** as part 1's, verbatim above, plus CLAUDE.md's "No end-to-end code without being asked".
+
+## Files
+| Path | Create or modify | Responsibility |
+| --- | --- | --- |
+| `src/features/roadmaps/server/roadmaps.ts` (+ test), `actions.ts` (+ test) | modify | `createRoadmap(userId, { fromId, answers, relative, coins, choices })` (copiedFrom when fromId); `createRoadmapAction` |
+| `src/features/roadmaps/model/roadmap.ts` (+ test) | modify | `answerDiffs(source, answers)` → "Question: label" chips; `newRoadmapPath(fromId?)` |
+| `src/app/(app)/roadmaps/new/page.tsx` | modify | The draft: the source's board (or the empty road) with the panel in draft mode |
+| `src/features/road/components/AnswersPanel.tsx` (+ test), `RoadBoard.tsx` (+ test), `RoadHeader.tsx` | modify | `mode: 'draft'`: kicker, title, lead, the bar, Cancel/Create, the ask's copy; the breadcrumb "Your roadmaps / New roadmap"; Create → the loader |
+| `src/features/roadmaps/components/NewRoadmapDialog.tsx` (+ test), `RoadmapsPage.tsx` | modify | "Start from scratch" back, leading to `/roadmaps/new`; "Copy" to `/roadmaps/new?from=<id>` |
+| `src/features/roadmaps/actions.ts` | modify | `startFromScratchAction` removed (nothing starts onboarding) |
+
+## Task 14: The draft from a copy
+**Delivers:** criteria 28, 29, 30, 31, 32.
+**Files:** as the table, except the scratch items.
+**Kind:** judgement
+Read first: part 4's AnswersPanel.tsx (+ test) and RoadBoard.tsx (how `open === 'answers'` renders the panel and the sheet; `say`; the save flow), RoadmapLoader.tsx and DoneScreen.tsx (how the loader is driven: `kind`, `work`, `onDone`, `?made=`), the roadmaps server module (`copyRoadmap`, `fields`, `toRoadmap`) and actions, model/roadmap.ts (`answerDiffs` placeholder, `newRoadmapPath`), src/app/(app)/roadmaps/[id]/layout.tsx (what the board needs), the reference lines named above.
+- [ ] Step 1: failing tests.
+  - `roadmaps.test.ts` (DB): `createRoadmap(userId, { fromId, answers, relative, coins, choices })` makes a finished roadmap with `copiedFrom = fromId`, `name` null, the given answers (parsed; a bad set refuses), the source's relative and coins when not given, `choices` as given (`{}` by default), `lastOpenedAt` null; another student's `fromId` refuses; `copyRoadmap` is removed or delegates to it.
+  - `actions.test.ts`: `createRoadmapAction({ fromId, answers })` validates each answer with `parseAnswer`, refuses a bad `fromId`, returns `{ ok: true, id }`.
+  - `roadmap.test.ts`: `answerDiffs(sourceAnswers, answers)` lists "<question>: <label>" for each key whose value differs (added, changed; a removed answer reads "<question>: cleared"), in the question model's order; identical sets give `[]`; `newRoadmapPath('abc')` is `/roadmaps/new?from=abc`, `newRoadmapPath()` is `/roadmaps/new`.
+  - `AnswersPanel.test.tsx` (draft mode): kicker "New roadmap · a copy of <name>", title "Change any answers", the lead from the intent; the bar is always shown: "Change at least one answer" with Cancel and Create roadmap `aria-disabled` until a change, then "1 answer changed" / "2 answers changed"; Close/Cancel with changes asks "Discard this new roadmap?" / "Nothing is created. Your other roadmaps stay as they are." with Discard / Keep editing; Discard calls `onCancel`; Create calls `onCreate(answers)`.
+  - `RoadBoard.test.tsx` (draft): rendered with `draft={{ from: { id, name }, answers }}` the panel is open in draft mode on mount, the breadcrumb reads "Your roadmaps / New roadmap", presses wait; Create runs the loader (`kind: 'new'`, step 1 = `createRoadmapAction`) and on done replaces to `/roadmaps?made=<id>`; Cancel (after Discard) replaces to `/roadmaps`.
+- [ ] Step 2: run — FAIL.
+- [ ] Step 3: implement. The page: `requireStudent`; `from` → `getRoadmap`, 404 when missing or another's; renders `RoadBoard` with the source's `choices` (so the draft's board is the source's board), `roadmap={{ id: from.id, name, firstVisit: false }}` for drawing only (no `touchOpened`, no choice saves: pass a no-op `saveChoicesAction` or a `readOnly` flag), and `draft={{ from, answers: from.answers }}`; the panel's pending answers merge over the source's. Create: `createRoadmapAction({ fromId, answers })` as the loader's first step; the list already marks the newest and shows the "ready" toast from `?made=`. Chips: the list page computes `diffs: answerDiffs(source.answers, r.answers)` for roadmaps with `copiedFrom` (the source looked up in the same list; a deleted source gives `[]`).
+- [ ] Step 4: `bun test src/features/road src/features/roadmaps`, the DB test, `bun run type-check`, `bun run lint` — PASS.
+- [ ] Step 5: commit `feat(roadmaps): a new roadmap from a copy she changes`.
+
+## Task 15: From scratch, through the panel
+**Delivers:** the scratch rule (replacing criterion 4 and the dialog's "Start the questions").
+**Files:** `src/app/(app)/roadmaps/new/page.tsx`, `src/features/road/components/RoadBoard.tsx` (+ test), `AnswersPanel.tsx` (+ test), `NewRoadmapDialog.tsx` (+ tests), `RoadmapsPage.tsx`, `src/features/roadmaps/actions.ts` (+ test), `src/features/opening/components/DoneScreen.tsx` only if `startFromScratchAction` was referenced.
+**Kind:** judgement
+- [ ] Step 1: failing tests: the dialog offers "Start from scratch" again, its primary "Start with no answers" leading to `/roadmaps/new` (no action call); `/roadmaps/new` without `from` renders the empty road (`road.tiles` empty → the empty scene: Point A and a dotted "Not picked yet") with the panel in draft mode, kicker "New roadmap · from scratch", title "Answer the questions", lead "Start with no answers. Each one you give draws more of the map." (new copy, sentence case), every row "Answer now"; Create is `aria-disabled` until at least one answer; Create calls `createRoadmapAction({ answers })` with no `fromId` and the new roadmap's `from` reads "From scratch" on the list; `startFromScratchAction` is gone and nothing links to onboarding from the list.
+- [ ] Step 2: run — FAIL.
+- [ ] Step 3: implement (the empty road: `{ ...getRoad(), tiles: [] }` keeps the cards and copy; `roadmapName` of a scratch roadmap with no walk falls back to "New roadmap"; the list's `from` for `copiedFrom === null` and no onboarding origin: store nothing new, derive "From scratch" when the roadmap was created after her first and has no `copiedFrom`: simplest is a `fromScratch` boolean column? No: use `copiedFrom === null && !isFirst` where `isFirst` = the oldest finished roadmap; say so in a comment).
+- [ ] Step 4: the same checks — PASS.
+- [ ] Step 5: commit `feat(roadmaps): a new roadmap from scratch, through the answers panel`.
+
+## Criteria coverage (part 5)
+| Criterion | Task | Test that proves it |
+| --- | --- | --- |
+| 28 the draft opens the source's board with the panel in draft mode | 14 | RoadBoard.test (draft), AnswersPanel.test (draft labels) |
+| 29 the bar and the disabled Create | 14 | AnswersPanel.test |
+| 30 Cancel with changes asks | 14 | AnswersPanel.test |
+| 31 Create saves "Copy of X" with chips, runs the loader, lands marked New | 14 | roadmaps.test (DB), actions.test, roadmap.test (`answerDiffs`), RoadBoard.test (the loader and the landing) |
+| 32 the paths from the card's menu and the dialog | 14 | RoadmapsPage.test (existing), roadmap.test (`newRoadmapPath`) |
+| scratch through the panel | 15 | RoadBoard.test, AnswersPanel.test, RoadmapsPage.test |

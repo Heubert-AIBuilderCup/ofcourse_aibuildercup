@@ -20,15 +20,27 @@ export function useSwapMotion(scene: Scene): { drawn: Scene; moving: boolean } {
     if (from === scene || prefersReducedMotion() || movedTiles(from, scene).length === 0) return
     const start = performance.now()
     let frame = 0
+    let ended = false
+    // Whichever lands first ends the move: the frame that reaches the arc's end, or the timer.
+    // A frame queued before the timer can still land after it; once ended, it draws nothing.
+    const end = () => {
+      if (ended) return
+      ended = true
+      cancelAnimationFrame(frame)
+      setMove(null)
+    }
     const tick = (now: number) => {
+      if (ended) return
       const k = Math.min(1, (now - start) / SWAP_MS)
+      if (k >= 1) return end()
       setMove({ from, to: scene, k })
-      if (k < 1) frame = requestAnimationFrame(tick)
+      frame = requestAnimationFrame(tick)
     }
     setMove({ from, to: scene, k: 0 })
     frame = requestAnimationFrame(tick)
-    const done = setTimeout(() => setMove(null), SWAP_MS)
+    const done = setTimeout(end, SWAP_MS)
     return () => {
+      ended = true
       cancelAnimationFrame(frame)
       clearTimeout(done)
     }

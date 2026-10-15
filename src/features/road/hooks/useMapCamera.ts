@@ -14,9 +14,13 @@ import {
   type Camera,
   clamp,
   ease,
+  type Box as Frame,
   fit,
+  frame,
   type Layout,
   type MapSize,
+  mapPadding,
+  STOP_CAP,
   stepFromPinch,
   stepFromWheel,
   tween,
@@ -29,14 +33,53 @@ import { prefersReducedMotion, rootScale } from './motion'
 /** A drag shorter than this is still a press (px). */
 const DRAG_FROM = 6
 
-type Box = { width: number; height: number; rs: number }
+/** The share of the screen her answers' sheet covers on a phone (answers.module.css). */
+const SHEET = 0.62
+
+/** The map's size, and how far its foot sits above the screen's (px), for the sheet over it. */
+type Box = { width: number; height: number; rs: number; below: number; screen: number }
+
+/**
+ * Under her answers' sheet: the tiles a pick would change (else the stop's frame), fitted into the
+ * map left above the sheet, under the preview tag.
+ */
+function fitAboveSheet(
+  stop: Stop,
+  focusId: string | null,
+  size: MapSize,
+  scene: Scene,
+  box: Box,
+): Camera {
+  const ids = scene.tiles.filter((t) => t.prev !== undefined).map((t) => t.id)
+  const boxes = ids.length
+    ? ids.map((id) => frame('tile', id, scene))
+    : [frame(stop, focusId, scene)]
+  const f: Frame = {
+    x0: Math.min(...boxes.map((b) => b.x0)),
+    x1: Math.max(...boxes.map((b) => b.x1)),
+    y0: Math.min(...boxes.map((b) => b.y0)),
+    y1: Math.max(...boxes.map((b) => b.y1)),
+  }
+  const r = 16 * size.rs
+  const pad = { ...mapPadding(size), t: 3.5 * r }
+  pad.b = Math.max(r, SHEET * box.screen - box.below + r)
+  const aw = Math.max(40, size.width - pad.l - pad.r)
+  const ah = Math.max(40, size.height - pad.t - pad.b)
+  const u = Math.min(aw / (f.x1 - f.x0), ah / (f.y1 - f.y0), STOP_CAP[size.layout][stop] * size.rs)
+  return {
+    u,
+    ox: pad.l + (aw - (f.x1 - f.x0) * u) / 2 - f.x0 * u,
+    oy: pad.t + (ah - (f.y1 - f.y0) * u) / 2 - f.y0 * u,
+  }
+}
 
 /**
  * The map's camera. It fits the stop to the map's space on load and on every resize (a cut), and
  * moves to a new stop or focus in 0.55 s, the scale even in log space (a cut under reduced
  * motion). Wheel, Ctrl + scroll and trackpad pinch step one stop per gesture, two fingers on a
  * touch screen step as they spread or close, and a drag pans, held so some of the road stays on
- * screen. Input on an element marked `data-map-control` is the control's, not the map's.
+ * screen. Input on an element marked `data-map-control` is the control's, not the map's. With her
+ * answers' sheet over a phone's map (`sheet`), it frames what a pick would change above the sheet.
  */
 export function useMapCamera({
   mapRef,
@@ -44,6 +87,7 @@ export function useMapCamera({
   scene,
   stop,
   focusId,
+  sheet = false,
   onStep,
 }: {
   mapRef: RefObject<HTMLElement | null>
@@ -51,6 +95,7 @@ export function useMapCamera({
   scene: Scene
   stop: Stop
   focusId: string | null
+  sheet?: boolean
   onStep: (dir: -1 | 1) => void
 }) {
   const [box, setBox] = useState<Box | null>(null)
@@ -63,9 +108,21 @@ export function useMapCamera({
     const el = mapRef.current
     if (!el) return
     const measure = () => {
-      const next = { width: el.clientWidth, height: el.clientHeight, rs: rootScale() }
+      const screen = window.innerHeight
+      const next = {
+        width: el.clientWidth,
+        height: el.clientHeight,
+        rs: rootScale(),
+        below: screen - el.getBoundingClientRect().bottom,
+        screen,
+      }
       setBox((was) =>
-        was && was.width === next.width && was.height === next.height && was.rs === next.rs
+        was &&
+        was.width === next.width &&
+        was.height === next.height &&
+        was.rs === next.rs &&
+        was.below === next.below &&
+        was.screen === next.screen
           ? was
           : next,
       )
@@ -76,10 +133,16 @@ export function useMapCamera({
     return () => observer.disconnect()
   }, [mapRef])
 
-  const size = useMemo<MapSize | null>(() => box && { ...box, layout }, [box, layout])
+  const size = useMemo<MapSize | null>(
+    () => box && { width: box.width, height: box.height, rs: box.rs, layout },
+    [box, layout],
+  )
   const target = useMemo(
-    () => size && fit(stop, focusId, size, scene),
-    [size, stop, focusId, scene],
+    () =>
+      size &&
+      box &&
+      (sheet ? fitAboveSheet(stop, focusId, size, scene, box) : fit(stop, focusId, size, scene)),
+    [size, box, stop, focusId, scene, sheet],
   )
 
   const camera = useEffectEvent(() => cam)

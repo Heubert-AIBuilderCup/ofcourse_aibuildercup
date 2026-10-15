@@ -68,7 +68,15 @@ export function RoadCard({
   const board = useBoardPath()
   const hereTile = scene.tiles.find((t) => t.id === scene.here)
   const course = here && hereTile?.kind === 'course' && !flat
-  const trade = card.gains && card.costs
+  // Where she is, what her saved answers mark on her tile (applyAnswers): its cost line and the
+  // over-budget badge. A pressed tile's card has its scene tile's badges already.
+  const plain = road.tiles.find((t) => t.id === hereTile?.id)
+  const costs = here && hereTile?.costs !== plain?.costs ? hereTile?.costs : card.costs
+  const badges =
+    here && hereTile?.badges?.includes('over') && !card.badges.includes('over')
+      ? ['over' as const, ...card.badges]
+      : card.badges
+  const trade = card.gains && costs
 
   return (
     <>
@@ -89,7 +97,7 @@ export function RoadCard({
           {trade ? (
             <p className="m-0 flex flex-col">
               <span className="font-medium text-accent-800">{card.gains}</span>
-              <span className="font-medium text-danger-700">{card.costs}</span>
+              <span className="font-medium text-danger-700">{costs}</span>
             </p>
           ) : null}
           {card.guide ? <p className="m-0">{card.guide}</p> : null}
@@ -100,7 +108,7 @@ export function RoadCard({
         </div>
       ) : null}
 
-      {card.badges.length ? <Badges ids={card.badges} badges={road.badges} flat={flat} /> : null}
+      {badges.length ? <Badges ids={badges} badges={scene.badges} flat={flat} /> : null}
 
       <p className="m-0 text-caption">
         <span className="text-muted-foreground">On your board because:</span> {card.because}

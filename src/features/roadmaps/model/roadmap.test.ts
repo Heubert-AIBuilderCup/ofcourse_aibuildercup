@@ -1,6 +1,17 @@
 import { describe, expect, test } from 'bun:test'
-import type { Roadmap } from '@/shared/types/student'
-import { isNew, lastOpenedOut, openedLabel, orderRoadmaps, roadmapName, roadNames } from './roadmap'
+import { newRoadmapPath } from '@/shared/lib/student-paths'
+import type { Roadmap, StoredAnswers } from '@/shared/types/student'
+import {
+  answerDiffs,
+  firstMade,
+  fromLine,
+  isNew,
+  lastOpenedOut,
+  openedLabel,
+  orderRoadmaps,
+  roadmapName,
+  roadNames,
+} from './roadmap'
 
 const at = (day: number, hour = 12) => new Date(2026, 9, day, hour)
 
@@ -30,6 +41,33 @@ describe('roadmapName', () => {
 
   test('is named from its road when she gave none', () => {
     expect(roadmapName(make({ name: null }), names)).toBe('Cyber Security in Perth')
+  })
+
+  test('is "New roadmap" from scratch, with nowhere on its road yet', () => {
+    expect(roadmapName(make({ name: null }), { here: '', city: '' })).toBe('New roadmap')
+  })
+})
+
+describe('fromLine', () => {
+  test('her first roadmap is from onboarding; one made after it with no source, from scratch', () => {
+    expect(fromLine(make({}), { first: true })).toBe('From onboarding')
+    expect(fromLine(make({}), { first: false })).toBe('From scratch')
+  })
+
+  test('a copy names its source, or says it was deleted', () => {
+    const copy = make({ copiedFrom: 'src' })
+    expect(fromLine(copy, { first: false, source: 'Cyber Security in Perth' })).toBe(
+      'Copy of Cyber Security in Perth',
+    )
+    expect(fromLine(copy, { first: false })).toBe('Copy of a roadmap you deleted')
+  })
+})
+
+describe('firstMade', () => {
+  test('is the oldest of her roadmaps, whatever the order given; none for none', () => {
+    const list = [make({ id: 'b', createdAt: at(5) }), make({ id: 'a', createdAt: at(1) })]
+    expect(firstMade(list)?.id).toBe('a')
+    expect(firstMade([])).toBeNull()
   })
 })
 
@@ -152,4 +190,52 @@ describe('openedLabel', () => {
     expect(openedLabel(null, at(13), now)).toBe('Made yesterday')
     expect(openedLabel(null, at(10), now)).toBe('Made 4 days ago')
   })
+})
+
+describe('answerDiffs', () => {
+  const source: StoredAnswers = {
+    amount: { value: 36, state: 'stated' },
+    eng: { value: 'IELTS 7.0', state: 'stated' },
+    climate: { value: 'Warm', state: 'stated' },
+  }
+
+  test('one chip per answer that differs, "Question: label", in the questions’ order', () => {
+    expect(
+      answerDiffs(source, {
+        // Out of order on purpose: the chips follow the questions.
+        climate: { value: 'Mild', state: 'stated' },
+        amount: { value: 30, state: 'stated' },
+        eng: { value: 'IELTS 7.0', state: 'stated' },
+        community: { value: 'Yes', state: 'stated' },
+      }),
+    ).toEqual([
+      'Your budget per year · Amount: AUD 30k',
+      'Does a community of similar culture, or relatives nearby, matter?: Yes',
+      'Climate (optional): Mild',
+    ])
+  })
+
+  test('a removed answer reads "cleared"; "Not sure" reads as itself', () => {
+    expect(
+      answerDiffs(source, {
+        amount: { value: 30, state: 'assumed' },
+        eng: { value: 'IELTS 7.0', state: 'stated' },
+      }),
+    ).toEqual(['Your budget per year · Amount: Not sure', 'Climate (optional): cleared'])
+  })
+
+  test('areas picked in another order are the same answer', () => {
+    const areas = (value: string[]): StoredAnswers => ({ areas: { value, state: 'stated' } })
+    expect(answerDiffs(areas(['Health', 'IT']), areas(['IT', 'Health']))).toEqual([])
+  })
+
+  test('the same answers, or no source, give none', () => {
+    expect(answerDiffs(source, { ...source })).toEqual([])
+    expect(answerDiffs(null, source)).toEqual([])
+  })
+})
+
+test('a new roadmap’s draft: a copy of one, or from scratch', () => {
+  expect(newRoadmapPath('abc')).toBe('/roadmaps/new?from=abc')
+  expect(newRoadmapPath()).toBe('/roadmaps/new')
 })

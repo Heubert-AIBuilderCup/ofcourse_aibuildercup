@@ -1,6 +1,6 @@
 'use client'
 
-import { LogOut, Map as MapIcon, Moon, Sun, User } from 'lucide-react'
+import { ListChecks, LogOut, Map as MapIcon, Moon, Sun, User } from 'lucide-react'
 import Link from 'next/link'
 import { useSignOut } from '@/features/auth'
 import { useThemeChoice } from '@/shared/components/Providers'
@@ -15,13 +15,22 @@ const ITEM =
   'group flex min-h-11 cursor-pointer items-center gap-3 border-0 bg-transparent px-3 text-left text-foreground hover:bg-foreground/6 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary'
 
 /**
- * The onboarding header's one button (the design's `.hdr`): a menu with Your roadmaps first, Dark
- * theme, a checkable item whose drawn switch shows its state, and Sign out. Opening focuses the first item; the arrow
+ * The onboarding header's one button (the design's `.hdr`): a menu with Your roadmaps first, then on
+ * a board Your answers (`onAnswers` opens them over it), Dark theme, a checkable item whose drawn
+ * switch shows its state, and Sign out. Opening focuses the first item; the arrow
  * keys, Home and End move between items; Escape, Tab or a click outside closes it. Below @5xl it
  * sits in the steel band, so the button turns light on steel (`band`; the road's header has no
  * band, so it says false); the open menu keeps the page's colours.
  */
-export function AccountMenu({ className, band = true }: { className?: string; band?: boolean }) {
+export function AccountMenu({
+  className,
+  band = true,
+  onAnswers,
+}: {
+  className?: string
+  band?: boolean
+  onAnswers?: () => void
+}) {
   const { theme, setChoice } = useThemeChoice()
   const { leave } = useSignOut()
   const { open, setOpen, button, menu, onKeyDown } = useMenuKeys()
@@ -79,6 +88,24 @@ export function AccountMenu({ className, band = true }: { className?: string; ba
               />
               <span className="flex-1">Your roadmaps</span>
             </Link>
+            {onAnswers ? (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false)
+                  onAnswers()
+                }}
+                className={ITEM}
+              >
+                <ListChecks
+                  aria-hidden="true"
+                  strokeWidth={1.5}
+                  className="size-icon text-neutral-700"
+                />
+                <span className="flex-1">Your answers</span>
+              </button>
+            ) : null}
             <hr className="mx-2 my-1 border-t border-border" />
             <button
               type="button"

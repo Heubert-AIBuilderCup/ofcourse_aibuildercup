@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 import { getRoad } from './road-data'
-import { buildScene, choicesFrom, NEW_SESSION, type Session, sessionFrom } from './scene'
+import {
+  applyAnswers,
+  buildScene,
+  choicesFrom,
+  NEW_SESSION,
+  type Session,
+  sessionFrom,
+} from './scene'
 
 const road = getRoad()
 const scene = (session: Partial<Session> = {}) => buildScene(road, { ...NEW_SESSION, ...session })
@@ -264,13 +271,98 @@ describe('a roadmap’s stored choices', () => {
     })
   })
 
-  it('are what the session keeps, every key, never the first arrival', () => {
-    expect(choicesFrom({ ...NEW_SESSION, swapped: true, first: true })).toEqual({
+  it('are what the session keeps, every key, never the first arrival or the preview', () => {
+    expect(
+      choicesFrom({ ...NEW_SESSION, swapped: true, first: true, preview: { perth: 'A stretch' } }),
+    ).toEqual({
       swapped: true,
       added: false,
       read: false,
       city: false,
       country: false,
     })
+  })
+})
+
+describe('the preview: what an answer not saved would move', () => {
+  it('puts its words on each tile it names, "If you save"', () => {
+    const sc = scene({ preview: { perth: 'A stretch on your budget', [CYBER]: 'AUD 3.5k over' } })
+    expect(tile(sc, 'perth')?.prev).toBe('A stretch on your budget')
+    expect(tile(sc, CYBER)?.prev).toBe('AUD 3.5k over')
+    expect(tile(sc, 'adelaide')?.prev).toBeUndefined()
+  })
+
+  it('names no tile without one', () => {
+    expect(scene().tiles.filter((t) => t.prev !== undefined)).toEqual([])
+  })
+})
+
+describe('a roadmap’s saved answers on the scene', () => {
+  const budget = (value: number) => ({ amount: { value, state: 'stated' as const } })
+
+  it('a budget under the course’s fees marks the city a stretch and the course over budget', () => {
+    const sc = applyAnswers(scene(), budget(30))
+    expect(tile(sc, 'perth')?.kicker).toBe('A stretch on your budget')
+    expect(tile(sc, CYBER)?.badges).toEqual(['over', 'offerings', 'ielts', 'fork'])
+    expect(tile(sc, CYBER)?.costs).toBe('Less good for: cost (AUD 3.5k a year over budget)')
+    expect(sc.badges.over).toEqual({
+      kind: 'Condition',
+      value: 'Over budget by AUD 3.5k',
+      explanation:
+        'Your budget is AUD 30k a year for fees, roughly. This course is AUD 33.5k a year.',
+      icon: 'alert',
+    })
+  })
+
+  it('says by how much for each budget, and drops "roughly" for a hard limit', () => {
+    const sc = applyAnswers(scene(), {
+      ...budget(24),
+      hard: { value: 'Hard limit', state: 'stated' },
+    })
+    expect(sc.badges.over.value).toBe('Over budget by AUD 9.5k')
+    expect(sc.badges.over.explanation).toBe(
+      'Your budget is AUD 24k a year for fees. This course is AUD 33.5k a year.',
+    )
+    expect(tile(sc, CYBER)?.costs).toBe('Less good for: cost (AUD 9.5k a year over budget)')
+  })
+
+  it('changes nothing for a budget that covers the fees, or with no budget given', () => {
+    const before = scene()
+    expect(applyAnswers(before, budget(42))).toEqual(before)
+    expect(applyAnswers(before, budget(36))).toEqual(before)
+    expect(applyAnswers(before, {})).toEqual(before)
+  })
+
+  it('"Not taken yet" on the English test leaves the course’s condition not met', () => {
+    const sc = applyAnswers(scene(), { eng: { value: 'Not taken yet', state: 'stated' } })
+    expect(sc.badges.ielts.value).toBe('Not met: IELTS 6.5 by March')
+    expect(sc.badges.ielts.explanation).toBe(
+      'You haven’t taken an English test yet, so this condition isn’t met.',
+    )
+    expect(tile(sc, CYBER)?.badges).toEqual(['offerings', 'ielts', 'fork'])
+    const met = applyAnswers(scene(), { eng: { value: 'IELTS 7.0', state: 'stated' } })
+    expect(met.badges.ielts.value).toBe('IELTS 6.5 by March')
+  })
+
+  it('marks the course on her road, not one she swapped off it', () => {
+    const sc = applyAnswers(scene({ swapped: true }), budget(30))
+    expect(tile(sc, CYBER)?.badges).toEqual(['offerings', 'ielts', 'fork'])
+    expect(tile(sc, 'perth')?.kicker).toBeUndefined()
+  })
+
+  it('runs inside buildScene when the answers are passed, after the session', () => {
+    const sc = buildScene(road, { ...NEW_SESSION, city: true }, budget(30))
+    expect(sc.here).toBe('perth')
+    expect(tile(sc, 'perth')?.kicker).toBe('A stretch on your budget')
+    expect(tile(sc, CYBER)?.badges?.[0]).toBe('over')
+  })
+
+  it('never changes the scene or the road it reads', () => {
+    const before = scene()
+    const copy = structuredClone(before)
+    const roadCopy = structuredClone(road)
+    applyAnswers(before, { ...budget(24), eng: { value: 'Not taken yet', state: 'stated' } })
+    expect(before).toEqual(copy)
+    expect(road).toEqual(roadCopy)
   })
 })

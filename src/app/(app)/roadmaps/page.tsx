@@ -4,6 +4,8 @@ import { getProfile } from '@/features/opening/server/profile'
 import { boardFacts, getRoad } from '@/features/road'
 import {
   answerDiffs,
+  firstMade,
+  fromLine,
   isNew,
   openedLabel,
   type RoadmapSummary,
@@ -17,7 +19,6 @@ import {
   renameRoadmapAction,
   restoreArchivedAction,
   restoreRoadmapAction,
-  startFromScratchAction,
 } from '@/features/roadmaps/actions'
 import { listRoadmaps } from '@/features/roadmaps/server/roadmaps'
 import { Duck } from '@/shared/components/Duck'
@@ -63,6 +64,7 @@ export default async function RoadmapsRoute({ searchParams }: PageProps<'/roadma
   const byId = new Map(roadmaps.map((r) => [r.id, r]))
   const madeId = typeof made === 'string' && byId.has(made) ? made : null
   const named = new Map(roadmaps.map((r) => [r.id, roadmapName(r, words.names)]))
+  const first = firstMade(roadmaps)
 
   const summaries: RoadmapSummary[] = roadmaps.map((r) => {
     // A deleted source is not in the list (only Undo reaches it).
@@ -76,12 +78,7 @@ export default async function RoadmapsRoute({ searchParams }: PageProps<'/roadma
       progress: { walked: facts.walked, steps: facts.steps },
       // "Student visa · Late 2026"; nothing next on its board, the choice still to make.
       next: facts.next ? join(facts.next, facts.nextWhen) : `Pick a course in ${words.names.city}`,
-      from:
-        r.copiedFrom === null
-          ? 'From onboarding'
-          : source
-            ? `Copy of ${named.get(source.id)}`
-            : 'Copy of a roadmap you deleted',
+      from: fromLine(r, { first: r === first, source: source && named.get(source.id) }),
       diffs: answerDiffs(source?.answers ?? null, r.answers),
       openedLabel: openedLabel(r.lastOpenedAt, r.createdAt, now),
       isNew: isNew(r),
@@ -106,7 +103,6 @@ export default async function RoadmapsRoute({ searchParams }: PageProps<'/roadma
         renameRoadmapAction={renameRoadmapAction}
         deleteRoadmapAction={deleteRoadmapAction}
         restoreRoadmapAction={restoreRoadmapAction}
-        startFromScratchAction={startFromScratchAction}
         archiveRoadmapAction={archiveRoadmapAction}
         restoreArchivedAction={restoreArchivedAction}
       />

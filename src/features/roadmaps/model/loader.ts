@@ -33,7 +33,11 @@ export function loaderSteps(
   }))
 }
 
-export const loaderError = (kind: LoaderKind): string =>
+/**
+ * What a failed step says. After onboarding her answers are saved before the loader runs; a new
+ * roadmap's draft (`draft`) is made by the loader's first step, so nothing is stored yet.
+ */
+export const loaderError = (kind: LoaderKind, { draft = false } = {}): string =>
   kind === 'first'
     ? "We couldn't draw your roadmap. Your answers are saved."
-    : "We couldn't draw this roadmap. Your answers are saved."
+    : `We couldn't draw this roadmap. ${draft ? 'Nothing is created yet.' : 'Your answers are saved.'}`

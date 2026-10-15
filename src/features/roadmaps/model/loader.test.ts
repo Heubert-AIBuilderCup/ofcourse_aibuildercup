@@ -43,4 +43,10 @@ describe('the loader words', () => {
     expect(loaderError('first')).toBe("We couldn't draw your roadmap. Your answers are saved.")
     expect(loaderError('new')).toBe("We couldn't draw this roadmap. Your answers are saved.")
   })
+
+  it('on a draft, says nothing is created yet: its answers are not saved anywhere', () => {
+    expect(loaderError('new', { draft: true })).toBe(
+      "We couldn't draw this roadmap. Nothing is created yet.",
+    )
+  })
 })

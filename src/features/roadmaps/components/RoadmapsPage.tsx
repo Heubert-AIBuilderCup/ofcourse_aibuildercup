@@ -42,7 +42,6 @@ export type RoadmapsPageProps = {
   renameRoadmapAction: (id: string, name: string) => Promise<ActionResult>
   deleteRoadmapAction: (id: string) => Promise<ActionResult>
   restoreRoadmapAction: (id: string) => Promise<ActionResult>
-  startFromScratchAction: () => Promise<ActionResult>
   archiveRoadmapAction: (id: string) => Promise<ActionResult>
   restoreArchivedAction: (id: string) => Promise<ActionResult>
 }
@@ -64,7 +63,6 @@ export function RoadmapsPage({
   renameRoadmapAction,
   deleteRoadmapAction,
   restoreRoadmapAction,
-  startFromScratchAction,
   archiveRoadmapAction,
   restoreArchivedAction,
 }: RoadmapsPageProps) {
@@ -271,7 +269,6 @@ export function RoadmapsPage({
         open={dialog === 'new'}
         roadmaps={active}
         onOpenChange={close}
-        startFromScratchAction={startFromScratchAction}
         onCloseAutoFocus={restoreFocus}
       />
       {target ? (

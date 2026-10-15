@@ -155,6 +155,27 @@
 .ring[data-pressed] {
   stroke-dasharray: 5 4;
 }
+/* A pick in her answers not saved yet: what would change gets a dashed outline, wider than the ring. */
+.prevRing {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
+}
+/* Its "If you save" line on the label: dashed, in the field's ink; on her own white plate, the brand. */
+.prev {
+  display: block;
+  border: 1px dashed color-mix(in oklch, var(--ink) 75%, transparent);
+  color: var(--ink);
+}
+.label[data-here] .prev {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+/* While her answers are open, tiles wait: no pointer over them. */
+.map[data-answering] .hit {
+  cursor: default;
+}
 /* The one-time hint on the next tile. */
 .hint {
   fill: none;

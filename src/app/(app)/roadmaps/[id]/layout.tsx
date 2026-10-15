@@ -3,7 +3,7 @@ import { after } from 'next/server'
 import { getProfile } from '@/features/opening/server/profile'
 import { getRoad, RoadBoard, roadRedirect } from '@/features/road'
 import { roadmapName, roadNames } from '@/features/roadmaps'
-import { saveChoicesAction } from '@/features/roadmaps/actions'
+import { saveChoicesAction, saveRoadmapAnswersAction } from '@/features/roadmaps/actions'
 import { getRoadmap, touchOpened } from '@/features/roadmaps/server/roadmaps'
 import { requireStudent } from '@/shared/lib/auth/session'
 
@@ -13,7 +13,8 @@ import { requireStudent } from '@/shared/lib/auth/session'
  * mounted (camera, session) across the board, its lesson and its route steps; those pages only
  * choose what its card column shows. It opens on the roadmap's stored choices, with the first
  * arrival when she has never opened it; that she opened it is recorded after the response. Its
- * name is resolved as the list resolves it: hers, else from where she is on its road.
+ * name is resolved as the list resolves it: hers, else from where she is on its road. Your answers
+ * over it shows the roadmap's answers and person.
  */
 export default async function RoadmapLayout({ children, params }: LayoutProps<'/roadmaps/[id]'>) {
   const [{ user }, { id }] = await Promise.all([requireStudent(), params])
@@ -35,8 +36,11 @@ export default async function RoadmapLayout({ children, params }: LayoutProps<'/
         name,
         choices: roadmap.choices,
         firstVisit: roadmap.lastOpenedAt === null,
+        answers: roadmap.answers,
+        relative: roadmap.relative,
       }}
       saveChoicesAction={saveChoicesAction}
+      saveRoadmapAnswersAction={saveRoadmapAnswersAction}
     >
       {children}
     </RoadBoard>

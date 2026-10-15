@@ -51,4 +51,24 @@ describe('RoadHeader', () => {
     )
     expect(within(crumb).getByText('On a budget')).toHaveAttribute('aria-current', 'page')
   })
+
+  it('offers Your answers between Ask and Compare, and not on a draft', () => {
+    const onAnswers = mock(() => {})
+    const { unmount } = render(
+      <Providers initialChoice="light" systemTheme={null}>
+        <RoadHeader roadmapName="On a budget" onLater={onLater} onAnswers={onAnswers} />
+      </Providers>,
+    )
+    const names = screen
+      .getAllByRole('button')
+      .map((b) => b.textContent?.trim())
+      .filter((t) => t === 'Ask · 1' || t === 'Your answers' || t === 'Compare')
+    expect(names).toEqual(['Ask · 1', 'Your answers', 'Compare'])
+    screen.getByRole('button', { name: 'Your answers' }).click()
+    expect(onAnswers).toHaveBeenCalledTimes(1)
+    unmount()
+
+    header()
+    expect(screen.queryByRole('button', { name: 'Your answers' })).toBeNull()
+  })
 })

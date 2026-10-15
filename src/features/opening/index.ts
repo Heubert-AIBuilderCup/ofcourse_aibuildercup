@@ -10,6 +10,17 @@ export { PictureQuestion } from './components/PictureQuestion'
 export { QuestionScreen } from './components/QuestionScreen'
 export { Splash } from './components/Splash'
 export { WelcomeScreen } from './components/WelcomeScreen'
+export {
+  type AnswerGroup,
+  type AnswerOption,
+  type AnswerRow,
+  answerGroups,
+  answerLabel,
+  type Effect,
+  effectOf,
+  optionsFor,
+  type RowKey,
+} from './model/answers-panel'
 export { onboardingClosed, onboardingResumePath, signedInLanding } from './model/landing'
 export {
   ATTENTION_PATH,
@@ -17,6 +28,7 @@ export {
   questionBySlug,
   questionPath,
 } from './model/onboarding'
-// The engine's catalogue test checks its fields against the questions' options.
-export { questionOf } from './model/questions'
+// The engine's catalogue test checks its fields against the questions' options; Your answers stores
+// a pick as onboarding does, and asks only what onboarding would ask (isVisible).
+export { isVisible, NOT_SURE, parseAnswer, questionOf } from './model/questions'
 export { SPLASH_SEEN_SCRIPT } from './model/splash-seen'

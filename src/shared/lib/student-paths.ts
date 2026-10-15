@@ -8,8 +8,8 @@ export const PICTURE_PATH = '/onboarding/character'
 export const ROADMAPS_PATH = '/roadmaps'
 /** One of her roadmaps' boards. */
 export const roadmapPath = (id: string) => `${ROADMAPS_PATH}/${id}`
-/** A new roadmap, a copy of this one: its draft. */
-export const newRoadmapPath = (from: string) =>
-  `${ROADMAPS_PATH}/new?from=${encodeURIComponent(from)}`
+/** A new roadmap's draft: a copy of this one, or from scratch without one. */
+export const newRoadmapPath = (from?: string) =>
+  from ? `${ROADMAPS_PATH}/new?from=${encodeURIComponent(from)}` : `${ROADMAPS_PATH}/new`
 /** The old board: now only a redirect to her last opened roadmap. */
 export const ROAD_PATH = '/road'

@@ -17,7 +17,8 @@ import * as navigation from 'next/navigation'
 import type { ReactNode } from 'react'
 import { renderToString } from 'react-dom/server'
 import type { ActionResult } from '@/shared/types/action-result'
-import type { RoadmapChoices } from '@/shared/types/student'
+import type { RoadmapChoices, StoredAnswers } from '@/shared/types/student'
+import type { BoardRoadmap } from './RoadBoard'
 
 const BOARD = '/roadmaps/rm-1'
 let query = ''
@@ -40,14 +41,27 @@ const saveChoicesAction = mock(
   async (_id: string, _choices: RoadmapChoices): Promise<ActionResult> => ({ ok: true }),
 )
 
+/** Her answers' save, as the layout passes it: saved unless a test says otherwise. */
+const saveRoadmapAnswersAction = mock(
+  async (_id: string, _answers: StoredAnswers): Promise<ActionResult> => ({ ok: true }),
+)
+
 const { Providers } = await import('@/shared/components/Providers')
 const { getRoad } = await import('../model/road-data')
 const { RoadBoard } = await import('./RoadBoard')
 
 const road = getRoad()
-/** A roadmap she has opened before, its board untouched. */
-const ROADMAP = { id: 'rm-1', name: 'Cyber Security in Perth', choices: {}, firstVisit: false }
-const props = { roadmap: ROADMAP, saveChoicesAction }
+/** A roadmap she has opened before, its board untouched, on a budget that covers the course. */
+const ROADMAP: BoardRoadmap = {
+  id: 'rm-1',
+  name: 'Cyber Security in Perth',
+  choices: {},
+  firstVisit: false,
+  answers: { amount: { value: 36, state: 'stated' } },
+  relative: null,
+}
+const actions = { saveChoicesAction, saveRoadmapAnswersAction }
+const props = { roadmap: ROADMAP, ...actions }
 
 // The map measures itself: give every element a 1440 × 900 box, as on a laptop.
 const box = (name: 'clientWidth' | 'clientHeight', px: number) =>
@@ -72,6 +86,7 @@ let push: ReturnType<typeof spyOn>
 let back: ReturnType<typeof spyOn>
 beforeEach(() => {
   saveChoicesAction.mockClear()
+  saveRoadmapAnswersAction.mockClear()
   push = spyOn(window.history, 'pushState').mockImplementation(() => {})
   back = spyOn(window.history, 'back').mockImplementation(() => {})
   for (const fn of Object.values(router)) fn.mockClear()
@@ -95,14 +110,10 @@ afterEach(() => {
   segments = []
 })
 
-const board = (children: ReactNode = null, roadmap: Partial<typeof ROADMAP> = {}) =>
+const board = (children: ReactNode = null, roadmap: Partial<BoardRoadmap> = {}) =>
   render(
     <Providers initialChoice="light" systemTheme={null}>
-      <RoadBoard
-        road={road}
-        roadmap={{ ...ROADMAP, ...roadmap }}
-        saveChoicesAction={saveChoicesAction}
-      >
+      <RoadBoard road={road} roadmap={{ ...ROADMAP, ...roadmap }} {...actions}>
         {children}
       </RoadBoard>
     </Providers>,
@@ -133,6 +144,8 @@ describe('the map', () => {
     expect(tile('Data Science, not visited. Open in the card')).toBeInTheDocument()
     expect(tile('Student visa · 500, not visited, next. Open in the card')).toBeInTheDocument()
     expect(tile('Permanent residency, unexplored. Open in the card')).toBeInTheDocument()
+    // Where she starts opens her answers, and says so.
+    expect(tile('Point A, visited. Open your answers')).toBeInTheDocument()
   })
 
   it('opens a pressed tile in the card, and marks only that tile pressed', () => {
@@ -730,7 +743,7 @@ describe('an empty road', () => {
       screen.getByText('Your roadmap starts here. Pick a destination to draw the rest.'),
     ).toBeInTheDocument()
     expect(button('Pick a destination')).toBeInTheDocument()
-    expect(tile('Point A, you are here. Open in the card')).toBeInTheDocument()
+    expect(tile('Point A, you are here. Open your answers')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Zoom' })).not.toBeInTheDocument()
   })
 })
@@ -958,5 +971,338 @@ describe('her roadmap’s choices', () => {
     await settle()
     expect(screen.getByText('Walked to Perth')).toBeInTheDocument()
     expect(screen.getByText(SAVE_NOTE)).toBeInTheDocument()
+  })
+})
+
+describe('Your answers', () => {
+  const AMOUNT = 'Your budget per year · Amount'
+  const BUDGET_TOAST = 'Budget changed. Cyber Security now goes AUD 3.5k a year over it.'
+  const COSTS = 'Less good for: cost (AUD 3.5k a year over budget)'
+  const OVER = /^Condition · Over budget by AUD 3\.5k/
+  const panel = () => screen.queryByRole('complementary', { name: 'Your answers' })
+  const openMenu = () => press(button('Menu: theme and sign out'))
+  /** A row's button, by the question it starts with. */
+  const row = (question: string) => button(new RegExp(`^${question}`))
+  const pick = (question: string, option: RegExp) =>
+    press(
+      within(screen.getByRole('radiogroup', { name: question })).getByRole('radio', {
+        name: option,
+      }),
+    )
+  /** The map's label for a tile: the plate whose name line is `name`. */
+  const labelFor = (name: string) =>
+    screen
+      .getAllByText(name, { exact: true })
+      .map((el) => el.closest('[aria-hidden="true"]'))
+      .find((el) => el?.tagName === 'DIV') as HTMLElement
+
+  it('opens over the board from the menu, pushing open=answers', () => {
+    board()
+    openMenu()
+    press(screen.getByRole('menuitem', { name: 'Your answers' }))
+    expect(push).toHaveBeenLastCalledWith(null, '', `${BOARD}?open=answers`)
+    const answers = panel()!
+    expect(within(answers).getByText('From onboarding · change any of them')).toBeInTheDocument()
+    expect(within(answers).getByRole('heading', { level: 2 })).toHaveTextContent('Your answers')
+    expect(
+      within(answers).getByText(
+        'Pick one to change it. Your roadmap shows what would move before anything moves.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('opens from a press on Point A', () => {
+    board()
+    press(tile('Point A, visited. Open your answers'))
+    expect(push).toHaveBeenLastCalledWith(null, '', `${BOARD}?open=answers`)
+    expect(panel()).toBeInTheDocument()
+  })
+
+  it('while open, every tile but Point A is named for the wait; a pressed one waits and says why', () => {
+    query = 'open=answers'
+    board()
+    const labels = screen.getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? '')
+    expect(labels.filter((l) => l.endsWith('. Open in the card'))).toEqual([])
+    expect(
+      labels.filter((l) => l.endsWith('. Close your answers to open it')).length,
+    ).toBeGreaterThan(5)
+    expect(labels).toContain('Point A, visited. Open your answers')
+    press(tile('Data Science, not visited. Close your answers to open it'))
+    expect(screen.getByText('Close your answers to open a tile.')).toHaveAttribute(
+      'aria-live',
+      'polite',
+    )
+    expect(panel()).toBeInTheDocument()
+    expect(screen.queryByText('Not visited · Course')).not.toBeInTheDocument()
+  })
+
+  it('previews a budget pick on the map: the tag, dashed rings and "If you save"', () => {
+    query = 'open=answers'
+    const { container } = board()
+    expect(screen.queryByText('Preview · not saved')).not.toBeInTheDocument()
+    press(row(AMOUNT))
+    pick(AMOUNT, /^AUD 30k/)
+    expect(screen.getByText('Preview · not saved')).toBeInTheDocument()
+    for (const id of ['perth', 'cyber-security-ecu-perth'])
+      expect(container.querySelector(`g[data-tile="${id}"] [data-preview]`)).not.toBeNull()
+    expect(container.querySelector('g[data-tile="adelaide"] [data-preview]')).toBeNull()
+    expect(labelFor('Perth')).toHaveTextContent('If you save · A stretch on your budget')
+    expect(labelFor('Cyber Security')).toHaveTextContent(
+      'If you save · AUD 3.5k a year over budget',
+    )
+  })
+
+  it('saves to the roadmap, says so with Undo, marks the course; Undo saves the answers before', async () => {
+    query = 'open=answers'
+    board()
+    press(row(AMOUNT))
+    pick(AMOUNT, /^AUD 30k/)
+    press(button('Save changes'))
+    await settle()
+    expect(saveRoadmapAnswersAction).toHaveBeenLastCalledWith('rm-1', {
+      amount: { value: 30, state: 'stated' },
+    })
+    expect(router.refresh).toHaveBeenCalled()
+    expect(screen.getByText(BUDGET_TOAST)).toBeInTheDocument()
+    expect(screen.queryByText('Preview · not saved')).not.toBeInTheDocument()
+
+    // Closed, the card where she is shows the mark.
+    press(button('Close'))
+    const card = screen.getByRole('complementary', { name: 'Where you are' })
+    expect(within(card).getByRole('button', { name: OVER })).toBeInTheDocument()
+    expect(within(card).getByText(COSTS)).toBeInTheDocument()
+
+    press(button('Undo'))
+    await settle()
+    expect(saveRoadmapAnswersAction).toHaveBeenLastCalledWith('rm-1', ROADMAP.answers)
+    expect(screen.queryByRole('button', { name: OVER })).not.toBeInTheDocument()
+    expect(screen.queryByText(COSTS)).not.toBeInTheDocument()
+  })
+
+  it('"Changed just now" stays through the save, and goes with its Undo', async () => {
+    query = 'open=answers'
+    board()
+    press(row(AMOUNT))
+    pick(AMOUNT, /^AUD 30k/)
+    press(button('Save changes'))
+    await settle()
+    const amount = () => row(AMOUNT).closest('li') as HTMLElement
+    expect(within(amount()).getByText('Changed just now')).toBeInTheDocument()
+
+    press(button('Undo'))
+    await settle()
+    expect(within(amount()).queryByText('Changed just now')).not.toBeInTheDocument()
+  })
+
+  it('a save that changes nothing on the road says so, without Undo', async () => {
+    query = 'open=answers'
+    board()
+    press(row('How you like to learn'))
+    pick('How you like to learn', /^Mostly classroom and research/)
+    press(button('Save changes'))
+    await settle()
+    expect(screen.getByText('Saved. Nothing on your roadmap changes.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
+  })
+
+  it('closes when Back takes open=answers off the query', () => {
+    query = 'open=answers'
+    const { rerender } = board()
+    expect(panel()).toBeInTheDocument()
+    query = ''
+    rerender(
+      <Providers initialChoice="light" systemTheme={null}>
+        <RoadBoard road={road} {...props}>
+          {null}
+        </RoadBoard>
+      </Providers>,
+    )
+    expect(panel()).not.toBeInTheDocument()
+    expect(screen.getByText('You are here · Course')).toBeInTheDocument()
+  })
+
+  it('on a phone, opens on the Map view in a sheet, the switch gone', () => {
+    box('clientWidth', 390)
+    try {
+      board()
+      openMenu()
+      press(screen.getByRole('menuitem', { name: 'Your answers' }))
+      expect(push).toHaveBeenLastCalledWith(null, '', `${BOARD}?view=map&open=answers`)
+      const sheet = screen.getByRole('dialog', { name: 'Your answers' })
+      expect(within(sheet).getByText('From onboarding · change any of them')).toBeInTheDocument()
+      expect(screen.getByRole('region', { name: 'Your roadmap, map' })).toBeInTheDocument()
+      expect(screen.queryByRole('group', { name: 'Show your roadmap as' })).not.toBeInTheDocument()
+    } finally {
+      box('clientWidth', 1440)
+    }
+  })
+})
+
+describe('a new roadmap’s draft', () => {
+  const AMOUNT = 'Your budget per year · Amount'
+  const SOURCE = { id: 'rm-1', name: 'Cyber Security in Perth' }
+  const createRoadmapAction = mock(
+    async (_input: {
+      fromId?: string
+      answers: StoredAnswers
+    }): Promise<ActionResult<{ id: string }>> => ({ ok: true, id: 'rm-new' }),
+  )
+  beforeEach(() => createRoadmapAction.mockClear())
+
+  const draftBoard = () =>
+    render(
+      <Providers initialChoice="light" systemTheme={null}>
+        <RoadBoard
+          road={road}
+          roadmap={ROADMAP}
+          draft={{ from: SOURCE, answers: ROADMAP.answers }}
+          createRoadmapAction={createRoadmapAction}
+        >
+          {null}
+        </RoadBoard>
+      </Providers>,
+    )
+  const panel = () => screen.getByRole('complementary', { name: 'Your answers' })
+  const pickAmount = () => {
+    press(button(new RegExp(`^${AMOUNT}`)))
+    press(
+      within(screen.getByRole('radiogroup', { name: AMOUNT })).getByRole('radio', {
+        name: /^AUD 30k/,
+      }),
+    )
+  }
+
+  it('opens on the source’s board with its answers open in draft mode, under "New roadmap"', () => {
+    draftBoard()
+    expect(
+      within(panel()).getByText('New roadmap · a copy of Cyber Security in Perth'),
+    ).toBeVisible()
+    expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toHaveTextContent(
+      'Your roadmaps/New roadmap',
+    )
+    // Nothing is pushed: the draft is the page.
+    expect(push).not.toHaveBeenCalled()
+  })
+
+  it('while drafting, a pressed tile waits and says why', () => {
+    draftBoard()
+    press(tile('Data Science, not visited. Close your answers to open it'))
+    expect(screen.getByText('Close your answers to open a tile.')).toBeInTheDocument()
+    expect(panel()).toBeInTheDocument()
+  })
+
+  it('previews a pick on the map, as Your answers does', () => {
+    draftBoard()
+    pickAmount()
+    expect(screen.getByText('Preview · not saved')).toBeInTheDocument()
+  })
+
+  it('a zoom keeps the draft’s source in the URL', () => {
+    query = 'from=rm-1'
+    draftBoard()
+    press(within(zoom()).getByRole('button', { name: 'Tile' }))
+    expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?from=rm-1&zoom=tile`)
+  })
+
+  it('Create makes the roadmap as the loader’s first step, then lands on the list with it marked', async () => {
+    jest.useFakeTimers()
+    reduceMotion()
+    draftBoard()
+    pickAmount()
+    press(button('Create roadmap'))
+    expect(screen.getByText('Drawing your new roadmap')).toBeInTheDocument()
+    expect(createRoadmapAction).toHaveBeenCalledWith({
+      fromId: 'rm-1',
+      answers: { amount: { value: 30, state: 'stated' } },
+    })
+    for (let i = 0; i < 3; i++)
+      await act(async () => {
+        jest.advanceTimersByTime(700)
+      })
+    expect(router.replace).toHaveBeenCalledWith('/roadmaps/rm-new')
+  })
+
+  it('a refused Create stops the loader and lands nowhere', async () => {
+    jest.useFakeTimers()
+    reduceMotion()
+    createRoadmapAction.mockImplementationOnce(async () => ({ ok: false, error: 'Not found' }))
+    draftBoard()
+    pickAmount()
+    press(button('Create roadmap'))
+    await act(async () => {
+      jest.advanceTimersByTime(700)
+    })
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      "We couldn't draw this roadmap. Nothing is created yet.",
+    )
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+    expect(router.replace).not.toHaveBeenCalled()
+  })
+
+  it('Cancel, after Discard, goes back to her roadmaps; nothing is made', () => {
+    draftBoard()
+    pickAmount()
+    press(button('Cancel'))
+    press(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Discard' }))
+    expect(router.replace).toHaveBeenCalledWith('/roadmaps')
+    expect(createRoadmapAction).not.toHaveBeenCalled()
+  })
+})
+
+describe('a new roadmap from scratch', () => {
+  const createRoadmapAction = mock(
+    async (_input: {
+      fromId?: string
+      answers: StoredAnswers
+    }): Promise<ActionResult<{ id: string }>> => ({ ok: true, id: 'rm-new' }),
+  )
+  beforeEach(() => createRoadmapAction.mockClear())
+
+  const scratchBoard = () =>
+    render(
+      <Providers initialChoice="light" systemTheme={null}>
+        <RoadBoard
+          road={{ ...road, tiles: [] }}
+          roadmap={{ ...ROADMAP, id: 'new', name: 'New roadmap', answers: {} }}
+          draft={{ from: null, answers: {} }}
+          createRoadmapAction={createRoadmapAction}
+        >
+          {null}
+        </RoadBoard>
+      </Providers>,
+    )
+  const panel = () => screen.getByRole('complementary', { name: 'Your answers' })
+
+  it('draws the empty road, Point A and a destination not picked yet, under the blank draft', () => {
+    scratchBoard()
+    expect(tile('Point A, you are here. Open your answers')).toBeInTheDocument()
+    // The destination is an outline, not a tile to press.
+    expect(screen.getAllByText('Not picked yet').length).toBeGreaterThan(0)
+    expect(within(panel()).getByText('New roadmap · from scratch')).toBeVisible()
+    expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toHaveTextContent(
+      'Your roadmaps/New roadmap',
+    )
+  })
+
+  it('Create makes it with her answers and no source, then lands on the list with it marked', async () => {
+    jest.useFakeTimers()
+    reduceMotion()
+    scratchBoard()
+    const AMOUNT = 'Your budget per year · Amount'
+    press(button(new RegExp(`^${AMOUNT}`)))
+    press(
+      within(screen.getByRole('radiogroup', { name: AMOUNT })).getByRole('radio', {
+        name: /^AUD 30k/,
+      }),
+    )
+    press(button('Create roadmap'))
+    expect(createRoadmapAction).toHaveBeenCalledWith({
+      answers: { amount: { value: 30, state: 'stated' } },
+    })
+    for (let i = 0; i < 3; i++)
+      await act(async () => {
+        jest.advanceTimersByTime(700)
+      })
+    expect(router.replace).toHaveBeenCalledWith('/roadmaps/rm-new')
   })
 })

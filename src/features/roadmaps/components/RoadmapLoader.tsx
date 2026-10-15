@@ -16,6 +16,8 @@ export type RoadmapLoaderProps = {
   work: ReadonlyArray<() => Promise<void>>
   /** After the last tick and the fade: where she goes next. */
   onDone: () => void
+  /** A new roadmap's draft, made by the first step: a failure says nothing is created yet. */
+  draft?: boolean
 }
 
 /**
@@ -25,7 +27,7 @@ export type RoadmapLoaderProps = {
  * under reduced motion) before `onDone`. Focus never drops to the page under it: it goes to the
  * status as the loader opens, and to Try again when a step fails.
  */
-export function RoadmapLoader({ kind, work, onDone }: RoadmapLoaderProps) {
+export function RoadmapLoader({ kind, work, onDone, draft = false }: RoadmapLoaderProps) {
   const { steps, failed, slow, fading, announce, retry } = useLoaderRun({ kind, work, onDone })
   const statusRef = useRef<HTMLParagraphElement>(null)
   const tryAgain = useRef<HTMLButtonElement>(null)
@@ -71,7 +73,7 @@ export function RoadmapLoader({ kind, work, onDone }: RoadmapLoaderProps) {
       ) : null}
       {failed ? (
         <div role="alert" className={cn(styles.loaderNote, 'flex flex-col items-center gap-4')}>
-          <p className="m-0 text-lead">{loaderError(kind)}</p>
+          <p className="m-0 text-lead">{loaderError(kind, { draft })}</p>
           <Button
             ref={tryAgain}
             type="button"

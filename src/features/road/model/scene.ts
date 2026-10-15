@@ -1,9 +1,10 @@
 // The scene: the road as the board draws it now, after what she has done on this roadmap's board
-// (its stored choices, then this session's). Pure: builds new tiles and lines, never changes the
-// road it reads.
+// (its stored choices, then this session's), what an answer she has not saved would change, and
+// the marks her saved answers leave. Pure: builds new tiles and lines, never changes the road it
+// reads.
 
-import type { RoadmapChoices } from '@/shared/types/student'
-import type { LabelPlace, Road, Ruler, Tile, Walk } from './road-data'
+import type { RoadmapChoices, StoredAnswers } from '@/shared/types/student'
+import type { Badge, BadgeId, LabelPlace, Road, Ruler, Tile, Walk } from './road-data'
 
 /** What she has done on the board this session. */
 export type Session = {
@@ -19,6 +20,8 @@ export type Session = {
   city: boolean
   /** Walked back to her country: where the first arrival stands her, without its hint. */
   country: boolean
+  /** What an answer she has not saved would change, by tile id ("If you save"). Never saved. */
+  preview?: Record<string, string>
 }
 
 export const NEW_SESSION: Session = {
@@ -40,8 +43,12 @@ export const sessionFrom = (choices: RoadmapChoices, firstVisit: boolean): Sessi
   country: choices.country ?? false,
 })
 
-/** What a session keeps on the roadmap: every choice, never the first arrival. */
-export const choicesFrom = ({ first: _, ...choices }: Session): Required<RoadmapChoices> => choices
+/** What a session keeps on the roadmap: every choice, never the first arrival or the preview. */
+export const choicesFrom = ({
+  first: _,
+  preview: __,
+  ...choices
+}: Session): Required<RoadmapChoices> => choices
 
 export type Scene = Walk & {
   /** The tiles on the board, each with its state and label placement per stop. */
@@ -51,6 +58,8 @@ export type Scene = Walk & {
   ruler: Ruler
   /** No road drawn yet: only where she starts and a destination to pick. */
   empty: boolean
+  /** The road's badges, with the figures her saved answers give them. */
+  badges: Record<BadgeId, Badge>
 }
 
 const swapIn = (ids: string[], from: string, to: string) => ids.map((id) => (id === from ? to : id))
@@ -148,6 +157,9 @@ function toCountry(tiles: Tile[], walk: Walk, arrival: Road['arrival']): Walk {
   return { ...walk, ...arrival.walk, ahead: [...walk.lit.slice(at + 1), ...walk.ahead] }
 }
 
+/** Where she starts: a press on it opens her answers, which it is built from. */
+export const POINT_A = 'point-a'
+
 const EVERY_STOP = (place: LabelPlace) => ({ whole: place, level: place, tile: place })
 
 /**
@@ -192,12 +204,12 @@ function emptyScene(road: Road): Scene {
     hint: null,
     ruler: { ticks: [], now: 0, from: 0, to: 0, gy: 0 },
     empty: true,
+    badges: road.badges,
   }
 }
 
-/** The road as the board draws it after this session. */
-export function buildScene(road: Road, session: Session): Scene {
-  if (road.tiles.length === 0) return emptyScene(road)
+/** The road walked as this session's choices walk it. */
+function walkedScene(road: Road, session: Session): Scene {
   const tiles = road.tiles.map((t) => ({ ...t, lab: { ...t.lab } }))
   const onBoard = tiles.filter((t) => !t.inStack)
   const byId = (id: string) => onBoard.find((t) => t.id === id)
@@ -225,5 +237,79 @@ export function buildScene(road: Road, session: Session): Scene {
     hint: session.first ? road.arrival.hint : null,
     ruler: road.years,
     empty: false,
+    badges: road.badges,
+  }
+}
+
+/** Each tile the preview names carries its words. */
+function previewed(scene: Scene, preview: Record<string, string>): Scene {
+  return {
+    ...scene,
+    tiles: scene.tiles.map((t) =>
+      preview[t.id] === undefined ? t : { ...t, prev: preview[t.id] },
+    ),
+  }
+}
+
+/**
+ * The road as the board draws it after this session: its preview on the tiles it names, then the
+ * marks her saved answers leave when they are passed.
+ */
+export function buildScene(road: Road, session: Session, answers?: StoredAnswers): Scene {
+  const walked = road.tiles.length === 0 ? emptyScene(road) : walkedScene(road, session)
+  const scene = session.preview ? previewed(walked, session.preview) : walked
+  return answers ? applyAnswers(scene, answers) : scene
+}
+
+/** What the English test's "Not taken yet" stores (the opening's question model). */
+const NOT_TAKEN = 'Not taken yet'
+/** The budget question's answer that drops "roughly" (the opening's question model). */
+const HARD_LIMIT = 'Hard limit'
+
+/** AUD thousands to one decimal, as the mock's figures read: 3.5, 9.5, 1. */
+const thousands = (n: number) => String(Math.round(n * 10) / 10)
+
+/**
+ * The marks her saved answers leave on the course on her road (the first on its course line) and
+ * its city: a budget under the course's fees makes the city "A stretch on your budget" and puts
+ * the over-budget badge first on the course, with the cost in its trade-off; "Not taken yet" on the
+ * English test leaves the course's IELTS condition not met. Anything else changes nothing. Returns
+ * a new scene; the one given is never changed.
+ */
+export function applyAnswers(scene: Scene, answers: StoredAnswers): Scene {
+  const course = scene.tiles.find((t) => t.id === scene.courseLine[0])
+  if (!course) return scene
+  const amount = answers.amount?.value
+  const over = typeof amount === 'number' && course.fees !== undefined ? course.fees - amount : 0
+  const unmet = answers.eng?.value === NOT_TAKEN && (course.badges ?? []).includes('ielts')
+  if (over <= 0 && !unmet) return scene
+
+  const badges = { ...scene.badges }
+  const changes: Record<string, Partial<Tile>> = {}
+  if (over > 0 && typeof amount === 'number') {
+    const roughly = answers.hard?.value === HARD_LIMIT ? '' : ', roughly'
+    badges.over = {
+      ...badges.over,
+      value: `Over budget by AUD ${thousands(over)}k`,
+      explanation: `Your budget is AUD ${amount}k a year for fees${roughly}. This course is AUD ${course.fees}k a year.`,
+    }
+    changes[course.id] = {
+      badges: ['over', ...(course.badges ?? []).filter((b) => b !== 'over')],
+      costs: `Less good for: cost (AUD ${thousands(over)}k a year over budget)`,
+    }
+    const city = scene.cityLine[0]
+    if (city) changes[city] = { kicker: 'A stretch on your budget' }
+  }
+  if (unmet) {
+    badges.ielts = {
+      ...badges.ielts,
+      value: `Not met: ${badges.ielts.value}`,
+      explanation: 'You haven’t taken an English test yet, so this condition isn’t met.',
+    }
+  }
+  return {
+    ...scene,
+    badges,
+    tiles: scene.tiles.map((t) => (changes[t.id] ? { ...t, ...changes[t.id] } : t)),
   }
 }

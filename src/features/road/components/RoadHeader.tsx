@@ -1,4 +1,4 @@
-import { ChevronLeft, Columns2, MessageCircle } from 'lucide-react'
+import { ChevronLeft, Columns2, ListChecks, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import { AccountMenu } from '@/features/opening'
 import { Duck } from '@/shared/components/Duck'
@@ -13,9 +13,18 @@ const ACTION = 'h-11 gap-2 px-3.5 font-sans font-medium'
  * The board's header: the wordmark with the duck, the breadcrumb back to her roadmaps with this
  * one's name (below 64rem only the way back; on a phone only its chevron), the tag, "Ask · 1" and
  * "Compare" (side by side only: stacked, they move to the controls bar) and onboarding's menu. Ask
- * and Compare are not here yet: `onLater` says so.
+ * and Compare are not here yet: `onLater` says so. The menu's Your answers opens them over the board
+ * (`onAnswers`).
  */
-export function RoadHeader({ roadmapName, onLater }: { roadmapName: string; onLater: () => void }) {
+export function RoadHeader({
+  roadmapName,
+  onLater,
+  onAnswers,
+}: {
+  roadmapName: string
+  onLater: () => void
+  onAnswers?: () => void
+}) {
   return (
     <header className="relative z-40 flex min-h-16 items-center gap-4 border-b bg-background px-6 @max-5xl:min-h-14 @max-5xl:px-4">
       <span className="flex items-center gap-2 font-heading text-h4 font-semibold">
@@ -48,12 +57,18 @@ export function RoadHeader({ roadmapName, onLater }: { roadmapName: string; onLa
           <MessageCircle aria-hidden="true" strokeWidth={1.5} className="size-icon" />
           Ask · 1
         </Button>
+        {onAnswers ? (
+          <Button type="button" variant="square" className={ACTION} onClick={onAnswers}>
+            <ListChecks aria-hidden="true" strokeWidth={1.5} className="size-icon" />
+            Your answers
+          </Button>
+        ) : null}
         <Button type="button" variant="square" className={ACTION} onClick={onLater}>
           <Columns2 aria-hidden="true" strokeWidth={1.5} className="size-icon" />
           Compare
         </Button>
       </div>
-      <AccountMenu band={false} className="@max-5xl:ml-auto" />
+      <AccountMenu band={false} onAnswers={onAnswers} className="@max-5xl:ml-auto" />
     </header>
   )
 }

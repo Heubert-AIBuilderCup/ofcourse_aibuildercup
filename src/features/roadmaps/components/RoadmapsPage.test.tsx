@@ -10,7 +10,6 @@ const ok = async (): Promise<ActionResult> => ({ ok: true })
 const renameRoadmapAction = mock(async (_id: string, _name: string) => ok())
 const deleteRoadmapAction = mock(async (_id: string) => ok())
 const restoreRoadmapAction = mock(async (_id: string) => ok())
-const startFromScratchAction = mock(ok)
 const archiveRoadmapAction = mock(async (_id: string) => ok())
 const restoreArchivedAction = mock(async (_id: string) => ok())
 
@@ -29,7 +28,6 @@ afterEach(() => {
     renameRoadmapAction,
     deleteRoadmapAction,
     restoreRoadmapAction,
-    startFromScratchAction,
     archiveRoadmapAction,
     restoreArchivedAction,
   ]) {
@@ -97,7 +95,6 @@ function show(roadmaps: RoadmapSummary[] = THREE, madeId: string | null = null) 
       renameRoadmapAction={renameRoadmapAction}
       deleteRoadmapAction={deleteRoadmapAction}
       restoreRoadmapAction={restoreRoadmapAction}
-      startFromScratchAction={startFromScratchAction}
       archiveRoadmapAction={archiveRoadmapAction}
       restoreArchivedAction={restoreArchivedAction}
     />,
@@ -606,7 +603,7 @@ describe('New roadmap', () => {
   const COPY = 'Copy a roadmap and change some answers'
   const SCRATCH = 'Start from scratch'
 
-  it('starts on copying, from the first roadmap, with every roadmap to pick from', async () => {
+  it('offers copying, from the first roadmap, with every roadmap to pick from, or starting from scratch', async () => {
     show()
     const dialog = await openNew()
     expect(within(dialog).getByRole('radio', { name: COPY })).toBeChecked()
@@ -637,35 +634,19 @@ describe('New roadmap', () => {
     await click(within(dialog).getByRole('radio', { name: 'Data Science instead' }))
     await click(within(dialog).getByRole('button', { name: 'Copy and change answers' }))
     expect(replace).toHaveBeenCalledWith('/roadmaps/new?from=ds')
-    expect(startFromScratchAction).not.toHaveBeenCalled()
   })
 
-  it('from scratch: no list to copy from, and Start the questions opens onboarding at 00', async () => {
+  it('starts from scratch: no roadmap to pick, on to a blank draft, never to onboarding', async () => {
     show()
     const dialog = await openNew()
     await click(within(dialog).getByRole('radio', { name: SCRATCH }))
     expect(
       within(dialog).queryByRole('radiogroup', { name: 'Copy which roadmap?' }),
     ).not.toBeInTheDocument()
-    expect(
-      within(dialog).queryByRole('button', { name: 'Copy and change answers' }),
-    ).not.toBeInTheDocument()
-    await click(within(dialog).getByRole('button', { name: 'Start the questions' }))
-    expect(startFromScratchAction).toHaveBeenCalledTimes(1)
-    expect(replace).toHaveBeenCalledWith('/onboarding/character')
-  })
-
-  it('stays and says why when a new roadmap cannot be started', async () => {
-    startFromScratchAction.mockImplementationOnce(async () => ({
-      ok: false,
-      error: "You're already answering a new roadmap.",
-    }))
-    show()
-    const dialog = await openNew()
-    await click(within(dialog).getByRole('radio', { name: SCRATCH }))
-    await click(within(dialog).getByRole('button', { name: 'Start the questions' }))
-    expect(within(dialog).getByRole('alert')).toHaveTextContent('already answering')
-    expect(replace).not.toHaveBeenCalled()
+    await click(within(dialog).getByRole('button', { name: 'Start with no answers' }))
+    expect(replace).toHaveBeenCalledTimes(1)
+    expect(replace).toHaveBeenCalledWith('/roadmaps/new')
+    expect(push).not.toHaveBeenCalled()
   })
 
   it('closes on Cancel and on Escape, focus back on New roadmap', async () => {

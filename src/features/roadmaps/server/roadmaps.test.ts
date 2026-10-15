@@ -55,6 +55,7 @@ describe.skipIf(!enabled)('the roadmaps against the database', () => {
         base('i'),
         base('j'),
         base('k'),
+        base('l'),
       ])
   })
 
@@ -123,7 +124,7 @@ describe.skipIf(!enabled)('the roadmaps against the database', () => {
     expect(await server.renameRoadmap(other, theirs.id, 'Mine now')).toBe(false)
     expect(await server.touchOpened(other, theirs.id)).toBe(false)
     expect(await server.saveChoices(other, theirs.id, { swapped: true })).toBe(false)
-    expect(await server.copyRoadmap(other, theirs.id)).toBeNull()
+    expect(await server.createRoadmap(other, { fromId: theirs.id, answers: {} })).toBe('not-found')
     expect(await server.softDeleteRoadmap(other, theirs.id)).toBe('not-found')
     expect(await rowOf(theirs.id)).toMatchObject({
       name: null,
@@ -190,32 +191,99 @@ describe.skipIf(!enabled)('the roadmaps against the database', () => {
     expect((await rowOf(r.id))?.choices).toEqual({ swapped: true, read: false })
   })
 
-  test('a copy is finished, has the same answers, and never shares them with its source', async () => {
+  test('a copy is finished, unnamed, with the answers given and the source’s person and coins', async () => {
     const uid = `${P}f`
     const [src] = await server.listRoadmaps(uid)
+    const relative = {
+      placeId: 'cannington',
+      place: 'Cannington, Perth',
+      relationship: 'Cousin',
+      name: 'Anjali',
+    } as const
     await db
       .update(schema.roadmap)
-      .set({ answers: { amount: { value: 36, state: 'stated' } }, coins: { state: 'later' } })
+      .set({
+        answers: { amount: { value: 36, state: 'stated' } },
+        coins: { state: 'later' },
+        relative,
+        choices: { swapped: true },
+      })
       .where(orm.eq(schema.roadmap.id, src.id))
-    const copy = await server.copyRoadmap(uid, src.id)
+    const answers = { amount: { value: 30, state: 'stated' } } as const
+    const copy = await server.createRoadmap(uid, { fromId: src.id, answers })
+    if (typeof copy === 'string') throw new Error(copy)
     expect(copy).toMatchObject({
       copiedFrom: src.id,
       name: null,
       choices: {},
       lastOpenedAt: null,
-      answers: { amount: { value: 36, state: 'stated' } },
+      answers,
+      relative,
       coins: { state: 'later' },
     })
-    expect(copy?.id).not.toBe(src.id)
-    expect(copy?.finishedAt).toBeInstanceOf(Date)
-
-    await db
-      .update(schema.roadmap)
-      .set({ answers: { amount: { value: 24, state: 'stated' } } })
-      .where(orm.eq(schema.roadmap.id, copy?.id ?? ''))
+    expect(copy.id).not.toBe(src.id)
+    expect(copy.finishedAt).toBeInstanceOf(Date)
+    expect((await server.listRoadmaps(uid)).map((r) => r.id)).toContain(copy.id)
+    // Its own answers: the source keeps its own.
     expect((await server.getRoadmap(uid, src.id))?.answers).toEqual({
       amount: { value: 36, state: 'stated' },
     })
+  })
+
+  test('a new roadmap takes the person, coins and choices it is given', async () => {
+    const uid = `${P}f`
+    // The copy just made: never opened, so first on the list; it has a person and coins.
+    const [src] = await server.listRoadmaps(uid)
+    expect(src.relative).not.toBeNull()
+    const made = await server.createRoadmap(uid, {
+      fromId: src.id,
+      answers: {},
+      relative: null,
+      coins: null,
+      choices: { read: true },
+    })
+    expect(made).toMatchObject({
+      copiedFrom: src.id,
+      relative: null,
+      coins: null,
+      choices: { read: true },
+    })
+    // Without a source: nobody's copy, no person, no coins.
+    expect(await server.createRoadmap(uid, { answers: {} })).toMatchObject({
+      copiedFrom: null,
+      relative: null,
+      coins: null,
+      choices: {},
+    })
+  })
+
+  test('a copy keeps the name it is made with; one from scratch stays unnamed', async () => {
+    const uid = `${P}f`
+    const [src] = await server.listRoadmaps(uid)
+    const copy = await server.createRoadmap(uid, {
+      fromId: src.id,
+      name: 'Copy of Cyber Security in Perth',
+      answers: {},
+    })
+    if (typeof copy === 'string') throw new Error(copy)
+    expect((await rowOf(copy.id))?.name).toBe('Copy of Cyber Security in Perth')
+    const scratch = await server.createRoadmap(uid, { answers: {} })
+    if (typeof scratch === 'string') throw new Error(scratch)
+    expect((await rowOf(scratch.id))?.name).toBeNull()
+  })
+
+  test('a bad set of answers makes nothing', async () => {
+    const uid = `${P}f`
+    const [src] = await server.listRoadmaps(uid)
+    const before = (await server.listRoadmaps(uid)).length
+    for (const answers of [
+      { amount: { value: 24, state: 'stated' }, sneaky: { value: 'x', state: 'stated' } },
+      { amount: 24 },
+      null,
+    ]) {
+      expect(await server.createRoadmap(uid, { fromId: src.id, answers })).toBe('bad-answers')
+    }
+    expect(await server.listRoadmaps(uid)).toHaveLength(before)
   })
 
   test('archive folds a roadmap away and restore brings it back; the list keeps it, flagged', async () => {
@@ -238,7 +306,7 @@ describe.skipIf(!enabled)('the roadmaps against the database', () => {
     ])
     // Her own roadmap still: its board opens and it can be copied.
     expect((await server.getRoadmap(uid, first.id))?.id).toBe(first.id)
-    const copy = await server.copyRoadmap(uid, first.id)
+    const copy = await server.createRoadmap(uid, { fromId: first.id, answers: {} })
     expect(copy).toMatchObject({ copiedFrom: first.id, archivedAt: null })
 
     expect(await server.restoreArchived(uid, first.id)).toBe(true)
@@ -293,6 +361,61 @@ describe.skipIf(!enabled)('the roadmaps against the database', () => {
     expect(await server.softDeleteRoadmap(uid, active.id)).toBe('kept-one')
     expect(await rowOf(active.id)).toMatchObject({ deletedAt: null })
     expect(await server.softDeleteRoadmap(uid, a1.id)).toBe(true)
+  })
+
+  test("saving a roadmap's answers replaces them on that roadmap only", async () => {
+    const uid = `${P}l`
+    const r = await finished(uid)
+    const other = await finished(uid)
+    await db
+      .update(schema.roadmap)
+      .set({
+        answers: {
+          amount: { value: 36, state: 'stated' },
+          climate: { value: 'Warm', state: 'stated' },
+        },
+      })
+      .where(orm.inArray(schema.roadmap.id, [r.id, other.id]))
+    const answers = {
+      amount: { value: 30, state: 'stated' },
+      hard: { value: 'Roughly', state: 'assumed' },
+    } as const
+    expect(await server.saveRoadmapAnswers(uid, r.id, answers)).toBe(true)
+    // The whole set: what is not in it (climate) is gone.
+    expect((await server.getRoadmap(uid, r.id))?.answers).toEqual(answers)
+    expect((await server.getRoadmap(uid, other.id))?.answers).toEqual({
+      amount: { value: 36, state: 'stated' },
+      climate: { value: 'Warm', state: 'stated' },
+    })
+  })
+
+  test('a bad entry refuses the whole write', async () => {
+    const uid = `${P}l`
+    const [r] = await server.listRoadmaps(uid)
+    const before = (await rowOf(r.id))?.answers
+    const bad: unknown[] = [
+      { amount: { value: 24, state: 'stated' }, sneaky: { value: 'x', state: 'stated' } },
+      { amount: { value: 24, state: 'stated' }, climate: { value: 'Warm', state: 'sure' } },
+      { amount: { value: 24, state: 'stated' }, where: { value: 'x'.repeat(81), state: 'stated' } },
+      { amount: 24 },
+      null,
+      ['amount'],
+    ]
+    for (const answers of bad) {
+      expect(await server.saveRoadmapAnswers(uid, r.id, answers)).toBe('bad-answers')
+    }
+    expect((await rowOf(r.id))?.answers).toEqual(before)
+  })
+
+  test("a roadmap's answers are never written to a draft's or another student's", async () => {
+    const uid = `${P}l`
+    const draft = await server.ensureDraft(uid)
+    const theirs = await finished(`${P}k`)
+    const answers = { amount: { value: 24, state: 'stated' } } as const
+    expect(await server.saveRoadmapAnswers(uid, draft.id, answers)).toBe('not-found')
+    expect(await server.saveRoadmapAnswers(uid, theirs.id, answers)).toBe('not-found')
+    expect((await rowOf(draft.id))?.answers).toEqual({})
+    expect((await rowOf(theirs.id))?.answers).toEqual({})
   })
 
   test('deleting the account deletes her roadmaps', async () => {

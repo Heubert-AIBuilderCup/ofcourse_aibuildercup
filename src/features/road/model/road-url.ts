@@ -1,5 +1,5 @@
 // The board's state in the query: `tile` (a tile's stable id), `zoom` (a stop), `view` (the phone's
-// Road or Map) and `open` (the stack list). Defaults are omitted; an unknown or bad value is dropped
+// Road or Map) and `open` (the stack list, or her answers over the board). Defaults are omitted; an unknown or bad value is dropped
 // quietly and the board opens at its default. The lesson and route detail are paths, not params.
 
 import { STOPS, type Stop, type Tile } from './road-data'
@@ -12,8 +12,8 @@ export type RoadState = {
   zoom: Stop
   /** Phone only; ignored at 576px and wider. */
   view: View
-  /** The stack's list, only with a stack tile open. */
-  open: 'list' | null
+  /** The stack's list, only with a stack tile open; or her answers, whatever the tile. */
+  open: 'list' | 'answers' | null
 }
 
 export const DEFAULT_ROAD_STATE: RoadState = { tile: null, zoom: 'level', view: 'road', open: null }
@@ -31,11 +31,13 @@ export function parseRoadState(
 ): RoadState {
   const tile = tiles.find((t) => t.id === params.get('tile')) ?? null
   const zoom = params.get('zoom')
+  const open = params.get('open')
   return {
     tile: tile?.id ?? null,
     zoom: isStop(zoom) ? zoom : DEFAULT_ROAD_STATE.zoom,
     view: params.get('view') === 'map' ? 'map' : 'road',
-    open: params.get('open') === 'list' && tile?.kind === 'stack' ? 'list' : null,
+    open:
+      open === 'answers' ? 'answers' : open === 'list' && tile?.kind === 'stack' ? 'list' : null,
   }
 }
 
@@ -50,9 +52,9 @@ export function serializeRoadState(state: RoadState): string {
 }
 
 /**
- * Opening the stack's list pushes a history entry, so Back closes it; a press, a zoom or a
- * Road/Map switch replaces the entry.
+ * Opening the stack's list or her answers pushes a history entry, so Back closes it; a press, a
+ * zoom or a Road/Map switch replaces the entry.
  */
 export function historyMode(prev: RoadState, next: RoadState): 'push' | 'replace' {
-  return next.open === 'list' && prev.open !== 'list' ? 'push' : 'replace'
+  return next.open !== null && next.open !== prev.open ? 'push' : 'replace'
 }

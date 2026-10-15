@@ -1,19 +1,68 @@
-import Link from 'next/link'
-import { buttonVariants } from '@/shared/components/ui/button'
+import { notFound, redirect } from 'next/navigation'
+import { getProfile } from '@/features/opening/server/profile'
+import { getRoad, RoadBoard, roadRedirect } from '@/features/road'
+import { roadmapName, roadNames } from '@/features/roadmaps'
+import { createRoadmapAction } from '@/features/roadmaps/actions'
+import { getRoadmap } from '@/features/roadmaps/server/roadmaps'
 import { requireStudent } from '@/shared/lib/auth/session'
-import { ROADMAPS_PATH } from '@/shared/lib/student-paths'
-import { cn } from '@/shared/lib/utils'
 
-/** A new roadmap by copying one: a placeholder until the next part. */
-export default async function NewRoadmapPage() {
-  await requireStudent()
+/**
+ * A new roadmap's draft, `/roadmaps/new?from=<id>`: the source's board, drawn only (never opened,
+ * never saved), with Your answers open in draft mode on the source's answers; nothing is stored
+ * until Create roadmap. A source that is not hers, deleted or unknown is a 404. Before onboarding
+ * is closed, on to where she left off. Without `from`, from scratch: the empty road (no tiles yet,
+ * its cards and copy kept) under no answers, every question open; never onboarding again.
+ */
+export default async function NewRoadmapPage({ searchParams }: PageProps<'/roadmaps/new'>) {
+  const [{ user }, { from }] = await Promise.all([requireStudent(), searchParams])
+  const fromId = typeof from === 'string' ? from : null
+  const [profile, source] = await Promise.all([
+    getProfile(user.id),
+    fromId ? getRoadmap(user.id, fromId) : null,
+  ])
+  const to = roadRedirect(profile)
+  if (to) redirect(to)
+
+  if (!fromId) {
+    const road = { ...getRoad(), tiles: [] }
+    return (
+      <RoadBoard
+        road={road}
+        roadmap={{
+          id: 'new',
+          name: roadmapName({ name: null }, roadNames(road)),
+          choices: {},
+          firstVisit: false,
+          answers: {},
+          relative: null,
+        }}
+        draft={{ from: null, answers: {} }}
+        createRoadmapAction={createRoadmapAction}
+      >
+        {null}
+      </RoadBoard>
+    )
+  }
+  if (!source) notFound()
+
+  const road = getRoad()
+  const name = roadmapName(source, roadNames(road))
+
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-stack px-gutter py-section">
-      <h1 className="m-0 text-h1">New roadmap</h1>
-      <p className="m-0 text-muted-foreground">Copying a roadmap comes in the next part.</p>
-      <Link href={ROADMAPS_PATH} className={cn(buttonVariants({ variant: 'text' }), 'self-start')}>
-        Back to your roadmaps
-      </Link>
-    </div>
+    <RoadBoard
+      road={road}
+      roadmap={{
+        id: source.id,
+        name,
+        choices: source.choices,
+        firstVisit: false,
+        answers: source.answers,
+        relative: source.relative,
+      }}
+      draft={{ from: { id: source.id, name }, answers: source.answers }}
+      createRoadmapAction={createRoadmapAction}
+    >
+      {null}
+    </RoadBoard>
   )
 }

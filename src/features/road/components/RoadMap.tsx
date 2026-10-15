@@ -1,6 +1,6 @@
 'use client'
 
-import { CircleAlert, Layers, Minus, Plus, Split } from 'lucide-react'
+import { CircleAlert, Eye, Layers, Minus, Plus, Split } from 'lucide-react'
 import { type ReactNode, useMemo, useRef, useState } from 'react'
 import { Duck } from '@/shared/components/Duck'
 import motion from '@/shared/components/motion.module.css'
@@ -33,7 +33,7 @@ import {
   type TileState,
 } from '../model/road-data'
 import type { RoadState } from '../model/road-url'
-import type { Scene } from '../model/scene'
+import { POINT_A, type Scene } from '../model/scene'
 import { KeyStrip } from './KeyStrip'
 import { LessonLink } from './LessonLink'
 import { MockTag } from './MockTag'
@@ -82,6 +82,11 @@ type Props = {
   /** The key strip shows (the board's: on her first visit, then Map key's). */
   keyShown: boolean
   onKeyShown: (shown: boolean) => void
+  /**
+   * Her answers are open: the map is their preview. Presses wait; on a phone, under their sheet,
+   * the map drops its controls, names only what would change and where she is, and frames it.
+   */
+  answering?: boolean
   /** Over the map: the toast, or the phone's peek. */
   children?: ReactNode
 }
@@ -92,7 +97,9 @@ type Props = {
  * button over each tile (44px or more, clipped to its shape). Each tile says what it is: an icon
  * on its top face and its kind word over its name. A press opens the tile in the card; hovering
  * lifts it (its button stays put) and names an unlabelled tile, nothing more. Map key shows and
- * hides the key strip. The camera is useMapCamera's.
+ * hides the key strip. The camera is useMapCamera's. A pick in her answers not saved yet draws
+ * what would change as dashed rings with "If you save" on their labels, under a "Preview · not
+ * saved" tag.
  */
 export function RoadMap({
   road,
@@ -104,17 +111,22 @@ export function RoadMap({
   onLesson,
   keyShown,
   onKeyShown,
+  answering = false,
   children,
 }: Props) {
   const mapRef = useRef<HTMLElement>(null)
   const { drawn, moving } = useSwapMotion(scene)
   const stop = state.zoom
+  // On a phone her answers' sheet covers the map's foot: only the preview is left over it.
+  const under = answering && layout === 'phone'
+  const previewing = scene.tiles.some((t) => t.prev !== undefined)
   const { cam, size, dragging } = useMapCamera({
     mapRef,
     layout,
     scene,
     stop,
     focusId: state.tile,
+    sheet: under,
     onStep: (dir) => onZoom(stepStop(stop, dir)),
   })
   const [hover, setHover] = useState<string | null>(null)
@@ -138,6 +150,7 @@ export function RoadMap({
       // The field keeps Industry's light tokens inside a dark page, as the onboarding panel does.
       data-theme="light"
       data-dragging={dragging || undefined}
+      data-answering={answering || undefined}
       className={cn(
         motion.grid,
         styles.map,
@@ -154,7 +167,9 @@ export function RoadMap({
           openId={state.tile}
           hover={hover}
           ahead={ahead}
-          badges={road.badges}
+          badges={scene.badges}
+          under={under}
+          answering={answering}
           onPress={onPress}
           onHover={setHover}
         />
@@ -171,7 +186,7 @@ export function RoadMap({
         />
       ) : null}
 
-      {keyShown ? (
+      {keyShown && !under ? (
         <KeyStrip
           onClose={() => {
             onKeyShown(false)
@@ -190,6 +205,7 @@ export function RoadMap({
         className={cn(
           MAP_BUTTON,
           'absolute top-4 right-4 z-30 aria-pressed:bg-panel-foreground/16 @max-xl:top-3 @max-xl:right-auto @max-xl:left-3',
+          under && 'hidden',
         )}
       >
         <span
@@ -208,7 +224,15 @@ export function RoadMap({
         >
           Swapping onto your roadmap
         </span>
-      ) : (
+      ) : answering && previewing ? (
+        <span
+          role="status"
+          className="absolute top-4 left-1/2 z-30 inline-flex min-h-11 -translate-x-1/2 items-center gap-2 border border-dashed border-brand bg-background px-4 font-semibold whitespace-nowrap text-brand-hover shadow-lg @max-xl:top-2 @max-xl:min-h-9 @max-xl:text-sm"
+        >
+          <Eye aria-hidden="true" strokeWidth={1.5} className="size-icon-sm" />
+          Preview · not saved
+        </span>
+      ) : under ? null : (
         <span className="absolute top-18 left-3 z-30 hidden min-h-7 items-center border border-dashed border-panel-foreground/60 bg-panel/80 px-2.5 text-micro whitespace-nowrap uppercase @max-xl:inline-flex">
           Still exploring · ranking optional
         </span>
@@ -247,7 +271,7 @@ export function RoadMap({
         </p>
       ) : null}
 
-      {scene.empty ? null : <ZoomControl stop={stop} onZoom={onZoom} />}
+      {scene.empty || under ? null : <ZoomControl stop={stop} onZoom={onZoom} />}
       {children}
     </section>
   )
@@ -264,6 +288,8 @@ function Drawing({
   hover,
   ahead,
   badges,
+  under,
+  answering,
   onPress,
   onHover,
 }: {
@@ -276,6 +302,10 @@ function Drawing({
   hover: string | null
   ahead: boolean
   badges: Road['badges']
+  /** Under her answers' sheet on a phone: only what would change, and where she is, are named. */
+  under: boolean
+  /** Her answers are open: a press on a tile other than Point A waits. */
+  answering: boolean
   onPress: (tileId: string) => void
   onHover: (tileId: string | null) => void
 }) {
@@ -291,19 +321,22 @@ function Drawing({
     // Pressed, it is drawn lifted; hovered, it rises by CSS, so its button and label stay put.
     const lift = t.id === openId && !isHere ? LIFT : 0
     const draw = drawTile(t, cam, lift)
-    const label = labelOf(t, draw, cam, {
-      stop,
-      here: isHere,
-      hovered: t.id === hover,
-      ahead,
-      openLevel: scene.openLevel,
-      phone: size.layout === 'phone',
-      lift,
-      pressed: t.id === openId,
-      rem: 16 * size.rs,
-      map: { width: size.width, height: size.height },
-      kind: kinds.get(t.id)!.word,
-    })
+    const named = !under || isHere || t.prev !== undefined
+    const label = !named
+      ? null
+      : labelOf(t, draw, cam, {
+          stop,
+          here: isHere,
+          hovered: t.id === hover,
+          ahead,
+          openLevel: scene.openLevel,
+          phone: size.layout === 'phone',
+          lift,
+          pressed: t.id === openId,
+          rem: 16 * size.rs,
+          map: { width: size.width, height: size.height },
+          kind: kinds.get(t.id)!.word,
+        })
     drawn.set(t.id, { tile: t, draw, label })
   }
   const here = drawn.get(scene.here)?.tile
@@ -357,6 +390,13 @@ function Drawing({
                 </g>
               ))}
               <TileIcon tile={t} icon={kinds.get(t.id)!.icon} draw={draw} cam={cam} />
+              {t.prev !== undefined ? (
+                <polygon
+                  className={styles.prevRing}
+                  data-preview=""
+                  points={draw.ring(isHere ? 1.75 : 1.5)}
+                />
+              ) : null}
               {isHere || pressed ? (
                 <polygon
                   className={styles.ring}
@@ -389,11 +429,18 @@ function Drawing({
           if (t.state === 'unknown') return null
           const { hit } = drawn.get(t.id)!.draw
           const state = t.id === scene.here ? 'here' : t.state
+          // What a press does: Point A opens her answers; while they are open, the others wait.
+          const does =
+            t.id === POINT_A
+              ? 'Open your answers'
+              : answering
+                ? 'Close your answers to open it'
+                : 'Open in the card'
           return (
             <button
               key={t.id}
               type="button"
-              aria-label={`${t.name}, ${STATE_WORDS[state]}. Open in the card`}
+              aria-label={`${t.name}, ${STATE_WORDS[state]}. ${does}`}
               aria-pressed={t.id === openId}
               onClick={() => onPress(t.id)}
               onPointerEnter={() => onHover(t.id)}
@@ -570,6 +617,11 @@ function Label({
         <span className={cn('flex flex-col text-caption', full && 'border-t pt-1.5')}>
           {label.gains ? <span>{label.gains}</span> : null}
           {label.costs ? <span>{label.costs}</span> : null}
+        </span>
+      ) : null}
+      {tile.prev !== undefined ? (
+        <span className={cn(styles.prev, 'mt-1 px-1.5 py-0.5 text-caption')}>
+          <b className="font-semibold">If you save</b> · {tile.prev}
         </span>
       ) : null}
     </div>

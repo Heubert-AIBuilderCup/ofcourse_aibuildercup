@@ -132,6 +132,31 @@ it('moves between items with the arrow keys, Home and End', async () => {
   expect(document.activeElement).toBe(roadmapsItem())
 })
 
+it('on a board, offers Your answers second, which opens them and closes the menu', async () => {
+  const onAnswers = mock(() => {})
+  render(
+    <Providers initialChoice="light" systemTheme={null}>
+      <AccountMenu onAnswers={onAnswers} />
+    </Providers>,
+  )
+  await open(screen.getByRole('button', { name: 'Menu: theme and sign out' }))
+  const items = [...screen.getByRole('menu').querySelectorAll('[role^="menuitem"]')]
+  expect(items.map((i) => i.textContent)).toEqual([
+    'Your roadmaps',
+    'Your answers',
+    'Dark theme',
+    'Sign out',
+  ])
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Your answers' }))
+  expect(onAnswers).toHaveBeenCalledTimes(1)
+  expect(screen.queryByRole('menu')).toBeNull()
+})
+
+it('has no Your answers without a board to show them on', async () => {
+  await open(show())
+  expect(screen.queryByRole('menuitem', { name: 'Your answers' })).toBeNull()
+})
+
 it('signs out, then leaves for the sign-in page', async () => {
   await open(show())
   fireEvent.click(signOutItem())

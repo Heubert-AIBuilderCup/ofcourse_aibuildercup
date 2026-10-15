@@ -246,3 +246,79 @@ See     the duck walks to Perth, then on to the course (the next place or course
 
 **Result**
 15 Oct 2026, local dev. Run by Jenish by hand: the board's walks (he found "Go to Perth" dead after walking to Australia when Perth was pressed on the map; fixed, `c87e6a6`). Steps 1–6 not reported step by step; he then said "code review, fix and push". The three look decisions stay at the implementer's choices.
+---
+
+**Smoke test — roadmaps, parts 4 and 5 (Your answers over the board; New roadmap by copy or from scratch)** · local dev · `http://localhost:3000`
+
+**Before you start**
+- `bun run dev` on `feat/your-answers` (no migration). Boards: the Your answers page (RBAnsDesk, RBAnsPhone, RBAnsBudgetDesk/Phone, RBAnsTwoDesk, RBAnsAskDesk, RBAnsSavedDesk/Phone, ANNotes) and the Roadmaps page (RMNewDesk, RMDraftDesk, RMDraftPhone, RMLoadDesk, RMReadyDesk).
+
+**1 · Your answers opens over the board** — AC 23
+```
+Go to   a roadmap's board at 1440
+Do      the account menu → Your answers; close it; press Point A ("You")
+See     the panel in the card column: "From onboarding · change any of them", "Your answers", the lead "Pick one to change it. Your roadmap shows what would move before anything moves."; six groups 00–05 with every answer; the relative and the coins shown without Change; Back closes it
+```
+
+**2 · Preview, tiles wait** — AC 24
+```
+Go to   the panel
+Do      Change "Your budget per year" → AUD 30k; then press a tile on the map
+See     Perth and Cyber Security get a dashed outline with "If you save" ("A stretch on your budget", "AUD 3.5k a year over budget"); the panel lists the same under "If you save, on your roadmap"; a "Preview · not saved" tag over the map; the tile press opens nothing and the status says "Close your answers to open a tile."; any other answer previews "Nothing on your roadmap changes."
+```
+
+**3 · Changes wait together; closing asks** — AC 25
+```
+Do      also change "English test" → Not taken yet; press Close
+See     the bar "2 changes not saved · Discard · Save changes"; Close asks "Discard 2 changes? Your answers and your roadmap stay as they are." with Discard / Keep editing; Keep editing keeps both; Discard drops them and the outlines go
+```
+
+**4 · Save, Undo, nothing-changes** — AC 26
+```
+Do      change the budget to AUD 30k → Save changes; then Undo in the toast; then change "Climate" → Save changes
+See     the toast "Budget changed. Cyber Security now goes AUD 3.5k a year over it." with Undo; the here-card shows "Condition · Over budget by AUD 3.5k" and "Less good for: cost (AUD 3.5k a year over budget)…", Perth reads "A stretch on your budget"; the row says "Changed just now"; Undo puts the answers back and the marks go; the climate save says "Saved. Nothing on your roadmap changes."; reload: the saved answer is still there and it is only this roadmap's (open another: untouched)
+```
+
+**5 · Phone** — AC 27
+```
+Go to   the board at 390
+Do      menu → Your answers; change the budget
+See     the view switches to Map; the panel is a sheet taking the lower 62% with no dark scrim; the map above drops its controls and names only Perth, the course and where she is; the camera frames what would change
+```
+
+**6 · New roadmap from a copy** — AC 28–32
+```
+Go to   /roadmaps
+Do      New roadmap → Copy and change answers (or "…" → Copy and change answers); change one answer; press Cancel → Keep editing; press Create roadmap
+See     /roadmaps/new?from=<id>: the source's board with the panel open, breadcrumb "Your roadmaps / New roadmap", kicker "New roadmap · a copy of <name>", title "Change any answers", the lead; the bar "Change at least one answer" with Cancel and Create roadmap disabled until a change, then "1 answer changed"; Cancel with a change asks "Discard this new roadmap? Nothing is created. Your other roadmaps stay as they are."; Create runs the loader (Reading your answers · Drawing your new roadmap · Adding it to your roadmaps) and lands on /roadmaps with "Copy of <name>" first, New, "Copy of <name>" and a dashed chip for the changed answer, and the toast "Your new roadmap is ready." with Open it; its answers differ from the source's (open both panels)
+```
+
+**7 · New roadmap from scratch** — the scratch rule
+```
+Go to   /roadmaps
+Do      New roadmap → Start from scratch → Start with no answers; answer two questions; Create roadmap
+See     /roadmaps/new: an empty road (Point A and a dotted "Not picked yet") with the panel open, "New roadmap · from scratch", "Answer the questions", every row "Answer now" / "Not answered yet"; Create disabled until an answer, then "2 answers given"; the loader, then the list with the new roadmap first, "From scratch"; nothing ever opened onboarding
+```
+
+**No need to click** — AC 23–26: `answers-panel.test.ts` (rows, effects), `scene.test.ts` (preview and saved marks), `road-url.test.ts`, `AnswersPanel.test.tsx` (pending, discard, save, both modes), `RoadBoard.test.tsx` (both doors, tiles wait, toasts, Undo, the draft, the loader), `AccountMenu.test.tsx`; the writes: `roadmaps.test.ts` (database: a roadmap's answers only, `createRoadmap` with and without a source), `actions.test.ts` (each answer validated) · AC 31–32: `roadmap.test.ts` (`answerDiffs`, `fromLine`), `RoadmapsPage.test.tsx` · the standing specs `e2e/routes.e2e.ts`, `e2e/your-road.e2e.ts`.
+
+**Needs a decision** — from Jenish
+1. The character row saves at once (it never changes the roadmap), while every other answer waits for Save changes. Keep?
+2. The scratch choice's description in the dialog is still the design's ("Answer every question again, from your character to your ten coins. About 8 minutes."), which no longer fits: the panel cannot place coins. New copy?
+3. The list's "From onboarding" line is "her oldest roadmap with no source"; if she deletes her onboarding roadmap, the next oldest from-scratch one takes the label. Accept, or store the origin (a column)?
+
+**Worth a glance** — "Changed just now" stays on a row after Undo · a pressed tile's card still reads the road's copy for its costs (only the here-card reads the saved marks) · Point A does not open "Where are you right now?" expanded (the reference does) · the look of the panel, the sheet and the draft against the RBAns* and RMDraft* boards was not checked in the build.
+
+**Build report** — each dispatch as its usage report gave it
+| Task | Model | Time | Tokens | Commits |
+| --- | --- | --- | --- | --- |
+| 12 · the answers model, the scene's preview, the URL state, the write | opus | 7m 53s | 162,372 | `1fce31b` |
+| 13 · Your answers over the board | opus | 14m 47s | 269,291 | `6e75894` |
+| 14 · a new roadmap from a copy she changes | opus | 9m 13s + 1m 24s | 198,136 + 7,150 | `4dc5cae` |
+| 15 · a new roadmap from scratch, through the panel | opus | 6m 03s | 119,184 | `3553149` |
+| review · parts 4–5 | opus | 7m 02s | 257,854 | `docs/roadmaps/review-4.md` |
+| fix · six blocking findings (first attempt lost to a crash, second killed by the cap, third landed) | opus | 5m 47s + 5m 41s | 117,690 + 34,586 | `5827b68` |
+| **Total** | | **57m 50s** | **1,166,263** | 5 (+ the swap fix `203acda`, the memory cap `5fb8cae`) |
+
+**Result**
+15 Oct 2026, local dev. Not run by the developer: he asked for all parts "as fast as possible" and then "review, fix and push"; his hand-run was the swap on the board (the tag that would not go: fixed, `203acda`). The three decisions above stay at the build's choices.

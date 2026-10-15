@@ -27,7 +27,8 @@ export type TileState = 'lit' | 'here' | 'alt' | 'next' | 'fog' | 'seen' | 'unkn
 
 export type LabelPlace = 'above' | 'below' | 'left' | 'right' | 'none'
 
-export type BadgeId = 'offerings' | 'ielts' | 'fork' | 'maths'
+/** over: a saved budget under the course's fees (`applyAnswers`). */
+export type BadgeId = 'offerings' | 'ielts' | 'fork' | 'maths' | 'over'
 
 export type Badge = {
   /** The badge's kind: "Condition", "Several offerings", "Fork ahead". */
@@ -67,6 +68,10 @@ export type Tile = {
   costs?: string
   when?: string
   badges?: BadgeId[]
+  /** A course's fees, AUD thousands a year: what her budget is measured against. */
+  fees?: number
+  /** What an answer she has not saved would change here ("If you save"); the session's preview. */
+  prev?: string
   /** On the thinner road that forks off after the 485. */
   branch?: boolean
   /** A route step's id in `/road/route/<route-id>`. */

@@ -45,6 +45,13 @@ describe('parseRoadState', () => {
     expect(parse('tile=perth&open=list')).toEqual(state({ tile: 'perth' }))
     expect(parse('open=list')).toEqual(DEFAULT_ROAD_STATE)
   })
+
+  it('opens her answers whatever the tile', () => {
+    expect(parse('open=answers')).toEqual(state({ open: 'answers' }))
+    expect(parse('tile=perth&open=answers&view=map')).toEqual(
+      state({ tile: 'perth', open: 'answers', view: 'map' }),
+    )
+  })
 })
 
 describe('a deep link', () => {
@@ -69,6 +76,12 @@ describe('serializeRoadState', () => {
     )
   })
 
+  it('writes her answers open, and reads it back', () => {
+    const s = state({ view: 'map', open: 'answers' })
+    expect(serializeRoadState(s)).toBe('view=map&open=answers')
+    expect(parse(serializeRoadState(s))).toEqual(s)
+  })
+
   it('writes what parseRoadState reads back', () => {
     const s = state({ tile: 'perth', zoom: 'whole', view: 'map' })
     expect(serializeRoadState(s)).toBe('tile=perth&zoom=whole&view=map')
@@ -89,5 +102,12 @@ describe('historyMode', () => {
   it('pushes one when the stack list opens, so Back closes it', () => {
     const stack = state({ tile: 'more-courses-perth' })
     expect(historyMode(stack, { ...stack, open: 'list' })).toBe('push')
+  })
+
+  it('pushes one when her answers open, so Back closes them; a switch while open replaces', () => {
+    const answers = state({ open: 'answers' })
+    expect(historyMode(at, { ...at, open: 'answers' })).toBe('push')
+    expect(historyMode(answers, { ...answers, view: 'map' })).toBe('replace')
+    expect(historyMode(answers, DEFAULT_ROAD_STATE)).toBe('replace')
   })
 })

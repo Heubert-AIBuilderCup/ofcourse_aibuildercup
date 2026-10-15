@@ -12,7 +12,7 @@
     "lint:fix": "biome check --fix --unsafe .",
     "format": "biome format . --write",
     "type-check": "tsc --noEmit",
-    "test:run": "bun test",
+    "test:run": "bash scripts/capped.sh bun test",
     "test:db": "bun run db:reset && DB_TESTS=1 bun test src/shared/lib/auth/hooks.test.ts src/features/admin/users src/shared/lib/presence-server.test.ts",
     "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",

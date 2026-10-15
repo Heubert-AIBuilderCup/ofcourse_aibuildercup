@@ -4,12 +4,15 @@ import { alias } from 'drizzle-orm/pg-core'
 import { db } from '@/shared/lib/db'
 import { roadmap } from '@/shared/lib/db/schema'
 import {
+  type Coins,
   coinsSchema,
+  type Relative,
   ROADMAP_NAME_MAX,
   type Roadmap,
   type RoadmapChoices,
   relativeSchema,
   roadmapChoicesSchema,
+  type StoredAnswers,
   storedAnswersSchema,
 } from '@/shared/types/student'
 
@@ -269,22 +272,80 @@ export async function saveChoices(
   return rows.length > 0
 }
 
+/** Every entry a question and a valid answer, or null: the schema drops a bad entry quietly. */
+function wholeAnswers(answers: unknown): StoredAnswers | null {
+  const parsed = storedAnswersSchema.safeParse(answers)
+  return parsed.success && Object.keys(parsed.data).length === Object.keys(answers as object).length
+    ? parsed.data
+    : null
+}
+
+/** Why a roadmap's answers were not saved, or true when they were. */
+export type AnswersSaved = true | 'bad-answers' | 'not-found'
+
 /**
- * A new finished roadmap with its own copy of the source's answers, relative and coins, unnamed,
- * its board untouched. Null when the source is not hers.
+ * Her answers on one of her finished roadmaps, the whole set: what is not in it is no longer
+ * answered. Every entry must be a question and a valid answer, or nothing is written
+ * ('bad-answers'); 'not-found' when the roadmap is not hers, a draft, deleted or unknown.
  */
-export async function copyRoadmap(userId: string, fromId: string): Promise<Roadmap | null> {
-  const source = await getRoadmap(userId, fromId)
-  if (!source) return null
+export async function saveRoadmapAnswers(
+  userId: string,
+  id: string,
+  answers: unknown,
+): Promise<AnswersSaved> {
+  const parsed = wholeAnswers(answers)
+  if (!parsed) return 'bad-answers'
+  const rows = await db
+    .update(roadmap)
+    .set({ answers: parsed })
+    .where(hers(userId, id))
+    .returning({ id: roadmap.id })
+  return rows.length > 0 || 'not-found'
+}
+
+/** Why a roadmap was not made, or the roadmap made. */
+export type Created = Roadmap | 'bad-answers' | 'not-found'
+
+/**
+ * "Create roadmap": a new finished roadmap, never opened, with these answers (the whole set,
+ * refused on one bad entry: 'bad-answers'), under the name given (a copy's "Copy of …"), else
+ * unnamed. From one of hers (`fromId`) it is a copy
+ * (copiedFrom) with the source's person, coins and last step unless given; 'not-found' when the
+ * source is not hers, deleted or unknown. Its board's choices as given, else untouched.
+ */
+export async function createRoadmap(
+  userId: string,
+  {
+    fromId,
+    name = null,
+    answers,
+    relative,
+    coins,
+    choices = {},
+  }: {
+    fromId?: string
+    /** 1 to ROADMAP_NAME_MAX characters (the roadmap_name_check). */
+    name?: string | null
+    answers: unknown
+    relative?: Relative | null
+    coins?: Coins | null
+    choices?: RoadmapChoices
+  },
+): Promise<Created> {
+  const parsed = wholeAnswers(answers)
+  if (!parsed) return 'bad-answers'
+  const source = fromId === undefined ? null : await getRoadmap(userId, fromId)
+  if (fromId !== undefined && !source) return 'not-found'
   const [row] = await db
     .insert(roadmap)
     .values({
       userId,
-      answers: source.answers,
-      relative: source.relative,
-      coins: source.coins,
-      lastStep: source.lastStep,
-      copiedFrom: source.id,
+      name,
+      answers: parsed,
+      relative: relative === undefined ? (source?.relative ?? null) : relative,
+      coins: coins === undefined ? (source?.coins ?? null) : coins,
+      choices: roadmapChoicesSchema.parse(choices),
+      ...(source ? { lastStep: source.lastStep, copiedFrom: source.id } : {}),
       finishedAt: sql`now()`,
     })
     .returning(fields)

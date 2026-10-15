@@ -97,6 +97,7 @@ const TILES: Tile[] = [
     gains: 'Good for: PR, career',
     costs: 'Less good for: location',
     badges: ['offerings', 'ielts', 'fork'],
+    fees: 33.5,
     level: 'course',
     courseStepName: 'Master’s · Cyber Security',
     lab: lab('below', 'below', 'below'),
@@ -274,6 +275,14 @@ export const PRIYA: Road = {
       kind: 'Condition',
       value: 'Maths unit in year 1',
       explanation: 'UWA asks business graduates to take one statistics bridging unit.',
+      icon: 'alert',
+    },
+    // Shown once a budget under the fees is saved; applyAnswers writes its figures.
+    over: {
+      kind: 'Condition',
+      value: 'Over budget by AUD 3.5k',
+      explanation:
+        'Your budget is AUD 30k a year for fees, roughly. This course is AUD 33.5k a year.',
       icon: 'alert',
     },
   },
