@@ -92,9 +92,7 @@ describe('Board', () => {
   it("shows six column headings in the design's words and the render gate after the first", () => {
     view(EDITOR)
     expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(6)
-    expect(
-      screen.getByRole('heading', { level: 2, name: /^Structures · pick one/ }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: /^Structures\b/ })).toBeInTheDocument()
     expect(screen.getByText('Render gate · crossed by approval only')).toBeInTheDocument()
   })
 

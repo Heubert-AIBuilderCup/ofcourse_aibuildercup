@@ -99,7 +99,7 @@ describe('the board filters in the address', () => {
 describe('boardView', () => {
   it('lists the six columns in order with their labels', () => {
     expect(view([]).columns.map((c) => c.label)).toEqual([
-      'Structures · pick one',
+      'Structures',
       'Approved · to render',
       'Rendered · edit & check',
       'In review',

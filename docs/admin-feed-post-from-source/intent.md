@@ -85,7 +85,7 @@ Every model step is a real call, and none can leave the marketer stuck or show a
 
 ### 2. The board
 
-17. Given the Board, when it is shown, then it has the columns Structures · pick one, the render gate, Approved · to render, Rendered · edit & check, In review, Ready · publish or export, and Live in feed · exported, and a filter All / Feed posts / Social versions with a count on each. Every card is a real post; there are no sample cards.
+17. Given the Board, when it is shown, then it has the columns Structures, the render gate, Approved · to render, Rendered · edit & check, In review, Ready · publish or export, and Live in feed · exported, and a filter All / Feed posts / Social versions with a count on each. Every card is a real post; there are no sample cards. (16 Oct 2026, Nikhil: the first column reads "Structures", without "· pick one": the columns are to-do lists, not instructions.)
 18. Given a feed post with a Nepal variant or a social version, when the Board is shown, then each sits indented under its post with "↳ from feed post <title>", and the post's card lists them (for example "↳ Nepal · market variant", "↳ Instagram · ready").
 19. Given a card, when it is shown, then it says who changed the post last and when.
 20. Given a card, when it is opened, then the workbench replaces the board at full width with a stage rail showing the render gate as locked or open, and "← Board" returns to the board with the filter as it was.

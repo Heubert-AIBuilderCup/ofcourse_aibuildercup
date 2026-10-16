@@ -171,13 +171,15 @@ test('an admin cannot give or remove content roles', async ({ browser }) => {
   }
 })
 
-test('an editor sees only the Board, and the users admin sends them there', async ({ browser }) => {
+test('an editor sees the content sections, not Users or Models, and the users admin sends them there', async ({
+  browser,
+}) => {
   const e = await person(browser, 'cr-editor', { editor: true })
   try {
     await e.page.goto('/admin')
     await expect(e.page).toHaveURL(/\/admin\/board$/)
     await expect(e.page.getByRole('link', { name: 'OfCourse Admin' })).toBeVisible()
-    expect(await navTabs(e.page)).toEqual(['Board'])
+    expect(await navTabs(e.page)).toEqual(['Board', 'Comic gaps', 'Updates', 'Ideas', 'Insights'])
     await expectNoSideways(e.page)
 
     await e.page.goto('/admin/users')
@@ -187,10 +189,18 @@ test('an editor sees only the Board, and the users admin sends them there', asyn
   }
 })
 
-test("a superadmin's tabs are Board and Users", async ({ page }) => {
+test("a superadmin's tabs are every section, Users and Models included", async ({ page }) => {
   await devLogin(page, SUPERADMIN, 'E2E Content Superadmin')
   await page.goto('/admin/board')
-  expect(await navTabs(page)).toEqual(['Board', 'Users'])
+  expect(await navTabs(page)).toEqual([
+    'Board',
+    'Comic gaps',
+    'Updates',
+    'Ideas',
+    'Insights',
+    'Users',
+    'Models',
+  ])
 })
 
 test("an admin sees the board and an editor's post, and can change nothing", async ({
@@ -210,7 +220,10 @@ test("an admin sees the board and an editor's post, and can change nothing", asy
     await a.page.goto(`/admin/posts/${id}`)
     await expect(a.page.getByRole('heading', { level: 1, name: title })).toBeVisible()
     await expect(a.page.getByRole('heading', { level: 2, name: 'Ideas' })).toBeVisible()
-    await expect(a.page.getByRole('main').getByRole('button')).toHaveCount(0)
+    // Selecting an idea card only shows its details (aria-pressed); no button that acts is there.
+    const main = a.page.getByRole('main')
+    await expect(main.getByRole('button', { name: 'Use this idea' })).toHaveCount(0)
+    await expect(main.locator('button:not([aria-pressed])')).toHaveCount(0)
     await expectNoSideways(a.page)
   } finally {
     await e.context.close()

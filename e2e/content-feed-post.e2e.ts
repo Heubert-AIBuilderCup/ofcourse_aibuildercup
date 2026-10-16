@@ -32,6 +32,7 @@ import {
   TWIN,
   toSettings,
   withMarker,
+  writeSlides,
 } from './helpers/content'
 import {
   cacheArt,
@@ -257,15 +258,15 @@ test('er adds a selected sentence of the twin as a fact, word for word, and remo
 test('the board shows the post in its first column with who changed it, and ← Board keeps the filter', async () => {
   const { page } = er
   await page.goto('/admin/board')
-  expect(await page.getByRole('heading', { level: 2 }).allInnerTexts()).toEqual([
-    'Text · pick one',
-    'Images · to draw',
+  expect(await page.getByRole('heading', { level: 2 }).allTextContents()).toEqual([
+    'Structures',
+    'Approved · to render',
     'Rendered · edit & check',
     'In review',
     'Ready · publish or export',
     'Live in feed · exported',
   ])
-  const column = page.getByRole('region', { name: 'Text · pick one', exact: true })
+  const column = page.getByRole('region', { name: 'Structures', exact: true })
   const card = column.getByRole('listitem').filter({
     has: page.locator(`a[href^="/admin/posts/${posts.paidWork}"]`),
   })
@@ -286,7 +287,8 @@ test('the board shows the post in its first column with who changed it, and ← 
   expect(feed).toBeGreaterThanOrEqual(2)
   expect(all).toBe(feed + social)
 
-  await page.goto(`/admin/posts/${posts.paidWork}?from=social`)
+  // `from` carries the board's own query, as its cards link (lib/board.ts boardFrom).
+  await page.goto(`/admin/posts/${posts.paidWork}?from=${encodeURIComponent('filter=social')}`)
   await page.getByRole('link', { name: '← Board' }).click()
   await expect(page).toHaveURL(/\/admin\/board\?filter=social$/)
 })
@@ -658,7 +660,8 @@ test('a failed draft after "Use this idea" keeps the facts and offers Try again 
   const id = await openedPostId(page)
   await ideasOffered(page)
   await page.getByRole('button', { name: 'Use this idea' }).first().click()
-  await expect(page.getByText('Drafting failed. Your facts are kept.')).toBeVisible({
+  await writeSlides(page)
+  await expect(page.getByText('Drafting failed. Your outline is kept.')).toBeVisible({
     timeout: 90_000,
   })
   await expect(page.getByRole('button', { name: 'Use this version' })).toHaveCount(0)

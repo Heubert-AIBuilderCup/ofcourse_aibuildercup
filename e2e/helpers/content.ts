@@ -76,7 +76,15 @@ export async function openedPostId(page: Page): Promise<string> {
   return id
 }
 
-export type Step = 'source' | 'ideas' | 'text' | 'images' | 'settings' | 'review' | 'live'
+export type Step =
+  | 'source'
+  | 'ideas'
+  | 'outline'
+  | 'text'
+  | 'images'
+  | 'settings'
+  | 'review'
+  | 'live'
 
 /** Open one step's screen of a post (`/admin/posts/<id>` alone opens the step it is at). */
 export async function openStep(page: Page, id: string, step: Step): Promise<void> {
@@ -107,19 +115,33 @@ export async function makePost(page: Page, source: Source): Promise<string> {
 }
 
 /**
- * Wait on the Text step until the versions are drafted (criterion 93): "Draft again" offers more
- * and a version can be used.
+ * Wait on the Text step until the versions are drafted (criterion 93): "Draft again" offers more,
+ * and the first Ready version is picked for the editor (GD29), the others folded away.
  */
 export async function versionsDrafted(page: Page): Promise<void> {
   await expect(page.getByRole('button', { name: 'Draft again' })).toBeVisible({ timeout: 90_000 })
-  await expect(page.getByRole('button', { name: 'Use this version' }).first()).toBeVisible({
-    timeout: 90_000,
-  })
+  await expect(chosenVersion(page)).toBeVisible({ timeout: 90_000 })
 }
 
-/** On the Ideas step, "Use this idea" on card `n` (0-based) and wait for its versions on Text. */
+/** Unfold "Choose another version" on the Text step, where the versions not picked wait. */
+export async function openOtherVersions(page: Page): Promise<void> {
+  const others = page.getByRole('group', { name: 'Choose another version', exact: true })
+  if ((await others.getAttribute('open')) === null) await others.locator('summary').click()
+}
+
+/** On the Outline step, once the idea's outline is there, "Write the slides". */
+export async function writeSlides(page: Page): Promise<void> {
+  await onStep(page, 'outline')
+  await page.getByRole('button', { name: 'Write the slides' }).click({ timeout: 90_000 })
+}
+
+/**
+ * On the Ideas step, "Use this idea" on card `n` (0-based): it opens the idea's Outline, and
+ * "Write the slides" there drafts its versions on Text.
+ */
 export async function pickIdea(page: Page, n = 0): Promise<void> {
   await page.getByRole('button', { name: 'Use this idea' }).nth(n).click()
+  await writeSlides(page)
   await onStep(page, 'text')
   await versionsDrafted(page)
 }
@@ -135,12 +157,19 @@ export async function draftedPost(page: Page, source: Source): Promise<string> {
 export const chosenVersion = (page: Page): Locator =>
   page.getByRole('region', { name: 'Your version', exact: true })
 
-/** "Use this version" on version `n` (0-based) of the Text step, and wait until it is the chosen one. */
+/**
+ * Version `n` (0-based) of the Text step as the chosen one. The first is picked for the editor
+ * when the versions arrive (GD29: the first Ready one; every fake version is Ready), so `n` = 0
+ * waits for it, and any other is used from under "Choose another version".
+ */
 export async function pickVersion(page: Page, n = 0): Promise<void> {
+  await expect(chosenVersion(page)).toBeVisible({ timeout: 60_000 })
+  if (n === 0) return
+  await openOtherVersions(page)
   await page
     .getByRole('article')
     .filter({ has: page.getByRole('button', { name: 'Use this version' }) })
-    .nth(n)
+    .nth(n - 1)
     .getByRole('button', { name: 'Use this version' })
     .click()
   await expect(chosenVersion(page)).toBeVisible({ timeout: 60_000 })

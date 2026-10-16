@@ -21,6 +21,7 @@ import {
   nonDemo,
   onStep,
   openDetails,
+  openOtherVersions,
   openStep,
   PAID_WORK,
   pickIdea,
@@ -201,21 +202,16 @@ test('"Make post" stops at the idea cards, and "Use this idea" runs to three ver
   // One press on a card, and nothing after it: the helper waits until the versions are drafted.
   await pickIdea(page)
 
-  // Three versions in the card's look, one row, each with its angle and "Use this version".
-  const boxes = []
-  for (const angle of ANGLES) {
+  // Three versions in the card's look, each labelled by its angle: the first is picked for the
+  // editor (GD29) and the other two wait under "Choose another version" with "Use this version".
+  await expect(chosenVersion(page)).toContainText(ANGLES[0])
+  await openOtherVersions(page)
+  for (const angle of ANGLES.slice(1)) {
     const card = version(page, angle)
     await expect(card.getByRole('heading', { level: 4, name: angle, exact: true })).toBeVisible()
     await expect(card.getByRole('button', { name: 'Use this version' })).toBeEnabled()
     await slidesLoaded(card, 5)
-    const box = await card.boundingBox()
-    if (!box) throw new Error('A version is not laid out')
-    boxes.push(box)
   }
-  expect(boxes[1].y, 'side by side').toBeCloseTo(boxes[0].y, 0)
-  expect(boxes[2].y, 'side by side').toBeCloseTo(boxes[0].y, 0)
-  expect(boxes[1].x).toBeGreaterThan(boxes[0].x + boxes[0].width - 1)
-  expect(boxes[2].x).toBeGreaterThan(boxes[1].x + boxes[1].width - 1)
 
   // Each paragraph's first sentence is a fact on the Source step, numbered and word for word.
   await openStep(page, postId, 'source')

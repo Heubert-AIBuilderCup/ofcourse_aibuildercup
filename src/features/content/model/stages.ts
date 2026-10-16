@@ -6,7 +6,7 @@ import { STAGES, type Stage } from '@/shared/lib/db/content-shapes'
 export { STAGES, type Stage }
 
 export const COLUMNS = [
-  { id: 'structures', label: 'Structures · pick one', stages: ['source', 'structures'] },
+  { id: 'structures', label: 'Structures', stages: ['source', 'structures'] },
   { id: 'approved', label: 'Approved · to render', stages: ['approved'] },
   { id: 'rendered', label: 'Rendered · edit & check', stages: ['rendered'] },
   { id: 'in_review', label: 'In review', stages: ['in_review'] },

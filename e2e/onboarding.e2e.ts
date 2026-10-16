@@ -237,7 +237,8 @@ test('in a tall window the panel stays put at the top while the step scrolls', a
     const panel = page.getByRole('complementary', { name: 'Getting started' })
     await expect(panel).toBeVisible()
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
-    expect(await panel.evaluate((p) => p.getBoundingClientRect().top)).toBe(0)
+    // Within half a pixel: the layout's fractional sizes round (0.2 px seen at 1440 × 900).
+    expect(await panel.evaluate((p) => p.getBoundingClientRect().top)).toBeCloseTo(0, 0)
   } finally {
     await deleteUsers([email])
   }

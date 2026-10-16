@@ -37,7 +37,7 @@ Other   as S the tabs are exactly "Board" and "Users"
 Go to   /admin/board as S · "+ New feed post"
 Do      paste the demo source (title, kind, five paragraphs) · "Extract ideas" · double-click it once to check
 See     ¶1–¶5, three key ideas, every fact supported · toast "Ideas extracted" · only one post is created
-Other   the board shows the card in "Structures · pick one" with "Changed by <you> · <time>"
+Other   the board shows the card in "Structures" with "Changed by <you> · <time>"
 ```
 
 **4 · The planted claim is caught** · AC 23, 24

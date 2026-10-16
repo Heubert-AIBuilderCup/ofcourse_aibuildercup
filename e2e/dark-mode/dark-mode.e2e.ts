@@ -6,7 +6,6 @@ import { signInUser } from '../helpers/login'
 import { card, factUrl, newStudent, skipSplash } from '../helpers/student'
 import {
   colourOf,
-  differingShare,
   hasEdgeLine,
   headerMenu,
   hex,
@@ -18,7 +17,6 @@ import {
   openIn,
   painted,
   sameColour,
-  shot,
   switchFromMenu,
   switchFromToggle,
   themeCookie,
@@ -212,20 +210,20 @@ test('AC2: the chosen answer is the dark accent tint with light accent text [ans
 })
 
 // ---------------------------------------------------------------------------------------------
-// AC3: the steel panel and the login hero look the same in both themes; in dark a hairline.
+// AC3: the panel and the login hero are the brand blue in light and Industry's steel in dark
+// (the brand ground, DESIGN.md, since 12 Oct); in dark a hairline.
 
 test.describe('AC3', () => {
   test.use({ reducedMotion: 'reduce' })
 
-  async function sameInBothThemes(page: Page, path: string, steel: (p: Page) => Locator) {
+  async function blueInLightSteelInDark(page: Page, path: string, steel: (p: Page) => Locator) {
     await openIn(page, path, 'light')
-    const lightShot = await shot(page, await boxOf(steel(page)))
     const lightFill = await colourOf(steel(page), 'background-color')
+    expect(sameColour(lightFill, hex('#0062c4'), 1), `light fill ${lightFill}`).toBe(true)
     await openIn(page, path, 'dark')
-    const darkShot = await shot(page, await boxOf(steel(page)))
     const darkFill = await colourOf(steel(page), 'background-color')
-    expect(sameColour(lightFill, darkFill, 1), `fill ${lightFill} vs ${darkFill}`).toBe(true)
-    expect(await differingShare(page, lightShot, darkShot)).toBeLessThan(0.01)
+    const steelPanel = await token(page, '--panel')
+    expect(sameColour(darkFill, steelPanel, 1), `dark fill ${darkFill} vs ${steelPanel}`).toBe(true)
   }
 
   async function hairlineInDark(page: Page, path: string, steel: (p: Page) => Locator) {
@@ -240,17 +238,17 @@ test.describe('AC3', () => {
     )
   }
 
-  test('AC3: it looks the same in both themes [onboarding panel]', async ({ page }) => {
+  test('AC3: the brand blue in light, the steel in dark [onboarding panel]', async ({ page }) => {
     const email = await newStudent(page, 'dm-ac3-panel')
     try {
-      await sameInBothThemes(page, '/onboarding/character', panel)
+      await blueInLightSteelInDark(page, '/onboarding/character', panel)
     } finally {
       await deleteUsers([email])
     }
   })
 
-  test('AC3: it looks the same in both themes [login hero]', async ({ page }) => {
-    await sameInBothThemes(page, '/', hero)
+  test('AC3: the brand blue in light, the steel in dark [login hero]', async ({ page }) => {
+    await blueInLightSteelInDark(page, '/', hero)
   })
 
   test('AC3: in dark a hairline marks where it meets the page [onboarding panel]', async ({
@@ -697,17 +695,27 @@ test.describe('AC11', () => {
       const menu = page.getByRole('menu', { name: 'Menu' })
       await expect(menu).toBeVisible()
       const dark = menu.getByRole('menuitemcheckbox', { name: 'Dark theme' })
-      const signOut = menu.getByRole('menuitem', { name: 'Sign out' })
+      // The menu holds more than the theme and Sign out (Your roadmaps, Your answers…): the arrows
+      // move item to item, whatever the items are.
+      const items = menu.locator('[role="menuitem"], [role="menuitemcheckbox"]')
+      const focusedAt = () =>
+        items.evaluateAll((all) => all.indexOf(document.activeElement as HTMLElement))
+      // Enter may already have focused the first item; ArrowDown then moves to the next.
       await page.keyboard.press('ArrowDown')
-      const first = (await dark.evaluate((el) => el === document.activeElement)) ? dark : signOut
-      const second = first === dark ? signOut : dark
-      await expect(first).toBeFocused()
+      await expect.poll(focusedAt).toBeGreaterThanOrEqual(0)
+      const first = await focusedAt()
+      expect(await items.count(), 'an item below to move to').toBeGreaterThan(first + 1)
       await page.keyboard.press('ArrowDown')
-      await expect(second).toBeFocused()
+      await expect.poll(focusedAt).toBe(first + 1)
       await page.keyboard.press('ArrowUp')
-      await expect(first).toBeFocused()
+      await expect.poll(focusedAt).toBe(first)
 
-      if (second === dark) await page.keyboard.press('ArrowDown')
+      const darkAt = await items.evaluateAll((all) =>
+        all.findIndex((el) => el.getAttribute('role') === 'menuitemcheckbox'),
+      )
+      expect(darkAt, 'the menu has the Dark theme item').toBeGreaterThanOrEqual(0)
+      const key = darkAt >= first ? 'ArrowDown' : 'ArrowUp'
+      for (let i = 0; i < Math.abs(darkAt - first); i++) await page.keyboard.press(key)
       await expect(dark).toBeFocused()
       await page.keyboard.press('Space')
       await expect(html(page)).toHaveAttribute('data-theme', 'dark')
