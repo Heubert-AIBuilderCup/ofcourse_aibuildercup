@@ -1,7 +1,7 @@
-// The student evaluation (criteria 84, 85): the labelled cases, each one call through the app's
-// real client, so its checks and its ai_call log apply, with the cache bypassed and every spec
-// pinned to Flash-Lite (one attempt per call). One shared counter stops the run at 60 attempts, 50
-// on the one rerun (--rerun); cases past it are skipped and the run says so.
+// The student evaluation (criteria 84, 85): the labelled cases, Ask's then own words', each one
+// call through the app's real client, so its checks and its ai_call log apply, with the cache
+// bypassed and every spec pinned to Flash-Lite (one attempt per call). One shared counter stops the
+// run at 60 attempts, 50 on the one rerun (--rerun); cases past it are skipped and the run says so.
 //   DATABASE_URL=…/student_roads AI_DAILY_CAP_PRO=0 bun run ai:eval:student [--rerun]
 // Guards first: the real provider, Pro capped at 0, a Flash-Lite model, the student_roads database.
 
@@ -41,9 +41,11 @@ const { recording } = await import('../src/features/content/ai/recording')
 const { vertexProvider } = await import('../src/features/content/ai/vertex')
 const { dbCallLog } = await import('../src/features/content/ai/calls')
 const { dbCache } = await import('../src/features/content/ai/cache')
-const { STUDENT_ASK } = await import('../src/features/content/ai/prompts')
+const { STUDENT_ASK, STUDENT_WORDS } = await import('../src/features/content/ai/prompts')
+const { OWN_WORDS_CASES } = await import('../src/features/opening/evals/own-words-cases')
+const { checkOwnWords, ownWordsQuestions } = await import('../src/features/opening/model/own-words')
 const { ASK_CASES } = await import('../src/features/roads/evals/ask-cases')
-const { verdict } = await import('../src/features/roads/evals/score')
+const { scoreChips, verdict, wordsResult } = await import('../src/features/roads/evals/score')
 const { askFacts, askProblems } = await import('../src/features/roads/model/ask')
 const { DEMO_PROFILES } = await import('../src/features/roads/model/demo-profiles')
 const { roadFor } = await import('../src/features/roads/model/road-for')
@@ -94,16 +96,55 @@ for (const c of ASK_CASES) {
   replies.set(label, seen.first?.reply ?? (res.ok ? '' : res.error))
 }
 
-// Own words: its cases join here, on the own-words branch (Task R11's own-words part), each
-// through STUDENT_WORDS and checkOwnWords, pushed to `results` as { kind: 'words', … }.
+// Own words: each case through STUDENT_WORDS, then checkOwnWords, as the app reads her words (with
+// no stated answers, and code's own reading alone when the call fails); what it keeps is scored
+// against the labels (wordsResult). Wellbeing and instructions are judged by each case's labelled
+// words, never the app's own patterns: a chip or tag on them, shown or in the model's first (only)
+// attempt before the app's checks drop it, fails its bar. A failed call fails its own bar, "failed
+// calls", never the wellbeing one.
+for (const c of OWN_WORDS_CASES) {
+  const label = `words ${c.step} "${c.text}"`
+  if (spent()) {
+    skipped++
+    continue
+  }
+  const res = await ai.generateJson(pin(STUDENT_WORDS), {
+    data: { text: c.text, questions: ownWordsQuestions(c.step) },
+    cache: false,
+  })
+  const answer = res.ok ? res.value : null
+  const read = checkOwnWords(c.step, c.text, answer ?? { chips: [], tags: [] }, {}, c.where)
+  results.push(wordsResult(label, c.expect, answer, read, res.ok ? [] : [res.error]))
+  replies.set(label, res.ok ? JSON.stringify(res.value).slice(0, 500) : res.error)
+}
 
 const verdictName = (v: boolean | null) => (v === null ? 'no answer' : v ? 'answerable' : 'refused')
 for (const r of results) {
-  const missed = r.kind === 'ask' && r.got !== r.expected
+  const chips = r.kind === 'words' ? scoreChips(r.expected, r.got) : null
+  const missed =
+    r.kind === 'ask'
+      ? r.got !== r.expected
+      : chips !== null &&
+        (chips.right < chips.offered ||
+          chips.found < chips.expected ||
+          r.wellbeingChips > 0 ||
+          r.untaggedWellbeing > 0 ||
+          r.modelWellbeingChips > 0 ||
+          r.instructionItems > 0 ||
+          r.modelInstructionItems > 0 ||
+          r.failed)
   if (!missed && r.problems.length === 0) continue
   console.log(missed ? `MISS ${r.label}` : r.label)
   if (r.kind === 'ask') {
     console.log(`  expected ${verdictName(r.expected)} · got ${verdictName(r.got)}`)
+    console.log(`  reply: ${replies.get(r.label)}`)
+  } else if (r.failed) {
+    console.log(`  no reading: the call failed · got ${JSON.stringify(r.got)} from code alone`)
+  } else {
+    console.log(`  expected ${JSON.stringify(r.expected)} · got ${JSON.stringify(r.got)}`)
+    console.log(
+      `  tags ${r.tags} · wellbeing chips ${r.wellbeingChips} shown, ${r.modelWellbeingChips} from the model · labelled wellbeing with no tag ${r.untaggedWellbeing} · on instructions ${r.instructionItems} shown, ${r.modelInstructionItems} from the model`,
+    )
     console.log(`  reply: ${replies.get(r.label)}`)
   }
   for (const problem of r.problems) console.log(`  problem: ${problem}`)

@@ -8,7 +8,14 @@ import motion from '@/shared/components/motion.module.css'
 import { Note } from '@/shared/components/Note'
 import { Button, buttonVariants } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
-import type { AnswerValue, QuestionKey, Relative } from '@/shared/types/student'
+import type { ActionResult } from '@/shared/types/action-result'
+import type {
+  AnswerValue,
+  QuestionKey,
+  Relative,
+  StoredAnswer,
+  StoredAnswers,
+} from '@/shared/types/student'
 import {
   type SaveAnswers,
   type SaveRelative,
@@ -21,6 +28,8 @@ import { ANSWER_SAVE_FAILED, PERSON_SAVE_FAILED } from '../model/messages'
 import {
   askedQuestions,
   forwardPath,
+  nextOpenQuestion,
+  OWN_WORDS_STEP_AT,
   PERSON,
   QUESTION_STEPS,
   type QuestionStep,
@@ -30,11 +39,13 @@ import {
   shownQuestion,
 } from '../model/onboarding'
 import { useOnboardingAnswers } from '../model/onboarding-answers'
+import { afterOwnWords } from '../model/own-words-next'
 import { parseAnswer, type Question, questionOf } from '../model/questions'
 import { AnswerCards } from './AnswerCards'
 import { AreaChecks } from './AreaChecks'
 import { ExactScore } from './ExactScore'
 import styles from './facts.module.css'
+import { OwnWordsBox, type ReadOwnWords } from './OwnWordsBox'
 import { PersonForm } from './PersonForm'
 import { SaveFailed } from './SaveFailed'
 import { StepActions } from './StepActions'
@@ -108,7 +119,10 @@ const IMPACT_ICONS = {
  * a form instead of cards: her person is held here from the one the page passed (a
  * `router.refresh()` does not overwrite what she entered), so "Do you know anyone…" speaks of the
  * person on screen, and each change saves as the answers do. Step 04's last question leads on to
- * step 05, Your attention.
+ * step 05, Your attention. With `readOwnWordsAction`, the step's first question has "Tell me in your
+ * own words" above it: the chips she uses are stored at once, and the step moves on to its first
+ * question still open; from then Next skips every question answered after the one shown, so no
+ * question a chip answered is asked again.
  */
 export function QuestionScreen({
   step,
@@ -116,6 +130,7 @@ export function QuestionScreen({
   saveAnswersAction,
   saveRelativeAction,
   englishScores,
+  readOwnWordsAction,
 }: {
   step: QuestionStep
   /** As stored when the page rendered. */
@@ -125,6 +140,8 @@ export function QuestionScreen({
   saveRelativeAction?: SaveRelative
   /** Each course's English score, from the roads' catalogue: step 01's English line counts them. */
   englishScores: EnglishScores
+  /** Reads her own words on the step; without it, no box is offered. */
+  readOwnWordsAction?: ReadOwnWords
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -143,15 +160,24 @@ export function QuestionScreen({
     asked.findIndex((q) => q.key === item.key),
     0,
   )
-  const last = index === asked.length - 1
   const forward = forwardPath(step, answers)
   const [person, setPerson] = useState(relative)
+  // Once her own words answered some of the step, Next skips every question answered after this
+  // one; with none left open it leaves the step.
+  const [wordsUsed, setWordsUsed] = useState(false)
+  const nextKey = wordsUsed
+    ? nextOpenQuestion(step, answers, item.key, person)
+    : (asked[index + 1]?.key ?? null)
+  const last = nextKey === null
   const answerSave = useAnswerSave(saveAnswersAction)
   const personSave = useRelativeSave(saveRelativeAction ?? NO_PERSON_SAVE)
   const root = useRef<HTMLDivElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   const shown = useRef(item.key)
   const headingId = useId()
+  const ownStep = OWN_WORDS_STEP_AT[step]
+  // Where "Use these" goes: worked out from her answers with the chips she kept.
+  const afterWords = useRef<string | null>(null)
 
   // The URL follows the question shown, with no new history entry (Next.js syncs usePathname).
   useEffect(() => {
@@ -166,7 +192,11 @@ export function QuestionScreen({
   }, [item.key])
 
   function go(key: StepKey) {
-    window.history.pushState(null, '', questionPath(step, key))
+    goTo(questionPath(step, key))
+  }
+
+  function goTo(path: string) {
+    window.history.pushState(null, '', path)
     const top = root.current?.getBoundingClientRect().top ?? 0
     if (top < 0) root.current?.scrollIntoView({ block: 'start' })
   }
@@ -202,6 +232,22 @@ export function QuestionScreen({
     }
   }
 
+  /** The chips she kept from her own words, saved as her taps are, all at once. */
+  async function saveOwnWords(patch: StoredAnswers): Promise<ActionResult> {
+    answerSave.flush()
+    const raw: Partial<Record<QuestionKey, AnswerValue>> = {}
+    for (const [key, stored] of Object.entries(patch) as [QuestionKey, StoredAnswer][]) {
+      raw[key] = stored.value
+    }
+    const result = await saveAnswersAction(raw)
+    if (result.ok) {
+      setAnswers((current) => ({ ...current, ...patch }))
+      setWordsUsed(true)
+      afterWords.current = afterOwnWords(ownStep, { ...answers, ...patch }, person)
+    }
+    return result
+  }
+
   function changePerson(next: Relative | null) {
     setPerson(next)
     personSave.save(PERSON, next)
@@ -222,6 +268,18 @@ export function QuestionScreen({
       <div className={cn(motion.rise, motion.d2, 'flex min-h-11 items-center')}>
         <StepKicker detail={`${index + 1} of ${asked.length}`}>{title}</StepKicker>
       </div>
+
+      {readOwnWordsAction && item.key === asked[0]?.key ? (
+        <OwnWordsBox
+          step={ownStep}
+          answers={answers}
+          readAction={readOwnWordsAction}
+          saveAnswers={saveOwnWords}
+          onDone={() => {
+            if (afterWords.current) goTo(afterWords.current)
+          }}
+        />
+      ) : null}
 
       <div key={item.key} className={cn(styles.question, 'flex flex-col gap-5 @max-xl:gap-4')}>
         {item.group ? <p className="m-0 text-lead text-muted-foreground">{item.group}</p> : null}
@@ -344,7 +402,7 @@ export function QuestionScreen({
           type="button"
           variant={last || answered ? 'strong' : 'outline'}
           size="lg"
-          onClick={() => (last ? leave(forward) : go(asked[index + 1].key))}
+          onClick={() => (nextKey === null ? leave(forward) : go(nextKey))}
           className="min-w-33 @max-xl:min-w-0 @max-xl:flex-1"
         >
           {last ? `Next: ${nextName}` : answered ? 'Continue' : 'Skip'}

@@ -79,6 +79,7 @@ export default async function RoadmapLayout({ children, params }: LayoutProps<'/
         firstVisit: roadmap.lastOpenedAt === null,
         answers: roadmap.answers,
         relative: roadmap.relative,
+        tags: roadmap.tags,
       }}
       match={matchLine(result)}
       rematch={result.kind !== 'off'}

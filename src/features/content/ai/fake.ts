@@ -692,7 +692,51 @@ export const FAKE_ANSWERS: FakeAnswers = {
     const { rows } = data as { rows: { id: string; text: string }[] }
     return { answerable: true, reply: rows[0].text, cited: [rows[0].id] }
   },
+  /**
+   * Each question's first option she wrote as a whole word (as it is, without its apostrophes,
+   * or its first word when hyphenated: "hands-on"), quoted from DATA.text; a clause that answers
+   * nothing is a tag, a wellbeing one when it says lonely, stress, worry or homesick.
+   */
+  student_words(data) {
+    const { text, questions } = data as {
+      text: string
+      questions: { key: string; options: string[] }[]
+    }
+    const chips: { key: string; value: string; quote: string }[] = []
+    for (const { key, options } of questions) {
+      for (const option of options) {
+        const quote = phrasesOf(option)
+          .map((phrase) => text.match(new RegExp(`(?<![a-z])${escaped(phrase)}(?![a-z])`, 'i')))
+          .find((match) => match !== null)?.[0]
+        if (quote === undefined) continue
+        chips.push({ key, value: option, quote })
+        break
+      }
+    }
+    const tags = text
+      .split(/[,.;!?\n]+/)
+      .map((clause) => clause.trim())
+      .filter(
+        (clause) =>
+          clause !== '' &&
+          !chips.some((chip) => clause.toLowerCase().includes(chip.quote.toLowerCase())),
+      )
+      .map((clause) => ({
+        text: clause.slice(0, 80),
+        quote: clause,
+        wellbeing: /lonel|stress|worr|homesick/i.test(clause),
+      }))
+    return { chips, tags }
+  },
 }
+
+/** How the fake finds an option in her words: as it is, without apostrophes, a hyphenated first word. */
+function phrasesOf(option: string): string[] {
+  const plain = option.replaceAll("'", '')
+  const first = plain.split(' ')[0] ?? ''
+  return [option, plain, ...(first.includes('-') ? [first] : [])]
+}
+const escaped = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /** The art the fake paints: an 8 × 8 square, #CCCCCC, or #CC0000 for art "with text"; each drawn by resvg once. */
 const fakeArt = new Map<string, Uint8Array>()

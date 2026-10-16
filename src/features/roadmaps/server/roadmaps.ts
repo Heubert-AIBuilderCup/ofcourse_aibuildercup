@@ -6,16 +6,19 @@ import { roadmap } from '@/shared/lib/db/schema'
 import {
   type Coins,
   coinsSchema,
+  type OwnWordsStep,
   ownWordsSchema,
   type Relative,
   ROADMAP_NAME_MAX,
   type Roadmap,
   type RoadmapChoices,
+  type RoadmapTag,
   relativeSchema,
   roadmapChoicesSchema,
   roadmapTagsSchema,
   type StoredAnswers,
   storedAnswersSchema,
+  TAGS_MAX,
 } from '@/shared/types/student'
 
 // Server-only reads and writes of one student's roadmaps. Every caller has already passed
@@ -147,6 +150,56 @@ const lastOpenedFirst = [
   desc(roadmap.createdAt),
   asc(roadmap.id),
 ]
+
+/**
+ * Her own words on one step, on the roadmap she is answering (a merge, as saveAnswers does: the
+ * other steps' words stay). The roadmap written, or null when she is answering none.
+ */
+export async function saveOwnWords(
+  userId: string,
+  step: OwnWordsStep,
+  text: string,
+): Promise<Roadmap | null> {
+  const words = ownWordsSchema.parse({ [step]: text })
+  const [row] = await db
+    .update(roadmap)
+    .set({
+      ownWords: sql`coalesce(${roadmap.ownWords}, '{}'::jsonb) || ${JSON.stringify(words)}::jsonb`,
+    })
+    .where(and(eq(roadmap.userId, userId), unfinished, alive))
+    .returning(fields)
+  return row ? toRoadmap(row) : null
+}
+
+/**
+ * Tags read from her words, added to the roadmap she is answering: one whose text is there
+ * already (in any case) is dropped, and past TAGS_MAX the oldest go. Her draft is locked while
+ * they are merged, so two readings at once both land. Nothing when she is answering none.
+ */
+export async function addTags(userId: string, tags: RoadmapTag[]): Promise<void> {
+  if (tags.length === 0) return
+  await db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ id: roadmap.id, tags: roadmap.tags })
+      .from(roadmap)
+      .where(and(eq(roadmap.userId, userId), unfinished, alive))
+      .limit(1)
+      .for('update')
+    if (!row) return
+    const merged = roadmapTagsSchema.safeParse(row.tags).data ?? []
+    const known = new Set(merged.map((t) => t.text.toLowerCase()))
+    for (const tag of tags) {
+      const key = tag.text.toLowerCase()
+      if (known.has(key)) continue
+      known.add(key)
+      merged.push(tag)
+    }
+    await tx
+      .update(roadmap)
+      .set({ tags: roadmapTagsSchema.parse(merged.slice(-TAGS_MAX)) })
+      .where(eq(roadmap.id, row.id))
+  })
+}
 
 /**
  * Her finished roadmaps, archived ones too (archivedAt set), last opened first, a never opened one

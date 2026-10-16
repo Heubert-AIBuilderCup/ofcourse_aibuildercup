@@ -1,10 +1,13 @@
 'use server'
 
 import { z } from 'zod/mini'
+import { studentAiOff } from '@/features/roads/switch'
 import { asStudent, fail } from '@/shared/lib/auth/as-student'
 import type { ActionResult } from '@/shared/types/action-result'
 import {
   coinsSchema,
+  OWN_WORDS_MAX,
+  OWN_WORDS_STEPS,
   PERSONAS,
   QUESTION_KEYS,
   type QuestionKey,
@@ -12,6 +15,8 @@ import {
   type StoredAnswers,
 } from '@/shared/types/student'
 import { parseAnswer } from './model/questions'
+import { type OwnWordsReading, readOwnWords } from './server/own-words'
+import { ownWordsAllowed } from './server/own-words-limit'
 import { saveAnswers, saveCoins, savePersona, saveRelative } from './server/profile'
 
 // The student's writes, one per tap. Each reads the student from the session (never from the
@@ -21,8 +26,12 @@ import { saveAnswers, saveCoins, savePersona, saveRelative } from './server/prof
 const INVALID = "That answer isn't one of the options."
 /** A write once onboarding is closed (a stale tab, another device): nothing is saved. */
 const CLOSED = 'Onboarding is finished. Your roadmaps hold your answers now.'
+const INVALID_WORDS = `Write something here, up to ${OWN_WORDS_MAX} characters.`
 
 const personaSchema = z.enum(PERSONAS)
+const ownWordsStepSchema = z.enum(OWN_WORDS_STEPS)
+/** Her words on a step: some text once trimmed, at most OWN_WORDS_MAX characters. */
+const ownWordsTextSchema = z.string().check(z.trim(), z.minLength(1), z.maxLength(OWN_WORDS_MAX))
 
 const isQuestionKey = (key: string): key is QuestionKey =>
   (QUESTION_KEYS as readonly string[]).includes(key)
@@ -89,5 +98,31 @@ export async function saveCoinsAction(coins: unknown): Promise<ActionResult> {
     if (!parsed.success) return fail(INVALID)
     if (!(await saveCoins(userId, parsed.data))) return fail(CLOSED)
     return { ok: true }
+  })
+}
+
+/**
+ * Her own words on a question step (facts, study, living, after), kept on the roadmap she is
+ * answering and read into chips and tags. A reading that fails or finds nothing is `failed`, not
+ * an error: the questions carry on as they are; so is every reading past OWN_WORDS_PER_HOUR in the
+ * hour, and every reading while the student AI is off (STUDENT_AI_OFF, criterion 81), with no
+ * model call.
+ */
+export async function readOwnWordsAction(
+  step: unknown,
+  text: unknown,
+): Promise<ActionResult<OwnWordsReading>> {
+  return asStudent('opening.ownWords', async (userId) => {
+    const parsedStep = ownWordsStepSchema.safeParse(step)
+    const parsedText = ownWordsTextSchema.safeParse(text)
+    if (!parsedStep.success || !parsedText.success) return fail(INVALID_WORDS)
+    const reading = await readOwnWords(
+      userId,
+      parsedStep.data,
+      parsedText.data,
+      !studentAiOff(process.env) && ownWordsAllowed(userId),
+    )
+    if (!reading) return fail(CLOSED)
+    return { ok: true, ...reading }
   })
 }

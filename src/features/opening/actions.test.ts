@@ -4,6 +4,9 @@
 
 import { afterEach, describe, expect, it, mock, spyOn } from 'bun:test'
 
+// The actions module also loads the own-words reader (./server/own-words), a server-only module.
+mock.module('server-only', () => ({}))
+
 type FakeSession = { user: { id: string; role: string | null } } | null
 let session: FakeSession = null
 const student = (): FakeSession => ({ user: { id: 'student-1', role: 'user' } })

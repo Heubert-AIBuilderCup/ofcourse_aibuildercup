@@ -21,6 +21,7 @@ export type UseCase =
   | 'character_plan'
   | 'student_why'
   | 'student_ask'
+  | 'student_words'
   | SearchUseCase
 
 /** The calls made with Google Search: they share the search cap, counted by these use cases. */

@@ -380,3 +380,23 @@ describe('the draft from scratch', () => {
     expect(onCreate).toHaveBeenCalledWith({ amount: { value: 30, state: 'stated' } })
   })
 })
+
+describe('in her own words', () => {
+  it("shows what she wrote, never the model's note about it", () => {
+    render(
+      <AnswersPanel
+        road={road}
+        answers={SAVED}
+        groupsFor={(a) => answerGroups(a, ANJALI)}
+        tags={[
+          { text: 'Feels depressed', quote: 'a bit stressed', step: 'living', wellbeing: true },
+        ]}
+        onPreview={onPreview}
+        onSave={onSave}
+        onClose={onClose}
+      />,
+    )
+    expect(screen.getByText('“a bit stressed”')).toBeInTheDocument()
+    expect(screen.queryByText('Feels depressed')).toBeNull()
+  })
+})

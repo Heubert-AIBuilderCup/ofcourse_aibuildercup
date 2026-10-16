@@ -29,6 +29,7 @@ import {
   type AnswerValue,
   AREAS_MAX,
   type QuestionKey,
+  type RoadmapTag,
   type StoredAnswer,
   type StoredAnswers,
 } from '@/shared/types/student'
@@ -101,8 +102,9 @@ type Ends =
  * waits, marked "Not saved", says what it would change ("If you save, on your roadmap") and
  * previews it on the map (`onPreview`, the tiles' words); changes wait together under the bar until
  * Save changes (`onSave`, her answers with them merged in) or Discard. Closing with changes asks
- * first. Her person is shown without a Change. `place`: in the card column or the phone's sheet,
- * whose padding the sticky bar and ask reach across.
+ * first. Her person is shown without a Change; the tags read from her own words follow under "In
+ * your own words", each as the words she wrote, wellbeing ones too, never changed here. `place`: in the card column or the
+ * phone's sheet, whose padding the sticky bar and ask reach across.
  *
  * In `mode: 'draft'` it is a new roadmap's: the source's answers, changed here before anything is
  * made, or from scratch (no `copyOf`) none, every question open. The bar is always there, counting
@@ -114,6 +116,7 @@ export function AnswersPanel({
   answers,
   road,
   place = 'column',
+  tags = [],
   rematch,
   onPreview,
   ...ends
@@ -124,6 +127,8 @@ export function AnswersPanel({
   answers: StoredAnswers
   road: Road
   place?: 'column' | 'sheet'
+  /** What was read from her own words; shown, never changed here. */
+  tags?: RoadmapTag[]
   /** The board draws the road her answers match: its rule, so a pick says when it would change it. */
   rematch?: RoadChangeOf
   onPreview: (prev: Record<string, string>) => void
@@ -275,6 +280,23 @@ export function AnswersPanel({
           </ul>
         </section>
       ))}
+
+      {tags.length > 0 ? (
+        <section className="mt-2 flex flex-col gap-2">
+          <h3 className="m-0 text-h4">In your own words</h3>
+          <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+            {tags.map((tag) => (
+              <li
+                key={`${tag.step}|${tag.text}|${tag.quote}`}
+                className="border border-dashed border-neutral-500 px-2 py-0.5 text-caption text-muted-foreground"
+              >
+                {/* Her quote, checked against what she wrote; the model's note is never shown as hers. */}
+                “{tag.quote}”
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {asking ? (
         <div

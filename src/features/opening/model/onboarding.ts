@@ -4,7 +4,7 @@
 // and step 03's person screen are new here.
 
 import { PICTURE_PATH } from '@/shared/lib/student-paths'
-import type { QuestionKey, Relative, StoredAnswers } from '@/shared/types/student'
+import type { OwnWordsStep, QuestionKey, Relative, StoredAnswers } from '@/shared/types/student'
 import { DRAWN_TO_AREAS, isVisible, PARTICULAR, SCREENS } from './questions'
 
 /** Step 00 first, step 05 last; the panel shows all six (criterion 11). */
@@ -22,6 +22,19 @@ type OnboardingStep = 0 | 1 | 2 | 3 | 4 | 5
 
 /** The steps that ask one question per screen. */
 export type QuestionStep = 1 | 2 | 3 | 4
+
+/** The question step each "Tell me in your own words" box sits on. */
+export const OWN_WORDS_STEP_OF: Readonly<Record<OwnWordsStep, QuestionStep>> = {
+  facts: 1,
+  study: 2,
+  living: 3,
+  after: 4,
+}
+
+/** The own-words box a question step has: OWN_WORDS_STEP_OF read the other way. */
+export const OWN_WORDS_STEP_AT = Object.fromEntries(
+  Object.entries(OWN_WORDS_STEP_OF).map(([name, step]) => [step, name]),
+) as Readonly<Record<QuestionStep, OwnWordsStep>>
 
 /**
  * Step 03's "Who, and where?": a step question that is not a stored answer. It reads and writes
@@ -367,11 +380,27 @@ export function firstOpenQuestion(
   relative: Relative | null = null,
 ): StepKey {
   const asked = askedQuestions(step, answers)
-  const open = asked.find((q) =>
-    q.key === PERSON ? relative === null : answers[q.key] === undefined,
-  )
+  const open = asked.find((q) => isOpen(q.key, answers, relative))
   return (open ?? asked[asked.length - 1])?.key ?? 'where'
 }
+
+/**
+ * The first asked question after `from` with no stored answer (her person: none stored), else
+ * null, when the step is done. Next goes there once her own words answered some of the step.
+ */
+export function nextOpenQuestion(
+  step: QuestionStep,
+  answers: StoredAnswers,
+  from: StepKey,
+  relative: Relative | null = null,
+): StepKey | null {
+  const asked = askedQuestions(step, answers)
+  const after = asked.slice(asked.findIndex((q) => q.key === from) + 1)
+  return after.find((q) => isOpen(q.key, answers, relative))?.key ?? null
+}
+
+const isOpen = (key: StepKey, answers: StoredAnswers, relative: Relative | null): boolean =>
+  key === PERSON ? relative === null : answers[key] === undefined
 
 /**
  * Where leaving a step forward goes: step 01 to step 02's first open question; step 02 to step 03

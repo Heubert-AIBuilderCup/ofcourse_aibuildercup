@@ -72,6 +72,8 @@ mock.module('@/features/roadmaps/server/roadmaps', () => ({
   saveChoices: none,
   saveRoadmapAnswers: none,
   createRoadmap: none,
+  saveOwnWords: none,
+  addTags: async () => {},
 }))
 
 type FakeSession = { user: { id: string; role: string | null } } | null

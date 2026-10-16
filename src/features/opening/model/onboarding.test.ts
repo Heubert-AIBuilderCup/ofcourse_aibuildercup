@@ -5,6 +5,7 @@ import {
   firstOpenQuestion,
   forwardPath,
   LIVING_PATH,
+  nextOpenQuestion,
   PANEL_COPY,
   PERSON,
   QUESTION_STEPS,
@@ -353,6 +354,23 @@ describe('askedQuestions', () => {
       'community',
       'climate',
     ])
+  })
+})
+
+describe('nextOpenQuestion', () => {
+  it('skips every answered question after this one, not only those before the first gap', () => {
+    const { level: _level, length: _length, ...answers } = studyAnswered(PARTICULAR)
+    expect(nextOpenQuestion(2, answers, 'level')).toBe('length')
+    expect(nextOpenQuestion(2, answers, 'know')).toBe('level')
+  })
+
+  it('is null when nothing after this one is open: the step is done', () => {
+    expect(nextOpenQuestion(2, studyAnswered(PARTICULAR), 'level')).toBeNull()
+  })
+
+  it('opens her person while none is stored, and skips it once one is', () => {
+    expect(nextOpenQuestion(3, knowsSomeone, 'place', null)).toBe(PERSON)
+    expect(nextOpenQuestion(3, knowsSomeone, 'place', cousin)).toBe('climate')
   })
 })
 

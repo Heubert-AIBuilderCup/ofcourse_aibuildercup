@@ -1,8 +1,12 @@
 import { notFound } from 'next/navigation'
 import { QuestionScreen, questionBySlug } from '@/features/opening'
-import { saveAnswersAction, saveRelativeAction } from '@/features/opening/actions'
+import {
+  readOwnWordsAction,
+  saveAnswersAction,
+  saveRelativeAction,
+} from '@/features/opening/actions'
 import { getProfile, markStep } from '@/features/opening/server/profile'
-import { englishScores } from '@/features/roads'
+import { englishScores, studentAiOff } from '@/features/roads'
 import { requireStudent } from '@/shared/lib/auth/session'
 
 /**
@@ -28,6 +32,8 @@ export default async function LivingQuestionPage({
       saveAnswersAction={saveAnswersAction}
       saveRelativeAction={saveRelativeAction}
       englishScores={englishScores()}
+      // The student AI switched off: no own-words box (criterion 81).
+      readOwnWordsAction={studentAiOff(process.env) ? undefined : readOwnWordsAction}
     />
   )
 }

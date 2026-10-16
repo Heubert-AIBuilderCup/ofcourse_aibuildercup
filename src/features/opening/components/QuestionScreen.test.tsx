@@ -8,6 +8,7 @@ import type { ActionResult } from '@/shared/types/action-result'
 import type { Relative, StoredAnswers } from '@/shared/types/student'
 import type { QuestionStep } from '../model/onboarding'
 import { OnboardingAnswersProvider } from '../model/onboarding-answers'
+import type { OwnWordsChip } from '../model/own-words'
 
 const saved = async (_patch: unknown): Promise<ActionResult> => ({ ok: true })
 const saveAnswersAction = mock(saved)
@@ -566,4 +567,42 @@ it('ends step 04 at the optional long-term, on to your attention', async () => {
   expect(screen.queryByRole('link', { name: AFTER_LEAVE })).not.toBeInTheDocument()
   await press(AFTER_LAST)
   expect(push).toHaveBeenCalledWith('/onboarding/attention')
+})
+
+it('once her own words answered some of the step, Next skips every question they answered', async () => {
+  const chips = [
+    { key: 'know', value: 'Something particular', quote: 'I want' },
+    { key: 'field', value: 'Data science', quote: 'data science' },
+    { key: 'learn', value: 'Hands-on with placements', quote: 'hands-on' },
+  ].map((chip) => ({ ...chip, needsTap: false, change: false })) as OwnWordsChip[]
+  const readOwnWordsAction = mock(async () => ({
+    ok: true as const,
+    chips,
+    tags: [],
+    failed: false,
+  }))
+  const ui = () => (
+    <OnboardingAnswersProvider answers={{}}>
+      <QuestionScreen
+        step={2}
+        relative={null}
+        saveAnswersAction={saveAnswersAction}
+        englishScores={[6, 6.5, 7]}
+        readOwnWordsAction={readOwnWordsAction}
+      />
+    </OnboardingAnswersProvider>
+  )
+  pathname = `${STEP_PATHS[2]}/know`
+  const { rerender } = render(ui())
+  fireEvent.change(screen.getByRole('textbox'), {
+    target: { value: 'I want data science, hands-on' },
+  })
+  await press('Read my words')
+  await press('Use these')
+  expect(pushState).toHaveBeenLastCalledWith(null, '', '/onboarding/study/level')
+
+  pathname = `${STEP_PATHS[2]}/level`
+  act(() => rerender(ui()))
+  await press('Skip')
+  expect(pushState).toHaveBeenLastCalledWith(null, '', '/onboarding/study/length')
 })

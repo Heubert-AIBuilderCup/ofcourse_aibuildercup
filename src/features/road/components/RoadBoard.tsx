@@ -20,7 +20,7 @@ import { Sheet, SheetContent, SheetTitle } from '@/shared/components/ui/sheet'
 import { ROADMAPS_PATH, roadmapPath } from '@/shared/lib/student-paths'
 import { cn } from '@/shared/lib/utils'
 import type { ActionResult } from '@/shared/types/action-result'
-import type { Relative, RoadmapChoices, StoredAnswers } from '@/shared/types/student'
+import type { Relative, RoadmapChoices, RoadmapTag, StoredAnswers } from '@/shared/types/student'
 import { BoardPath, useBoardPath } from '../hooks/useBoardPath'
 import { type BoardActions, useRoadSession } from '../hooks/useRoadSession'
 import type { WhyAction } from '../hooks/useTileWhy'
@@ -65,7 +65,8 @@ function useLayout(ref: RefObject<HTMLElement | null>): Layout | null {
 
 /**
  * The roadmap a board draws: its id, its name (resolved: hers, else from its road), what she did on
- * it, whether she has opened it before, and what Your answers shows: its answers and person.
+ * it, whether she has opened it before, and what Your answers shows: its answers, person and the
+ * tags read from her own words (none when absent).
  */
 export type BoardRoadmap = {
   id: string
@@ -74,6 +75,7 @@ export type BoardRoadmap = {
   firstVisit: boolean
   answers: StoredAnswers
   relative: Relative | null
+  tags?: RoadmapTag[]
 }
 
 /**
@@ -347,6 +349,7 @@ function Board({
         road={road}
         place={place}
         onPreview={preview}
+        tags={roadmap.tags}
         rematch={roadChangeOf}
         onSave={saveAnswers}
         onClose={closeAnswers}
