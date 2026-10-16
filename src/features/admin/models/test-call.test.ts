@@ -204,7 +204,9 @@ describe('testStudentCalls', () => {
   it('runs every check case once, on the tiers the page chose, one row each', async () => {
     const t = setup({
       provider: makeFake(),
-      saved: { useCaseTiers: { student_why: 'flash', student_ask: 'flash' } },
+      saved: {
+        useCaseTiers: { student_why: 'flash', student_ask: 'flash', student_words: 'flash' },
+      },
     })
     const rows = await t.testStudentCalls()
     expect(rows.length).toBe(CHECK_CASES.length)

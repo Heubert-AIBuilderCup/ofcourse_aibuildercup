@@ -26,6 +26,7 @@ import {
   SOURCE_CHECK,
   STUDENT_ASK,
   STUDENT_WHY,
+  STUDENT_WORDS,
 } from '@/features/content/ai/prompts'
 import { recording } from '@/features/content/ai/recording'
 import { RESEARCH_CLAIM, SUGGEST_SOURCES } from '@/features/content/ai/search'
@@ -69,6 +70,7 @@ const SPECS: Record<TextUseCase, PromptSpec<z.ZodType>> = {
   character_plan: CHARACTER_PLAN,
   student_why: STUDENT_WHY,
   student_ask: STUDENT_ASK,
+  student_words: STUDENT_WORDS,
   suggest_sources: SUGGEST_SOURCES,
   research_claim: RESEARCH_CLAIM,
 }

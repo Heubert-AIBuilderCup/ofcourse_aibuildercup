@@ -22,6 +22,7 @@ const LISTED: Record<UseCase, true> = {
   character_plan: true,
   student_why: true,
   student_ask: true,
+  student_words: true,
   suggest_sources: true,
   research_claim: true,
 }

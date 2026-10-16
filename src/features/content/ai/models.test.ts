@@ -51,6 +51,7 @@ describe('allowedTiers', () => {
   test('a student use case allows Flash-Lite and Flash, never Pro', () => {
     expect(allowedTiers('student_why')).toEqual(['lite', 'flash'])
     expect(allowedTiers('student_ask')).toEqual(['lite', 'flash'])
+    expect(allowedTiers('student_words')).toEqual(['lite', 'flash'])
   })
 
   test('the image use case allows only the image tier', () => {
