@@ -2,10 +2,13 @@ import { describe, expect, it } from 'bun:test'
 import type { Relative, StoredAnswers } from '@/shared/types/student'
 import {
   askedQuestions,
+  backPath,
   firstOpenQuestion,
   forwardPath,
   LIVING_PATH,
   nextOpenQuestion,
+  nextPath,
+  OWN_WORDS_STEP_AT,
   PANEL_COPY,
   PERSON,
   QUESTION_STEPS,
@@ -18,11 +21,11 @@ import {
 } from './onboarding'
 import { DRAWN_TO_AREAS, PARTICULAR, SUGGEST_ME } from './questions'
 
+/** Step 01's questions as asked: who pays is hidden (16 Oct 2026). */
 const KEYS = [
   'where',
   'amount',
   'covers',
-  'who',
   'hard',
   'earliest',
   'latest',
@@ -47,7 +50,7 @@ const studyAnswered = (value: string): StoredAnswers => ({
 })
 
 const yes = (value: string) => ({ value, state: 'stated' }) as const
-/** Step 03 answered up to "Do you know anyone…" Yes; the person and climate still open. */
+/** Step 03 answered up to "Do you know anyone…" Yes; the person still open. */
 const knowsSomeone: StoredAnswers = {
   dest: yes('Australia'),
   place: yes('City'),
@@ -140,14 +143,35 @@ describe('the panel', () => {
   })
 })
 
-describe('QUESTION_STEPS', () => {
-  it("goes back from each step's first question to the last question of the step before", () => {
-    expect(QUESTION_STEPS[1].back).toBe('/onboarding/character')
-    expect(QUESTION_STEPS[2].back).toBe('/onboarding/facts/english')
-    expect(QUESTION_STEPS[3].back).toBe('/onboarding/study/length')
-    expect(QUESTION_STEPS[4].back).toBe('/onboarding/living/climate')
+describe('OWN_WORDS_STEP_AT', () => {
+  it("offers own words on steps 02 to 04, never on step 01's objective facts (16 Oct 2026)", () => {
+    expect(OWN_WORDS_STEP_AT[1]).toBeUndefined()
+    expect([OWN_WORDS_STEP_AT[2], OWN_WORDS_STEP_AT[3], OWN_WORDS_STEP_AT[4]]).toEqual([
+      'study',
+      'living',
+      'after',
+    ])
+  })
+})
+
+describe('backPath', () => {
+  it("goes back from each step's first question to the last question asked on the step before", () => {
+    expect(backPath(1, {})).toBe('/onboarding/character')
+    expect(backPath(2, {})).toBe('/onboarding/facts/english')
+    expect(backPath(3, {})).toBe('/onboarding/study/level')
+    expect(backPath(4, {})).toBe('/onboarding/living/community')
   })
 
+  it("goes back from step 04 to the last of step 03's questions her answers ask", () => {
+    expect(backPath(4, { community: yes('Yes') })).toBe('/onboarding/living/know-anyone')
+    expect(backPath(4, knowsSomeone)).toBe('/onboarding/living/who-and-where')
+    expect(backPath(4, { ...knowsSomeone, community: yes('No') })).toBe(
+      '/onboarding/living/community',
+    )
+  })
+})
+
+describe('QUESTION_STEPS', () => {
   it('asks step 02 in the model order, each under its slug and never its key', () => {
     const questions = QUESTION_STEPS[2].questions
     expect(questions.map((q) => q.key)).toEqual([
@@ -291,35 +315,29 @@ describe('askedQuestions', () => {
   })
 
   it('asks neither the field nor the areas until she says what she knows', () => {
-    expect(keys(2, {})).toEqual(['know', 'level', 'learn', 'length'])
+    expect(keys(2, {})).toEqual(['know', 'level'])
   })
 
   it('asks the field for "Something particular"', () => {
-    expect(keys(2, know(PARTICULAR))).toEqual(['know', 'field', 'level', 'learn', 'length'])
+    expect(keys(2, know(PARTICULAR))).toEqual(['know', 'field', 'level'])
   })
 
   it('asks the areas for "A few areas I\'m drawn to"', () => {
-    expect(keys(2, know(DRAWN_TO_AREAS))).toEqual(['know', 'areas', 'level', 'learn', 'length'])
+    expect(keys(2, know(DRAWN_TO_AREAS))).toEqual(['know', 'areas', 'level'])
   })
 
   it('asks neither for "Suggest me", stated or assumed', () => {
-    const four = ['know', 'level', 'learn', 'length'] as const
-    expect(keys(2, know(SUGGEST_ME))).toEqual([...four])
-    expect(keys(2, { know: { value: SUGGEST_ME, state: 'assumed' } })).toEqual([...four])
+    const two = ['know', 'level'] as const
+    expect(keys(2, know(SUGGEST_ME))).toEqual([...two])
+    expect(keys(2, { know: { value: SUGGEST_ME, state: 'assumed' } })).toEqual([...two])
   })
 
-  it('asks step 03 its four until community is answered', () => {
-    expect(keys(3, {})).toEqual(['dest', 'place', 'community', 'climate'])
+  it('asks step 03 its three until community is answered', () => {
+    expect(keys(3, {})).toEqual(['dest', 'place', 'community'])
   })
 
   it('asks whether she knows anyone once community is not No', () => {
-    expect(keys(3, { community: yes('Yes') })).toEqual([
-      'dest',
-      'place',
-      'community',
-      'knows',
-      'climate',
-    ])
+    expect(keys(3, { community: yes('Yes') })).toEqual(['dest', 'place', 'community', 'knows'])
   })
 
   it('asks who and where only after a stated Yes', () => {
@@ -329,7 +347,6 @@ describe('askedQuestions', () => {
       'community',
       'knows',
       PERSON,
-      'climate',
     ])
     expect(
       keys(3, { community: yes('A little'), knows: { value: 'No', state: 'assumed' } }),
@@ -339,11 +356,11 @@ describe('askedQuestions', () => {
     ).not.toContain(PERSON)
   })
 
-  it('asks step 04 all four, in order, whatever the answers', () => {
-    const four = ['stay', 'focus', 'earn', 'settle'] as const
-    expect(keys(4, {})).toEqual([...four])
+  it('asks step 04 both, in order, whatever the answers', () => {
+    const two = ['stay', 'focus'] as const
+    expect(keys(4, {})).toEqual([...two])
     expect(keys(4, { stay: yes('No'), focus: yes('Academic'), community: yes('No') })).toEqual([
-      ...four,
+      ...two,
     ])
   })
 
@@ -352,16 +369,29 @@ describe('askedQuestions', () => {
       'dest',
       'place',
       'community',
-      'climate',
     ])
+  })
+
+  it('never asks the six hidden questions, even with an answer stored for each (16 Oct 2026)', () => {
+    const stored: StoredAnswers = {
+      who: yes('Loan'),
+      learn: yes('No preference'),
+      length: yes('As short as possible'),
+      climate: yes('Mild'),
+      earn: yes('Yes'),
+      settle: yes('Settle long-term'),
+    }
+    const asked = ([1, 2, 3, 4] as const).flatMap((step) => keys(step, stored))
+    for (const key of Object.keys(stored)) expect(asked).not.toContain(key)
   })
 })
 
 describe('nextOpenQuestion', () => {
   it('skips every answered question after this one, not only those before the first gap', () => {
-    const { level: _level, length: _length, ...answers } = studyAnswered(PARTICULAR)
-    expect(nextOpenQuestion(2, answers, 'level')).toBe('length')
-    expect(nextOpenQuestion(2, answers, 'know')).toBe('level')
+    const answers = stated('where', 'amount', 'hard', 'earliest', 'latest', 'dep', 'qual', 'eng')
+    expect(nextOpenQuestion(1, answers, 'where')).toBe('covers')
+    expect(nextOpenQuestion(1, answers, 'covers')).toBe('years')
+    expect(nextOpenQuestion(1, answers, 'years')).toBeNull()
   })
 
   it('is null when nothing after this one is open: the step is done', () => {
@@ -370,7 +400,7 @@ describe('nextOpenQuestion', () => {
 
   it('opens her person while none is stored, and skips it once one is', () => {
     expect(nextOpenQuestion(3, knowsSomeone, 'place', null)).toBe(PERSON)
-    expect(nextOpenQuestion(3, knowsSomeone, 'place', cousin)).toBe('climate')
+    expect(nextOpenQuestion(3, knowsSomeone, 'place', cousin)).toBeNull()
   })
 })
 
@@ -392,14 +422,14 @@ describe('firstOpenQuestion', () => {
   })
 
   it('stays on the last question once every asked question is answered', () => {
-    expect(firstOpenQuestion(2, studyAnswered(PARTICULAR))).toBe('length')
-    expect(firstOpenQuestion(2, studyAnswered(DRAWN_TO_AREAS))).toBe('length')
-    expect(firstOpenQuestion(2, studyAnswered(SUGGEST_ME))).toBe('length')
+    expect(firstOpenQuestion(2, studyAnswered(PARTICULAR))).toBe('level')
+    expect(firstOpenQuestion(2, studyAnswered(DRAWN_TO_AREAS))).toBe('level')
+    expect(firstOpenQuestion(2, studyAnswered(SUGGEST_ME))).toBe('level')
   })
 
   it('does not count a field left over after "know" changed', () => {
     const { areas: _areas, ...answers } = studyAnswered(SUGGEST_ME)
-    expect(firstOpenQuestion(2, answers)).toBe('length')
+    expect(firstOpenQuestion(2, answers)).toBe('level')
     const { level: _level, ...withoutLevel } = answers
     expect(firstOpenQuestion(2, withoutLevel)).toBe('level')
   })
@@ -415,28 +445,18 @@ describe('firstOpenQuestion', () => {
   it('opens the person while no person is stored, and counts a stored one as answered', () => {
     expect(firstOpenQuestion(3, knowsSomeone)).toBe(PERSON)
     expect(firstOpenQuestion(3, knowsSomeone, null)).toBe(PERSON)
-    expect(firstOpenQuestion(3, knowsSomeone, cousin)).toBe('climate')
+    // With her person stored every asked question is answered: she stays on the last, her person.
+    expect(firstOpenQuestion(3, knowsSomeone, cousin)).toBe(PERSON)
   })
 
-  it('does not open the person when it is not asked', () => {
-    expect(firstOpenQuestion(3, { ...knowsSomeone, knows: yes('No') })).toBe('climate')
+  it('does not open the person when it is not asked, and stays on the last asked', () => {
+    expect(firstOpenQuestion(3, { ...knowsSomeone, knows: yes('No') })).toBe('knows')
   })
 
-  it('stays on climate once every asked question is answered', () => {
-    expect(firstOpenQuestion(3, { ...knowsSomeone, climate: yes('Mild') }, cousin)).toBe('climate')
-  })
-
-  it('starts step 04 at stay, then its first unanswered, else long-term', () => {
+  it('starts step 04 at stay, then its first unanswered, else focus', () => {
     expect(firstOpenQuestion(4, {})).toBe('stay')
-    expect(firstOpenQuestion(4, { stay: yes('Yes'), focus: yes('Academic') })).toBe('earn')
-    expect(
-      firstOpenQuestion(4, {
-        stay: yes('Yes'),
-        focus: yes('Academic'),
-        earn: yes('No'),
-        settle: yes('Settle long-term'),
-      }),
-    ).toBe('settle')
+    expect(firstOpenQuestion(4, { stay: yes('Yes') })).toBe('focus')
+    expect(firstOpenQuestion(4, { stay: yes('Yes'), focus: yes('Academic') })).toBe('focus')
   })
 
   it('starts step 01 at where, then its first unanswered, assumed counting, else english', () => {
@@ -489,58 +509,63 @@ describe('shownQuestion', () => {
   })
 
   it('is the last asked question when every one is answered', () => {
-    expect(shownQuestion(2, '/onboarding/study/areas', studyAnswered(PARTICULAR)).key).toBe(
-      'length',
-    )
+    expect(shownQuestion(2, '/onboarding/study/areas', studyAnswered(PARTICULAR)).key).toBe('level')
+  })
+
+  it('is her first open question when the URL names a hidden one', () => {
+    expect(shownQuestion(2, '/onboarding/study/learning', know(SUGGEST_ME)).key).toBe('level')
+    expect(shownQuestion(1, '/onboarding/facts/who-pays', stated('where')).key).toBe('amount')
+    expect(shownQuestion(4, '/onboarding/after/long-term', {}).key).toBe('stay')
   })
 })
 
 describe('stepProgress', () => {
   it('counts a step 02 question among those asked', () => {
-    expect(stepProgress('/onboarding/study/know', {})).toEqual({ question: 1, total: 4 })
+    expect(stepProgress('/onboarding/study/know', {})).toEqual({ question: 1, total: 2 })
     expect(stepProgress('/onboarding/study/areas', know(DRAWN_TO_AREAS))).toEqual({
       question: 2,
-      total: 5,
+      total: 3,
     })
-    expect(stepProgress('/onboarding/study/length', know(PARTICULAR))).toEqual({
-      question: 5,
-      total: 5,
+    expect(stepProgress('/onboarding/study/level', know(PARTICULAR))).toEqual({
+      question: 3,
+      total: 3,
     })
   })
 
-  it('counts a step 01 question among the eleven', () => {
-    expect(stepProgress('/onboarding/facts/amount', {})).toEqual({ question: 2, total: 11 })
+  it('counts a step 01 question among the ten', () => {
+    expect(stepProgress('/onboarding/facts/amount', {})).toEqual({ question: 2, total: 10 })
   })
 
   it('reads 1 when the URL names no asked question', () => {
-    expect(stepProgress('/onboarding/study', {})).toEqual({ question: 1, total: 4 })
-    expect(stepProgress('/onboarding/facts', {})).toEqual({ question: 1, total: 11 })
-    expect(stepProgress('/onboarding/study/field', {})).toEqual({ question: 1, total: 4 })
+    expect(stepProgress('/onboarding/study', {})).toEqual({ question: 1, total: 2 })
+    expect(stepProgress('/onboarding/facts', {})).toEqual({ question: 1, total: 10 })
+    expect(stepProgress('/onboarding/study/field', {})).toEqual({ question: 1, total: 2 })
   })
 
   it('counts the question the screen shows when the URL names one not asked', () => {
-    // "Suggest me" asks no field; the screen shows her first open question, the level (2 of 4).
+    // "Suggest me" asks no field; the screen shows her first open question, the level (2 of 2).
     expect(stepProgress('/onboarding/study/field', know(SUGGEST_ME))).toEqual({
       question: 2,
-      total: 4,
+      total: 2,
     })
   })
 
   it('counts a step 03 question among those asked, the person included', () => {
-    expect(stepProgress('/onboarding/living/destination', {})).toEqual({ question: 1, total: 4 })
+    expect(stepProgress('/onboarding/living/destination', {})).toEqual({ question: 1, total: 3 })
     expect(stepProgress('/onboarding/living/who-and-where', knowsSomeone)).toEqual({
       question: 5,
-      total: 6,
+      total: 5,
     })
+    // Climate is hidden: the screen shows her first open question, her person.
     expect(stepProgress('/onboarding/living/climate', knowsSomeone)).toEqual({
-      question: 6,
-      total: 6,
+      question: 5,
+      total: 5,
     })
   })
 
-  it('counts a step 04 question among its four', () => {
-    expect(stepProgress('/onboarding/after/earning', {})).toEqual({ question: 3, total: 4 })
-    expect(stepProgress('/onboarding/after', {})).toEqual({ question: 1, total: 4 })
+  it('counts a step 04 question among its two', () => {
+    expect(stepProgress('/onboarding/after/focus', {})).toEqual({ question: 2, total: 2 })
+    expect(stepProgress('/onboarding/after', {})).toEqual({ question: 1, total: 2 })
   })
 
   it('counts nothing outside the question steps', () => {
@@ -552,5 +577,40 @@ describe('stepProgress', () => {
   it('counts nothing on step 05 or the end screen', () => {
     expect(stepProgress('/onboarding/attention', {})).toBeNull()
     expect(stepProgress('/onboarding/done', {})).toBeNull()
+  })
+})
+
+describe('nextPath', () => {
+  it('goes to the next question asked, counting the answer just given', () => {
+    // "know" answered "Something particular" asks the field next; without it, level.
+    expect(nextPath(2, studyAnswered(PARTICULAR), 'know')).toEqual({
+      path: '/onboarding/study/field',
+      leaves: false,
+    })
+    expect(nextPath(1, stated('where'), 'where')).toEqual({
+      path: '/onboarding/facts/amount',
+      leaves: false,
+    })
+  })
+
+  it("leaves the step from its last question, to the step's forward path", () => {
+    const answers = stated(...KEYS)
+    expect(nextPath(1, answers, 'eng')).toEqual({ path: forwardPath(1, answers), leaves: true })
+  })
+
+  it('asks for her person after a Yes to knowing someone', () => {
+    expect(nextPath(3, knowsSomeone, 'knows')).toEqual({
+      path: questionPath(3, PERSON),
+      leaves: false,
+    })
+  })
+
+  it('once her own words answered some of the step, skips to the next open question', () => {
+    const { level: _level, ...answers } = studyAnswered(PARTICULAR)
+    expect(nextPath(2, answers, 'know', null, true)).toEqual({
+      path: questionPath(2, 'level'),
+      leaves: false,
+    })
+    expect(nextPath(2, studyAnswered(PARTICULAR), 'level', null, true).leaves).toBe(true)
   })
 })

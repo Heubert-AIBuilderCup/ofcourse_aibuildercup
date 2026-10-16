@@ -114,11 +114,13 @@ const check = (name: string) =>
 
 it('asks one question, with its place, its group, why it asks and the ways on', () => {
   screenAt('amount')
-  expect(textOf('Facts about you · 2 of 11')).toBeInTheDocument()
+  expect(textOf('Facts about you · 2 of 10')).toBeInTheDocument()
   expect(screen.getByText('Your budget per year')).toBeInTheDocument()
   expect(screen.getByRole('heading', { level: 1, name: 'Amount' })).toBeInTheDocument()
   expect(
-    screen.getByText('It decides which cities stay open on each route. A rough number is fine.'),
+    screen.getByText(
+      'A course on your road that costs more is marked over budget, and its city a stretch. A rough number is fine.',
+    ),
   ).toBeInTheDocument()
   expect(screen.getByRole('radiogroup', { name: 'Amount' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument()
@@ -134,6 +136,8 @@ it('asks one question, with its place, its group, why it asks and the ways on', 
 })
 
 it('shows what a tap does at once, then saves it', async () => {
+  // The save is sent with the tap: held here, so "Saving…" shows until it comes back.
+  const save = heldSave()
   screenAt('amount')
   await tap('AUD 36k')
   expect(
@@ -141,6 +145,7 @@ it('shows what a tap does at once, then saves it', async () => {
   ).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
   expect(screen.getByText('Saving…')).toBeInTheDocument()
+  await save.answer({ ok: true })
   await waitFor(() =>
     expect(screen.getByText('Saved. Tap another answer to change it.')).toBeInTheDocument(),
   )
@@ -251,7 +256,7 @@ const AREAS_SAVED = 'Saved. Tap an area again to remove it.'
 
 it('asks the first study question, with its place, why it asks and the ways on', async () => {
   studyAt('know')
-  expect(textOf("What you'd study · 1 of 4")).toBeInTheDocument()
+  expect(textOf("What you'd study · 1 of 2")).toBeInTheDocument()
   expect(
     screen.getByRole('heading', { level: 1, name: 'Do you know what you want to study?' }),
   ).toBeInTheDocument()
@@ -279,7 +284,7 @@ it('asks the first study question, with its place, why it asks and the ways on',
 it('counts the field once she knows something particular, and goes on to it', async () => {
   studyAt('know')
   await tap('Something particular')
-  expect(textOf("What you'd study · 1 of 5")).toBeInTheDocument()
+  expect(textOf("What you'd study · 1 of 3")).toBeInTheDocument()
   expect(screen.getByText('Particular: pick the field.')).toBeInTheDocument()
   await waitFor(() =>
     expect(screen.getByText('Saved. Tap another answer to change it.')).toBeInTheDocument(),
@@ -291,7 +296,7 @@ it('counts the field once she knows something particular, and goes on to it', as
 
 it('asks for the field under its group, its line showing before any tap', async () => {
   studyAt('field', know('Something particular'))
-  expect(textOf("What you'd study · 2 of 5")).toBeInTheDocument()
+  expect(textOf("What you'd study · 2 of 3")).toBeInTheDocument()
   const group = screen.getByText('Something particular')
   const heading = screen.getByRole('heading', { level: 1, name: 'Which field?' })
   expect(group.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -327,7 +332,9 @@ it('offers up to three areas as checkboxes, and clears them when she removes the
   await check('Data')
   await waitFor(() => expect(screen.getByText(AREAS_SAVED)).toBeInTheDocument())
   expect(saveAnswersAction).toHaveBeenLastCalledWith({ areas: ['Data'] })
-  expect(screen.getByText('Data: courses across them show side by side.')).toBeInTheDocument()
+  expect(
+    screen.getByText('Data: your road is matched to a course in one of them.'),
+  ).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
 
   await check('Data')
@@ -338,8 +345,8 @@ it('offers up to three areas as checkboxes, and clears them when she removes the
 })
 
 it("goes on to step 03 from step 02's last question, with no way to leave the rest", async () => {
-  studyAt('length', know('Suggest me'))
-  expect(textOf("What you'd study · 4 of 4")).toBeInTheDocument()
+  studyAt('level', know('Suggest me'))
+  expect(textOf("What you'd study · 2 of 2")).toBeInTheDocument()
   expect(screen.queryByRole('link', { name: STUDY_LEAVE })).not.toBeInTheDocument()
   await press(STUDY_NEXT)
   expect(push).toHaveBeenCalledWith('/onboarding/living')
@@ -371,35 +378,34 @@ const pick = (label: string, value: string) =>
 
 it('opens step 03 at its destination, with the ways back and on', async () => {
   livingAt('destination')
-  expect(textOf("Where and how you'd live · 1 of 4")).toBeInTheDocument()
+  expect(textOf("Where and how you'd live · 1 of 3")).toBeInTheDocument()
   expect(screen.getByRole('heading', { level: 1, name: 'Destination' })).toBeInTheDocument()
   expect(screen.getByRole('link', { name: LIVING_LEAVE })).toHaveAttribute(
     'href',
     '/onboarding/after',
   )
   await press('Back')
-  expect(push).toHaveBeenCalledWith('/onboarding/study/length')
+  expect(push).toHaveBeenCalledWith('/onboarding/study/level')
 })
 
 it('counts "Do you know anyone…" once community matters', async () => {
   livingAt('community')
-  expect(textOf("Where and how you'd live · 3 of 4")).toBeInTheDocument()
+  expect(textOf("Where and how you'd live · 3 of 3")).toBeInTheDocument()
   await tap('Yes')
-  expect(textOf("Where and how you'd live · 3 of 5")).toBeInTheDocument()
+  expect(textOf("Where and how you'd live · 3 of 4")).toBeInTheDocument()
 })
 
 it('asks who and where after a Yes to knowing someone', async () => {
   livingAt('know-anyone', { community: stated('Yes') })
   await tap('Yes')
-  expect(textOf("Where and how you'd live · 4 of 6")).toBeInTheDocument()
+  expect(textOf("Where and how you'd live · 4 of 5")).toBeInTheDocument()
   await press('Continue')
   expect(pushState).toHaveBeenCalledWith(null, '', '/onboarding/living/who-and-where')
 })
 
-it('ends step 03 at the optional climate, on to step 04', async () => {
-  livingAt('climate')
-  expect(screen.queryByRole('radio', { name: 'Not sure' })).not.toBeInTheDocument()
-  expect(screen.getByText("Optional. Skip, and it's left out.")).toBeInTheDocument()
+it('ends step 03 at community once it does not matter, on to step 04', async () => {
+  livingAt('community', { community: stated('No') })
+  expect(textOf("Where and how you'd live · 3 of 3")).toBeInTheDocument()
   expect(screen.queryByRole('link', { name: LIVING_LEAVE })).not.toBeInTheDocument()
   await press(LIVING_NEXT)
   expect(push).toHaveBeenCalledWith('/onboarding/after')
@@ -409,12 +415,12 @@ it('saves her person after the debounce, and says what is missing', async () => 
   livingAt('who-and-where', KNOWS_YES)
   expect(screen.getByRole('heading', { level: 1, name: 'Who, and where?' })).toBeInTheDocument()
   expect(screen.getByText(PERSON_IDLE)).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument()
+  // Her person ends step 03 now climate is hidden: its way on is the next step, answered or not.
+  expect(screen.getByRole('button', { name: LIVING_NEXT })).toBeInTheDocument()
   await tap('Cousin')
   expect(
-    screen.getByText('Pick a city or suburb, and each route shows its distance from your cousin.'),
+    screen.getByText('Pick a city or suburb for your cousin, and your road can lean to it.'),
   ).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
   expect(saveRelativeAction).not.toHaveBeenCalled()
   await waitFor(() => expect(screen.getByText(PERSON_SAVED)).toBeInTheDocument())
   expect(saveRelativeAction).toHaveBeenCalledTimes(1)
@@ -432,7 +438,7 @@ it('shows the distances from a place she picks, as an estimate', async () => {
   await pick('City or suburb', 'cannington')
   expect(textOf('estimate')).toBeInTheDocument()
   const line =
-    /^What this does: Your cousin in Cannington, Perth: .* min away.* · estimate\. Every route shows its distance from your cousin\.$/
+    /^What this does: Your cousin in Cannington, Perth: .* min away.* · estimate\. Your road can lean to Perth\.$/
   expect(
     screen.getByText((_, el) => el?.tagName === 'P' && line.test(el.textContent ?? '')),
   ).toBeInTheDocument()
@@ -461,10 +467,8 @@ it('stores no one once she clears every part', async () => {
     relationship: null,
     name: 'Anjali',
   })
-  expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
   await pick('City or suburb', '')
   await pick('Name (optional)', '')
-  expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument()
   await waitFor(() => expect(saveRelativeAction).toHaveBeenCalledWith(null))
   expect(saveRelativeAction).toHaveBeenCalledTimes(1)
 })
@@ -534,47 +538,42 @@ function afterAt(slug: string, answers: StoredAnswers = {}) {
 
 it('opens step 04 at stay, with Not sure as a real answer and the ways back and on', async () => {
   afterAt('stay')
-  expect(textOf('After you graduate · 1 of 4')).toBeInTheDocument()
+  expect(textOf('After you graduate · 1 of 2')).toBeInTheDocument()
   expect(screen.getAllByRole('radio').map((r) => r.textContent)).toEqual(['Yes', 'Not sure', 'No'])
   expect(
-    screen.getByText("“Not sure” is a real answer here. Skip, and I'll use it."),
+    screen.getByText('“Not sure” is a real answer here. Skip, and your road may stay or go home.'),
   ).toBeInTheDocument()
   expect(screen.getByRole('link', { name: AFTER_LEAVE })).toHaveAttribute(
     'href',
     '/onboarding/attention',
   )
   await press('Back')
-  expect(push).toHaveBeenCalledWith('/onboarding/living/climate')
+  expect(push).toHaveBeenCalledWith('/onboarding/living/community')
 })
 
 it("saves stay's Not sure as stated, with no assumption", async () => {
   afterAt('stay')
   await tap('Not sure')
-  expect(screen.getByText('Not sure: PR counts, but no route seals.')).toBeInTheDocument()
+  expect(screen.getByText('Not sure: your road stays in Australia, for now.')).toBeInTheDocument()
   expect(screen.queryByText('Assumed')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
   await waitFor(() => expect(saveAnswersAction).toHaveBeenCalledWith({ stay: 'Not sure' }))
 })
 
-it('ends step 04 at the optional long-term, on to your attention', async () => {
-  afterAt('long-term')
-  expect(textOf('After you graduate · 4 of 4')).toBeInTheDocument()
-  expect(screen.getAllByRole('radio').map((r) => r.textContent)).toEqual([
-    'Settle long-term',
-    'Come home eventually',
-  ])
-  expect(screen.getByText("Optional. Skip, and it's left blank.")).toBeInTheDocument()
+it('ends step 04 at focus, on to your attention', async () => {
+  afterAt('focus')
+  expect(textOf('After you graduate · 2 of 2')).toBeInTheDocument()
   expect(screen.queryByRole('link', { name: AFTER_LEAVE })).not.toBeInTheDocument()
   await press(AFTER_LAST)
   expect(push).toHaveBeenCalledWith('/onboarding/attention')
 })
 
 it('once her own words answered some of the step, Next skips every question they answered', async () => {
-  const chips = [
-    { key: 'know', value: 'Something particular', quote: 'I want' },
-    { key: 'field', value: 'Data science', quote: 'data science' },
-    { key: 'learn', value: 'Hands-on with placements', quote: 'hands-on' },
-  ].map((chip) => ({ ...chip, needsTap: false, change: false })) as OwnWordsChip[]
+  const chips = [{ key: 'place', value: 'City', quote: 'a city' }].map((chip) => ({
+    ...chip,
+    needsTap: false,
+    change: false,
+  })) as OwnWordsChip[]
   const readOwnWordsAction = mock(async () => ({
     ok: true as const,
     chips,
@@ -584,7 +583,7 @@ it('once her own words answered some of the step, Next skips every question they
   const ui = () => (
     <OnboardingAnswersProvider answers={{}}>
       <QuestionScreen
-        step={2}
+        step={3}
         relative={null}
         saveAnswersAction={saveAnswersAction}
         englishScores={[6, 6.5, 7]}
@@ -592,17 +591,142 @@ it('once her own words answered some of the step, Next skips every question they
       />
     </OnboardingAnswersProvider>
   )
-  pathname = `${STEP_PATHS[2]}/know`
+  pathname = `${STEP_PATHS[3]}/destination`
   const { rerender } = render(ui())
-  fireEvent.change(screen.getByRole('textbox'), {
-    target: { value: 'I want data science, hands-on' },
-  })
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'I want a city' } })
   await press('Read my words')
   await press('Use these')
-  expect(pushState).toHaveBeenLastCalledWith(null, '', '/onboarding/study/level')
+  expect(pushState).toHaveBeenLastCalledWith(null, '', '/onboarding/living/destination')
 
-  pathname = `${STEP_PATHS[2]}/level`
   act(() => rerender(ui()))
   await press('Skip')
-  expect(pushState).toHaveBeenLastCalledWith(null, '', '/onboarding/study/length')
+  expect(pushState).toHaveBeenLastCalledWith(null, '', '/onboarding/living/community')
+})
+
+it("offers no own-words box on step 01's first question, and one on step 02's (16 Oct 2026)", () => {
+  const readOwnWordsAction = mock(async () => ({
+    ok: true as const,
+    chips: [],
+    tags: [],
+    failed: false,
+  }))
+  const ui = (step: QuestionStep) => (
+    <OnboardingAnswersProvider answers={{}}>
+      <QuestionScreen
+        step={step}
+        relative={null}
+        saveAnswersAction={saveAnswersAction}
+        englishScores={[6, 6.5, 7]}
+        readOwnWordsAction={readOwnWordsAction}
+      />
+    </OnboardingAnswersProvider>
+  )
+  pathname = `${STEP_PATHS[1]}/where`
+  const { unmount } = render(ui(1))
+  expect(screen.queryAllByRole('button', { name: 'Read my words' }).length).toBe(0)
+  unmount()
+  pathname = `${STEP_PATHS[2]}/know`
+  render(ui(2))
+  expect(screen.queryAllByRole('button', { name: 'Read my words' }).length).toBe(1)
+})
+
+it('goes straight on to the next question after a single-choice tap, with no Continue', async () => {
+  screenAt('amount')
+  await tap('AUD 36k')
+  await waitFor(() => expect(pushState).toHaveBeenCalledWith(null, '', '/onboarding/facts/covers'))
+})
+
+it('goes on when she taps the answer she already gave', async () => {
+  screenAt('amount', { amount: { value: 36, state: 'stated' } })
+  await tap('AUD 36k')
+  await waitFor(() => expect(pushState).toHaveBeenCalledWith(null, '', '/onboarding/facts/covers'))
+})
+
+it("goes on to the next step from the last question's tap", async () => {
+  screenAt('english')
+  await tap('IELTS 6.5')
+  await waitFor(() => expect(push).toHaveBeenCalledWith('/onboarding/study/know'))
+})
+
+/** A save that answers only when the test says, for the move on waiting on it. */
+function heldSave() {
+  const answers: ((r: ActionResult) => void)[] = []
+  saveAnswersAction.mockImplementation(() => new Promise<ActionResult>((r) => answers.push(r)))
+  return {
+    answer: (r: ActionResult, at = answers.length - 1) => act(async () => answers[at](r)),
+    count: () => answers.length,
+  }
+}
+const pause = (ms: number) => act(() => new Promise((r) => setTimeout(r, ms)))
+const pushedStates = () => pushState.mock.calls.map(([, , path]) => path)
+
+it('moves on from a tap only once its answer is saved, sent at once', async () => {
+  const save = heldSave()
+  screenAt('amount')
+  await tap('AUD 36k')
+  // Sent with the tap, not after the save's usual pause.
+  expect(save.count()).toBe(1)
+  await pause(400)
+  expect(pushedStates()).toEqual([])
+  await save.answer({ ok: true })
+  await waitFor(() => expect(pushedStates()).toEqual(['/onboarding/facts/covers']))
+})
+
+it('stays on the question with the alert and Try again when the tap’s save is refused', async () => {
+  saveAnswersAction.mockImplementation(async () => ({ ok: false, error: 'x' }))
+  screenAt('amount')
+  await tap('AUD 36k')
+  await pause(400)
+  expect(pushedStates()).toEqual([])
+  expect(screen.queryByRole('alert')?.textContent?.includes(FAILED)).toBe(true)
+  expect(screen.queryAllByRole('button', { name: 'Try again' })).toHaveLength(1)
+})
+
+it('moves on for her second tap only, whichever save comes back last', async () => {
+  const save = heldSave()
+  studyAt('know')
+  await tap('Something particular')
+  await tap('Suggest me')
+  await pause(400)
+  await save.answer({ ok: true }, 1)
+  await save.answer({ ok: true }, 0)
+  await pause(50)
+  expect(pushedStates()).toEqual(['/onboarding/study/level'])
+})
+
+it('drops a tap’s move when she leaves the question before its save comes back', async () => {
+  const save = heldSave()
+  screenAt('amount')
+  await tap('AUD 36k')
+  await press('Back')
+  await save.answer({ ok: true })
+  await pause(400)
+  expect(pushedStates()).toEqual(['/onboarding/facts/where'])
+})
+
+it('leaves once when she presses Next during the pause after the last question’s tap', async () => {
+  screenAt('english')
+  await tap('IELTS 6.5')
+  await press(NEXT)
+  await act(() => new Promise((r) => setTimeout(r, 400)))
+  expect(push.mock.calls.map(([path]) => path)).toEqual(['/onboarding/study/know'])
+})
+
+it('moves on once when she presses Continue during the pause after a tap', async () => {
+  screenAt('amount')
+  await tap('AUD 36k')
+  await press('Continue')
+  await act(() => new Promise((r) => setTimeout(r, 400)))
+  expect(pushState.mock.calls.map(([, , path]) => path)).toEqual(['/onboarding/facts/covers'])
+})
+
+it('picks with the arrow keys without leaving the question', async () => {
+  screenAt('amount')
+  const first = screen.getAllByRole('radio')[0]
+  await act(async () => {
+    fireEvent.keyDown(first, { key: 'ArrowRight' })
+  })
+  expect(screen.getAllByRole('radio')[1].getAttribute('aria-checked')).toBe('true')
+  await act(() => new Promise((r) => setTimeout(r, 600)))
+  expect(pushState).not.toHaveBeenCalled()
 })

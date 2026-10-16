@@ -132,8 +132,8 @@ test('with a roadmap finished, every entry and every onboarding step goes to her
       '/onboarding/welcome',
       '/onboarding/character',
       '/onboarding/facts',
-      '/onboarding/facts/who-pays',
-      '/onboarding/study/learning',
+      '/onboarding/facts/covers',
+      '/onboarding/study/level',
       '/onboarding/attention',
       '/onboarding/done',
     ])

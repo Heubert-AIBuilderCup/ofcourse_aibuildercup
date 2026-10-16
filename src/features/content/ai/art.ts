@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { compile, GUIDELINE, type Guideline, guidelineFor } from '../brands/guideline'
 import { emotionOf } from '../emotions'
+import { failureReason } from '../lib/failure'
 import { canonicalJson, sha256Hex } from '../server/hash'
 import { dbCallLog } from './calls'
 import { ai } from './client'
@@ -163,6 +164,8 @@ export type ArtDeps = {
 export type CoverArt = {
   bytes: Uint8Array | null
   fallback: 'replay' | 'no_art' | 'daily_limit' | null
+  /** Why a no_art image's call failed, when its error says (lib/failure.ts): busy (429) or too slow. */
+  reason?: 'busy' | 'timeout'
 }
 
 const ASPECT_RATIO: ImageAspect = '4:5'
@@ -203,7 +206,7 @@ async function recordFallback(fallback: 'replay' | 'no_art', postId: string): Pr
 
 type Drawn =
   | { ok: true; bytes: Uint8Array }
-  | { ok: false; reason: 'failed' | 'daily_limit' | 'text' }
+  | { ok: false; reason: 'failed' | 'daily_limit' | 'text'; error?: string }
 
 /**
  * One image under its cache key: the cached one, which was checked when it was kept, or a new one
@@ -234,7 +237,7 @@ async function drawOne(
       })),
     }),
   })
-  if (!res.ok) return { ok: false, reason: res.reason }
+  if (!res.ok) return { ok: false, reason: res.reason, error: res.error }
   // Art the check could not read is never offered as if it were clean.
   if ((await artCheck({ bytes: res.value, postId })) !== 'clean')
     return { ok: false, reason: 'text' }
@@ -297,7 +300,10 @@ export async function coverArt(
   if (!cover && drawn.reason === 'daily_limit') {
     return { ok: true, art: { bytes: null, fallback: 'daily_limit' } }
   }
-  return { ok: true, art: { bytes: cover, fallback } }
+  // A failed call says why when its error does, so the slide can.
+  const why = failureReason(drawn.error ?? null)
+  const reason = !cover && (why === 'busy' || why === 'timeout') ? why : null
+  return { ok: true, art: { bytes: cover, fallback, ...(reason && { reason }) } }
 }
 
 /**

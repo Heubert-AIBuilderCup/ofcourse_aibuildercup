@@ -35,7 +35,6 @@ import answersStyles from './answers.module.css'
 import { BottomSheet } from './BottomSheet'
 import { ControlsBar } from './ControlsBar'
 import { LessonPanel } from './LessonPanel'
-import { MatchStrip } from './MatchStrip'
 import { Overview } from './Overview'
 import { PhoneMap } from './PhoneMap'
 import { PhoneRoad } from './PhoneRoad'
@@ -244,7 +243,6 @@ function Board({
     onLesson,
     undo,
     dismissToast,
-    say,
   } = useRoadSession(road, panel, roadmap, actions, phone, draft !== null)
   // Her answers' rows for a set of answers: the panel asks for them with its picks merged in.
   const groupsFor = (given: StoredAnswers) => answerGroups(given, roadmap.relative)
@@ -255,7 +253,6 @@ function Board({
     : undefined
   // The map's key strip: shown on her first visit, then as Map key says.
   const [keyShown, setKeyShown] = useState(roadmap.firstVisit)
-  const onLater = () => say('Ask and Compare come in a later round.')
   // On a phone, a draft's answers are over the map, as Your answers opens them.
   const phoneView = draft ? 'map' : state.view
 
@@ -364,6 +361,7 @@ function Board({
     if (state.zoom === 'whole') return overview
     return (
       <RoadCard
+        stickyActions
         key={state.tile ?? scene.here}
         road={road}
         scene={scene}
@@ -456,6 +454,7 @@ function Board({
     keyShown,
     onKeyShown: setKeyShown,
     answering,
+    match,
   }
 
   const phoneSheet = sheet()
@@ -470,10 +469,8 @@ function Board({
       >
         <RoadHeader
           roadmapName={draft ? 'New roadmap' : roadmap.name}
-          onLater={onLater}
           onAnswers={draft ? undefined : openAnswers}
         />
-        {match ? <MatchStrip line={match} /> : null}
         {phone ? (
           <>
             {answering ? null : <ViewSwitch view={state.view} onView={view} />}
@@ -514,11 +511,7 @@ function Board({
             </aside>
           </div>
         )}
-        <ControlsBar
-          weights={road.weights}
-          onLater={onLater}
-          onAnswers={draft ? undefined : openAnswers}
-        />
+        <ControlsBar weights={road.weights} onAnswers={draft ? undefined : openAnswers} />
       </div>
       <BottomSheet
         open={phoneSheet !== null}

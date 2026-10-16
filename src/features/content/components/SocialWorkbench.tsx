@@ -6,6 +6,7 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { Textarea } from '@/shared/components/ui/textarea'
+import { Spin, Working } from '@/shared/components/Working'
 import type { Staff } from '@/shared/lib/auth/access'
 import { cn } from '@/shared/lib/utils'
 import { boardBackHref } from '../lib/board'
@@ -16,7 +17,7 @@ import { STAGE_LABELS, type Stage } from '../model/stages'
 import type { PersonStamp } from '../model/types'
 import { Control, RenderedSlides, tag } from './parts'
 import { SlidePreview, slideWords } from './SlidePreview'
-import { usePostAction } from './usePostAction'
+import { usePressedAction } from './usePostAction'
 import { useRefreshWhileRunning } from './useRefreshWhileRunning'
 import type { WorkbenchActions } from './Workbench'
 
@@ -76,7 +77,8 @@ function shown(action: keyof typeof ACTION_STAGES, viewer: Staff, stage: Stage) 
  */
 export function SocialWorkbench({ view, viewer, from, actions }: SocialWorkbenchProps) {
   const ids = useId()
-  const { pending, run } = usePostAction()
+  // Which press is running, so only its control waits as "Running…" with its words beside it.
+  const { pending, run, pressed } = usePressedAction<'render' | 'check'>()
   useRefreshWhileRunning(view.running.length > 0)
   const { layout, render, caption } = view.current
   const [text, setText] = useState(caption?.body.text ?? '')
@@ -91,8 +93,8 @@ export function SocialWorkbench({ view, viewer, from, actions }: SocialWorkbench
   const reset = shown('socialReset', viewer, view.stage)
   const exporting = shown('socialExport', viewer, view.stage)
 
-  const rendering = view.running.includes('render') || pending
-  const checking = view.running.includes('caption_check') || pending
+  const rendering = view.running.includes('render') || pressed('render')
+  const checking = view.running.includes('caption_check') || pressed('check')
   const hashtags = hashtagsOf(tags)
   const dirty =
     caption !== null &&
@@ -158,14 +160,18 @@ export function SocialWorkbench({ view, viewer, from, actions }: SocialWorkbench
         {renderStep.visible && (
           <Control reason={renderStep.gate}>
             {rendering ? (
-              <Button disabled>Running…</Button>
+              <Button disabled>
+                <Spin />
+                Running…
+              </Button>
             ) : (
               <Button
-                disabled={renderStep.gate !== null}
+                disabled={pending || renderStep.gate !== null}
                 onClick={() =>
                   run(
                     () => actions.renderSocialAction(view.id, view.version),
                     `Rendered · ${layout?.body.slides.length ?? 0} slides`,
+                    { press: 'render' },
                   )
                 }
               >
@@ -174,6 +180,7 @@ export function SocialWorkbench({ view, viewer, from, actions }: SocialWorkbench
             )}
           </Control>
         )}
+        {pressed('render') && <Working words="Writing the caption and drawing the cover…" />}
       </section>
 
       {caption && (
@@ -232,16 +239,18 @@ export function SocialWorkbench({ view, viewer, from, actions }: SocialWorkbench
             {check.visible &&
               (checking ? (
                 <Button variant="outline" disabled>
+                  <Spin />
                   Running…
                 </Button>
               ) : (
                 <Button
                   variant="outline"
-                  disabled={dirty || check.gate !== null}
+                  disabled={pending || dirty || check.gate !== null}
                   onClick={() =>
                     run(
                       () => actions.checkCaptionAction(view.id, view.version),
                       'Source check done',
+                      { press: 'check' },
                     )
                   }
                 >
@@ -263,6 +272,7 @@ export function SocialWorkbench({ view, viewer, from, actions }: SocialWorkbench
               </Button>
             )}
           </div>
+          {pressed('check') && <Working words="Checking the caption against the source…" />}
           {exporting.visible && (
             <Control reason={exportReason}>
               <Button
@@ -271,7 +281,7 @@ export function SocialWorkbench({ view, viewer, from, actions }: SocialWorkbench
                   run(
                     () => actions.markExportedAction(view.id, view.version),
                     `Exported · ${view.fileName}`,
-                    () => window.location.assign(exportUrl),
+                    { onDone: () => window.location.assign(exportUrl) },
                   )
                 }
               >
@@ -305,7 +315,7 @@ export function SocialWorkbench({ view, viewer, from, actions }: SocialWorkbench
                     run(
                       () => actions.recordPostUrlAction(view.id, view.version, url.trim()),
                       'Link saved',
-                      () => setUrl(''),
+                      { onDone: () => setUrl('') },
                     )
                   }
                 >

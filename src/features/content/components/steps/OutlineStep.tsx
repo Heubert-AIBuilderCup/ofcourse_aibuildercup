@@ -7,6 +7,7 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { NativeSelect } from '@/shared/components/ui/native-select'
+import { Spin, Working } from '@/shared/components/Working'
 import type { Staff } from '@/shared/lib/auth/access'
 import { formatById, rankedFormats } from '../../formats'
 import { LAYOUT_LABELS } from '../../layout/relayout'
@@ -33,14 +34,14 @@ import { templateById } from '../../templates'
 import { firstChars } from '../../text/script'
 import {
   Control,
+  FailedLine,
   movesWait,
   ReorderButtons,
   reasonText,
   StepAction,
   StepAreas,
-  Working,
 } from '../parts'
-import { usePostAction } from '../usePostAction'
+import { usePostAction, usePressedAction } from '../usePostAction'
 import type { WorkbenchActions, WorkbenchView } from '../Workbench'
 
 export type OutlineStepProps = {
@@ -71,7 +72,8 @@ type Check = (op: OutlineOp) => string | null
  * any step runs (criterion 122); a viewer who may not edit sees the outline only.
  */
 export function OutlineStep({ view, viewer, actions }: OutlineStepProps) {
-  const { pending, run, error } = usePostAction()
+  // Which press is running, so only its control waits as "Running…" with its words beside it.
+  const { pending, run, error, pressed } = usePressedAction<'write' | 'format' | 'retry' | 'edit'>()
   const router = useRouter()
   const ids = useId()
   const [newPoint, setNewPoint] = useState('')
@@ -110,21 +112,29 @@ export function OutlineStep({ view, viewer, actions }: OutlineStepProps) {
     const edited = editOutline(template, slides, op)
     return edited.ok ? null : edited.error
   }
-  const edit = (op: OutlineOp) =>
-    run(() => actions.editOutlineAction(view.id, view.version, op), 'Outline changed')
-  const reformat = (format: string) => {
+  const edit = (op: OutlineOp) => {
+    run(() => actions.editOutlineAction(view.id, view.version, op), 'Outline changed', {
+      press: 'edit',
+    })
+  }
+  const reformat = (format: string, from: 'format' | 'retry') => {
     setLastFormat(format)
-    run(() => actions.outlineFormatAction(view.id, view.version, format), 'Outlined again')
+    run(() => actions.outlineFormatAction(view.id, view.version, format), 'Outlined again', {
+      press: from,
+    })
   }
   const formats = rankedFormats(view.current.ideas?.body.formats)
   const chosen = outline.format ? formatById(outline.format) : null
-  const write = () =>
-    run(
-      () => actions.writeSlidesAction(view.id, view.version),
-      'Versions drafted',
+  const write = () => {
+    run(() => actions.writeSlidesAction(view.id, view.version), 'Versions drafted', {
       // Drafted, the post is at its text versions: their screen opens (GD27).
-      () => router.push(stepPath(view.id, stepOfStage('structures', false))),
-    )
+      onDone: () => router.push(stepPath(view.id, stepOfStage('structures', false))),
+      press: 'write',
+    })
+  }
+  // The press's own words while it runs; the polled step's once it is running.
+  const reshaping = pressed('format') || pressed('retry')
+  const working = reshaping ? 'Reshaping the outline…' : pressed('write') ? null : waiting
 
   // A slide added goes before the takeaway, in the look's first middle layout.
   const middle =
@@ -239,7 +249,7 @@ export function OutlineStep({ view, viewer, actions }: OutlineStepProps) {
                     id={`${ids}-format`}
                     value={outline.format ?? ''}
                     disabled={blocked || editGate.reason !== null}
-                    onChange={(e) => reformat(e.target.value)}
+                    onChange={(e) => reformat(e.target.value, 'format')}
                   >
                     {chosen === null && <option value="">Choose a format</option>}
                     {formats.map(({ format, recommended }) => (
@@ -252,25 +262,34 @@ export function OutlineStep({ view, viewer, actions }: OutlineStepProps) {
                 {chosen && <p className={reasonText}>{chosen.description}</p>}
               </div>
             )}
-            {waiting && <Working words={waiting} />}
-            {failed && <p className={reasonText}>{DRAFT_FAILED}</p>}
-            {outlineFailed && <p className={reasonText}>{OUTLINE_FAILED}</p>}
+            {working && <Working words={working} />}
+            {failed && (
+              <FailedLine words={DRAFT_FAILED} reason={view.failedReasons?.[DRAFT_STEP]} />
+            )}
+            {outlineFailed && (
+              <FailedLine words={OUTLINE_FAILED} reason={view.failedReasons?.[OUTLINE_STEP]} />
+            )}
             {outlineFailed && lastFormat && editGate.shown && (
               <Control reason={editGate.reason}>
                 <Button
                   variant="outline"
                   disabled={blocked || editGate.reason !== null}
-                  onClick={() => reformat(lastFormat)}
+                  onClick={() => reformat(lastFormat, 'retry')}
                 >
-                  Try again
+                  {pressed('retry') && <Spin />}
+                  {pressed('retry') ? 'Running…' : 'Try again'}
                 </Button>
               </Control>
             )}
             {writeGate.shown && (
               <StepAction>
+                {pressed('write') && (
+                  <Working words="Writing three versions of the slides · this can take a minute" />
+                )}
                 <Control reason={writeGate.reason}>
                   <Button disabled={blocked || writeGate.reason !== null} onClick={write}>
-                    {failed ? 'Try again' : 'Write the slides'}
+                    {pressed('write') && <Spin />}
+                    {pressed('write') ? 'Running…' : failed ? 'Try again' : 'Write the slides'}
                   </Button>
                 </Control>
               </StepAction>
@@ -583,7 +602,9 @@ export function BlogOutlineStep({ view, viewer, actions }: BlogOutlineStepProps)
               <dd>{`${sections.length} of ${BLOG_SECTIONS.min} to ${BLOG_SECTIONS.max}`}</dd>
             </dl>
             {waiting && <Working words={waiting} />}
-            {failed && <p className={reasonText}>{WRITE_FAILED}</p>}
+            {failed && (
+              <FailedLine words={WRITE_FAILED} reason={view.failedReasons?.[BLOG_TEXT_STEP]} />
+            )}
             {writeGate.shown && (
               <Control reason={writeGate.reason}>
                 <Button disabled={blocked || writeGate.reason !== null} onClick={write}>

@@ -15,7 +15,7 @@ import { characterOf } from '@/features/content/server/character'
 import { earlierArt } from '@/features/content/server/commands'
 import { pageStyles } from '@/features/content/server/page-style'
 import { draftLayouts } from '@/features/content/server/preview'
-import { failedSteps, runningNow } from '@/features/content/server/steps'
+import { failedNow, runningNow } from '@/features/content/server/steps'
 import {
   blogChoices,
   linkedBlogOf,
@@ -42,15 +42,16 @@ export default async function AdminPostStepPage({
   const query = await searchParams
   // Each step's own records only: the history shows at the source, earlier art and a look's
   // earlier takes ("Swap image", GD13) at the images, the styled pages ("Make the set") at live.
-  const [post, { running, progress }, failed, arts, history, styles, slideArt] = await Promise.all([
-    loadPost(id),
-    runningNow(id),
-    failedSteps(id),
-    step === 'images' ? earlierArt(id) : [],
-    step === 'source' ? listHistory(id) : [],
-    step === 'live' ? pageStyles() : null,
-    step === 'images' ? listSlideArt(id) : [],
-  ])
+  const [post, { running, progress }, { failed, reasons }, arts, history, styles, slideArt] =
+    await Promise.all([
+      loadPost(id),
+      runningNow(id),
+      failedNow(id),
+      step === 'images' ? earlierArt(id) : [],
+      step === 'source' ? listHistory(id) : [],
+      step === 'live' ? pageStyles() : null,
+      step === 'images' ? listSlideArt(id) : [],
+    ])
   if (!post) notFound()
   if (post.kind === 'social') redirect(withQuery(postPath(post.id), query))
 
@@ -102,6 +103,7 @@ export default async function AdminPostStepPage({
         running,
         progress,
         failed,
+        failedReasons: reasons,
         draftChecks,
         draftShifts,
         earlierArt: arts,

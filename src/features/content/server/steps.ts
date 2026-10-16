@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { db } from '@/shared/lib/db'
 import { contentStep } from '@/shared/lib/db/schema'
 import type { ActionResult } from '@/shared/types/action-result'
+import { type FailureReason, failureReason } from '../lib/failure'
 import type { StepProgress } from '../lib/running'
 import { WORKFLOW_ERRORS } from '../lib/workflow'
 import { afterResponse } from './after'
@@ -155,14 +156,26 @@ export async function runStepAfter<T>(
   }
 }
 
-/** The steps whose last run on a post failed, by name: the page says so beside the step. */
-export async function failedSteps(postId: string): Promise<string[]> {
+/**
+ * The steps whose last run on a post failed, by name, and why each failed, read from the error it
+ * keeps (lib/failure.ts): the page says so beside the step. One query over the post's rows.
+ */
+export async function failedNow(
+  postId: string,
+): Promise<{ failed: string[]; reasons: Record<string, FailureReason> }> {
   const rows = await db
-    .select({ step: contentStep.step })
+    .select({ step: contentStep.step, error: contentStep.error })
     .from(contentStep)
     .where(and(eq(contentStep.postId, postId), eq(contentStep.status, 'failed')))
     .orderBy(asc(contentStep.step))
-  return rows.map((r) => r.step)
+  const reasons: Record<string, FailureReason> = {}
+  for (const row of rows) reasons[row.step] = failureReason(row.error)
+  return { failed: rows.map((r) => r.step), reasons }
+}
+
+/** The steps whose last run on a post failed, by name: the page says so beside the step. */
+export async function failedSteps(postId: string): Promise<string[]> {
+  return (await failedNow(postId)).failed
 }
 
 /**

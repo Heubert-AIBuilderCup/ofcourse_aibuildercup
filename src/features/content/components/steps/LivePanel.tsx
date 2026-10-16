@@ -6,6 +6,7 @@ import { type ReactNode, useId, useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
 import { Label } from '@/shared/components/ui/label'
 import { NativeSelect } from '@/shared/components/ui/native-select'
+import { Spin, Working } from '@/shared/components/Working'
 import type { Staff } from '@/shared/lib/auth/access'
 import { COMICS_BRAND_ID, FEED_POST_PAGES, quoteCardBrand } from '../../brands'
 import { liveLine, reviewLine, tagsLine } from '../../lib/lines'
@@ -99,9 +100,11 @@ function MakeSet({ view, viewer, actions }: LivePanelProps) {
       </ul>
       <Control reason={gate}>
         <Button variant="outline" disabled={pending || gate !== null} onClick={create}>
+          {pending && <Spin />}
           {pending ? 'Running…' : 'Make the set'}
         </Button>
       </Control>
+      {pending && <Working words="Making a version for each page · this can take a few minutes" />}
       <p className={reasonText}>
         Each version is rendered with its caption, ready to export from its own page. A page's cover
         counts against the daily image limit; past it, the version keeps this post's art.

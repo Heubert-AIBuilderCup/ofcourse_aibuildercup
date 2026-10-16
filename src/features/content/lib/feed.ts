@@ -3,6 +3,7 @@
 // client-safe: type-only imports from the model, nothing server-side. server/store.ts reads the
 // posts; this decides what the feed does with them.
 
+import { SITE_NAME } from '@/shared/lib/site'
 import { type LanguageId, labelledLanguage } from '../languages'
 import { MARKET_IDS, type MarketId } from '../markets'
 import { type FeedSettings, type LaidSlide, SEARCH_SLOT, type Structure } from '../model/types'
@@ -254,4 +255,61 @@ export function cardSourceLine(slides: readonly LaidSlide[]): string | null {
 export function slideAlt(slide: number, text: string[] | undefined): string {
   const words = (text ?? []).join(' ').trim()
   return words ? `Slide ${slide}: ${words}` : `Slide ${slide}`
+}
+
+/** How many cards the feed shows at a time: the server's first page, then each page the scroll asks for. */
+export const FEED_PAGE_SIZE = 8
+
+/**
+ * One page of the feed: `size` entries from `offset` of what the filters leave, in the order
+ * given (feedOrder's). The feed stops asking once a page comes back short.
+ */
+export function feedPage<T extends FeedItem>(
+  items: T[],
+  f: Filters,
+  offset: number,
+  size: number,
+): T[] {
+  return applyFilters(items, f).slice(offset, offset + size)
+}
+
+/**
+ * A feed card: what the card draws and nothing more, since a page of them is all the browser is
+ * sent. A post in the version the home chip asks for (criterion 82), named by the Instagram page
+ * it went out under or the site, with the first line of its excerpt; a blog as its card (BR11).
+ */
+export type FeedCard =
+  | {
+      kind: 'post'
+      id: string
+      title: string
+      page: string
+      layer: FeedSettings['layer']
+      whyLine: string | null
+      language?: LanguageId
+      line: string
+      slides: FeedSlide[]
+      sourceLine: string | null
+    }
+  | ({ kind: 'blog' } & Pick<FeedBlog, 'id' | 'title' | 'cover' | 'language' | 'minutes'>)
+
+/** The card of a post or a blog, under the home chip `home`. */
+export function feedCardOf(item: FeedItem, home: HomeMarket): FeedCard {
+  if (isFeedBlog(item)) {
+    const { id, title, cover, language, minutes } = item
+    return { kind: 'blog', id, title, cover, language, minutes }
+  }
+  const version = versionOf(item, home)
+  return {
+    kind: 'post',
+    id: item.id,
+    title: item.title,
+    page: item.instagram ? `@${item.instagram.handle}` : SITE_NAME,
+    layer: item.settings.layer,
+    whyLine: item.settings.whyLine,
+    language: item.language,
+    line: version.excerpt.split('\n')[0] ?? '',
+    slides: version.slides,
+    sourceLine: item.sourceLine,
+  }
 }

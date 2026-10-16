@@ -6,11 +6,12 @@ import { useId, useRef, useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
 import { Label } from '@/shared/components/ui/label'
 import { NativeSelect } from '@/shared/components/ui/native-select'
+import { Spin, Working } from '@/shared/components/Working'
 import type { Staff } from '@/shared/lib/auth/access'
 import { postPath } from '../../lib/steps'
 import { actionError, WORKFLOW_ERRORS } from '../../lib/workflow'
 import { Control, reasonText, tag } from '../parts'
-import { usePostAction } from '../usePostAction'
+import { usePostAction, usePressedAction } from '../usePostAction'
 import type { WorkbenchActions, WorkbenchView } from '../Workbench'
 
 const linkClass = 'font-heading underline-offset-4 hover:underline'
@@ -48,7 +49,9 @@ export type PostBlogLinksProps = {
 export function PostBlogLinks({ view, viewer, actions }: PostBlogLinksProps) {
   const ids = useId()
   const router = useRouter()
-  const { pending, run } = usePostAction()
+  // "Make a blog" pressed and running, as against a link or an unlink.
+  const { pending, run, pressed } = usePressedAction<'make'>()
+  const starting = pressed('make')
   const request = useRequestId()
   const blogs = view.blogs ?? []
   const linked = view.linkedBlogId ?? null
@@ -65,18 +68,22 @@ export function PostBlogLinks({ view, viewer, actions }: PostBlogLinksProps) {
     run(
       () => actions.makeBlogFromPostAction(view.id, view.version, { requestId }),
       'Blog made · the post is linked to it',
-      (made) => {
-        request.done()
-        router.push(postPath(made.id))
+      {
+        onDone: (made) => {
+          request.done()
+          router.push(postPath(made.id))
+        },
+        press: 'make',
       },
     )
   }
-  const link = (blogId: string | null) =>
+  const link = (blogId: string | null) => {
     run(
       () => actions.linkToBlogAction(view.id, view.version, { blogId }),
       blogId ? 'Linked to the blog' : 'Unlinked from the blog',
-      () => setPicked(''),
+      { onDone: () => setPicked('') },
     )
+  }
 
   if (!linked && !canMake && !canLink) return null
   return (
@@ -107,10 +114,12 @@ export function PostBlogLinks({ view, viewer, actions }: PostBlogLinksProps) {
       {canMake && (
         <Control reason={makeGate}>
           <Button variant="outline" disabled={pending || makeGate !== null} onClick={make}>
-            Make a blog
+            {starting && <Spin />}
+            {starting ? 'Running…' : 'Make a blog'}
           </Button>
         </Control>
       )}
+      {starting && <Working words="Starting the blog…" />}
       {canLink && choices.length > 0 && (
         <div className="flex flex-col gap-1">
           <Label htmlFor={`${ids}-blog`}>Link to an existing blog</Label>
@@ -198,10 +207,12 @@ export function BlogPosts({ view, viewer, actions }: BlogPostsProps) {
       {shown && (
         <Control reason={reason}>
           <Button disabled={pending || reason !== null} onClick={make}>
-            Make posts from this blog
+            {pending && <Spin />}
+            {pending ? 'Running…' : 'Make posts from this blog'}
           </Button>
         </Control>
       )}
+      {pending && <Working words="Making posts from this blog…" />}
     </section>
   )
 }

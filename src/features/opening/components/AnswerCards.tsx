@@ -15,21 +15,25 @@ const labelOf = (option: AnswerValue): string =>
  * offers it (step 01 asks 'chips' and 'select' questions this way, never 'multi'). A stated answer
  * checks its card; an assumed one ("Not sure" was tapped) checks "Not sure". One card is in the
  * tab order, the checked one (the first when none is), and the arrow keys, Home and End move to a
- * card and pick it as they go, wrapping at the ends. Pressing the checked card again does nothing.
- * `labelledBy` is the id of the h1 that asks the question. `dense` draws smaller cards, for a
- * choice inside a form (step 03's "They're your…").
+ * card and pick it as they go, wrapping at the ends. Pressing the checked card again does nothing
+ * but `onChoose`. `onChoose` follows a press (a click, Enter or Space) on any card, the checked one
+ * too, never an arrow key's pick, so a question screen can move on when she chooses. `labelledBy`
+ * is the id of the h1 that asks the question. `dense` draws smaller cards, for a choice inside a
+ * form (step 03's "They're your…").
  */
 export function AnswerCards({
   question,
   labelledBy,
   answer,
   onAnswer,
+  onChoose,
   dense = false,
 }: {
   question: Pick<Question, 'options' | 'notSure'>
   labelledBy: string
   answer: StoredAnswer | undefined
   onAnswer: (raw: AnswerValue) => void
+  onChoose?: (raw: AnswerValue) => void
   dense?: boolean
 }) {
   const cards = useRef<(HTMLButtonElement | null)[]>([])
@@ -100,6 +104,7 @@ export function AnswerCards({
             tabIndex={i === tabStop ? 0 : -1}
             onClick={() => {
               if (!checked) onAnswer(option)
+              onChoose?.(option)
             }}
             onKeyDown={(e) => onKeyDown(e, i)}
             className={cn(

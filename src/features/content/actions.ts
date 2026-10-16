@@ -81,6 +81,7 @@ import {
   setOutlineFormat,
   setPreset,
   setSlideLayout,
+  skipPictures,
   suggestSources,
   // Biome reads a use* call as a React hook; this is the command, not a hook.
   useSlide as takeSlide,
@@ -887,6 +888,11 @@ export async function editImageSceneAction(
 /** "Draw images", which approves the plan, and "Draw remaining" after the daily limit (GD12, GD14). */
 export async function drawImagesAction(id: unknown, at: unknown): Promise<Saved> {
   return onPost(id, at, drawImages)
+}
+
+/** "Skip pictures": the slides saved as they look now, without drawing; the command checks who and when. */
+export async function skipPicturesAction(id: unknown, at: unknown): Promise<Saved> {
+  return onPost(id, at, skipPictures)
 }
 
 /** An image chip on one drawn slide (GD13); the command checks the chip. */

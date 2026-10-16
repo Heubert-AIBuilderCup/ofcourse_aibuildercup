@@ -4,7 +4,7 @@
 // slides of a render or a market version, and the radio switch. One copy each, so the steps read
 // alike.
 
-import { ArrowDown, ArrowUp, Loader2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, X } from 'lucide-react'
 import {
   createContext,
   type ReactNode,
@@ -18,7 +18,9 @@ import { createPortal } from 'react-dom'
 import { Blueprint } from '@/shared/components/Blueprint'
 import { Button } from '@/shared/components/ui/button'
 import { Label } from '@/shared/components/ui/label'
+import { Spin } from '@/shared/components/Working'
 import { cn } from '@/shared/lib/utils'
+import { type FailureReason, failureSentence } from '../lib/failure'
 import { sendBackLine } from '../lib/lines'
 import { runningReason, type StepProgress } from '../lib/running'
 import { marketById } from '../markets'
@@ -49,34 +51,12 @@ export const movesWait = (
 ): string | null => runningReason(running.map((step) => ({ step, progress: progress?.[step] })))
 
 /**
- * The loader of a step at work: a spinner, held still when the reader asks for reduced motion;
- * 14px beside words, 20px alone.
+ * A step's failed line ("Drafting failed. Your facts are kept."), with the sentence for why it
+ * failed after it when its recorded error names a reason (lib/failure.ts).
  */
-export function Spin({ alone = false }: { alone?: boolean }) {
-  return (
-    <Loader2
-      aria-hidden
-      strokeWidth={1.5}
-      className={cn('shrink-0 motion-safe:animate-spin', alone ? 'size-icon-lg' : 'size-icon-sm')}
-    />
-  )
-}
-
-/**
- * A step running in the background, shown where its result will appear: the loader and what is
- * happening in words, counted where it can be ("Drawing image 2 of 4"). A status, so a screen
- * reader hears it change.
- */
-export function Working({ words, className }: { words: string; className?: string }) {
-  return (
-    <p
-      role="status"
-      className={cn('flex items-center gap-2 text-caption text-muted-foreground', className)}
-    >
-      <Spin />
-      {words}
-    </p>
-  )
+export function FailedLine({ words, reason }: { words: string; reason?: FailureReason }) {
+  const why = failureSentence(reason)
+  return <p className={reasonText}>{why ? `${words} ${why}` : words}</p>
 }
 
 /** One reorder control: whether it waits, and what it does. */
@@ -246,11 +226,13 @@ export function Move(props: {
   /** The running step in words (movesWait), or null. */
   waiting: string | null
   pending: boolean
+  /** Its own run is going: the trigger waits as "Running…" with the loader. */
+  working?: boolean
   onGo: () => void
   confirm?: Confirm
   className?: string
 }) {
-  const { label, waiting, pending, onGo, confirm } = props
+  const { label, waiting, pending, onGo, confirm, working = false } = props
   const [asking, setAsking] = useState(false)
   const ids = useId()
   const blocked = pending || waiting !== null
@@ -274,7 +256,8 @@ export function Move(props: {
           disabled={blocked || asking}
           onClick={() => (confirm ? setAsking(true) : onGo())}
         >
-          {label}
+          {working && <Spin />}
+          {working ? 'Running…' : label}
         </Button>
       </Control>
       {confirm && asking && (

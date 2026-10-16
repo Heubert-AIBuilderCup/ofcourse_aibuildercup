@@ -44,11 +44,11 @@ describe('afterOwnWords', () => {
 
   it('goes to the first question still unanswered in the step once the chips are stored', () => {
     const patch = ownWordsPatch(
-      [chip({ key: 'field', value: 'Data science' }), chip({ key: 'level', value: "Master's" })],
+      [chip({ key: 'dest', value: 'Australia' }), chip({ key: 'place', value: 'City' })],
       new Set([0, 1]),
-      know,
+      {},
     )
-    expect(afterOwnWords('study', { ...know, ...patch }, null)).toBe('/onboarding/study/learning')
+    expect(afterOwnWords('living', patch, null)).toBe('/onboarding/living/community')
   })
 
   it("goes to the step's last question when every one is answered", () => {
@@ -56,10 +56,8 @@ describe('afterOwnWords', () => {
       ...know,
       field: { value: 'Data science', state: 'stated' },
       level: { value: "Master's", state: 'stated' },
-      learn: { value: 'No preference', state: 'stated' },
-      length: { value: 'As short as possible', state: 'stated' },
     }
-    expect(afterOwnWords('study', answers, null)).toBe('/onboarding/study/length')
+    expect(afterOwnWords('study', answers, null)).toBe('/onboarding/study/level')
   })
 
   it('opens her person on living while none is stored, after a Yes to knowing someone', () => {

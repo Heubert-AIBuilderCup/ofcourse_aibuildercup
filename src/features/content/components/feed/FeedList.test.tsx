@@ -1,12 +1,11 @@
 /// <reference lib="dom" />
 /// <reference path="../../../../../node_modules/@testing-library/jest-dom/types/bun.d.ts" />
-import { afterEach, describe, expect, it } from 'bun:test'
-import { cleanup, render, screen } from '@testing-library/react'
-import type { FeedBlog, FeedPost, FeedVersion, Filters } from '../../lib/feed'
-import type { FeedSettings } from '../../model/types'
+import { afterAll, afterEach, beforeAll, describe, expect, it, mock } from 'bun:test'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import type { ActionResult } from '@/shared/types/action-result'
+import type { FeedCard, Filters } from '../../lib/feed'
 import { FeedList } from './FeedList'
-
-afterEach(cleanup)
+import { slideAt } from './FeedPostCard'
 
 const F = (over: Partial<Filters> = {}): Filters => ({
   destination: null,
@@ -17,159 +16,278 @@ const F = (over: Partial<Filters> = {}): Filters => ({
   ...over,
 })
 
-const GENERAL: FeedSettings = {
-  layer: 'general',
-  audience: { mode: 'everyone', rules: [] },
-  whyLine: null,
-  expiry: { kind: 'none' },
-  studioLink: null,
-  tags: [],
-  sourcesAt: 'caption',
-}
+const postCard = (id: string, over: Partial<Extract<FeedCard, { kind: 'post' }>> = {}) =>
+  ({
+    kind: 'post',
+    id,
+    title: `Post ${id}`,
+    page: 'OfCourse',
+    layer: 'general',
+    whyLine: null,
+    line: `${id} first line.`,
+    slides: [
+      { pngAssetId: `png-${id}-1`, alt: `Slide 1: ${id}` },
+      { pngAssetId: `png-${id}-2`, alt: `Slide 2: ${id}` },
+    ],
+    sourceLine: null,
+    ...over,
+  }) satisfies FeedCard as FeedCard
 
-const MAIN: FeedVersion = {
-  excerpt: 'Main excerpt.',
-  slides: [
-    { pngAssetId: 'png-main-1', alt: 'Slide 1: Main' },
-    { pngAssetId: 'png-main-2', alt: 'Slide 2: More' },
-  ],
-}
-const NEPAL: FeedVersion = {
-  excerpt: 'Nepal excerpt.',
-  slides: [{ pngAssetId: 'png-np-1', alt: 'Slide 1: Nepal' }],
-}
+const cards = (prefix: string, n: number) =>
+  Array.from({ length: n }, (_, i) => postCard(`${prefix}${i + 1}`))
 
-const post = (over: Partial<FeedPost> & { id: string; title: string }): FeedPost => ({
-  approvedAt: '2026-10-07T09:00:00.000Z',
-  settings: GENERAL,
-  sourceLine: 'Source: Work rights guide · ¶2',
-  sourceId: null,
-  courseId: null,
-  tags: [],
-  main: MAIN,
-  market: null,
-  instagram: null,
-  ...over,
+type Load = (input: {
+  query: Record<string, string | string[]>
+  offset: number
+}) => Promise<ActionResult<{ cards: FeedCard[] }>>
+
+// The scroll's sentinel: each IntersectionObserver the list makes, and what it watches.
+type Watcher = { callback: IntersectionObserverCallback; watched: Element[]; live: boolean }
+let watchers: Watcher[] = []
+const RealObserver = window.IntersectionObserver
+beforeAll(() => {
+  window.IntersectionObserver = class {
+    w: Watcher
+    constructor(callback: IntersectionObserverCallback) {
+      this.w = { callback, watched: [], live: true }
+      watchers.push(this.w)
+    }
+    observe(el: Element) {
+      this.w.watched.push(el)
+    }
+    unobserve() {}
+    disconnect() {
+      this.w.live = false
+    }
+    takeRecords() {
+      return []
+    }
+  } as unknown as typeof IntersectionObserver
+})
+afterAll(() => {
+  window.IntersectionObserver = RealObserver
+})
+afterEach(() => {
+  cleanup()
+  watchers = []
 })
 
-const POSTS: FeedPost[] = [
-  post({
-    id: 'p1',
-    title: 'Paid work in Australia',
-    settings: {
-      ...GENERAL,
-      layer: 'personal',
-      audience: { mode: 'matched', rules: [] },
-      whyLine: 'You weighted work rights highly.',
-    },
-    market: { id: 'NP', version: NEPAL },
-  }),
-  post({ id: 'p2', title: 'Rent in Manchester' }),
-]
-
-describe('FeedList', () => {
-  it('renders a card per post with its title, and "For you" on the Personal one', () => {
-    render(<FeedList posts={POSTS} filters={F()} liveCount={2} />)
-    expect(screen.getByText('Paid work in Australia')).toBeInTheDocument()
-    expect(screen.getByText('Rent in Manchester')).toBeInTheDocument()
-    expect(screen.getAllByText('For you')).toHaveLength(1)
-    // No market: both show their main version.
-    expect(screen.getAllByText('Main excerpt.')).toHaveLength(2)
+/** The sentinel scrolls into view: every live observer hears it. */
+const reach = () =>
+  act(async () => {
+    for (const w of watchers.filter((x) => x.live && x.watched.length > 0)) {
+      w.callback(
+        w.watched.map((target) => ({
+          isIntersecting: true,
+          target,
+        })) as IntersectionObserverEntry[],
+        {} as IntersectionObserver,
+      )
+    }
   })
+const titles = () => screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent ?? '')
 
-  it('links each title to its post page and each cover to the feed image route', () => {
-    render(<FeedList posts={POSTS} filters={F()} liveCount={2} />)
-    expect(screen.getByRole('link', { name: 'Paid work in Australia' })).toHaveAttribute(
-      'href',
-      '/feed/p1',
-    )
-    expect(screen.getByRole('link', { name: 'Rent in Manchester' })).toHaveAttribute(
-      'href',
-      '/feed/p2',
-    )
-    expect(screen.getByRole('img', { name: 'Cover of Paid work in Australia' })).toHaveAttribute(
-      'src',
-      '/feed/assets/png-main-1',
-    )
-  })
+const list = (props: Partial<Parameters<typeof FeedList>[0]> = {}) => (
+  <FeedList
+    cards={cards('a', 8)}
+    filters={F()}
+    query={{}}
+    liveCount={20}
+    loadPage={mock<Load>(async () => ({ ok: true, cards: [] }))}
+    {...props}
+  />
+)
 
-  it('keeps every filter in every link and shows the Nepal version under home=NP where there is one', () => {
-    render(<FeedList posts={POSTS} filters={F({ home: 'NP', q: 'rent' })} liveCount={2} />)
-    expect(screen.getByRole('link', { name: 'Paid work in Australia' })).toHaveAttribute(
-      'href',
+describe('FeedList: the cards', () => {
+  it('opens each post from its whole card, named by its title, the filters kept', () => {
+    render(list({ cards: [postCard('p1')], filters: F({ home: 'NP', q: 'rent' }) }))
+    expect(screen.getByRole('link', { name: 'Post p1' }).getAttribute('href')).toBe(
       '/feed/p1?home=NP&q=rent',
     )
-    expect(screen.getByRole('link', { name: 'Rent in Manchester' })).toHaveAttribute(
-      'href',
-      '/feed/p2?home=NP&q=rent',
-    )
-    expect(screen.getByText('Nepal excerpt.')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Cover of Paid work in Australia' })).toHaveAttribute(
-      'src',
-      '/feed/assets/png-np-1',
-    )
-    // The post with no Nepal version shows its main one.
-    expect(screen.getByText('Main excerpt.')).toBeInTheDocument()
   })
 
-  it('shows a blog as a blog card: its cover from the blog image route, its reading time, and a link to its page in the feed with the filters kept (BR11)', () => {
-    const blog: FeedBlog = {
+  it('shows every slide from the feed image route with its alt, the page, the first line and the tags', () => {
+    render(
+      list({
+        cards: [
+          postCard('p1', {
+            layer: 'personal',
+            page: '@ofcourse.main',
+            language: 'ne',
+            whyLine: 'You weighted work rights.',
+          }),
+          postCard('p2'),
+        ],
+      }),
+    )
+    const images = screen.getAllByRole('img').filter((i) => i.getAttribute('alt')?.endsWith('p1'))
+    expect(images.map((i) => [i.getAttribute('alt'), i.getAttribute('src')])).toEqual([
+      ['Slide 1: p1', '/feed/assets/png-p1-1'],
+      ['Slide 2: p1', '/feed/assets/png-p1-2'],
+    ])
+    expect(screen.queryByText('@ofcourse.main') !== null).toBe(true)
+    expect(screen.getAllByText('OfCourse')).toHaveLength(1)
+    expect(screen.queryByText('p1 first line.') !== null).toBe(true)
+    expect(screen.getAllByText('For you')).toHaveLength(1)
+    expect(screen.getByText('नेपाली').getAttribute('lang')).toBe('ne')
+    expect(screen.queryByText('You weighted work rights.') !== null).toBe(true)
+  })
+
+  it('shows a blog as a blog card: its cover from the blog image route, its reading time, its page in the feed (BR11)', () => {
+    const blog: FeedCard = {
       kind: 'blog',
       id: 'b1',
       title: 'How many hours can I work?',
-      slug: 'how-many-hours',
-      approvedAt: '2026-10-07T10:00:00.000Z',
-      settings: GENERAL,
-      tags: [],
       cover: { assetId: 'png-cover', alt: 'A student at a café counter' },
       minutes: 6,
-      text: '',
-    }
-    render(
-      <FeedList posts={[blog, ...POSTS]} filters={F({ theme: 'work-study-life' })} liveCount={3} />,
-    )
-    expect(screen.getByRole('link', { name: 'How many hours can I work?' })).toHaveAttribute(
-      'href',
-      '/feed/blog/b1?theme=work-study-life',
-    )
-    expect(screen.getByRole('img', { name: 'A student at a café counter' })).toHaveAttribute(
-      'src',
-      '/blog/assets/png-cover',
-    )
-    expect(screen.getByText('6 min read')).toBeInTheDocument()
-    expect(screen.getAllByRole('listitem')).toHaveLength(3)
-  })
-
-  it('labels a Nepali post’s card and a Thai blog’s card with their language’s own name (GD40)', () => {
-    const thai: FeedBlog = {
-      kind: 'blog',
-      id: 'b-th',
-      title: 'ทำงานได้กี่ชั่วโมง',
-      slug: 'b-th',
-      approvedAt: '2026-10-07T10:00:00.000Z',
-      settings: GENERAL,
-      tags: [],
-      cover: null,
-      minutes: 3,
-      text: '',
       language: 'th',
     }
-    const nepali = post({ id: 'p-ne', title: 'काम र पढाइ', language: 'ne' })
-    render(<FeedList posts={[thai, nepali, ...POSTS]} filters={F()} liveCount={4} />)
-    expect(screen.getByText('ไทย')).toHaveAttribute('lang', 'th')
-    expect(screen.getByText('नेपाली')).toHaveAttribute('lang', 'ne')
+    render(list({ cards: [blog, postCard('p1')], filters: F({ theme: 'work-study-life' }) }))
+    expect(
+      screen.getByRole('link', { name: 'How many hours can I work?' }).getAttribute('href'),
+    ).toBe('/feed/blog/b1?theme=work-study-life')
+    expect(
+      screen.getByRole('img', { name: 'A student at a café counter' }).getAttribute('src'),
+    ).toBe('/blog/assets/png-cover')
+    expect(screen.queryByText('6 min read') !== null).toBe(true)
+    expect(screen.getByText('ไทย').getAttribute('lang')).toBe('th')
   })
 
-  it('reads "Nothing in the feed yet." with no live posts', () => {
-    render(<FeedList posts={[]} filters={F()} liveCount={0} />)
+  it('reads "Nothing in the feed yet." with no live posts, "No posts match." when the filters left none (83)', () => {
+    render(list({ cards: [], liveCount: 0 }))
     expect(screen.getByText('Nothing in the feed yet.')).toBeInTheDocument()
     expect(screen.queryByRole('list')).toBeNull()
-  })
-
-  it('reads "No posts match." when the filters leave nothing of a feed that has posts (83)', () => {
-    render(<FeedList posts={[]} filters={F({ q: 'nothing' })} liveCount={2} />)
+    cleanup()
+    render(list({ cards: [], liveCount: 2, filters: F({ q: 'nothing' }) }))
     expect(screen.getByText('No posts match.')).toBeInTheDocument()
     expect(screen.queryByText('Nothing in the feed yet.')).toBeNull()
-    expect(screen.queryByRole('list')).toBeNull()
+  })
+})
+
+describe('FeedPostCard: the slide buttons', () => {
+  const slides = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ pngAssetId: `png-${i + 1}`, alt: `Slide ${i + 1}` }))
+  /** The dot marking the slide shown, by its position. */
+  const shownDot = () =>
+    [...document.querySelectorAll('[data-dot]')].findIndex(
+      (d) => d.getAttribute('aria-current') === 'true',
+    )
+  const press = (name: string) =>
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name }))
+    })
+
+  it('moves the slide shown, wrapping at the ends, from buttons outside the card’s link', () => {
+    render(list({ cards: [postCard('p1', { slides: slides(3) })] }))
+    expect(shownDot()).toBe(0)
+    for (const name of ['Previous slide', 'Next slide']) {
+      expect(screen.getByRole('button', { name }).closest('a') === null).toBe(true)
+    }
+    press('Next slide')
+    expect(shownDot()).toBe(1)
+    press('Next slide')
+    press('Next slide')
+    expect(shownDot()).toBe(0)
+    press('Previous slide')
+    expect(shownDot()).toBe(2)
+  })
+
+  it('offers no buttons for a single slide', () => {
+    render(list({ cards: [postCard('p1', { slides: slides(1) })] }))
+    expect(screen.queryAllByRole('button', { name: /slide$/ })).toHaveLength(0)
+  })
+})
+
+describe('slideAt (the dots under a card’s slides)', () => {
+  it('is the slide the strip has snapped to, within the slides', () => {
+    expect(slideAt(0, 400, 5)).toBe(0)
+    expect(slideAt(800, 400, 5)).toBe(2)
+    expect(slideAt(590, 400, 5)).toBe(1)
+    expect(slideAt(5000, 400, 5)).toBe(4)
+    expect(slideAt(0, 0, 5)).toBe(0)
+  })
+})
+
+describe('FeedList: the infinite scroll', () => {
+  it('asks for the next page at the sentinel, with the page’s query and the cards it has, and appends it', async () => {
+    let answer: (r: ActionResult<{ cards: FeedCard[] }>) => void = () => {}
+    const loadPage = mock<Load>(() => new Promise((resolve) => (answer = resolve)))
+    render(list({ loadPage, query: { theme: 'books-movies' } }))
+    await reach()
+    expect(loadPage).toHaveBeenCalledWith({ query: { theme: 'books-movies' }, offset: 8 })
+    expect(screen.queryByText('Loading more posts…') !== null).toBe(true)
+
+    await act(async () => answer({ ok: true, cards: cards('b', 8) }))
+    expect(titles()).toHaveLength(16)
+    expect(titles().slice(7, 9)).toEqual(['Post a8', 'Post b1'])
+    expect(screen.queryByText('Loading more posts…')).toBeNull()
+
+    await reach()
+    expect(loadPage).toHaveBeenLastCalledWith({ query: { theme: 'books-movies' }, offset: 16 })
+  })
+
+  it('stops once a page comes back short, and never asks when the first page was', async () => {
+    const loadPage = mock<Load>(async () => ({ ok: true, cards: cards('b', 3) }))
+    render(list({ loadPage }))
+    await reach()
+    expect(titles()).toHaveLength(11)
+    await reach()
+    expect(loadPage).toHaveBeenCalledTimes(1)
+    cleanup()
+
+    const never = mock<Load>(async () => ({ ok: true, cards: [] }))
+    render(list({ loadPage: never, cards: cards('a', 5) }))
+    await reach()
+    expect(never).not.toHaveBeenCalled()
+  })
+
+  it('shows a line with Try again when a page fails, which asks for the same page again', async () => {
+    const loadPage = mock<Load>(async () => ({ ok: false, error: 'We couldn’t load more posts.' }))
+    render(list({ loadPage }))
+    await reach()
+    expect(screen.queryByText('We couldn’t load more posts.') !== null).toBe(true)
+    await reach()
+    expect(loadPage).toHaveBeenCalledTimes(1)
+
+    loadPage.mockImplementation(async () => ({ ok: true, cards: cards('b', 2) }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    })
+    expect(loadPage).toHaveBeenLastCalledWith({ query: {}, offset: 8 })
+    expect(titles()).toHaveLength(10)
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+  })
+
+  it('shows the same line with Try again when the page call itself rejects (offline, a dropped action)', async () => {
+    const loadPage = mock<Load>(async () => {
+      throw new Error('Failed to fetch')
+    })
+    render(list({ loadPage }))
+    await reach()
+    expect(screen.queryByText('We couldn’t load more posts.') !== null).toBe(true)
+    expect(screen.queryByText('Loading more posts…') === null).toBe(true)
+    expect(screen.queryAllByRole('button', { name: 'Try again' })).toHaveLength(1)
+  })
+
+  it('starts again from the first page when the filters change, and drops a page asked for before', async () => {
+    let answer: (r: ActionResult<{ cards: FeedCard[] }>) => void = () => {}
+    const loadPage = mock<Load>(() => new Promise((resolve) => (answer = resolve)))
+    const { rerender } = render(list({ loadPage }))
+    await reach()
+
+    rerender(
+      list({
+        loadPage,
+        cards: cards('t', 8),
+        filters: F({ theme: 'books-movies' }),
+        query: { theme: 'books-movies' },
+      }),
+    )
+    // The old filters' page arrives late: it is not theirs any more.
+    await act(async () => answer({ ok: true, cards: cards('old', 8) }))
+    expect(titles()).toEqual(cards('t', 8).map((c) => c.title))
+
+    await reach()
+    expect(loadPage).toHaveBeenLastCalledWith({ query: { theme: 'books-movies' }, offset: 8 })
   })
 })

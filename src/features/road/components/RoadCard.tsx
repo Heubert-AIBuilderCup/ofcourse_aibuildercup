@@ -89,6 +89,7 @@ export function RoadCard({
   onPrimary,
   onLesson,
   flat = false,
+  stickyActions = false,
   why,
   ask,
   details,
@@ -103,6 +104,8 @@ export function RoadCard({
   /** A lesson link was followed from the board. */
   onLesson: () => void
   flat?: boolean
+  /** In the board's side column, which scrolls: its actions stay pinned to the column's foot. */
+  stickyActions?: boolean
   why?: CardWhy
   ask?: CardAsk
   /** What the card adds under its guide: subjects, work, jobs, the state list, the related mark. */
@@ -241,7 +244,14 @@ export function RoadCard({
         </div>
       ) : null}
 
-      <div className="mt-auto flex flex-col gap-2 pt-2">
+      <div
+        className={cn(
+          'mt-auto flex flex-col gap-2 pt-2',
+          // The aside's own padding (p-6, @max-5xl:py-5) is cancelled, so the bar meets its edges.
+          stickyActions &&
+            'sticky -bottom-6 z-10 -mx-6 border-t bg-background px-6 pt-3 pb-6 @max-5xl:-bottom-5 @max-5xl:pb-5',
+        )}
+      >
         {card.primary && card.kind === 'look' && card.routeId ? (
           <Link
             href={routePath(board, card.routeId)}

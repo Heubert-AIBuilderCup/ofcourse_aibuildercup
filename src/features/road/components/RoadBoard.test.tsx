@@ -618,16 +618,23 @@ describe('the map key', () => {
   })
 })
 
-const LATER_TOAST = 'Ask and Compare come in a later round.'
+/** The controls bar's controls, links and buttons, by their words, in order. */
+const controlNames = () =>
+  [...screen.getByRole('navigation', { name: 'Controls' }).querySelectorAll('a, button')].map((c) =>
+    c.textContent?.trim(),
+  )
 
-describe('Ask and Compare', () => {
-  it('say in a toast that they come later', () => {
+describe('Feed', () => {
+  it('links to the feed from the header and the controls bar, where Ask and Compare were', () => {
     board()
     const header = screen.getByRole('banner')
-    press(within(header).getByRole('button', { name: 'Ask · 1' }))
-    expect(screen.getByText(LATER_TOAST)).toBeInTheDocument()
-    press(within(header).getByRole('button', { name: 'Compare' }))
-    expect(screen.getByText(LATER_TOAST)).toBeInTheDocument()
+    const controls = screen.getByRole('navigation', { name: 'Controls' })
+    for (const place of [header, controls]) {
+      expect(within(place).getByRole('link', { name: 'Feed' }).getAttribute('href')).toBe('/feed')
+      expect(within(place).queryByRole('button', { name: 'Ask · 1' })).toBeNull()
+      expect(within(place).queryByRole('button', { name: 'Compare' })).toBeNull()
+    }
+    expect(controlNames()).toEqual(['Feed', 'Your answers', 'Weights'])
   })
 })
 
@@ -804,9 +811,7 @@ describe('on a phone', () => {
     expect(within(here).getByRole('heading', { level: 1 })).toHaveTextContent('Cyber Security')
     expect(within(here).getByText('You are here · Course')).toBeInTheDocument()
     expect(within(here).getByText('Also in Perth')).toBeInTheDocument()
-    const controls = screen.getByRole('navigation', { name: 'Controls' })
-    for (const name of ['Ask · 1', 'Weights', 'Compare'])
-      expect(within(controls).getByRole('button', { name })).toBeInTheDocument()
+    expect(controlNames()).toEqual(['Feed', 'Your answers', 'Weights'])
   })
 
   it('asks why her tile is on her roadmap from the card where she is (criterion 15)', async () => {
@@ -905,13 +910,6 @@ describe('on a phone', () => {
     })
     expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?view=map`)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  })
-
-  it('says Ask and Compare come later from the controls bar', () => {
-    board()
-    const controls = screen.getByRole('navigation', { name: 'Controls' })
-    press(within(controls).getByRole('button', { name: 'Ask · 1' }))
-    expect(screen.getByText(LATER_TOAST)).toBeInTheDocument()
   })
 })
 
@@ -1149,8 +1147,8 @@ describe('Your answers', () => {
   it('a save that changes nothing on the road says so, without Undo', async () => {
     query = 'open=answers'
     board()
-    press(row('How you like to learn'))
-    pick('How you like to learn', /^Mostly classroom and research/)
+    press(row('Anyone coming with you'))
+    pick('Anyone coming with you?', /^Partner and children/)
     press(button('Save changes'))
     await settle()
     expect(screen.getByText('Saved. Nothing on your roadmap changes.')).toBeInTheDocument()
@@ -1234,6 +1232,11 @@ describe('a new roadmap’s draft', () => {
     )
     // Nothing is pushed: the draft is the page.
     expect(push).not.toHaveBeenCalled()
+  })
+
+  it('keeps Feed and Weights in the controls bar, without Your answers: they are open', () => {
+    draftBoard()
+    expect(controlNames()).toEqual(['Feed', 'Weights'])
   })
 
   it('while drafting, a pressed tile waits and says why', () => {
@@ -1356,5 +1359,69 @@ describe('a new roadmap from scratch', () => {
         jest.advanceTimersByTime(700)
       })
     expect(router.replace).toHaveBeenCalledWith('/roadmaps/rm-new')
+  })
+})
+
+describe('why this road', () => {
+  const MATCH = {
+    title: 'Closest road to your answers',
+    chips: ["Level: this road is a Diploma (you said Bachelor's)"],
+  }
+  const withMatch = (match: typeof MATCH | null) =>
+    render(
+      <Providers initialChoice="light" systemTheme={null}>
+        <RoadBoard road={road} roadmap={ROADMAP} {...actions} match={match}>
+          {null}
+        </RoadBoard>
+      </Providers>,
+    )
+  const why = () => screen.queryByRole('button', { name: 'Why this road?' })
+  const panel = () => screen.queryByRole('note', { name: 'Why this road' })
+
+  it('folds the closest-road line into a map button, opened and closed by it', () => {
+    withMatch(MATCH)
+    expect(why()?.getAttribute('aria-expanded')).toBe('false')
+    expect(panel() === null).toBe(true)
+    expect(screen.queryByText(MATCH.chips[0]) === null).toBe(true)
+
+    press(why()!)
+    expect(why()?.getAttribute('aria-expanded')).toBe('true')
+    expect(within(panel()!).queryByText(MATCH.title) !== null).toBe(true)
+    expect(within(panel()!).queryByText(MATCH.chips[0]) !== null).toBe(true)
+
+    press(why()!)
+    expect(panel() === null).toBe(true)
+  })
+
+  it('names the panel it opens', () => {
+    withMatch(MATCH)
+    press(why()!)
+    const controls = why()?.getAttribute('aria-controls') ?? ''
+    expect(controls.length > 0).toBe(true)
+    expect(panel()?.id).toBe(controls)
+  })
+
+  it('shares the map’s corner with the key: opening one closes the other', () => {
+    withMatch(MATCH)
+    const shown = () =>
+      screen
+        .queryAllByRole('note')
+        .map((n) => n.getAttribute('aria-label'))
+        .filter((name) => name === 'Why this road' || name === 'How to read the map')
+
+    press(button('Map key'))
+    expect(shown()).toEqual(['How to read the map'])
+    press(why()!)
+    expect(shown()).toEqual(['Why this road'])
+    expect(button('Map key').getAttribute('aria-pressed')).toBe('false')
+
+    press(button('Map key'))
+    expect(shown()).toEqual(['How to read the map'])
+    expect(why()?.getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('offers no button when the road is exactly hers', () => {
+    withMatch(null)
+    expect(why() === null).toBe(true)
   })
 })

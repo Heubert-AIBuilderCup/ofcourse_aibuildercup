@@ -6,7 +6,9 @@ import { Button } from '@/shared/components/ui/button'
 import { Label } from '@/shared/components/ui/label'
 import { NativeSelect } from '@/shared/components/ui/native-select'
 import { Textarea } from '@/shared/components/ui/textarea'
+import { Spin, Working } from '@/shared/components/Working'
 import type { Staff } from '@/shared/lib/auth/access'
+import { failureSentence } from '../../lib/failure'
 import {
   ACTION_STAGES,
   actionError,
@@ -23,18 +25,17 @@ import { EditableSlidePreview } from '../EditableSlidePreview'
 import {
   Control,
   FALLBACK_LABELS,
+  FailedLine,
   LIMIT_LINE,
   Move,
   movesWait,
   ReorderButtons,
   reasonText,
-  Spin,
   StepAreas,
   tag,
-  Working,
 } from '../parts'
 import { SlidePreview, slideWords } from '../SlidePreview'
-import { usePostAction } from '../usePostAction'
+import { usePressedAction } from '../usePostAction'
 import type { WorkbenchActions, WorkbenchView } from '../Workbench'
 
 export type ImagesStepProps = {
@@ -45,6 +46,7 @@ export type ImagesStepProps = {
     | 'planImagesAction'
     | 'editImageSceneAction'
     | 'drawImagesAction'
+    | 'skipPicturesAction'
     | 'nudgeImageAction'
     | 'lightEditAction'
   >
@@ -53,6 +55,31 @@ export type ImagesStepProps = {
 /** The steps this screen runs as (server/commands/images.ts): the plan in words, then the drawing. */
 const PLAN_STEP = 'scene_plan'
 const DRAW_STEP = 'images'
+const PLAN_FAILED = 'Planning failed. Your text is kept.'
+const DRAW_FAILED = 'Drawing failed. Your plan is kept.'
+/** What a press says while it runs, before the polled step names it. */
+const PLANNING = 'Planning the images…'
+const REDRAWING = 'Drawing this picture · about half a minute'
+const SAVING = 'Saving the slides…'
+/** "Skip pictures": the slides saved as the editor sees them, without drawing (server/commands/images.ts). */
+const SKIP = 'Skip pictures · use the text slides'
+const SKIP_LINE = 'Each slide is saved as it looks now, without a picture.'
+
+/** A press a control waits on: the plan, one slide's picture drawn again (with its chip, or none), the skip. */
+type Press =
+  | { kind: 'plan' }
+  | { kind: 'redraw'; slide: number; chip: string | null }
+  | { kind: 'skip' }
+
+/**
+ * What the press running (usePressedAction's `current`) means to the controls, so only that
+ * control waits as "Running…" and only the slide being drawn again pulses.
+ */
+const pressesOf = (current: Press | null) => ({
+  planning: current?.kind === 'plan',
+  redrawing: current?.kind === 'redraw' ? current : null,
+  skipping: current?.kind === 'skip',
+})
 
 /** Where the Comics page's character is planned, drawn and approved (RC9). */
 const CHARACTER_PATH = '/admin/comics/character'
@@ -65,11 +92,19 @@ const takeLabel = (art: SlideArt) => {
   return chip ? `Take ${art.take} · ${chip.label}` : `Take ${art.take}`
 }
 
-/** Why a planned slide shows no image: not reached yet, could not be drawn, or the day's limit. */
+/**
+ * Why a planned slide shows no image: not reached yet, saved text only on purpose ("Skip
+ * pictures"), the day's limit, or could not be drawn.
+ */
 function missingLabel(art: SlideArt | undefined): string {
   if (!art) return 'Not drawn yet'
+  if (art.fallback === 'skipped') return 'Text only'
   return art.fallback === 'daily_limit' ? FALLBACK_LABELS.daily_limit : 'Could not draw'
 }
+
+/** Why a picture could not be drawn, when its last call said (busy or too slow); null otherwise. */
+const failedWhy = (art: SlideArt | undefined): string | null =>
+  art?.fallback === 'no_art' ? failureSentence(art.reason) : null
 
 /** A slide's earlier takes from the post's renders, newest first, each image once, without the one in use. */
 function earlierTakes(all: readonly SlideArt[], slide: number, inUse: string | null): SlideArt[] {
@@ -87,6 +122,8 @@ type DrawnControlsProps = {
   scene: string | undefined
   earlier: SlideArt[]
   busy: boolean
+  /** This slide's picture is being drawn again: with the chip pressed, or null for none; undefined when it is not. */
+  redrawing: string | null | undefined
   /** Null when the viewer may not nudge or swap here: only the take shows. A null chip draws the scene again as it is. */
   nudge: ((chip: string | null, done: string) => void) | null
   swap: ((art: SlideArt) => void) | null
@@ -99,7 +136,16 @@ type DrawnControlsProps = {
  * again), "Edit scene", then "Draw this one" in place of "New picture" once the scene differs from
  * the one the image was drawn from, and "Swap image" to an earlier take. None touches the text.
  */
-function DrawnControls({ art, scene, earlier, busy, nudge, swap, editScene }: DrawnControlsProps) {
+function DrawnControls({
+  art,
+  scene,
+  earlier,
+  busy,
+  redrawing,
+  nudge,
+  swap,
+  editScene,
+}: DrawnControlsProps) {
   const [swapping, setSwapping] = useState(false)
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(scene ?? '')
@@ -122,6 +168,7 @@ function DrawnControls({ art, scene, earlier, busy, nudge, swap, editScene }: Dr
               disabled={busy}
               onClick={() => nudge(chip.id, `${chip.label} · slide ${art.slide} drawn again`)}
             >
+              {redrawing === chip.id && <Spin />}
               {chip.label}
             </Button>
           ))}
@@ -138,10 +185,12 @@ function DrawnControls({ art, scene, earlier, busy, nudge, swap, editScene }: Dr
               )
             }
           >
+            {redrawing === null && <Spin />}
             {changed ? 'Draw this one' : 'New picture'}
           </Button>
         </fieldset>
       )}
+      {redrawing !== undefined && <Working words={REDRAWING} />}
       {editScene && scene !== undefined && (
         <>
           <Button
@@ -278,12 +327,16 @@ function CharacterFirst() {
  * and "Draw remaining panels" wait, with the way to it, until the comic character is approved.
  */
 export function ImagesStep({ view, viewer, actions }: ImagesStepProps) {
-  const { pending, run } = usePostAction()
+  const { pending, run, current } = usePressedAction<Press>()
+  const { planning: planPressed, redrawing, skipping } = pressesOf(current)
   const ids = useId()
   const { revision, layout, artPlan, render } = view.current
   const planning = view.running.includes(PLAN_STEP)
   const drawing = view.running.includes(DRAW_STEP)
   const busy = pending || planning || drawing
+  // A background plan or drawing that failed says so where its loader was, with why.
+  const planFailed = !planning && !planPressed && (view.failed?.includes(PLAN_STEP) ?? false)
+  const drawFailed = !drawing && !redrawing && (view.failed?.includes(DRAW_STEP) ?? false)
 
   const gate = (action: PostAction) => actionError(action, viewer, view.stage)
   /** A control shows where its action may run and the viewer may run it, with its reason when it may not yet. */
@@ -322,7 +375,9 @@ export function ImagesStep({ view, viewer, actions }: ImagesStepProps) {
   const nudge =
     gate('nudgeImage') === null
       ? (slide: number) => (chip: string | null, done: string) =>
-          run(() => actions.nudgeImageAction(view.id, view.version, { slide, nudge: chip }), done)
+          run(() => actions.nudgeImageAction(view.id, view.version, { slide, nudge: chip }), done, {
+            press: { kind: 'redraw', slide, chip },
+          })
       : null
   const swap =
     gate('lightEdit') === null
@@ -361,6 +416,14 @@ export function ImagesStep({ view, viewer, actions }: ImagesStepProps) {
   const needsCharacter = comic && view.characterApproved !== true
   const drawReason =
     gate('drawImages') ?? (artPlan ? renderError(view.current) : WORKFLOW_ERRORS.planFirst)
+  // "Skip pictures" needs no plan, and no comic: its panels are its pictures. Once drawn, it is
+  // offered while a finished run left a slide with neither a picture nor its text-only save.
+  const skipReason = gate('skipPictures') ?? renderError(view.current)
+  const unsaved = slides.some((n) => {
+    const art = artOf(n)
+    return !art?.assetId && art?.fallback !== 'skipped'
+  })
+  const skipShown = offered('skipPictures') && !comic && (!drawn || (!drawing && unsaved))
 
   return (
     <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-6">
@@ -384,8 +447,10 @@ export function ImagesStep({ view, viewer, actions }: ImagesStepProps) {
                     : { layout: { postId: view.id, layoutId: layout.id, planId: artPlan?.id } }
                   const text = slideWords(laid)
                   // Its picture is still on its way in this drawing: none yet, or one of an older scene.
+                  // Or this slide's own picture, drawn again on a press.
                   const waiting =
-                    drawing && (!art?.assetId || (scene !== undefined && art.scene !== scene))
+                    (drawing && (!art?.assetId || (scene !== undefined && art.scene !== scene))) ||
+                    redrawing?.slide === n
                   return (
                     <figure
                       key={n}
@@ -430,6 +495,7 @@ export function ImagesStep({ view, viewer, actions }: ImagesStepProps) {
                           {art?.fallback === 'daily_limit' && (
                             <span className={reasonText}>{LIMIT_LINE}</span>
                           )}
+                          {failedWhy(art) && <span className={reasonText}>{failedWhy(art)}</span>}
                           {art?.fallback === 'no_art' && nudge && (
                             <Button
                               variant="outline"
@@ -437,9 +503,11 @@ export function ImagesStep({ view, viewer, actions }: ImagesStepProps) {
                               disabled={busy}
                               onClick={() => nudge(n)(null, `Slide ${n} drawn`)}
                             >
-                              Try this one again
+                              {redrawing?.slide === n && <Spin />}
+                              {redrawing?.slide === n ? 'Running…' : 'Try this one again'}
                             </Button>
                           )}
+                          {redrawing?.slide === n && <Working words={REDRAWING} />}
                         </figcaption>
                       )}
                     </figure>
@@ -462,6 +530,7 @@ export function ImagesStep({ view, viewer, actions }: ImagesStepProps) {
                 label="Plan again"
                 waiting={planReason ?? (planning ? movesWait([PLAN_STEP]) : null)}
                 pending={busy}
+                working={planPressed}
                 confirm={
                   artPlan.body.edited
                     ? {
@@ -472,14 +541,18 @@ export function ImagesStep({ view, viewer, actions }: ImagesStepProps) {
                     : undefined
                 }
                 onGo={() =>
-                  run(() => actions.planImagesAction(view.id, view.version), 'Images planned again')
+                  run(
+                    () => actions.planImagesAction(view.id, view.version),
+                    'Images planned again',
+                    { press: { kind: 'plan' } },
+                  )
                 }
               />
             )}
 
             {!artPlan && offered('planImages') && (
               <Control reason={planReason}>
-                {planning ? (
+                {planning || planPressed ? (
                   <Button disabled>
                     <Spin />
                     Running…
@@ -489,7 +562,9 @@ export function ImagesStep({ view, viewer, actions }: ImagesStepProps) {
                     variant="outline"
                     disabled={busy || planReason !== null}
                     onClick={() =>
-                      run(() => actions.planImagesAction(view.id, view.version), 'Images planned')
+                      run(() => actions.planImagesAction(view.id, view.version), 'Images planned', {
+                        press: { kind: 'plan' },
+                      })
                     }
                   >
                     Plan images
@@ -500,7 +575,14 @@ export function ImagesStep({ view, viewer, actions }: ImagesStepProps) {
 
             {/* Where the scenes and the pictures will appear: what is happening, counted. */}
             {planning && <Working words={movesWait([PLAN_STEP]) ?? ''} />}
+            {!planning && planPressed && <Working words={PLANNING} />}
             {drawing && <Working words={movesWait([DRAW_STEP], view.progress) ?? ''} />}
+            {planFailed && (
+              <FailedLine words={PLAN_FAILED} reason={view.failedReasons?.[PLAN_STEP]} />
+            )}
+            {drawFailed && (
+              <FailedLine words={DRAW_FAILED} reason={view.failedReasons?.[DRAW_STEP]} />
+            )}
 
             {/* Each drawn picture's chips, scene and earlier takes, beside the pictures (GD30). */}
             {drawn &&
@@ -524,6 +606,7 @@ export function ImagesStep({ view, viewer, actions }: ImagesStepProps) {
                       scene={sceneOf(n)}
                       earlier={earlierTakes(view.slideArt ?? [], n, art.assetId)}
                       busy={busy || sceneWait !== null}
+                      redrawing={redrawing?.slide === n ? redrawing.chip : undefined}
                       nudge={nudge?.(n) ?? null}
                       swap={swap?.(n) ?? null}
                       editScene={
@@ -570,6 +653,29 @@ export function ImagesStep({ view, viewer, actions }: ImagesStepProps) {
                 </Button>
                 {needsCharacter && <CharacterFirst />}
               </Control>
+            )}
+
+            {skipShown && (
+              <div className="flex flex-col gap-2">
+                <Control reason={drawingReason ?? skipReason}>
+                  <Button
+                    variant="outline"
+                    disabled={busy || skipReason !== null}
+                    onClick={() =>
+                      run(
+                        () => actions.skipPicturesAction(view.id, view.version),
+                        'Slides saved · text only',
+                        { press: { kind: 'skip' } },
+                      )
+                    }
+                  >
+                    {skipping && <Spin />}
+                    {SKIP}
+                  </Button>
+                </Control>
+                <p className={reasonText}>{SKIP_LINE}</p>
+                {skipping && <Working words={SAVING} />}
+              </div>
             )}
           </>
         }
@@ -666,12 +772,16 @@ function SceneText({
  * control asks the workflow rules for this stage; a viewer who may not edit sees the pictures only.
  */
 export function BlogImagesStep({ view, viewer, actions }: BlogImagesStepProps) {
-  const { pending, run } = usePostAction()
+  const { pending, run, current } = usePressedAction<Press>()
+  const { planning: planPressed, redrawing } = pressesOf(current)
   const ids = useId()
   const { artPlan, blogText, blogImages } = view.current
   const planning = view.running.includes(PLAN_STEP)
   const drawing = view.running.includes(DRAW_STEP)
   const busy = pending || planning || drawing
+  // A background plan or drawing that failed says so where its loader was, with why.
+  const planFailed = !planning && !planPressed && (view.failed?.includes(PLAN_STEP) ?? false)
+  const drawFailed = !drawing && !redrawing && (view.failed?.includes(DRAW_STEP) ?? false)
   const [postId, setPostId] = useState('')
   const [after, setAfter] = useState('')
 
@@ -718,7 +828,9 @@ export function BlogImagesStep({ view, viewer, actions }: BlogImagesStepProps) {
   const nudge =
     gate('nudgeImage') === null
       ? (slide: number) => (chip: string | null, done: string) =>
-          run(() => actions.nudgeImageAction(view.id, view.version, { slide, nudge: chip }), done)
+          run(() => actions.nudgeImageAction(view.id, view.version, { slide, nudge: chip }), done, {
+            press: { kind: 'redraw', slide, chip },
+          })
       : null
   const draw = (done: string) => run(() => actions.drawImagesAction(view.id, view.version), done)
   const drawingReason = drawing ? movesWait([DRAW_STEP]) : null
@@ -762,8 +874,10 @@ export function BlogImagesStep({ view, viewer, actions }: BlogImagesStepProps) {
                 const embedded = embedOf(s.target)
                 const picture = pictureOf(s.slide)
                 const assetId = picture?.tintedAssetId ?? picture?.assetId ?? null
+                // Or this picture, drawn again on a press.
                 const waiting =
-                  drawing && !embedded && (!picture?.assetId || picture.scene !== s.scene)
+                  (drawing && !embedded && (!picture?.assetId || picture.scene !== s.scene)) ||
+                  redrawing?.slide === s.slide
                 return (
                   <figure key={s.slide} aria-label={label} className="flex flex-col gap-2">
                     <figcaption className="text-overline uppercase text-muted-foreground">
@@ -794,6 +908,9 @@ export function BlogImagesStep({ view, viewer, actions }: BlogImagesStepProps) {
                                 <span className={tag}>{missingLabel(picture)}</span>
                                 {picture?.fallback === 'daily_limit' && (
                                   <span className={reasonText}>{LIMIT_LINE}</span>
+                                )}
+                                {failedWhy(picture) && (
+                                  <span className={reasonText}>{failedWhy(picture)}</span>
                                 )}
                                 {picture?.fallback === 'no_art' && nudge && (
                                   <Button
@@ -842,6 +959,7 @@ export function BlogImagesStep({ view, viewer, actions }: BlogImagesStepProps) {
                 label="Plan again"
                 waiting={planReason ?? (planning ? movesWait([PLAN_STEP]) : null)}
                 pending={busy}
+                working={planPressed}
                 confirm={
                   artPlan.body.edited
                     ? {
@@ -852,7 +970,11 @@ export function BlogImagesStep({ view, viewer, actions }: BlogImagesStepProps) {
                     : undefined
                 }
                 onGo={() =>
-                  run(() => actions.planImagesAction(view.id, view.version), 'Images planned again')
+                  run(
+                    () => actions.planImagesAction(view.id, view.version),
+                    'Images planned again',
+                    { press: { kind: 'plan' } },
+                  )
                 }
               />
             )}
@@ -862,15 +984,27 @@ export function BlogImagesStep({ view, viewer, actions }: BlogImagesStepProps) {
                   variant="outline"
                   disabled={busy || planReason !== null}
                   onClick={() =>
-                    run(() => actions.planImagesAction(view.id, view.version), 'Images planned')
+                    run(() => actions.planImagesAction(view.id, view.version), 'Images planned', {
+                      press: { kind: 'plan' },
+                    })
                   }
                 >
-                  Plan images
+                  {(planning || planPressed) && <Spin />}
+                  {planning || planPressed ? 'Running…' : 'Plan images'}
                 </Button>
               </Control>
             )}
             {planning && <Working words={movesWait([PLAN_STEP]) ?? ''} />}
+            {!planning && planPressed && <Working words={PLANNING} />}
             {drawing && <Working words={movesWait([DRAW_STEP], view.progress) ?? ''} />}
+            {/* A picture that could not be drawn, drawn again: its controls went with the press. */}
+            {redrawing && !pictureOf(redrawing.slide)?.assetId && <Working words={REDRAWING} />}
+            {planFailed && (
+              <FailedLine words={PLAN_FAILED} reason={view.failedReasons?.[PLAN_STEP]} />
+            )}
+            {drawFailed && (
+              <FailedLine words={DRAW_FAILED} reason={view.failedReasons?.[DRAW_STEP]} />
+            )}
 
             {drawn &&
               toDraw.map((s) => {
@@ -893,6 +1027,7 @@ export function BlogImagesStep({ view, viewer, actions }: BlogImagesStepProps) {
                       scene={s.scene}
                       earlier={[]}
                       busy={busy || sceneWait !== null}
+                      redrawing={redrawing?.slide === s.slide ? redrawing.chip : undefined}
                       nudge={nudge?.(s.slide) ?? null}
                       swap={null}
                       editScene={null}

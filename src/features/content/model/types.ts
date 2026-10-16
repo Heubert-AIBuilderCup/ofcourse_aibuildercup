@@ -385,7 +385,9 @@ export const RenderedSlideSchema = z.object({ svgAssetId: z.string(), pngAssetId
 
 /**
  * The image in one slide's art box (GD12–GD14): the scene it was drawn from, which take it is, the
- * nudge that made it, or why there is none ('daily_limit': the day's image cap refused the call).
+ * nudge that made it, or why there is none ('daily_limit': the day's image cap refused the call;
+ * 'no_art': every call failed, with `reason` when the last said why; 'skipped': the editor chose
+ * "Skip pictures", so the slide is saved as it looks, text only).
  */
 export const SlideArtSchema = z.object({
   slide: z.number().int().positive(),
@@ -393,7 +395,9 @@ export const SlideArtSchema = z.object({
   scene: z.string(),
   take: z.number().int().positive(),
   nudge: z.string().nullable(),
-  fallback: z.enum(['no_art', 'daily_limit']).nullable(),
+  fallback: z.enum(['no_art', 'daily_limit', 'skipped']).nullable(),
+  /** Why a no_art slide's last call failed (lib/failure.ts): the model busy (429) or too slow. */
+  reason: z.enum(['busy', 'timeout']).optional(),
 })
 
 /** Where a blog's picture sits (BR4): its cover, or after a section, counted from 1. */

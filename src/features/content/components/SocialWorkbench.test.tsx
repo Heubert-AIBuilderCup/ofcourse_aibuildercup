@@ -158,6 +158,52 @@ describe('SocialWorkbench', () => {
     expect(actions.renderSocialAction).toHaveBeenCalledWith('sp1', 3)
   })
 
+  describe('while a press runs', () => {
+    /** The press's answer, held until the test lets it go. */
+    let answer: (saved: Saved) => void = () => {}
+    const hold = () =>
+      new Promise<Saved>((resolve) => {
+        answer = resolve
+      })
+    const buttons = (label: string) =>
+      screen
+        .queryAllByRole('button')
+        .filter((b) => b.textContent === label)
+        .map((b) => (b as HTMLButtonElement).disabled)
+    const statuses = () => screen.queryAllByRole('status').map((s) => s.textContent)
+
+    it('"Render" says it writes the caption and draws the cover, only it waiting as "Running…"', async () => {
+      actions.renderSocialAction.mockImplementationOnce(hold)
+      view({ stage: 'approved' })
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Render' }))
+      })
+      try {
+        expect(statuses()).toEqual(['Writing the caption and drawing the cover…'])
+        expect(buttons('Running…')).toEqual([true])
+      } finally {
+        // A transition left hanging would hold every later one in this file.
+        await act(async () => answer({ ok: true, id: 'sp1', version: 4 }))
+      }
+    })
+
+    it('"Save caption" leaves "Run source check" as it reads, and no loader', async () => {
+      actions.editCaptionAction.mockImplementationOnce(hold)
+      view({ ...READY, current: { ...READY.current, caption: caption() } })
+      fireEvent.change(screen.getByLabelText('Caption'), { target: { value: `${TEXT} More.` } })
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Save caption' }))
+      })
+      try {
+        expect(buttons('Running…')).toEqual([])
+        expect(buttons('Run source check')).toEqual([true])
+        expect(statuses()).toEqual([])
+      } finally {
+        await act(async () => answer({ ok: true, id: 'sp1', version: 4 }))
+      }
+    })
+  })
+
   it('shows the stored slides, the caption and its hashtags when ready, and exports', async () => {
     view({ ...READY, current: { ...READY.current, caption: caption() } })
     expect(screen.getByRole('img', { name: /^Slide 2\b/ })).toHaveAttribute(

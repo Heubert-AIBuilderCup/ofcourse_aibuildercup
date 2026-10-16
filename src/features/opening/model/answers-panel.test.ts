@@ -52,7 +52,7 @@ describe('answerGroups', () => {
       shown: 'AUD 36k',
       open: null,
       editable: true,
-      why: 'It decides which cities stay open on each route. A rough number is fine.',
+      why: 'A course on your road that costs more is marked over budget, and its city a stretch. A rough number is fine.',
       options: optionsFor('amount'),
     })
     expect(row(gs, 'where')).toMatchObject({ shown: 'India', open: null })
@@ -69,10 +69,18 @@ describe('answerGroups', () => {
     expect(row(gs, 'hard')).toMatchObject({ shown: 'Roughly · assumed', open: null })
   })
 
-  it('shows a skipped optional question as "Skipped", with no answer', () => {
-    const gs = groups()
-    expect(row(gs, 'climate')).toMatchObject({ shown: '', open: 'Skipped', editable: true })
-    expect(row(gs, 'settle')).toMatchObject({ shown: '', open: 'Skipped' })
+  it('shows a skipped question with no default as "Skipped", with no answer', () => {
+    const gs = groups({ know: { value: DRAWN_TO_AREAS, state: 'stated' } })
+    expect(row(gs, 'areas')).toMatchObject({ shown: '', open: 'Skipped', editable: true })
+  })
+
+  it('leaves out the six hidden questions, even with an answer stored for each (16 Oct 2026)', () => {
+    const hidden = ['who', 'learn', 'length', 'climate', 'earn', 'settle'] as const
+    const stored: StoredAnswers = Object.fromEntries(
+      hidden.map((key) => [key, { value: 'x', state: 'stated' }]),
+    )
+    const keys = rows(groups(stored)).map((r) => r.key)
+    for (const key of hidden) expect(keys).not.toContain(key)
   })
 
   it('leaves out the questions not asked for these answers', () => {

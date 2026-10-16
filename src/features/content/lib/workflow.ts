@@ -113,6 +113,7 @@ export const EDITOR_ACTIONS = [
   'planImages',
   'editImageScene',
   'drawImages',
+  'skipPictures',
   'nudgeImage',
   'embedPostSlides',
   'makePostsFromBlog',
@@ -225,6 +226,8 @@ export const ACTION_STAGES: Record<PostAction, readonly Stage[]> = {
   planImages: ['approved', 'rendered'],
   editImageScene: ['approved', 'rendered'],
   drawImages: ['approved', 'rendered'],
+  // "Skip pictures": the slides saved as they look, without drawing, wherever Draw images runs.
+  skipPictures: ['approved', 'rendered'],
   nudgeImage: ['rendered'],
   // A linked live post's slides after a blog's section, in place of a picture there (BR4).
   embedPostSlides: ['approved', 'rendered'],
@@ -343,6 +346,7 @@ const SLIDE_ACTIONS: readonly PostAction[] = [
   'setSlideLayout',
   'setLook',
   'approve',
+  'skipPictures',
 ]
 
 /**

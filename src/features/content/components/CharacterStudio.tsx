@@ -8,11 +8,12 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { Textarea } from '@/shared/components/ui/textarea'
+import { Spin, Working } from '@/shared/components/Working'
 import { canEdit, type Staff } from '@/shared/lib/auth/access'
 import type { ActionResult } from '@/shared/types/action-result'
 import type { CharacterView } from '../ai/character'
 import type { Character } from '../server/character'
-import { Control, reasonText, Spin, tag } from './parts'
+import { Control, reasonText, tag } from './parts'
 
 const NETWORK_ERROR = 'Could not reach the server. Please try again.'
 /** The description "Plan the sheet" starts from: no digits, so the art prompt guard passes it. */
@@ -107,6 +108,7 @@ export function CharacterStudio({ viewer, character, actions }: CharacterStudioP
               {spin('plan')}
               Plan the sheet
             </Button>
+            {pending && busy === 'plan' && <Working words="Planning the character…" />}
           </div>
         ) : (
           <p>{character?.description ?? 'No character yet.'}</p>
@@ -179,6 +181,7 @@ export function CharacterStudio({ viewer, character, actions }: CharacterStudioP
                 Draw the sheet
               </Button>
             </Control>
+            {pending && busy === 'draw' && <Working words="Drawing the character sheet…" />}
             {sheet && (
               <div className="flex max-w-2xl flex-col gap-2">
                 <Label htmlFor={`${ids}-note`}>Note</Label>
@@ -199,6 +202,7 @@ export function CharacterStudio({ viewer, character, actions }: CharacterStudioP
                   {spin('redraw')}
                   Redraw with a note
                 </Button>
+                {pending && busy === 'redraw' && <Working words="Drawing the character sheet…" />}
               </div>
             )}
             <Control reason={sheet ? null : 'Draw the character first.'}>

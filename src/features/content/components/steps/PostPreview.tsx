@@ -5,6 +5,7 @@ import { useId, useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
 import { Label } from '@/shared/components/ui/label'
 import { NativeSelect } from '@/shared/components/ui/native-select'
+import { Spin, Working } from '@/shared/components/Working'
 import type { Staff } from '@/shared/lib/auth/access'
 import { cardSourceLine, excerptOf } from '../../lib/feed'
 import { liveLine } from '../../lib/lines'
@@ -18,10 +19,8 @@ import {
   movesWait,
   RenderedSlides,
   type Shown,
-  Spin,
   shownOptions,
   Toggle,
-  Working,
 } from '../parts'
 import { usePostAction } from '../usePostAction'
 import type { WorkbenchActions, WorkbenchView } from '../Workbench'

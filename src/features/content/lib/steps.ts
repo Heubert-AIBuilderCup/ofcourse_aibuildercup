@@ -62,8 +62,8 @@ export function ideasShown(view: {
 
 /**
  * Whether the post's render has every picture: each art-box slide of a look post its own (one
- * panorama counts as slide 1's), none held at the daily limit, failed or missing; for a post from
- * before the looks, its one cover art.
+ * panorama counts as slide 1's) or saved text only on purpose ("Skip pictures"), none held at the
+ * daily limit, failed or missing; for a post from before the looks, its one cover art.
  */
 export function picturesDrawn(current: Pick<CurrentPost, 'revision' | 'render'>): boolean {
   const { revision, render } = current
@@ -72,7 +72,9 @@ export function picturesDrawn(current: Pick<CurrentPost, 'revision' | 'render'>)
   if (!isLook(template)) return render.body.art.assetId !== null
   const wanted = isPanorama(template) ? [1] : artSlides(template, structure)
   const art = render.body.slideArt ?? []
-  return wanted.every((n) => art.some((a) => a.slide === n && a.assetId !== null))
+  return wanted.every((n) =>
+    art.some((a) => a.slide === n && (a.assetId !== null || a.fallback === 'skipped')),
+  )
 }
 
 /** What blogPicturesDrawn reads of a blog: its planned pictures, and those drawn or embedded. */

@@ -8,9 +8,7 @@
 import {
   CAMPUSES,
   CITIES,
-  COURSES,
   cityById,
-  cityOf,
   minutesBetween,
   placeById,
   placeLabel,
@@ -32,7 +30,7 @@ import {
   display,
   effective,
   type Item,
-  isVisible,
+  isAsked,
   PARTICULAR,
   type Question,
   SCREENS,
@@ -52,6 +50,8 @@ type LineFn = (
 const MOCK = ' · mock'
 /** An answer that only adds weight alongside another one: what it does, and no more. */
 const SHAPES = 'noted; it shapes what each future is drawn around.'
+/** An answer her road does not follow. */
+const NO_CHANGE = "noted; it doesn't change your road in this preview."
 
 /** What the assumed value reads as: amounts as "AUD 30k", no field as "any field", else itself. */
 const assumedText = (key: QuestionKey, value: AnswerValue | undefined): string => {
@@ -65,11 +65,6 @@ export function notSureLine(key: QuestionKey): string {
 }
 
 const ITEMS = new Map(SCREENS.flatMap((screen) => screen.items).map((item) => [item.id, item]))
-
-const listJ = (items: readonly string[]): string =>
-  items.length <= 1
-    ? items.join('')
-    : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
 
 const capital = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1)
 
@@ -89,18 +84,10 @@ const choice =
 
 // ── Budget ──────────────────────────────────────────────────────────────────────────────────
 
-/** A rough budget stretches this far (AUD thousands) before a city is out of reach. */
-const STRETCH_K = 6
-
-/** Each city with its cheapest course fee, dearest first. */
-const CITY_FEES = CITIES.map((city) => ({
-  name: city.name,
-  feeK: Math.min(...COURSES.filter((course) => cityOf(course).id === city.id).map((c) => c.feeK)),
-})).sort((a, b) => b.feeK - a.feeK)
-
-const namesWhere = (test: (feeK: number) => boolean): string[] =>
-  CITY_FEES.filter((city) => test(city.feeK)).map((city) => city.name)
-
+/**
+ * What the budget really does on her road (road/model/scene.ts): a course on it that costs more is
+ * marked over budget, and the limit only says whether that budget reads as rough. Nothing closes.
+ */
 const budgetLine: LineFn = (answers) => {
   if (answers.hard === undefined) {
     const amount = answers.amount?.value
@@ -108,29 +95,14 @@ const budgetLine: LineFn = (answers) => {
       return `About AUD ${amount}k a year. Tell me if it's a hard limit.`
     }
     return answers.covers || answers.who
-      ? "Add an amount and I'll show which cities stay open."
+      ? 'Add an amount, and your road marks a course that costs more.'
       : null
   }
   const limit = effective(answers, 'amount')
   if (typeof limit !== 'number') return null
-  const stay = (cities: readonly string[]) => (cities.length > 1 ? 'stay' : 'stays')
-
-  if (answers.hard.value === 'Hard limit') {
-    const sealed = namesWhere((feeK) => feeK > limit)
-    const kept = namesWhere((feeK) => feeK <= limit).slice(0, 2)
-    const seals = sealed.length
-      ? `${listJ(sealed)} ${sealed.length > 1 ? 'seal' : 'seals'}`
-      : 'nothing seals'
-    const open = kept.length
-      ? `${listJ(kept)} ${stay(kept)} open.`
-      : 'nothing in this preview fits yet.'
-    return `Hard limit at ${limit}k: ${seals}; ${open}`
-  }
-  const stretch = namesWhere((feeK) => feeK > limit && feeK <= limit + STRETCH_K)
-  const open = stretch.length
-    ? `${listJ(stretch)} ${stay(stretch)} open, marked as a stretch.`
-    : `everything up to about ${limit + STRETCH_K}k stays open.`
-  return `Roughly ${limit}k: ${open}`
+  return answers.hard.value === 'Hard limit'
+    ? `Hard limit at ${limit}k: a course on your road that costs more is marked over budget.`
+    : `Roughly ${limit}k: a course on your road that costs more is marked over a rough budget.`
 }
 
 // ── Timing, scores, study ───────────────────────────────────────────────────────────────────
@@ -142,32 +114,32 @@ const INTAKES: Readonly<Record<string, number>> = {
   'Feb 2028': 7,
 }
 
+/** The most years she would give, as the timing line names it; undefined while unanswered. */
+function mostYears(answers: StoredAnswers): string | undefined {
+  const years = textOf(answers, 'years')
+  if (years === undefined) return undefined
+  return years === '4 or more' ? '4 or more years' : `up to ${years} years`
+}
+
 /**
  * Until the latest start is answered: what the earliest start and the most years already say,
- * both named when both are answered.
+ * both named when both are answered. The years only show here: no course length is kept out.
  */
 function beforeLatestLine(answers: StoredAnswers): string | null {
   const earliest = textOf(answers, 'earliest')
-  const years = textOf(answers, 'years')
-  const most = years === '4 or more' ? '4 or more years' : `up to ${years} years`
-  if (earliest !== undefined) {
-    const from = earliest === 'Later' ? 'Later is fine' : `From ${earliest}`
-    const both = years === undefined ? from : `${from}, ${most}`
-    return `${both}. Tell me the latest you'd accept.`
-  }
-  if (years === undefined) return null
-  return years === '4 or more'
-    ? '4 or more years: every course length stays open.'
-    : `Up to ${years} years: longer courses stay out.`
+  const most = mostYears(answers)
+  const from =
+    earliest === undefined ? undefined : earliest === 'Later' ? 'Later is fine' : `From ${earliest}`
+  const said = [from, most].filter((part) => part !== undefined).join(', ')
+  return said === '' ? null : `${capital(said)}. Tell me the latest you'd accept.`
 }
 
 const timingLine: LineFn = (answers) => {
   const latest = textOf(answers, 'latest')
   if (latest === undefined) return beforeLatestLine(answers)
   if (!Object.hasOwn(INTAKES, latest)) return null
-  const note =
-    textOf(answers, 'years') === '2' ? '. Two years at most: 18-month and 2-year courses only' : ''
-  return `Latest ${latest}: ${INTAKES[latest]} intakes open${note}${MOCK}`
+  const most = mostYears(answers)
+  return `Latest ${latest}${most ? `, ${most}` : ''}: ${INTAKES[latest]} intakes open${MOCK}`
 }
 
 /** The quick option above the stored scores: read as its floor. */
@@ -184,7 +156,8 @@ function reachText(ielts: number, scores: EnglishScores): string {
 /** The English test speaks first; her last qualification alone is only noted. */
 const qualsLine: LineFn = (answers, _relative, scores) => {
   const eng = textOf(answers, 'eng')
-  if (eng === NOT_TAKEN) return 'Not taken yet: routes are marked unconfirmed until you sit it.'
+  if (eng === NOT_TAKEN)
+    return 'Not taken yet: your road shows its English condition as not met until you sit it.'
   if (eng === IELTS_OR_MORE) return `${eng}: ${reachText(7.5, scores)}${MOCK}`
   const exact = eng === undefined ? null : parseEnglish(eng)
   if (eng !== undefined && exact) {
@@ -212,7 +185,7 @@ const knowLine: LineFn = (answers) => {
   if (know === DRAWN_TO_AREAS) {
     const areas = answers.areas?.value
     return Array.isArray(areas) && areas.length > 0
-      ? `${areas.join(' · ')}: courses across them show side by side.`
+      ? `${areas.join(' · ')}: your road is matched to a course in one of them.`
       : 'Pick up to three areas.'
   }
   return null
@@ -225,9 +198,6 @@ const whereLine: LineFn = (answers) => {
   if (where === undefined) return null
   if (where === 'Australia (on a visa)') {
     return "In Australia: you may apply onshore · your current visa's conditions still apply"
-  }
-  if (where === 'Another country') {
-    return "Another country: we'll check the visa rules for where you are · study fees apply"
   }
   return `${where}: visa required · study fees apply`
 }
@@ -247,14 +217,15 @@ type LineParts = { text: string; tag: ImpactTag | null }
 /**
  * The line on her person (criterion 10), in parts, so the tag is never searched for in text she
  * typed: with a place in the preview, her campuses in its city, nearest first, as minutes by road
- * (estimates); with "Somewhere else", a promise; with no place, a request for one. Null with no person.
+ * (estimates), and the city her road can lean to (roads' cityHint); with "Somewhere else", that it
+ * changes nothing; with no place, a request for one. Null with no person.
  */
 function personParts(relative: Relative | null): LineParts | null {
   if (!relative) return null
   const who = whoOf(relative)
   if (!hasPlace(relative)) {
     return {
-      text: `Pick a city or suburb, and each route shows its distance from ${who}.`,
+      text: `Pick a city or suburb for ${who}, and your road can lean to it.`,
       tag: null,
     }
   }
@@ -262,7 +233,7 @@ function personParts(relative: Relative | null): LineParts | null {
   if (!place) {
     const where = relative.place ? ` in ${relative.place}` : ''
     return {
-      text: `We'll show distances from ${who}${where} once we can work them out.`,
+      text: `${capital(who)}${where}: that place isn't in this preview, so your road doesn't change.`,
       tag: null,
     }
   }
@@ -276,7 +247,7 @@ function personParts(relative: Relative | null): LineParts | null {
   ].join(', ')
   return {
     text: `${capital(who)} in ${placeLabel(place)}: ${campuses}`,
-    tag: { text: 'estimate', after: `. Every route shows its distance from ${who}.` },
+    tag: { text: 'estimate', after: `. Your road can lean to ${city.name}.` },
   }
 }
 
@@ -286,9 +257,10 @@ export function personLine(relative: Relative | null): string | null {
   return parts && (parts.tag ? `${parts.text} · ${parts.tag.text}${parts.tag.after}` : parts.text)
 }
 
+/** Community only opens "Do you know anyone…". */
 const communityLine = choice('community', {
-  Yes: `Yes: ${SHAPES}`,
-  'A little': `A little: ${SHAPES}`,
+  Yes: 'Yes: next, I’ll ask whether you know anyone in Australia.',
+  'A little': 'A little: next, I’ll ask whether you know anyone in Australia.',
   No: "No: noted; it won't change your futures.",
 })
 
@@ -300,7 +272,7 @@ const knowsLine: LineFn = (answers, relative) => {
   const person = activeRelative(answers, relative)
   return person && hasPlace(person)
     ? personLine(person)
-    : 'Yes: next, tell me who and where. Every route can then show its distance from them.'
+    : 'Yes: next, tell me who and where, and your road can lean to their city.'
 }
 
 const climateLine: LineFn = (answers) => {
@@ -344,22 +316,25 @@ const LINES: Readonly<Record<string, LineFn>> = {
     'Fine with longer if it opens more': `Longer is fine: 2-year courses keep full post-study work rights${MOCK}`,
   }),
   dest: destLine,
+  // Only Regional moves her road (roads' cityHint).
   place: choice('place', {
-    City: 'City: more part-time jobs and bigger markets; higher rent, no regional points.',
-    Suburban: 'Suburban: rent between the two; usually still metro for migration.',
-    Regional: 'Regional: more PR points, cheaper rent, fewer part-time jobs.',
+    City: `City: ${NO_CHANGE}`,
+    Suburban: `Suburban: ${NO_CHANGE}`,
+    Regional: 'Regional: your road leans to a regional city, Perth or Adelaide.',
   }),
   community: communityLine,
   knows: knowsLine,
   climate: climateLine,
+  // Staying or going home is what stay decides (roads' stayRule); nothing seals.
   stay: choice('stay', {
-    Yes: 'Yes: courses off the occupation list seal; regional study gains points.',
-    'Not sure': 'Not sure: PR counts, but no route seals.',
-    No: 'No: PR stops counting in your futures.',
+    Yes: 'Yes: your road stays in Australia after you graduate.',
+    'Not sure': 'Not sure: your road stays in Australia, for now.',
+    No: 'No: your road goes home after you graduate.',
   }),
+  // Only Career-focused moves her road (roads' cityHint).
   focus: choice('focus', {
-    'Career-focused': 'Career-focused: your futures weigh career heavily.',
-    Academic: 'Academic: your futures weigh career lightly.',
+    'Career-focused': 'Career-focused: your road can lean to Sydney, for its job market.',
+    Academic: `Academic: ${NO_CHANGE}`,
   }),
   earn: choice('earn', {
     Yes: 'Yes: your futures weigh work heavily; part-time rules shown on every route.',
@@ -369,13 +344,14 @@ const LINES: Readonly<Record<string, LineFn>> = {
   settle: settleLine,
 }
 
-/** The item's visible questions she answered "Not sure", in the item's order. */
+/** The item's asked questions she answered "Not sure", in the item's order. */
 function unsureQuestions(item: Item, answers: StoredAnswers): Question[] {
-  // A Not sure on a question she is no longer shown (the field after "Suggest me") stays quiet.
+  // A Not sure on a question she is no longer asked (the field after "Suggest me", a hidden
+  // question) stays quiet.
   return item.questions.filter(
     (question) =>
       question.notSure &&
-      isVisible(question.key, answers) &&
+      isAsked(question.key, answers) &&
       answers[question.key]?.state === 'assumed',
   )
 }

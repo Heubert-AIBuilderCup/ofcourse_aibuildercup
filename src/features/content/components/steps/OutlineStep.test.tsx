@@ -189,6 +189,34 @@ it('writes the slides to the outline and opens the text versions (GD32)', async 
   expect(push).toHaveBeenCalledWith('/admin/posts/p1/text')
 })
 
+it('while "Write the slides" drafts, says so beside it, the pressed button waiting as "Running…"', async () => {
+  let answer: (saved: Saved) => void = () => {}
+  actions.writeSlidesAction.mockImplementationOnce(
+    () =>
+      new Promise<Saved>((resolve) => {
+        answer = resolve
+      }),
+  )
+  step()
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Write the slides' }))
+  })
+  try {
+    expect(screen.queryAllByRole('status').map((s) => s.textContent)).toEqual([
+      'Writing three versions of the slides · this can take a minute',
+    ])
+    expect(
+      screen
+        .queryAllByRole('button')
+        .filter((b) => b.textContent === 'Running…')
+        .map((b) => (b as HTMLButtonElement).disabled),
+    ).toEqual([true])
+  } finally {
+    // A transition left hanging would hold every later one in this file.
+    await act(async () => answer({ ok: true, id: 'p1', version: 5 }))
+  }
+})
+
 it('shows the drafting in words while the slides are written, every control waiting, and a failed draft with "Try again"', async () => {
   step({ running: ['draft'], progress: { draft: { done: 0, total: 3 } } })
   expect(screen.getByRole('status')).toHaveTextContent('Drafting 3 versions')

@@ -7,6 +7,7 @@
 // The browser imports ./client instead.
 
 export { englishScores } from './data/entry'
+export { JUDGE_STORIES, type JudgeStory, judgeStoryById } from './data/judge-stories'
 export { ROADS, roadById } from './data/roads'
 export {
   PRIYA_SLOT,

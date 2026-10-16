@@ -126,7 +126,9 @@ export async function versionsDrafted(page: Page): Promise<void> {
 /** Unfold "Choose another version" on the Text step, where the versions not picked wait. */
 export async function openOtherVersions(page: Page): Promise<void> {
   const others = page.getByRole('group', { name: 'Choose another version', exact: true })
-  if ((await others.getAttribute('open')) === null) await others.locator('summary').click()
+  // Its own summary only: each version card inside it has a Details summary of its own.
+  if ((await others.count()) === 0) return
+  if ((await others.getAttribute('open')) === null) await others.locator(':scope > summary').click()
 }
 
 /** On the Outline step, once the idea's outline is there, "Write the slides". */
@@ -288,7 +290,9 @@ export const feedSettings = (page: Page): Locator =>
  */
 export async function markNotFoundAsOpinion(page: Page): Promise<void> {
   const check = sourceCheck(page)
-  await expect(check.getByText(/(Found ¶\d+|Not found)$/).first()).toBeVisible({ timeout: 60_000 })
+  // Done, the check shows its summary line ("7 found in the article · 0 not found · 0 opinion");
+  // its rows sit folded under "All checked sentences", the sentences not found outside it.
+  await expect(check.getByText(/\d+ found in the article/).first()).toBeVisible({ timeout: 60_000 })
   const opinion = check.getByRole('button', { name: 'Mark as editorial opinion' })
   for (let left = await opinion.count(); left > 0; left--) {
     await opinion.first().click()

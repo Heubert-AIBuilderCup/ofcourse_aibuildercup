@@ -78,6 +78,7 @@ const actions: Props['actions'] = {
   planImagesAction: ok,
   editImageSceneAction: ok,
   drawImagesAction: ok,
+  skipPicturesAction: ok,
   nudgeImageAction: ok,
   restoreVersionAction: ok,
   makeMarketAction: ok,

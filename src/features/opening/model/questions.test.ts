@@ -9,6 +9,7 @@ import {
   activeRelative,
   DEFAULTS,
   effective,
+  isAsked,
   isAssumed,
   isVisible,
   parseAnswer,
@@ -60,6 +61,27 @@ describe('isVisible', () => {
   it('shows every other question always', () => {
     expect(isVisible('amount', {})).toBe(true)
     expect(isVisible('community', {})).toBe(true)
+  })
+
+  it('still shows a hidden question, so an answer stored for it stays hers', () => {
+    expect(isVisible('who', {})).toBe(true)
+    expect(isVisible('settle', {})).toBe(true)
+  })
+})
+
+describe('isAsked', () => {
+  it('never asks the six hidden questions (16 Oct 2026)', () => {
+    for (const key of ['who', 'learn', 'length', 'climate', 'earn', 'settle'] as const) {
+      expect(isAsked(key, { [key]: s('x') })).toBe(false)
+    }
+  })
+
+  it('asks every other question as isVisible shows it', () => {
+    expect(isAsked('amount', {})).toBe(true)
+    expect(isAsked('community', {})).toBe(true)
+    expect(isAsked('knows', {})).toBe(false)
+    expect(isAsked('knows', { community: s('Yes') })).toBe(true)
+    expect(isAsked('field', { know: s('Something particular') })).toBe(true)
   })
 })
 

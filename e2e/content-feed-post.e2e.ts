@@ -18,6 +18,7 @@ import {
   onStep,
   openDetails,
   openedPostId,
+  openOtherVersions,
   openStep,
   PAID_WORK,
   pasteSource,
@@ -124,6 +125,17 @@ const post = (page: Page, id: string) => page.goto(`/admin/posts/${id}`)
 const source = (page: Page) => page.getByRole('complementary', { name: 'Source' })
 /** The first version of a template's drafts: the fake's three versions share its planted traits. */
 const draftCard = (page: Page, name: string) => page.getByRole('article', { name }).first()
+/**
+ * "Use this version" on a template's version. The first Ready one is picked for the editor as
+ * the versions arrive (GD29) and the rest wait under "Choose another version"; when the template's
+ * versions offer no Use button, one of them is the picked one already.
+ */
+async function useVersion(page: Page, name: string) {
+  await openOtherVersions(page)
+  const card = draftCard(page, name)
+  if ((await card.getByRole('button', { name: 'Use this version' }).count()) === 0) return
+  await press(page, 'Use this version', 'Version picked', card)
+}
 const section = (page: Page, name: string) =>
   page
     .locator('section')
@@ -336,7 +348,7 @@ test('approving opens the render gate; a failing fit keeps Render unavailable; r
     LEGACY_TEMPLATES.line,
     LEGACY_TEMPLATES.longRead,
   ])
-  await press(page, 'Use this version', 'Version picked', draftCard(page, LONG_READ))
+  await useVersion(page, LONG_READ)
   // Nothing renders before the text is approved (AD-R1).
   await expect(page.getByRole('button', { name: 'Render', exact: true })).toHaveCount(0)
 
@@ -355,7 +367,7 @@ test('approving opens the render gate; a failing fit keeps Render unavailable; r
 test('the approved layout is the previewed draft, and the render lays it out with art', async () => {
   const { page } = er
   await openStep(page, posts.legacy, 'text')
-  await press(page, 'Use this version', 'Version picked', draftCard(page, LINE))
+  await useVersion(page, LINE)
   // Picked, the version is in its editor: its strip shows the slides as they will be laid out.
   const line = strip(chosenVersion(page))
   await expectImagesLoaded(line)
@@ -384,7 +396,7 @@ test('art that fails on another source gives a cover with No art, and Try again 
     title: 'Paid work, when the art fails',
     text: withMarker(nonDemo(PAID_WORK.text), 1, '[fake:fail-art]'),
   })
-  await press(page, 'Use this version', 'Version picked', draftCard(page, LINE))
+  await useVersion(page, LINE)
   await approveLegacyText(page)
   const render = section(page, 'Images')
   await press(page, 'Render', 'Rendered · 5 slides', render)
@@ -615,6 +627,7 @@ test('a save on a version someone changed is refused, and the latest loads', asy
   const b = await er.context.newPage()
   try {
     await openStep(b, posts.twin, 'text')
+    await openOtherVersions(b)
     await expect(b.getByRole('button', { name: 'Use this version' }).first()).toBeVisible()
     await press(a, 'Subdued', 'Colours · Subdued')
 

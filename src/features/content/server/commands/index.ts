@@ -13,7 +13,7 @@ export {
 } from './blog'
 export { linkToBlog, makeBlogFromPost, makePostsFromBlog } from './blog-links'
 export { moreIdeas, pickIdeas } from './ideas'
-export { drawImages, editImageScene, nudgeImage, planImages } from './images'
+export { drawImages, editImageScene, nudgeImage, planImages, skipPictures } from './images'
 export { setLook, setPreset, setSlideLayout } from './look'
 export { makeMarket, rewordMarket } from './market'
 export { editPostOutline, setOutlineFormat, writeSlides } from './outline'

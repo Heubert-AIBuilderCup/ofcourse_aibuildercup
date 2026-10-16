@@ -410,3 +410,67 @@ describe('"Start from an idea" (BR12, BR13)', () => {
     expect(screen.queryByRole('list', { name: 'Suggested sources' })).toBeNull()
   })
 })
+
+describe('while Gemini works on the press (the loader)', () => {
+  /** An action's answer held until the test lets it go. */
+  const held = <T,>() => {
+    let resolve: (value: T) => void = () => {}
+    const promise = new Promise<T>((r) => {
+      resolve = r
+    })
+    return { promise, resolve }
+  }
+  const statuses = () => screen.queryAllByRole('status').map((s) => s.textContent)
+  const buttons = (label: string) =>
+    screen
+      .queryAllByRole('button')
+      .filter((b) => b.textContent === label)
+      .map((b) => (b as HTMLButtonElement).disabled)
+  const READING = 'Reading the source and finding ideas · this can take a minute'
+
+  it('"Make post" says it is reading the source, and the pressed button waits as "Running…"', async () => {
+    const answer = held<Made>()
+    makePostAction.mockImplementationOnce(() => answer.promise)
+    view()
+    links('https://example.com/a')
+    await make()
+    try {
+      expect(statuses()).toEqual([READING])
+      expect(buttons('Running…')).toEqual([true])
+    } finally {
+      // A transition left hanging would hold every later one in this file.
+      await act(async () => answer.resolve({ ok: true, id: 'p1', version: 1 }))
+    }
+  })
+
+  it('"Find sources" says it is searching, and "Use these" says it is reading, "Make post" left as it reads', async () => {
+    suggested = { ok: true, sources: [source(1, true)], entryPoint: null }
+    const found = held<Suggested>()
+    suggestSourcesAction.mockImplementationOnce(() => found.promise)
+    view()
+    fireEvent.click(screen.getByRole('button', { name: 'Start from an idea' }))
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Your idea'), { target: { value: 'Study' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Find sources' }))
+    })
+    try {
+      expect(statuses()).toEqual(['Searching for sources…'])
+      expect(buttons('Finding…')).toEqual([true])
+    } finally {
+      await act(async () => found.resolve(suggested))
+    }
+
+    const made = held<Made>()
+    makePostAction.mockImplementationOnce(() => made.promise)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Use these' }))
+    })
+    try {
+      expect(statuses()).toEqual([READING])
+      expect(buttons('Running…')).toEqual([true])
+      expect(buttons('Make post')).toEqual([true])
+    } finally {
+      await act(async () => made.resolve({ ok: true, id: 'p1', version: 1 }))
+    }
+  })
+})

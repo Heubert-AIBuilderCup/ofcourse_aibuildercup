@@ -2,13 +2,14 @@
 
 import { useId, useState, useTransition } from 'react'
 import { Button } from '@/shared/components/ui/button'
+import { Working } from '@/shared/components/Working'
 import type { Staff } from '@/shared/lib/auth/access'
 import { cn } from '@/shared/lib/utils'
 import type { SupportingSource } from '../../ai/search'
 import { actionError, editWaitError, type PostAction, WORKFLOW_ERRORS } from '../../lib/workflow'
 import type { ClaimResult } from '../../model/types'
 import type { Researched, Saved } from '../../server/commands'
-import { Control, movesWait, reasonText, tag, Working } from '../parts'
+import { Control, movesWait, reasonText, tag } from '../parts'
 import { usePostAction } from '../usePostAction'
 import type { WorkbenchActions, WorkbenchView } from '../Workbench'
 
