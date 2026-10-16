@@ -15,7 +15,7 @@ it('links every section a superadmin may open and marks the current one', () => 
   pathname = '/admin/users'
   render(<AdminNav viewer={{ role: 'superadmin' }} />)
   const nav = screen.getByRole('navigation', { name: 'Admin sections' })
-  expect(nav.querySelectorAll('a')).toHaveLength(6)
+  expect(nav.querySelectorAll('a')).toHaveLength(7)
   expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('aria-current', 'page')
   expect(screen.getByRole('link', { name: 'Board' })).not.toHaveAttribute('aria-current')
 })

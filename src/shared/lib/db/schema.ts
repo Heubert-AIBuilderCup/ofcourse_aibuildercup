@@ -577,3 +577,35 @@ export const studentAsk = pgTable(
   },
   (t) => [index('student_ask_user_day_idx').on(t.userId, t.day)],
 )
+
+/**
+ * The model settings a superadmin chose on the Models page (criteria 94–97), one row per choice:
+ * `tier:<tier>` holds a model id, `usecase:<id>` a tier. No row: the environment's model and the
+ * spec's own tier, exactly as before. `failing` is the last error of a chosen model that made a
+ * call fall back, cleared by the next save of that tier. No personal data beyond who saved it.
+ */
+export const aiSetting = pgTable('ai_setting', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedByUserId: text('updated_by_user_id').references(() => user.id, {
+    onDelete: 'set null',
+  }),
+  updatedAt: tz('updated_at').notNull().defaultNow(),
+  failing: text('failing'),
+  failingAt: tz('failing_at'),
+})
+
+/**
+ * The change log of the model settings (criterion 98): who changed which key, from what to what,
+ * and when; a reset is one row with the key `reset`. Kept when the account is deleted.
+ */
+export const aiSettingChange = pgTable('ai_setting_change', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  key: text('key').notNull(),
+  oldValue: text('old_value'),
+  newValue: text('new_value'),
+  userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
+  at: tz('at').notNull().defaultNow(),
+})

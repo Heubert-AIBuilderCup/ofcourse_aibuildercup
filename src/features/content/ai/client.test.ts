@@ -1,6 +1,7 @@
 // The ladder in makeAi, with a stub provider and an in-memory log and cache: no network, no database.
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, mock } from 'bun:test'
+import { ApiError } from '@google/genai'
 import { trace } from '@opentelemetry/api'
 import {
   BasicTracerProvider,
@@ -9,14 +10,17 @@ import {
 } from '@opentelemetry/sdk-trace-base'
 import { z } from 'zod'
 import type { Cache, CallLog, Provider } from './client'
+import type { Tier } from './config'
 import type { PromptSpec } from './prompts'
+import type { AiSettings } from './settings'
 
 mock.module('server-only', () => ({}))
 
-const { AI_ERRORS, makeAi } = await import('./client')
+const { AI_ERRORS, makeAi, SETTINGS_READ_TIMEOUT_MS, settingsFor } = await import('./client')
 const { aiConfig } = await import('./config')
 const { FAKE_ENTRY_POINT, FAKE_SOURCES, makeFake } = await import('./fake')
 const { SYSTEM_RULES } = await import('./prompts')
+const savedSettings = await import('./settings')
 
 type JsonReq = Parameters<Provider['json']>[0]
 type ImageReq = Parameters<Provider['image']>[0]
@@ -90,7 +94,7 @@ function memoryLog(seed: Row[] = []) {
         (r) => !r.cached && (useCases ? useCases.includes(r.useCase) : r.tier === row.tier),
       )
       if (counted.length >= cap) return null
-      rows.push({ ...row, ok: false, cached: false, ms: 0, fallback: null })
+      rows.push({ ...row, ok: false, cached: false, ms: 0, fallback: row.fallback ?? null })
       return String(rows.length - 1)
     },
     settle: async (id, outcome) => {
@@ -125,8 +129,19 @@ function proRow(): Row {
   }
 }
 
-function setup(answers: Answer[], opts: { env?: Record<string, string>; seed?: Row[] } = {}) {
-  const stub = stubProvider(answers)
+type SettingsDep = NonNullable<Parameters<typeof makeAi>[0]['settings']>
+
+function setup(
+  answers: Answer[],
+  opts: {
+    env?: Record<string, string>
+    seed?: Row[]
+    settings?: SettingsDep
+    settingsTimeoutMs?: number
+    images?: Array<Uint8Array | Error>
+  } = {},
+) {
+  const stub = stubProvider(answers, opts.images)
   const log = memoryLog(opts.seed)
   const mem = memoryCache()
   const sleep = mock(async (_ms: number) => {})
@@ -138,6 +153,8 @@ function setup(answers: Answer[], opts: { env?: Record<string, string>; seed?: R
     cache: mem.cache,
     sleep,
     logCall: (line) => lines.push(line),
+    settings: opts.settings,
+    settingsTimeoutMs: opts.settingsTimeoutMs,
   })
   return { ai, ...stub, ...log, ...mem, sleep, lines }
 }
@@ -294,6 +311,14 @@ describe('makeAi.generateJson', () => {
     expect(res.ok).toBe(true)
     expect(t.sleep).toHaveBeenCalledTimes(1)
     expect(t.sleep.mock.calls[0][0]).toBe(2000)
+  })
+
+  it('does not wait on a 429 when the call is single (once, or a per-call model): there is no next attempt', async () => {
+    const t = setup([rateLimited('30s'), rateLimited('30s')])
+    const once = await t.ai.generateJson(SPEC, { data: { text: 'x' }, once: true })
+    const model = await t.ai.generateJson(SPEC, { data: { text: 'y' }, model: 'flash-next' })
+    expect([once.ok, model.ok]).toEqual([false, false])
+    expect(t.sleep).not.toHaveBeenCalled()
   })
 
   it('fails when the provider never answers within timeoutMs', async () => {
@@ -685,6 +710,424 @@ describe('makeAi telemetry (SR5, SR6)', () => {
       'ok',
       'failed',
     ])
+  })
+})
+
+describe('makeAi with the saved model settings (criteria 94–96, 99)', () => {
+  const CHOSEN_FLASH = 'gemini-3.8-flash'
+  const CHOSEN_PRO = 'gemini-3.1-pro-preview'
+  const CHOSEN_IMAGE = 'gemini-nano-banana-2.1'
+  const STUDENT_SPEC: PromptSpec<typeof schema> = {
+    ...LITE_SPEC,
+    useCase: 'student_why',
+    maxTier: 'flash',
+  }
+
+  /** Settings held in memory, as a save would leave them; markFailing is recorded, not stored. */
+  function memorySettings(initial: Partial<AiSettings> = {}) {
+    let value: AiSettings = { tierModels: {}, useCaseTiers: {}, failing: {}, ...initial }
+    const marked: Array<[Tier, string, string]> = []
+    const settings: SettingsDep = {
+      readSettings: async () => value,
+      markFailing: async (tier, model, message) => {
+        marked.push([tier, model, message])
+      },
+    }
+    return {
+      settings,
+      marked,
+      save: (next: Partial<AiSettings>) => {
+        value = { ...value, ...next }
+      },
+    }
+  }
+
+  /** The error @google/genai throws for a model Vertex does not find, or will not let us use. */
+  function unavailable(status: 403 | 404) {
+    return new ApiError({
+      message: `{"error":{"code":${status},"message":"Publisher model not found or no access"}}`,
+      status,
+    })
+  }
+
+  it('with no settings saved, every call, model, ladder, row and cache key is as without them (criterion 99)', async () => {
+    const answers = (): Answer[] => ['nope', '{"n":"x"}', '{"n":3}', '{"n":4}']
+    const before = setup(answers())
+    const after = setup(answers(), { settings: memorySettings().settings })
+    for (const t of [before, after]) {
+      await t.ai.generateJson(LITE_SPEC, { data: { text: 'x' } })
+      await t.ai.generateJson(STUDENT_SPEC, { data: { text: 'y' } })
+    }
+    const seen = (t: typeof before) => ({
+      reqs: t.reqs.map((r) => [r.model, r.tier, r.useCase]),
+      rows: t.rows.map((r) => [r.useCase, r.tier, r.model, r.ok, r.cached, r.fallback]),
+      keys: [...t.map.keys()],
+    })
+    expect(seen(after)).toEqual(seen(before))
+    expect(seen(after).reqs.map(([model]) => model)).toEqual([
+      'lite-model',
+      'flash-model',
+      'pro-model',
+      'lite-model',
+    ])
+  })
+
+  it('starts a call on the tier saved for its use case, and climbs that tier’s ladder', async () => {
+    const { settings } = memorySettings({ useCaseTiers: { extract: 'lite' } })
+    const t = setup(['nope', 'nope', '{"n":3}'], { settings })
+    const res = await t.ai.generateJson(SPEC, { data: { text: 'x' } })
+    expect(res.ok).toBe(true)
+    expect(t.reqs.map((r) => [r.model, r.tier])).toEqual([
+      ['lite-model', 'lite'],
+      ['flash-model', 'flash'],
+      ['pro-model', 'pro'],
+    ])
+  })
+
+  it('ignores a saved tier the use case does not allow, and uses the spec’s own (criterion 95)', async () => {
+    const { settings } = memorySettings({
+      useCaseTiers: { student_why: 'pro', extract: 'image' },
+    })
+    const t = setup(['nope', 'nope', '{"n":3}', '{"n":4}'], { settings })
+    await t.ai.generateJson(STUDENT_SPEC, { data: { text: 'x' } })
+    await t.ai.generateJson(SPEC, { data: { text: 'y' } })
+    expect(t.reqs.map((r) => r.tier)).toEqual(['lite', 'flash', 'flash'])
+  })
+
+  it('uses the model saved for a tier, and the next call reads the settings again', async () => {
+    const mem = memorySettings({ tierModels: { flash: CHOSEN_FLASH } })
+    const t = setup(['{"n":1}', '{"n":2}'], { settings: mem.settings })
+    await t.ai.generateJson(SPEC, { data: { text: 'x' } })
+    mem.save({ tierModels: { flash: 'gemini-3.5-flash-lite' } })
+    await t.ai.generateJson(SPEC, { data: { text: 'y' } })
+    expect(t.reqs.map((r) => r.model)).toEqual([CHOSEN_FLASH, 'gemini-3.5-flash-lite'])
+    expect(t.rows.map((r) => r.model)).toEqual([CHOSEN_FLASH, 'gemini-3.5-flash-lite'])
+  })
+
+  it('reserves a capped tier under the model saved for it', async () => {
+    const { settings } = memorySettings({ tierModels: { pro: CHOSEN_PRO } })
+    const t = setup(['{"n":1}'], { settings })
+    await t.ai.generateJson(PRO_SPEC, { data: { text: 'x' } })
+    expect(t.rows.map((r) => [r.tier, r.model, r.ok])).toEqual([['pro', CHOSEN_PRO, true]])
+  })
+
+  for (const status of [404, 403] as const) {
+    it(`retries a saved model's ${status} once on the environment's model, logs the fallback and marks the tier failing (criterion 96)`, async () => {
+      const mem = memorySettings({ tierModels: { flash: CHOSEN_FLASH } })
+      const t = setup([unavailable(status), '{"n":1}'], { settings: mem.settings })
+      const res = await t.ai.generateJson(SPEC, { data: { text: 'x' } })
+      expect(res).toEqual({ ok: true, value: { n: 1 }, cached: false })
+      expect(t.reqs.map((r) => r.model)).toEqual([CHOSEN_FLASH, 'flash-model'])
+      expect(t.rows.map((r) => [r.tier, r.model, r.ok, r.fallback])).toEqual([
+        ['flash', CHOSEN_FLASH, false, null],
+        ['flash', 'flash-model', true, 'env-default'],
+      ])
+      // The model that failed is named, so a mark never lands on a model saved since.
+      expect(
+        mem.marked.map(([tier, model, message]) => [tier, model, message.includes(`${status}`)]),
+      ).toEqual([['flash', CHOSEN_FLASH, true]])
+    })
+  }
+
+  it('falls back once per call: the later rungs of that tier run on the environment’s model', async () => {
+    const mem = memorySettings({ tierModels: { flash: CHOSEN_FLASH } })
+    const t = setup([unavailable(404), 'nope', 'nope', '{"n":1}'], { settings: mem.settings })
+    await t.ai.generateJson(SPEC, { data: { text: 'x' } })
+    expect(t.reqs.map((r) => r.model)).toEqual([
+      CHOSEN_FLASH,
+      'flash-model',
+      'flash-model',
+      'pro-model',
+    ])
+    expect(mem.marked).toHaveLength(1)
+  })
+
+  it('falls back on a capped tier in a slot reserved for the retry, the first one settled as failed', async () => {
+    const mem = memorySettings({ tierModels: { pro: CHOSEN_PRO } })
+    const t = setup([unavailable(404), '{"n":1}'], { settings: mem.settings })
+    const res = await t.ai.generateJson(PRO_SPEC, { data: { text: 'x' } })
+    expect(res.ok).toBe(true)
+    expect(t.rows.map((r) => [r.tier, r.model, r.ok, r.fallback])).toEqual([
+      ['pro', CHOSEN_PRO, false, null],
+      ['pro', 'pro-model', true, 'env-default'],
+    ])
+  })
+
+  it('does not retry a saved Pro model on the environment’s when the failed call took the last slot', async () => {
+    const mem = memorySettings({ tierModels: { pro: CHOSEN_PRO } })
+    const t = setup([unavailable(404), '{"n":1}'], {
+      settings: mem.settings,
+      seed: [proRow(), proRow(), proRow(), proRow()],
+    })
+    const res = await t.ai.generateJson(PRO_SPEC, { data: { text: 'x' } })
+    expect(res).toEqual({ ok: false, reason: 'daily_limit', error: AI_ERRORS.dailyLimit })
+    expect(t.reqs.map((r) => r.model)).toEqual([CHOSEN_PRO])
+    expect(t.rows.length).toBe(5)
+    expect(mem.marked.map(([tier]) => tier)).toEqual(['pro'])
+  })
+
+  it('does not retry a saved image model on the environment’s when the failed call took the last slot', async () => {
+    const mem = memorySettings({ tierModels: { image: CHOSEN_IMAGE } })
+    const imageRow = (): Row => ({ ...proRow(), useCase: 'art', tier: 'image' })
+    const t = setup([], {
+      settings: mem.settings,
+      seed: [imageRow(), imageRow(), imageRow(), imageRow()],
+      images: [unavailable(404), new Uint8Array([7])],
+    })
+    const res = await t.ai.generateImage({ prompt: 'a desk', aspectRatio: '1:1', data: {} })
+    expect(res).toEqual({ ok: false, reason: 'daily_limit', error: AI_ERRORS.dailyLimit })
+    expect(t.imageReqs.map((r) => r.model)).toEqual([CHOSEN_IMAGE])
+    expect(t.rows.length).toBe(5)
+  })
+
+  it('does not retry a saved model’s 404 on the environment’s once the caller’s signal has aborted (criterion 80)', async () => {
+    const mem = memorySettings({ tierModels: { flash: CHOSEN_FLASH } })
+    const t = setup([unavailable(404), '{"n":1}'], { settings: mem.settings })
+    const caller = new AbortController()
+    // The deadline passes while the failed attempt is logged: after the 404, before any retry.
+    const record = t.calls.record
+    t.calls.record = async (row) => {
+      caller.abort()
+      await record(row)
+    }
+    const res = await t.ai.generateJson(SPEC, { data: { text: 'x' }, signal: caller.signal })
+    expect(res).toEqual({ ok: false, reason: 'failed', error: AI_ERRORS.failed })
+    expect(t.reqs.map((r) => r.model)).toEqual([CHOSEN_FLASH])
+    expect(t.rows.map((r) => [r.model, r.ok, r.fallback])).toEqual([[CHOSEN_FLASH, false, null]])
+  })
+
+  it('still retries a saved model’s 404 on the environment’s while the caller’s signal has not aborted', async () => {
+    const mem = memorySettings({ tierModels: { flash: CHOSEN_FLASH } })
+    const t = setup([unavailable(404), '{"n":1}'], { settings: mem.settings })
+    const caller = new AbortController()
+    const res = await t.ai.generateJson(SPEC, { data: { text: 'x' }, signal: caller.signal })
+    expect(res).toEqual({ ok: true, value: { n: 1 }, cached: false })
+    expect(t.rows.map((r) => [r.model, r.ok, r.fallback])).toEqual([
+      [CHOSEN_FLASH, false, null],
+      ['flash-model', true, 'env-default'],
+    ])
+  })
+
+  it('does not fall back on any other error, nor on a 404 from the environment’s own model', async () => {
+    const serverError = new ApiError({ message: 'internal', status: 500 })
+    const mem = memorySettings({ tierModels: { flash: CHOSEN_FLASH } })
+    const chosen = setup([serverError, '{"n":1}'], { settings: mem.settings })
+    await chosen.ai.generateJson(SPEC, { data: { text: 'x' } })
+    expect(chosen.reqs.map((r) => r.model)).toEqual([CHOSEN_FLASH, CHOSEN_FLASH])
+    expect(chosen.rows.map((r) => r.fallback)).toEqual([null, null])
+
+    const none = memorySettings()
+    const env = setup([unavailable(404), '{"n":1}'], { settings: none.settings })
+    await env.ai.generateJson(SPEC, { data: { text: 'x' } })
+    expect(env.reqs.map((r) => r.model)).toEqual(['flash-model', 'flash-model'])
+    expect([...mem.marked, ...none.marked]).toHaveLength(0)
+  })
+
+  it('sends a per-call model for that call only, in one attempt: never retried, never falling back', async () => {
+    const mem = memorySettings({ tierModels: { flash: CHOSEN_FLASH } })
+    const t = setup(['nope', unavailable(404), '{"n":3}'], { settings: mem.settings })
+    const invalid = await t.ai.generateJson(SPEC, {
+      data: { text: 'x' },
+      model: 'gemini-3.5-flash-lite',
+    })
+    const missing = await t.ai.generateJson(SPEC, {
+      data: { text: 'y' },
+      model: 'gemini-3.5-flash-lite',
+    })
+    const next = await t.ai.generateJson(SPEC, { data: { text: 'z' } })
+    expect([invalid.ok, missing.ok, next.ok]).toEqual([false, false, true])
+    expect(t.reqs.map((r) => r.model)).toEqual([
+      'gemini-3.5-flash-lite',
+      'gemini-3.5-flash-lite',
+      CHOSEN_FLASH,
+    ])
+    expect(t.rows.map((r) => r.fallback)).toEqual([null, null, null])
+    expect(mem.marked).toHaveLength(0)
+  })
+
+  it('makes a per-call model on Pro one attempt: no second Pro slot is reserved or logged', async () => {
+    const t = setup([unavailable(404), '{"n":1}'])
+    const res = await t.ai.generateJson(PRO_SPEC, { data: { text: 'x' }, model: 'pro-next' })
+    expect(res.ok).toBe(false)
+    expect(t.reqs.map((r) => r.model)).toEqual(['pro-next'])
+    expect(t.rows.map((r) => [r.tier, r.model, r.ok])).toEqual([['pro', 'pro-next', false]])
+  })
+
+  it('with once, makes one attempt on the start tier: no retry, no climb, no fallback (criterion 93)', async () => {
+    const mem = memorySettings({ tierModels: { flash: CHOSEN_FLASH } })
+    const t = setup(['nope', unavailable(404), '{"n":3}'], { settings: mem.settings })
+    const invalid = await t.ai.generateJson(SPEC, { data: { text: 'x' }, once: true })
+    const missing = await t.ai.generateJson(SPEC, { data: { text: 'y' }, once: true })
+    expect([invalid.ok, missing.ok]).toEqual([false, false])
+    expect(t.reqs.map((r) => [r.tier, r.model])).toEqual([
+      ['flash', CHOSEN_FLASH],
+      ['flash', CHOSEN_FLASH],
+    ])
+    expect(t.rows.map((r) => [r.model, r.fallback])).toEqual([
+      [CHOSEN_FLASH, null],
+      [CHOSEN_FLASH, null],
+    ])
+    // The saved model is not found: the Test says so, and the tier is marked as a live call marks it.
+    expect(mem.marked.map(([tier]) => tier)).toEqual(['flash'])
+  })
+
+  it('draws once with once: a saved image model not found is marked, not retried', async () => {
+    const mem = memorySettings({ tierModels: { image: CHOSEN_IMAGE } })
+    const t = setup([], {
+      settings: mem.settings,
+      images: [unavailable(404), new Uint8Array([7])],
+    })
+    const res = await t.ai.generateImage({
+      prompt: 'a desk',
+      aspectRatio: '1:1',
+      data: {},
+      once: true,
+    })
+    expect(res.ok).toBe(false)
+    expect(t.imageReqs.map((r) => r.model)).toEqual([CHOSEN_IMAGE])
+    expect(t.rows.map((r) => [r.model, r.ok, r.fallback])).toEqual([[CHOSEN_IMAGE, false, null]])
+    expect(mem.marked.map(([tier]) => tier)).toEqual(['image'])
+  })
+
+  it('reads the settings for 300 ms at most, then runs on the environment’s models', async () => {
+    expect(SETTINGS_READ_TIMEOUT_MS).toBe(300)
+    const hanging: SettingsDep = {
+      readSettings: () => new Promise<AiSettings>(() => {}),
+      markFailing: async () => {},
+    }
+    const t = setup(['{"n":1}'], { settings: hanging, settingsTimeoutMs: 10 })
+    const res = await t.ai.generateJson(SPEC, { data: { text: 'x' } })
+    expect(res.ok).toBe(true)
+    expect(t.reqs.map((r) => r.model)).toEqual(['flash-model'])
+  })
+
+  it('runs on the environment’s models when the settings cannot be read', async () => {
+    const broken: SettingsDep = {
+      readSettings: async () => {
+        throw new Error('relation "ai_setting" does not exist')
+      },
+      markFailing: async () => {},
+    }
+    const t = setup(['{"n":1}'], { settings: broken })
+    const res = await t.ai.generateJson(SPEC, { data: { text: 'x' } })
+    expect(res).toEqual({ ok: true, value: { n: 1 }, cached: false })
+    expect(t.reqs.map((r) => r.model)).toEqual(['flash-model'])
+  })
+
+  it('still answers when marking the failing tier fails', async () => {
+    const settings: SettingsDep = {
+      readSettings: async () => ({
+        tierModels: { flash: CHOSEN_FLASH },
+        useCaseTiers: {},
+        failing: {},
+      }),
+      markFailing: async () => {
+        throw new Error('database down')
+      },
+    }
+    const t = setup([unavailable(404), '{"n":1}'], { settings })
+    const res = await t.ai.generateJson(SPEC, { data: { text: 'x' } })
+    expect(res).toEqual({ ok: true, value: { n: 1 }, cached: false })
+  })
+
+  it('uses and falls back from the saved image model for a cover', async () => {
+    const mem = memorySettings({ tierModels: { image: CHOSEN_IMAGE } })
+    const t = setup([], {
+      settings: mem.settings,
+      images: [unavailable(404), new Uint8Array([7])],
+    })
+    const res = await t.ai.generateImage({ prompt: 'a desk', aspectRatio: '1:1', data: {} })
+    expect(res).toEqual({ ok: true, value: new Uint8Array([7]), cached: false })
+    expect(t.imageReqs.map((r) => r.model)).toEqual([CHOSEN_IMAGE, 'image-model'])
+    expect(t.rows.map((r) => [r.tier, r.model, r.ok, r.fallback])).toEqual([
+      ['image', CHOSEN_IMAGE, false, null],
+      ['image', 'image-model', true, 'env-default'],
+    ])
+    expect(mem.marked.map(([tier]) => tier)).toEqual(['image'])
+  })
+
+  it('draws with a per-call image model for that call only, and never falls back from it', async () => {
+    const mem = memorySettings({ tierModels: { image: CHOSEN_IMAGE } })
+    const t = setup([], {
+      settings: mem.settings,
+      images: [unavailable(404), new Uint8Array([7])],
+    })
+    const tried = await t.ai.generateImage({
+      prompt: 'a desk',
+      aspectRatio: '1:1',
+      data: {},
+      model: 'image-model-next',
+    })
+    const next = await t.ai.generateImage({ prompt: 'a desk', aspectRatio: '1:1', data: {} })
+    expect(tried.ok).toBe(false)
+    expect(next.ok).toBe(true)
+    expect(t.imageReqs.map((r) => r.model)).toEqual(['image-model-next', CHOSEN_IMAGE])
+    expect(t.rows.map((r) => [r.model, r.fallback])).toEqual([
+      ['image-model-next', null],
+      [CHOSEN_IMAGE, null],
+    ])
+    expect(mem.marked).toHaveLength(0)
+  })
+
+  /** A search whose saved Flash model is refused (403), then answered on the environment's. */
+  async function searchFallingBack(env: Record<string, string> = {}) {
+    const mem = memorySettings({ tierModels: { flash: CHOSEN_FLASH } })
+    const models: string[] = []
+    const answers: Array<Error | string> = [unavailable(403), '{"n":1}']
+    const provider: Provider = {
+      ...stubProvider([]).provider,
+      search: async (req) => {
+        models.push(req.model)
+        const next = answers.shift()
+        if (next instanceof Error) throw next
+        return { text: next ?? '', sources: [], entryPoint: null }
+      },
+    }
+    const log = memoryLog()
+    const ai = makeAi({
+      provider,
+      config: config(env),
+      calls: log.calls,
+      cache: memoryCache().cache,
+      sleep: async () => {},
+      logCall: () => {},
+      settings: mem.settings,
+    })
+    const res = await ai.searchJson(
+      { ...SPEC, useCase: 'suggest_sources', tier: 'flash' },
+      { data: { text: 'x' } },
+    )
+    return { res, models, log, mem }
+  }
+
+  it('does not retry a search on the environment’s model when the failed one took the last slot', async () => {
+    const { res, models, log } = await searchFallingBack({ AI_DAILY_CAP_SEARCH: '1' })
+    expect(res).toEqual({ ok: false, reason: 'daily_limit', error: AI_ERRORS.dailyLimit })
+    expect(models).toEqual([CHOSEN_FLASH])
+    expect(log.rows.length).toBe(1)
+  })
+
+  it('searches on the saved Flash model, and falls back from it', async () => {
+    const { res, models, log, mem } = await searchFallingBack()
+    expect(res.ok).toBe(true)
+    expect(models).toEqual([CHOSEN_FLASH, 'flash-model'])
+    expect(log.rows.map((r) => [r.useCase, r.model, r.ok, r.fallback])).toEqual([
+      ['suggest_sources', CHOSEN_FLASH, false, null],
+      ['suggest_sources', 'flash-model', true, 'env-default'],
+    ])
+    expect(mem.marked.map(([tier]) => tier)).toEqual(['flash'])
+  })
+})
+
+describe('settingsFor', () => {
+  it('gives the fake provider empty settings that never read the database, and Vertex the saved ones', async () => {
+    const fake = settingsFor(config())
+    expect(await fake.readSettings()).toEqual({ tierModels: {}, useCaseTiers: {}, failing: {} })
+    expect(fake.readSettings === savedSettings.readSettings).toBe(false)
+
+    const vertex = settingsFor(config({ AI_PROVIDER: 'vertex' }))
+    expect(vertex.readSettings === savedSettings.readSettings).toBe(true)
+    expect(vertex.markFailing === savedSettings.markFailing).toBe(true)
   })
 })
 

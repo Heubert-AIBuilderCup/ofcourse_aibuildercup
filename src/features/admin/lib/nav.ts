@@ -10,6 +10,7 @@ export const ADMIN_SECTIONS = [
   { href: '/admin/ideas', label: 'Ideas', show: (s: Staff) => canSeeBoard(s) },
   { href: '/admin/insights', label: 'Insights', show: (s: Staff) => canSeeBoard(s) },
   { href: '/admin/users', label: 'Users', show: (s: Staff) => canUseAdmin(s.role) },
+  { href: '/admin/models', label: 'Models', show: (s: Staff) => canUseAdmin(s.role) },
 ] as const
 
 export type AdminSection = (typeof ADMIN_SECTIONS)[number]

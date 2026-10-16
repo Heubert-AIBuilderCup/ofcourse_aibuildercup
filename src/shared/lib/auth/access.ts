@@ -26,6 +26,11 @@ export function canManageRoles(role: string | null | undefined): boolean {
   return role === 'superadmin'
 }
 
+/** Testing, changing and resetting the model settings: superadmin only (admins only view them). */
+export function canManageModels(role: string | null | undefined): boolean {
+  return role === 'superadmin'
+}
+
 /**
  * Whether an account with `actorRole` may act on an account with `targetRole`: a superadmin on
  * anyone, an admin on users only, a user on nobody. A target whose role is missing or unknown is

@@ -10,6 +10,7 @@ describe('activeSection', () => {
     expect(activeSection('/admin/ideas')).toBe('/admin/ideas')
     expect(activeSection('/admin/updates')).toBe('/admin/updates')
     expect(activeSection('/admin/insights')).toBe('/admin/insights')
+    expect(activeSection('/admin/models')).toBe('/admin/models')
   })
 
   it('counts the post workbench as the Board', () => {
@@ -31,6 +32,7 @@ describe('activeSection', () => {
       'Ideas',
       'Insights',
       'Users',
+      'Models',
     ])
   })
 })
@@ -56,34 +58,33 @@ describe('sectionsFor', () => {
     ])
   })
 
-  it('shows an admin the Board, Comic gaps and Users, with or without a capability', () => {
-    expect(labels({ role: 'admin' })).toEqual([
+  it('shows an admin and a superadmin every section, Models included, with or without a capability', () => {
+    const all: ReturnType<typeof labels> = [
       'Board',
       'Comic gaps',
       'Updates',
       'Ideas',
       'Insights',
       'Users',
-    ])
-    expect(labels({ role: 'admin', editor: true })).toEqual([
-      'Board',
-      'Comic gaps',
-      'Updates',
-      'Ideas',
-      'Insights',
-      'Users',
-    ])
-    expect(labels({ role: 'superadmin' })).toEqual([
-      'Board',
-      'Comic gaps',
-      'Updates',
-      'Ideas',
-      'Insights',
-      'Users',
-    ])
+      'Models',
+    ]
+    expect(labels({ role: 'admin' })).toEqual(all)
+    expect(labels({ role: 'admin', editor: true })).toEqual(all)
+    expect(labels({ role: 'superadmin' })).toEqual(all)
   })
 
   it('shows a plain user nothing', () => {
     expect(labels({ role: 'user' })).toEqual([])
+  })
+
+  it('never shows Models to a student, an editor, a reviewer or no role', () => {
+    for (const viewer of [
+      { role: 'user' },
+      { role: 'user', editor: true },
+      { role: 'user', reviewer: true },
+      { role: null },
+    ]) {
+      expect(labels(viewer).includes('Models')).toBe(false)
+    }
   })
 })

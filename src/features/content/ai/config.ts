@@ -1,7 +1,13 @@
 // The model layer's settings, read from the environment. Pure: no secret is held here, since the
 // Vertex client authenticates with Application Default Credentials.
 
-export type Tier = 'lite' | 'flash' | 'pro' | 'image'
+/** Every tier, lowest first: the list the settings, the actions and the Models page read. */
+export const TIERS = ['lite', 'flash', 'pro', 'image'] as const
+export type Tier = (typeof TIERS)[number]
+
+/** How much of a model's error is kept and shown: its first 500 characters (criterion 93). */
+export const ERROR_MAX = 500
+
 export type UseCase =
   | 'extract'
   | 'draft'

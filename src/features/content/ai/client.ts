@@ -12,8 +12,10 @@ import {
   type UseCase,
 } from './config'
 import { makeFake } from './fake'
+import { allowedTiers } from './models'
 import { buildPrompt, type PromptSpec, retryPrompt } from './prompts'
 import { toModelSchema } from './schema-guard'
+import { type AiSettings, markFailing, readSettings } from './settings'
 import { logAiCall, type Outcome, type Usage, withGenAiSpan } from './telemetry'
 import { vertexProvider } from './vertex'
 
@@ -84,7 +86,8 @@ export type CallLog = {
     ok: boolean
     cached: boolean
     ms: number
-    fallback: 'replay' | 'no_art' | null
+    /** 'env-default': the tier's saved model was not found or refused, so the environment's answered. */
+    fallback: 'replay' | 'no_art' | 'env-default' | null
     postId: string | null
   }): Promise<void>
   /**
@@ -102,6 +105,8 @@ export type CallLog = {
     cap: number
     /** Counts these use cases' calls against the cap instead of the tier's: the search cap. */
     useCases?: readonly UseCase[]
+    /** 'env-default': the retry on the environment's model after the saved one failed. */
+    fallback?: 'env-default'
   }): Promise<string | null>
   /** Records the outcome of a reserved call on its row. */
   settle(id: string, outcome: { ok: boolean; ms: number }): Promise<void>
@@ -114,6 +119,33 @@ export type Cache = {
     row: { useCase: UseCase; model: string; promptVersion: string; value: unknown },
   ): Promise<void>
 }
+
+/** The saved model settings (criteria 94–96) and where a failing saved model is reported. */
+export type Settings = {
+  readSettings(): Promise<AiSettings>
+  /** Marks `tier` failing while it still holds `model`, the model that failed. */
+  markFailing(tier: Tier, model: string, message: string): Promise<void>
+}
+
+const NO_SETTINGS_SAVED: AiSettings = Object.freeze({
+  tierModels: {},
+  useCaseTiers: {},
+  failing: {},
+})
+
+/** No saved choice: every call runs on the environment's models, as before story 15 (criterion 99). */
+const NO_SETTINGS: Settings = {
+  readSettings: async () => NO_SETTINGS_SAVED,
+  markFailing: async () => {},
+}
+
+/** The saved settings for a provider: none on the fake one, so tests and e2e never read the table. */
+export function settingsFor(config: AiConfig): Settings {
+  return config.provider === 'fake' ? NO_SETTINGS : { readSettings, markFailing }
+}
+
+/** How long a call waits for the saved settings before it runs on the environment's models. */
+export const SETTINGS_READ_TIMEOUT_MS = 300
 
 const JSON_TIMEOUT_MS = 30_000
 // A search runs queries before it answers, so it gets longer than a plain JSON call.
@@ -150,6 +182,16 @@ function modelSchema(schema: z.ZodType): object {
 
 function utcDay(date: Date): string {
   return date.toISOString().slice(0, 10)
+}
+
+/**
+ * A model Vertex does not find (404) or will not let this project use (403): @google/genai throws
+ * its ApiError with the HTTP status as a number in `status`, and vertex.ts passes it on unchanged.
+ */
+function isModelUnavailable(err: unknown): err is Error {
+  if (!(err instanceof Error)) return false
+  const status = (err as { status?: unknown }).status
+  return status === 404 || status === 403
 }
 
 function isRateLimit(err: unknown): err is Error {
@@ -260,11 +302,75 @@ export function makeAi(deps: {
   sleep?: (ms: number) => Promise<void>
   /** Where each finished call's log line goes (SR6): stdout, which Cloud Logging reads. */
   logCall?: typeof logAiCall
+  /** The saved model settings; none given, every call runs on the environment's models. */
+  settings?: Settings
+  settingsTimeoutMs?: number
 }) {
   const { provider, config, calls, cache } = deps
   const logCall = deps.logCall ?? logAiCall
   const now = deps.now ?? (() => new Date())
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)))
+  const settings = deps.settings ?? NO_SETTINGS
+  const settingsTimeoutMs = deps.settingsTimeoutMs ?? SETTINGS_READ_TIMEOUT_MS
+
+  /**
+   * The saved settings, read for each call so a save applies to the next one (criterion 94). Fails
+   * open: settings that are slow or cannot be read leave the call on the environment's models.
+   */
+  async function savedSettings(): Promise<AiSettings> {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const late = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), settingsTimeoutMs)
+    })
+    try {
+      const value = await Promise.race([settings.readSettings(), late])
+      if (value) return value
+      console.warn("[ai] the model settings were slow to read; the environment's models apply")
+    } catch (err) {
+      console.warn(
+        "[ai] could not read the model settings; the environment's models apply",
+        err instanceof Error ? err.message : err,
+      )
+    } finally {
+      clearTimeout(timer)
+    }
+    return NO_SETTINGS_SAVED
+  }
+
+  /** The model a tier runs on: the one saved for it, else the environment's. */
+  function modelOf(saved: AiSettings, tier: Tier): string {
+    return saved.tierModels[tier] ?? config.models[tier]
+  }
+
+  /** Whether a failed attempt on `model` is retried on the environment's model (criterion 96). */
+  function fallsBack(tier: Tier, model: string, err: unknown): err is Error {
+    return model !== config.models[tier] && isModelUnavailable(err)
+  }
+
+  /** Shows the saved model as failing on the Models page; never costs the person their answer. */
+  async function reportFailing(tier: Tier, model: string, err: Error): Promise<void> {
+    try {
+      await settings.markFailing(tier, model, err.message)
+    } catch (e) {
+      console.error('[ai] could not mark a model failing', e instanceof Error ? e.message : e)
+    }
+  }
+
+  /**
+   * The tier a spec starts on: the one saved for its use case when the use case allows it and the
+   * spec's ceiling reaches it (criterion 95), else the spec's own.
+   */
+  function startTier(
+    spec: PromptSpec<z.ZodType>,
+    saved: AiSettings,
+  ): PromptSpec<z.ZodType>['tier'] {
+    const chosen = saved.useCaseTiers[spec.useCase]
+    if (!chosen || chosen === 'image' || !allowedTiers(spec.useCase).includes(chosen)) {
+      return spec.tier
+    }
+    if (spec.maxTier && RUNG[chosen] > RUNG[spec.maxTier]) return spec.tier
+    return chosen
+  }
 
   // The log and the cache never cost the person their answer.
   async function record(row: Parameters<CallLog['record']>[0]): Promise<void> {
@@ -279,17 +385,15 @@ export function makeAi(deps: {
   async function reserve(row: {
     useCase: UseCase
     tier: 'pro' | 'image' | 'flash'
+    model: string
     promptVersion: string
     postId: string | null
     cap: number
     useCases?: readonly UseCase[]
+    fallback?: 'env-default'
   }): Promise<string | null> {
     try {
-      return await calls.reserve({
-        ...row,
-        model: config.models[row.tier],
-        day: utcDay(now()),
-      })
+      return await calls.reserve({ ...row, day: utcDay(now()) })
     } catch {
       return null
     }
@@ -314,6 +418,10 @@ export function makeAi(deps: {
         attemptKey?: number
         /** False: the answer is neither looked up in ai_cache nor stored there (a person's own words). */
         cache?: boolean
+        /** The start tier's model for this call only, in one attempt (as `once`): a Test before a save. */
+        model?: string
+        /** One attempt on the start tier: no retry, no climb, no fallback (a Test, criterion 93). */
+        once?: boolean
         verify?: (value: z.infer<S>) => string[]
         /** The caller's deadline: once it aborts, the attempt in flight stops and no rung starts. */
         signal?: AbortSignal
@@ -321,13 +429,14 @@ export function makeAi(deps: {
     ): Promise<AiResult<z.infer<S>>> {
       const useCache = req.cache !== false
       try {
+        const saved = await savedSettings()
+        const start = startTier(spec, saved)
         const jsonSchema = modelSchema(spec.schema)
         const { system, user } = buildPrompt(spec, req.data)
-        const primary = config.models[spec.tier]
+        const primary = req.model ?? modelOf(saved, start)
         const base = {
           useCase: spec.useCase,
           promptVersion: spec.version,
-          fallback: null,
           postId: req.postId ?? null,
         }
         const key = sha256Hex(
@@ -353,7 +462,7 @@ export function makeAi(deps: {
           if (cached.ok) {
             const info = {
               useCase: spec.useCase,
-              tier: spec.tier,
+              tier: start,
               promptVersion: spec.version,
               model: primary,
               cached: true,
@@ -363,42 +472,29 @@ export function makeAi(deps: {
             logCall({ ...info, outcome: 'ok', ms: 0 })
             await record({
               ...base,
-              tier: spec.tier,
+              tier: start,
               model: primary,
               ok: true,
               cached: true,
               ms: 0,
+              fallback: null,
             })
             return { ok: true, value: cached.value, cached: true }
           }
         }
 
-        // 2–5. Attempt, retry with the problems, then Pro: the ladder for the spec's tier, with no
-        // rung above its maxTier (a lite spec with maxTier 'lite' makes one attempt).
-        const top = spec.maxTier
-        const tiers = top
-          ? LADDERS[spec.tier].filter((tier) => RUNG[tier] <= RUNG[top])
-          : LADDERS[spec.tier]
         let problems: string[] = []
         let waited = false
-        for (const [i, tier] of tiers.entries()) {
-          // Past the caller's deadline nobody reads the answer: no rung starts.
-          if (req.signal?.aborted) break
-          const reserved =
-            tier === 'pro'
-              ? await reserve({
-                  useCase: spec.useCase,
-                  tier,
-                  promptVersion: spec.version,
-                  postId: base.postId,
-                  cap: config.caps.pro,
-                })
-              : null
-          if (tier === 'pro' && reserved === null) {
-            if (i === 0) return DAILY_LIMIT
-            break
-          }
-          const model = config.models[tier]
+        // A single call (once, or a per-call model) has no next attempt, so it never waits on a 429.
+        const single = req.once === true || req.model !== undefined
+        /** One attempt on `model`, logged; a reserved attempt settles its slot, any other is recorded. */
+        const attempt = async (
+          n: number,
+          tier: PromptSpec<S>['tier'],
+          model: string,
+          reserved: string | null,
+          fallback: 'env-default' | null,
+        ) => {
           const timeout = AbortSignal.timeout(req.timeoutMs ?? JSON_TIMEOUT_MS)
           const signal = req.signal ? AbortSignal.any([timeout, req.signal]) : timeout
           const started = Date.now()
@@ -408,10 +504,11 @@ export function makeAi(deps: {
             promptVersion: spec.version,
             model,
             cached: false,
-            attempt: i + 1,
+            attempt: n,
           }
           let usage: Usage = {}
           let answer: Checked<z.infer<S>> | null = null
+          let error: unknown = null
           try {
             answer = await withGenAiSpan(info, async (span) => {
               const text = await untilAborted(
@@ -442,8 +539,9 @@ export function makeAi(deps: {
               return checked
             })
           } catch (err) {
-            warn(spec.useCase, tier, i + 1, err)
-            if (isRateLimit(err) && !waited) {
+            error = err
+            warn(spec.useCase, tier, n, err)
+            if (isRateLimit(err) && !waited && !single) {
               waited = true
               await sleep(rateLimitWait(err))
             }
@@ -451,8 +549,66 @@ export function makeAi(deps: {
           const ms = Date.now() - started
           const outcome = answer === null ? 'failed' : answer.ok ? 'ok' : 'invalid'
           logCall({ ...info, ...usage, outcome, ms })
-          if (reserved) await settle(reserved, { ok: answer?.ok === true, ms })
-          else await record({ ...base, tier, model, ok: answer?.ok === true, cached: false, ms })
+          const ok = answer?.ok === true
+          if (reserved) await settle(reserved, { ok, ms })
+          else await record({ ...base, tier, model, ok, cached: false, ms, fallback })
+          return { answer, error }
+        }
+
+        // 2–5. Attempt, retry with the problems, then Pro: the ladder for the start tier, with no
+        // rung above the spec's maxTier (a lite spec with maxTier 'lite' makes one attempt).
+        const top = spec.maxTier
+        const tiers = single
+          ? [start]
+          : top
+            ? LADDERS[start].filter((tier) => RUNG[tier] <= RUNG[top])
+            : LADDERS[start]
+        /** No slot below Pro (null); on Pro a reserved one, or false at the day's cap. */
+        const slot = async (
+          tier: PromptSpec<S>['tier'],
+          model: string,
+          fallback?: 'env-default',
+        ): Promise<string | null | false> => {
+          if (tier !== 'pro') return null
+          const id = await reserve({
+            useCase: spec.useCase,
+            tier,
+            model,
+            promptVersion: spec.version,
+            postId: base.postId,
+            cap: config.caps.pro,
+            fallback,
+          })
+          return id ?? false
+        }
+        // The tiers whose saved model failed in this call: their later rungs run on the environment's.
+        const fellBack = new Set<Tier>()
+        for (const [i, tier] of tiers.entries()) {
+          // Past the caller's deadline nobody reads the answer: no rung starts.
+          if (req.signal?.aborted) break
+          const override = i === 0 ? req.model : undefined
+          let model = override ?? (fellBack.has(tier) ? config.models[tier] : modelOf(saved, tier))
+          let reserved = await slot(tier, model)
+          if (reserved === false) {
+            if (i === 0) return DAILY_LIMIT
+            break
+          }
+          let { answer, error } = await attempt(i + 1, tier, model, reserved, null)
+          // A saved model not found or refused: once more on the environment's (criterion 96). On
+          // Pro the retry reserves a slot of its own, so it counts against the cap like any call.
+          if (!override && !req.signal?.aborted && fallsBack(tier, model, error)) {
+            fellBack.add(tier)
+            await reportFailing(tier, model, error)
+            if (!single) {
+              model = config.models[tier]
+              reserved = await slot(tier, model, 'env-default')
+              if (reserved === false) {
+                if (i === 0) return DAILY_LIMIT
+                break
+              }
+              ;({ answer, error } = await attempt(i + 1, tier, model, reserved, 'env-default'))
+            }
+          }
           if (answer?.ok) {
             try {
               if (useCache)
@@ -489,9 +645,11 @@ export function makeAi(deps: {
       try {
         const search = provider.search?.bind(provider)
         if (!search) return FAILED
+        const chosen = modelOf(await savedSettings(), 'flash')
         const reserved = await reserve({
           useCase: spec.useCase,
           tier: 'flash',
+          model: chosen,
           promptVersion: spec.version,
           postId: req.postId ?? null,
           cap: config.caps.search,
@@ -499,65 +657,92 @@ export function makeAi(deps: {
         })
         if (reserved === null) return DAILY_LIMIT
         const { system, user } = buildPrompt(spec, req.data)
-        const model = config.models.flash
-        const signal = AbortSignal.timeout(SEARCH_TIMEOUT_MS)
-        const started = Date.now()
-        const info = {
-          useCase: spec.useCase,
-          tier: 'flash',
-          promptVersion: spec.version,
-          model,
-          cached: false,
-          attempt: 1,
-        } as const
-        let usage: Usage = {}
-        let outcome: Outcome = 'failed'
-        let found: {
-          value: z.infer<S>
-          sources: GroundedSource[]
-          entryPoint: string | null
-        } | null = null
-        try {
-          found = await withGenAiSpan(info, async (span) => {
-            const answer = await untilAborted(
-              search({
-                model,
-                system,
-                user,
-                temperature: spec.temperature,
-                jsonSchema: modelSchema(spec.schema),
+        const attempt = async (model: string) => {
+          const signal = AbortSignal.timeout(SEARCH_TIMEOUT_MS)
+          const started = Date.now()
+          const info = {
+            useCase: spec.useCase,
+            tier: 'flash',
+            promptVersion: spec.version,
+            model,
+            cached: false,
+            attempt: 1,
+          } as const
+          let usage: Usage = {}
+          let outcome: Outcome = 'failed'
+          let error: unknown = null
+          let found: {
+            value: z.infer<S>
+            sources: GroundedSource[]
+            entryPoint: string | null
+          } | null = null
+          try {
+            found = await withGenAiSpan(info, async (span) => {
+              const answer = await untilAborted(
+                search({
+                  model,
+                  system,
+                  user,
+                  temperature: spec.temperature,
+                  jsonSchema: modelSchema(spec.schema),
+                  signal,
+                  useCase: spec.useCase,
+                  tier: 'flash',
+                  promptVersion: spec.version,
+                  data: req.data,
+                  onUsage: (reported) => {
+                    usage = reported
+                    span.setUsage(reported)
+                  },
+                }),
                 signal,
-                useCase: spec.useCase,
-                tier: 'flash',
-                promptVersion: spec.version,
-                data: req.data,
-                onUsage: (reported) => {
-                  usage = reported
-                  span.setUsage(reported)
-                },
-              }),
-              signal,
-            )
-            const parsed = parseJson(answer.text)
-            const grounded = new Set(answer.sources.map((s) => s.url))
-            const checked = parsed.ok
-              ? check(spec.schema, groundedOnly(parsed.raw, grounded))
-              : null
-            if (!checked?.ok) {
-              span.setOutcome('invalid')
-              return null
-            }
-            return { value: checked.value, sources: answer.sources, entryPoint: answer.entryPoint }
-          })
-          outcome = found ? 'ok' : 'invalid'
-        } catch (err) {
-          warn(spec.useCase, 'flash', 1, err)
+              )
+              const parsed = parseJson(answer.text)
+              const grounded = new Set(answer.sources.map((s) => s.url))
+              const checked = parsed.ok
+                ? check(spec.schema, groundedOnly(parsed.raw, grounded))
+                : null
+              if (!checked?.ok) {
+                span.setOutcome('invalid')
+                return null
+              }
+              return {
+                value: checked.value,
+                sources: answer.sources,
+                entryPoint: answer.entryPoint,
+              }
+            })
+            outcome = found ? 'ok' : 'invalid'
+          } catch (err) {
+            error = err
+            warn(spec.useCase, 'flash', 1, err)
+          }
+          if (outcome === 'invalid') warn(spec.useCase, 'flash', 1, null)
+          const ms = Date.now() - started
+          logCall({ ...info, ...usage, outcome, ms })
+          return { found, error, ms }
         }
-        if (outcome === 'invalid') warn(spec.useCase, 'flash', 1, null)
-        const ms = Date.now() - started
-        logCall({ ...info, ...usage, outcome, ms })
-        await settle(reserved, { ok: found !== null, ms })
-        return found ? { ok: true, ...found } : FAILED
+        let result = await attempt(chosen)
+        await settle(reserved, { ok: result.found !== null, ms: result.ms })
+        // A saved Flash model not found or refused: once more on the environment's (criterion 96),
+        // in a search slot of its own, so the retry counts against the cap like any search.
+        if (fallsBack('flash', chosen, result.error)) {
+          await reportFailing('flash', chosen, result.error)
+          const retry = await reserve({
+            useCase: spec.useCase,
+            tier: 'flash',
+            model: config.models.flash,
+            promptVersion: spec.version,
+            postId: req.postId ?? null,
+            cap: config.caps.search,
+            useCases: SEARCH_USE_CASES,
+            fallback: 'env-default',
+          })
+          if (retry === null) return DAILY_LIMIT
+          result = await attempt(config.models.flash)
+          await settle(retry, { ok: result.found !== null, ms: result.ms })
+        }
+        return result.found ? { ok: true, ...result.found } : FAILED
       } catch (err) {
         console.error('[ai] searchJson', err instanceof Error ? err.message : err)
         return FAILED
@@ -570,60 +755,86 @@ export function makeAi(deps: {
       postId?: string
       data: unknown
       references?: ImageData[]
+      /** The image model for this call only, never falling back: a Test before a save. */
+      model?: string
+      /** One attempt: no fallback (a Test, criterion 93). */
+      once?: boolean
     }): Promise<AiResult<Uint8Array>> {
       try {
+        const chosen = req.model ?? modelOf(await savedSettings(), 'image')
         const reserved = await reserve({
           useCase: 'art',
           tier: 'image',
+          model: chosen,
           promptVersion: IMAGE_PROMPT_VERSION,
           postId: req.postId ?? null,
           cap: config.caps.image,
         })
         if (reserved === null) return DAILY_LIMIT
-        const model = config.models.image
-        const signal = AbortSignal.timeout(IMAGE_TIMEOUT_MS)
-        const started = Date.now()
-        const info = {
-          useCase: 'art',
-          tier: 'image',
-          promptVersion: IMAGE_PROMPT_VERSION,
-          model,
-          cached: false,
-          attempt: 1,
-        } as const
-        let usage: Usage = {}
-        try {
-          const bytes = await withGenAiSpan(info, (span) =>
-            untilAborted(
-              provider.image({
-                model,
-                prompt: req.prompt,
-                aspectRatio: req.aspectRatio,
+        const attempt = async (model: string) => {
+          const signal = AbortSignal.timeout(IMAGE_TIMEOUT_MS)
+          const started = Date.now()
+          const info = {
+            useCase: 'art',
+            tier: 'image',
+            promptVersion: IMAGE_PROMPT_VERSION,
+            model,
+            cached: false,
+            attempt: 1,
+          } as const
+          let usage: Usage = {}
+          try {
+            const bytes = await withGenAiSpan(info, (span) =>
+              untilAborted(
+                provider.image({
+                  model,
+                  prompt: req.prompt,
+                  aspectRatio: req.aspectRatio,
+                  signal,
+                  useCase: 'art',
+                  tier: 'image',
+                  promptVersion: IMAGE_PROMPT_VERSION,
+                  data: req.data,
+                  references: req.references,
+                  onUsage: (reported) => {
+                    usage = reported
+                    span.setUsage(reported)
+                  },
+                }),
                 signal,
-                useCase: 'art',
-                tier: 'image',
-                promptVersion: IMAGE_PROMPT_VERSION,
-                data: req.data,
-                references: req.references,
-                onUsage: (reported) => {
-                  usage = reported
-                  span.setUsage(reported)
-                },
-              }),
-              signal,
-            ),
-          )
-          const ms = Date.now() - started
-          logCall({ ...info, ...usage, outcome: 'ok', ms })
-          await settle(reserved, { ok: true, ms })
-          return { ok: true, value: bytes, cached: false }
-        } catch (err) {
-          warn('art', 'image', 1, err)
-          const ms = Date.now() - started
-          logCall({ ...info, ...usage, outcome: 'failed', ms })
-          await settle(reserved, { ok: false, ms })
-          return FAILED
+              ),
+            )
+            const ms = Date.now() - started
+            logCall({ ...info, ...usage, outcome: 'ok', ms })
+            return { bytes, error: null, ms }
+          } catch (err) {
+            warn('art', 'image', 1, err)
+            const ms = Date.now() - started
+            logCall({ ...info, ...usage, outcome: 'failed', ms })
+            return { bytes: null, error: err, ms }
+          }
         }
+        let result = await attempt(chosen)
+        await settle(reserved, { ok: result.bytes !== null, ms: result.ms })
+        // A saved image model not found or refused: once more on the environment's (criterion 96).
+        if (!req.model && fallsBack('image', chosen, result.error)) {
+          await reportFailing('image', chosen, result.error)
+          if (req.once) return FAILED
+          // In an image slot of its own, so the retry counts against the cap like any cover.
+          const retry = await reserve({
+            useCase: 'art',
+            tier: 'image',
+            model: config.models.image,
+            promptVersion: IMAGE_PROMPT_VERSION,
+            postId: req.postId ?? null,
+            cap: config.caps.image,
+            fallback: 'env-default',
+          })
+          if (retry === null) return DAILY_LIMIT
+          result = await attempt(config.models.image)
+          await settle(retry, { ok: result.bytes !== null, ms: result.ms })
+        }
+        return result.bytes ? { ok: true, value: result.bytes, cached: false } : FAILED
       } catch (err) {
         console.error('[ai] generateImage', err instanceof Error ? err.message : err)
         return FAILED
@@ -643,10 +854,11 @@ export const aiInUse: Pick<AiConfig, 'provider' | 'project'> = {
   project: config.project,
 }
 
-/** The configured provider, the ai_call log and the ai_cache table. */
+/** The configured provider, the ai_call log, the ai_cache table and the saved model settings. */
 export const ai: ReturnType<typeof makeAi> = makeAi({
   provider: config.provider === 'fake' ? makeFake() : vertexProvider(config),
   config,
   calls: dbCallLog,
   cache: dbCache,
+  settings: settingsFor(config),
 })

@@ -5,11 +5,9 @@ import 'server-only'
 // measures the models wraps its provider with this.
 
 import type { Provider } from './client'
-import type { UseCase } from './config'
+import { ERROR_MAX, type UseCase } from './config'
 
 export type Attempt = { useCase: UseCase; model: string; ms: number; ok: boolean; error?: string }
-
-const ERROR_MAX = 500
 
 export function recording(
   provider: Provider,

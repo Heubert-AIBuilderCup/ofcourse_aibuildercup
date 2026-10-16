@@ -100,6 +100,69 @@ describe.skipIf(!enabled)('the model call log and cache against the database', (
     expect(results.filter((r) => !r.ok).map((r) => !r.ok && r.reason)).toEqual(['daily_limit'])
   })
 
+  test('the retry on the environment’s image model takes a slot of its own under the cap (criterion 96)', async () => {
+    const { makeAi } = await import('./client')
+    const { aiConfig } = await import('./config')
+    const today = new Date().toISOString().slice(0, 10)
+    const notFound = Object.assign(new Error('model not found'), { status: 404 })
+    const draw = async (room: number, postId: string) => {
+      const used = await calls.countToday('image', today)
+      const models: string[] = []
+      const ai = makeAi({
+        provider: {
+          json: async () => '{}',
+          image: async (req) => {
+            models.push(req.model)
+            if (req.model !== 'test-model') throw notFound
+            return new Uint8Array([1])
+          },
+        },
+        config: aiConfig({
+          GEMINI_IMAGE_MODEL: 'test-model',
+          AI_DAILY_CAP_IMAGE: String(used + room),
+        }),
+        calls,
+        cache,
+        settings: {
+          readSettings: async () => ({
+            tierModels: { image: 'gemini-nano-banana-2.1' },
+            useCaseTiers: {},
+            failing: {},
+          }),
+          markFailing: async () => {},
+        },
+        logCall: () => {},
+      })
+      const res = await ai.generateImage({ prompt: 'a desk', aspectRatio: '1:1', postId, data: {} })
+      const rows = await db
+        .select({
+          model: schema.aiCall.model,
+          ok: schema.aiCall.ok,
+          fallback: schema.aiCall.fallback,
+        })
+        .from(schema.aiCall)
+        .where(orm.eq(schema.aiCall.postId, postId))
+        .orderBy(schema.aiCall.createdAt)
+      return { res, models, rows, after: (await calls.countToday('image', today)) - used }
+    }
+
+    // The failed call took the last slot: no retry, and nothing over the cap.
+    const full = await draw(1, `${P}fallback-full`)
+    expect(full.res.ok ? 'ok' : full.res.reason).toBe('daily_limit')
+    expect(full.models).toEqual(['gemini-nano-banana-2.1'])
+    expect(full.after).toBe(1)
+
+    // Room for both: the retry is reserved and settled as the fallback.
+    const room = await draw(2, `${P}fallback-room`)
+    expect(room.res.ok).toBe(true)
+    expect(room.models).toEqual(['gemini-nano-banana-2.1', 'test-model'])
+    expect(room.after).toBe(2)
+    expect(room.rows.map((r) => [r.model, r.ok, r.fallback])).toEqual([
+      ['gemini-nano-banana-2.1', false, null],
+      ['test-model', true, 'env-default'],
+    ])
+  })
+
   test('the search cap counts the search use cases only: other Flash calls never fill it', async () => {
     const { SEARCH_USE_CASES } = await import('./config')
     const day = new Date().toISOString().slice(0, 10)

@@ -205,3 +205,8 @@ Go to   .env: STUDENT_AI_OFF=1, restart dev
 Do      open the step-14 board · the course card
 See     the same road; the why is the template sentence only; Ask shows its suggested questions and no typed box. Remove the line and restart: the typed box is back
 ```
+
+---
+
+**Deploy note, the Models page** · `feat/admin-model-settings`
+- Run the migration job (`bun scripts/migrate.ts` from the image) so `0024_ai_setting` is applied **before** the revision that reads it is deployed. The migration only creates two tables, `ai_setting` and `ai_setting_change`. A revision that meets a missing table still uses the environment's models (reading the settings fails open, and the failed read is remembered for 30 seconds per instance, so it is not repeated on every call). Until the migration has run, the Models page lists the environment's models under a red line, "The model settings cannot be read", with no Change, no Reset and an empty change log; Test still runs.

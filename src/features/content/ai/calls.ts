@@ -63,7 +63,7 @@ export const dbCallLog: CallLog = {
         ok: false,
         cached: false,
         ms: 0,
-        fallback: null,
+        fallback: row.fallback ?? null,
         postId: row.postId,
       })
       return id

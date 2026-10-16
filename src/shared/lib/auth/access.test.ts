@@ -5,6 +5,7 @@ import {
   accountActionError,
   canActOn,
   canEdit,
+  canManageModels,
   canManageRoles,
   canReview,
   canSeeBoard,
@@ -77,6 +78,16 @@ describe('canManageRoles', () => {
     for (const role of ['admin', 'user', '', null, undefined]) {
       expect(canManageRoles(role)).toBe(false)
     }
+  })
+})
+
+describe('canManageModels', () => {
+  it('is for a superadmin only; an admin may still view the admin pages', () => {
+    expect(canManageModels('superadmin')).toBe(true)
+    for (const role of ['admin', 'user', '', null, undefined]) {
+      expect(canManageModels(role)).toBe(false)
+    }
+    expect(canUseAdmin('admin')).toBe(true)
   })
 })
 

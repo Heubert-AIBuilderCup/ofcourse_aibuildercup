@@ -169,6 +169,13 @@
       "when": 1792069272838,
       "tag": "0023_student_ask",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792099061877,
+      "tag": "0024_ai_setting",
+      "breakpoints": true
     }
   ]
 }
