@@ -4,7 +4,7 @@ OfCourse shows an international student three possible futures in Australia, bui
 
 ## Who
 
-- **Student:** signs in with Google or an email code on the student page (`/`). One account per address, whichever way she signs in.
+- **Student:** signs in with Google on the student page (`/`); the email code is built but off on the page until an email provider is configured. One account per address, whichever way she signs in.
 - **Admin:** signs in with Google only, at `/admin/sign-in`. A student account is refused there, and an admin is refused on the student page.
 
 ## The student flow

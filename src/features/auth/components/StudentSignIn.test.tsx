@@ -57,9 +57,30 @@ async function toCodeStep(email = 'a@b.test') {
 
 it('offers Google and an email code', () => {
   render(<StudentSignIn next="/start" />)
-  expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument()
   expect(screen.getByLabelText('Your email')).toBeInTheDocument()
   expect(screen.getByText('We send a six-digit code. No password.')).toBeInTheDocument()
+})
+
+it('with codes off, offers Google alone', () => {
+  render(<StudentSignIn next="/start" codes={false} />)
+  expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeEnabled()
+  expect(screen.getByText('Use the email you signed up with.')).toBeInTheDocument()
+  expect(screen.queryByLabelText('Your email')).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Send me a code' })).toBeNull()
+  expect(screen.queryByText('or')).toBeNull()
+})
+
+it('"Create an account" under the card is the same Google sign-in', async () => {
+  render(<StudentSignIn next="/start" codes={false} />)
+  expect(screen.getByText(/New to OfCourse\?/)).toBeInTheDocument()
+  await press('Create an account')
+  expect(social).toHaveBeenCalledWith({
+    provider: 'google',
+    callbackURL: '/start',
+    errorCallbackURL: '/signin-error',
+    additionalData: { surface: 'student' },
+  })
 })
 
 it('refuses an address that is not one, and sends nothing', async () => {
@@ -68,7 +89,7 @@ it('refuses an address that is not one, and sends nothing', async () => {
   await press('Send me a code')
   // A field's own mistake is said under the field, not in the form's error block.
   expect(screen.getByLabelText('Your email')).toHaveAccessibleDescription(
-    'Enter an email like name@company.com.',
+    'Enter an email like you@example.com.',
   )
   expect(screen.queryByRole('alert')).toBeNull()
   expect(sendVerificationOtp).not.toHaveBeenCalled()
@@ -213,7 +234,7 @@ it('checks the email when she leaves the field, marking it invalid', () => {
   fill('Your email', 'a@b')
   fireEvent.blur(email)
   expect(email).toHaveAttribute('aria-invalid', 'true')
-  expect(email).toHaveAccessibleDescription('Enter an email like name@company.com.')
+  expect(email).toHaveAccessibleDescription('Enter an email like you@example.com.')
   fill('Your email', 'a@b.test')
   expect(email).not.toHaveAttribute('aria-invalid')
   expect(email).toHaveAccessibleDescription('We send a six-digit code. No password.')

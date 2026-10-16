@@ -12,6 +12,7 @@ import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { emailOtp, signIn } from '@/shared/lib/auth/client'
 import { SIGNIN_ERROR_PATH, SUSPENDED_PATH } from '@/shared/lib/auth/gate'
+import { SITE_NAME } from '@/shared/lib/site'
 import { cn } from '@/shared/lib/utils'
 import {
   CODE_LIFETIME_SECONDS,
@@ -21,7 +22,7 @@ import {
   MAX_WRONG_CODES,
   RESEND_WAIT_SECONDS,
 } from '../lib/code-messages'
-import { GoogleSignIn } from './GoogleSignIn'
+import { GoogleSignIn, useGoogleSignIn } from './GoogleSignIn'
 import styles from './sign-in.module.css'
 
 const EMAIL = z.email()
@@ -41,7 +42,7 @@ const INPUT =
 function emailProblem(value: string): string {
   const address = value.trim()
   if (!address) return 'Enter your email.'
-  return EMAIL.safeParse(address).success ? '' : 'Enter an email like name@company.com.'
+  return EMAIL.safeParse(address).success ? '' : 'Enter an email like you@example.com.'
 }
 
 const codeProblem = (value: string) => (CODE.test(value) ? '' : 'Enter the six-digit code.')
@@ -110,10 +111,23 @@ function Alert({ children }: { children: ReactNode }) {
  * A field's mistake shows under it once she leaves the field or sends; what the server says, or
  * the sign-in page's `notice`, shows in the error block; the card shakes at each failed try. The
  * button says what it is doing (sending, signing in, signed in). `next` must already be a safe
- * path (safeNextPath).
+ * path (safeNextPath). With `codes` off the card offers Google alone, as the design's primary
+ * button: no address field, no code step, so a code that would never arrive is never asked for.
  */
-export function StudentSignIn({ next, notice }: { next: string; notice?: string | null }) {
+export function StudentSignIn({
+  next,
+  notice,
+  codes = true,
+}: {
+  next: string
+  notice?: string | null
+  codes?: boolean
+}) {
   const router = useRouter()
+  // One Google sign-in for the button and for "Create an account" under the card (with Google, a
+  // new account is the same sign-in), so both go busy and fail together.
+  const google = { next, surface: 'student' as const, errorCallbackURL: SIGNIN_ERROR_PATH }
+  const run = useGoogleSignIn(google)
   const [email, setEmail] = useState('')
   // The address the current code went to; null on the email step.
   const [sentTo, setSentTo] = useState<string | null>(null)
@@ -233,6 +247,7 @@ export function StudentSignIn({ next, notice }: { next: string; notice?: string 
 
   const onEmailStep = sentTo === null
   const message = error ? CODE_MESSAGES[error] : onEmailStep ? pageNotice : null
+  const googleOnly = !codes
   const emailError = checkEmail ? emailProblem(email) : ''
   const codeError = checkCode ? codeProblem(code) : ''
   const shake = failures === 0 ? undefined : failures % 2 ? 'a' : 'b'
@@ -287,123 +302,137 @@ export function StudentSignIn({ next, notice }: { next: string; notice?: string 
   )
 
   return (
-    <Blueprint
-      data-shake={shake}
-      className={cn(
-        styles.frame,
-        styles.cardFrame,
-        shake === 'a' && styles.shakeA,
-        shake === 'b' && styles.shakeB,
-        'flex w-full max-w-sm flex-col gap-5 bg-card p-stack text-card-foreground @max-xl:p-5',
-      )}
-    >
-      <div className={cn(motion.rise, motion.d6)}>
-        <div className="mb-[0.425rem] text-micro uppercase text-primary-strong">Sign in</div>
-        <h2 className="m-0 mb-[0.425rem] font-heading text-h2 font-semibold tracking-[-0.015em]">
-          Welcome
-        </h2>
-        <p className="m-0 text-sm text-muted-foreground">Use Google or a code we email you.</p>
-      </div>
+    <>
+      <Blueprint
+        data-shake={shake}
+        className={cn(
+          styles.frame,
+          styles.cardFrame,
+          shake === 'a' && styles.shakeA,
+          shake === 'b' && styles.shakeB,
+          'flex w-full max-w-sm flex-col gap-5 bg-card p-stack text-card-foreground @max-xl:p-5',
+        )}
+      >
+        <div className={cn(motion.rise, motion.d6)}>
+          <div className="mb-[0.425rem] text-micro uppercase text-primary-strong">Sign in</div>
+          <h2 className="m-0 mb-[0.425rem] font-heading text-h2 font-semibold tracking-[-0.015em]">
+            Welcome
+          </h2>
+          <p className="m-0 text-sm text-muted-foreground">Use the email you signed up with.</p>
+        </div>
 
-      {message ? <Alert>{message}</Alert> : null}
+        {message ? <Alert>{message}</Alert> : null}
 
-      {onEmailStep ? (
-        <form noValidate onSubmit={onEmail} className="flex flex-col gap-5">
-          <div
-            data-invalid={emailError ? '' : undefined}
-            className={cn(motion.rise, motion.d7, 'group grid gap-1.5')}
-          >
-            <Label htmlFor="student-email" className={LABEL}>
-              Your email
-            </Label>
-            <Input
-              ref={emailInput}
-              id="student-email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              placeholder="name@company.com"
-              value={email}
-              readOnly={holding}
-              onChange={(e) => setEmail(e.target.value)}
-              onBlur={() => {
-                if (email) setCheckEmail(true)
-              }}
-              aria-invalid={emailError ? true : undefined}
-              aria-describedby={emailError ? 'student-email-error' : 'student-email-hint'}
-              className={INPUT}
-            />
-            {emailError ? (
-              <FieldError id="student-email-error">{emailError}</FieldError>
-            ) : (
-              <p id="student-email-hint" className="m-0 text-caption text-muted-foreground">
-                We send a six-digit code. No password.
-              </p>
-            )}
-          </div>
-          {submit}
-        </form>
-      ) : (
-        <form noValidate onSubmit={onCode} className="flex flex-col gap-5">
-          <div className={cn(motion.rise, motion.d7, 'flex flex-col gap-3.5')}>
-            <p className="m-0 text-sm">{`The code we sent to ${sentTo}`}</p>
-            <div data-invalid={codeError ? '' : undefined} className="group grid gap-1.5">
-              <Label htmlFor="student-code" className={LABEL}>
-                Six-digit code
+        {googleOnly ? null : onEmailStep ? (
+          <form noValidate onSubmit={onEmail} className="flex flex-col gap-5">
+            <div
+              data-invalid={emailError ? '' : undefined}
+              className={cn(motion.rise, motion.d7, 'group grid gap-1.5')}
+            >
+              <Label htmlFor="student-email" className={LABEL}>
+                Your email
               </Label>
               <Input
-                ref={codeInput}
-                id="student-code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                value={code}
+                ref={emailInput}
+                id="student-email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
                 readOnly={holding}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                onChange={(e) => setEmail(e.target.value)}
                 onBlur={() => {
-                  if (code) setCheckCode(true)
+                  if (email) setCheckEmail(true)
                 }}
-                aria-invalid={codeError ? true : undefined}
-                aria-describedby={codeError ? 'student-code-error' : undefined}
+                aria-invalid={emailError ? true : undefined}
+                aria-describedby={emailError ? 'student-email-error' : 'student-email-hint'}
                 className={INPUT}
               />
-              {codeError ? <FieldError id="student-code-error">{codeError}</FieldError> : null}
+              {emailError ? (
+                <FieldError id="student-email-error">{emailError}</FieldError>
+              ) : (
+                <p id="student-email-hint" className="m-0 text-caption text-muted-foreground">
+                  We send a six-digit code. No password.
+                </p>
+              )}
             </div>
-          </div>
-          {submit}
-          <div className="-mt-1.5 flex flex-wrap items-center justify-between gap-2">
-            <Button
-              type="button"
-              variant="link"
-              disabled={holding || wait.left > 0}
-              onClick={() => void sendCode(sentTo)}
-              // The wait is status, so it stays readable while the button is off.
-              className={cn(LINK, 'disabled:text-muted-foreground disabled:opacity-100')}
-            >
-              {wait.left > 0 ? `Send a new code in ${wait.left} s` : 'Send a new code'}
-            </Button>
-            <Button
-              type="button"
-              variant="link"
-              disabled={holding}
-              onClick={differentEmail}
-              className={LINK}
-            >
-              Use a different email
-            </Button>
-          </div>
-        </form>
-      )}
+            {submit}
+          </form>
+        ) : (
+          <form noValidate onSubmit={onCode} className="flex flex-col gap-5">
+            <div className={cn(motion.rise, motion.d7, 'flex flex-col gap-3.5')}>
+              <p className="m-0 text-sm">{`The code we sent to ${sentTo}`}</p>
+              <div data-invalid={codeError ? '' : undefined} className="group grid gap-1.5">
+                <Label htmlFor="student-code" className={LABEL}>
+                  Six-digit code
+                </Label>
+                <Input
+                  ref={codeInput}
+                  id="student-code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={code}
+                  readOnly={holding}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                  onBlur={() => {
+                    if (code) setCheckCode(true)
+                  }}
+                  aria-invalid={codeError ? true : undefined}
+                  aria-describedby={codeError ? 'student-code-error' : undefined}
+                  className={INPUT}
+                />
+                {codeError ? <FieldError id="student-code-error">{codeError}</FieldError> : null}
+              </div>
+            </div>
+            {submit}
+            <div className="-mt-1.5 flex flex-wrap items-center justify-between gap-2">
+              <Button
+                type="button"
+                variant="link"
+                disabled={holding || wait.left > 0}
+                onClick={() => void sendCode(sentTo)}
+                // The wait is status, so it stays readable while the button is off.
+                className={cn(LINK, 'disabled:text-muted-foreground disabled:opacity-100')}
+              >
+                {wait.left > 0 ? `Send a new code in ${wait.left} s` : 'Send a new code'}
+              </Button>
+              <Button
+                type="button"
+                variant="link"
+                disabled={holding}
+                onClick={differentEmail}
+                className={LINK}
+              >
+                Use a different email
+              </Button>
+            </div>
+          </form>
+        )}
 
-      {onEmailStep ? (
-        // The "or" closes the form's last group; Google sits that group's gap below it.
-        <GoogleSignIn
-          next={next}
-          surface="student"
-          errorCallbackURL={SIGNIN_ERROR_PATH}
-          className="-mt-1.5"
-        />
-      ) : null}
-    </Blueprint>
+        {onEmailStep ? (
+          // The "or" closes the form's last group; Google sits that group's gap below it.
+          <GoogleSignIn
+            {...google}
+            run={run}
+            primary={googleOnly}
+            className={cn(!googleOnly && '-mt-1.5')}
+          />
+        ) : null}
+      </Blueprint>
+      <p className={cn(motion.rise, motion.d8, 'm-0 text-center text-sm text-muted-foreground')}>
+        New to {SITE_NAME}?{' '}
+        <Button
+          type="button"
+          variant="link"
+          disabled={run.pending}
+          onClick={() => void run.start()}
+          className={cn(LINK, 'h-auto text-sm')}
+        >
+          Create an account
+        </Button>
+      </p>
+    </>
   )
 }

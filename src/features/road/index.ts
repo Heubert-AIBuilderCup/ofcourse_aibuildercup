@@ -5,6 +5,8 @@
 
 export { RoadBoard } from './components/RoadBoard'
 export { type BoardFacts, boardFacts } from './model/board-facts'
+// The tile icons' paths, for the sign-in page's four cells.
+export { ICONS } from './model/kinds'
 export { type MatchLine, matchLine } from './model/match-line'
 export { roadRedirect } from './model/redirect'
 export { getRoad, type Road } from './model/road-data'

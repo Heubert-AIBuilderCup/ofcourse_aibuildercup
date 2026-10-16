@@ -9,7 +9,7 @@ import { STUDENT_APP_URL } from './helpers/student'
 
 test('the admin sign-in page offers Google only', async ({ page }) => {
   await page.goto('/admin/sign-in')
-  await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sign in with Google' })).toBeVisible()
   await expect(page.getByLabel(/email/i)).toHaveCount(0)
   await expect(page.getByRole('link', { name: /create an account/i })).toHaveCount(0)
   await expect(page.getByText('OfCourse Admin')).toBeVisible()
@@ -66,7 +66,7 @@ test('a user session is kept out of the admin and still sees the admin sign-in p
     await page.goto('/admin/users')
     await expect(page).toHaveURL(STUDENT_APP_URL)
     await page.goto('/admin/sign-in')
-    await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Sign in with Google' })).toBeVisible()
   } finally {
     await deleteUsers([user])
   }

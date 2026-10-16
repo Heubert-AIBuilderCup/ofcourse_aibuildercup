@@ -2,7 +2,6 @@
 
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import {
-  LOADER_FADE_MS,
   LOADER_MIN_MS,
   LOADER_SLOW_MS,
   LOADER_STEPS,
@@ -11,14 +10,14 @@ import {
 } from '../model/loader'
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
-const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 
 /**
  * Runs the loader's three steps' work in order, from the moment it mounts. A step ticks when its
- * work has finished and it has stayed at least LOADER_MIN_MS; after the last, the loader fades for
- * LOADER_FADE_MS (a cut under reduced motion, so no wait) and `onDone` is called. A step whose work rejects is `bad` and the run stops;
- * `retry` runs again from that step. `slow` once a run has gone LOADER_SLOW_MS without finishing;
- * `announce` is the step working now, for the live region.
+ * work has finished and it has stayed at least LOADER_MIN_MS; as the last ticks, `onDone` is
+ * called, and the loader stays in full until the page it covers is replaced (it never fades
+ * first: faded, it showed that page before the next one had arrived). A step whose work rejects
+ * is `bad` and the run stops; `retry` runs again from that step. `slow` once a run has gone
+ * LOADER_SLOW_MS without finishing; `announce` is the step working now, for the live region.
  *
  * Started once (a ref, so React's development double mount does not run the work twice); nothing
  * is set and `onDone` is not called after it unmounts.
@@ -35,7 +34,6 @@ export function useLoaderRun({
   const [done, setDone] = useState(0)
   const [failed, setFailed] = useState(false)
   const [slow, setSlow] = useState(false)
-  const [fading, setFading] = useState(false)
   const alive = useRef(false)
   const started = useRef(false)
   const slowTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -58,9 +56,7 @@ export function useLoaderRun({
       setDone(i + 1)
     }
     clearTimeout(slowTimer.current)
-    setFading(true)
-    if (!reducedMotion()) await wait(LOADER_FADE_MS)
-    if (alive.current) onDone()
+    onDone()
   }
 
   const start = useEffectEvent(() => {
@@ -86,7 +82,6 @@ export function useLoaderRun({
     steps: loaderSteps(kind, { done, failed }),
     failed,
     slow: slow && !failed && !finished,
-    fading,
     announce: failed || finished ? '' : LOADER_STEPS[kind][done],
     retry,
   }

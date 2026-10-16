@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
-import { SignInPanel } from '@/features/auth/components/SignInPanel'
+import { type PanelCells, SignInPanel } from '@/features/auth/components/SignInPanel'
 import { StudentSignIn } from '@/features/auth/components/StudentSignIn'
 import { signedInLanding } from '@/features/opening'
 import { getProfile } from '@/features/opening/server/profile'
+import { ICONS } from '@/features/road'
 import motion from '@/shared/components/motion.module.css'
 import { ThemeToggle } from '@/shared/components/ThemeToggle'
 import { isStudent } from '@/shared/lib/auth/access'
@@ -22,6 +23,15 @@ import { cn } from '@/shared/lib/utils'
 export const metadata: Metadata = { title: `Sign in · ${SITE_NAME}` }
 
 const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value)
+
+// The four squares under the hero (the canvas's Login page): what a roadmap is made of, with the
+// board's own tile icons.
+const CELLS: PanelCells = [
+  { label: 'City', paths: ICONS.city },
+  { label: 'Course', paths: ICONS.course },
+  { label: 'Visa', paths: ICONS.visa },
+  { label: 'Goal', paths: ICONS.flag },
+]
 
 /**
  * Public: the student sign-in page, the Industry login design. The layout follows the page's own
@@ -54,15 +64,19 @@ export default async function SignInPage({ searchParams }: PageProps<'/'>) {
       <div className="split-page relative min-h-dvh @max-5xl:grid-cols-1 @max-5xl:grid-rows-[auto_1fr]">
         <SignInPanel
           productName={SITE_NAME}
-          overline="Student access"
-          lede="Three futures from your own answers: what each would give you and cost you."
+          overline="Study abroad, planned"
+          headline={['See where', 'your plans lead.']}
+          lede="Answer a few questions and OfCourse draws your roadmap: the city, the course, the visa and the way to PR."
+          cells={CELLS}
         />
         {/* The header action (the design's .hdr): on the page side by side, in the band below. */}
         <ThemeToggle className={HEADER_ACTION_SIGNIN_SPOT} />
 
         {/* The design's form column: 48/24 at desktop, 48/40/56 on a tablet, 28/16/36 on a phone. */}
         <main className="flex flex-col items-center justify-center gap-stack px-6 py-12 dark:@5xl:split-divider-x dark:@max-5xl:split-divider-y @max-5xl:justify-start @max-5xl:px-10 @max-5xl:pb-14 @max-xl:gap-5 @max-xl:px-4 @max-xl:pt-7 @max-xl:pb-9">
-          <StudentSignIn next={next} notice={message} />
+          {/* Email codes are off: no email provider is set up yet, so a code never arrives.
+              Turn them back on (codes) once RESEND_API_KEY and EMAIL_FROM are configured. */}
+          <StudentSignIn next={next} notice={message} codes={false} />
 
           <div
             className={cn(

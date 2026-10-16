@@ -9,7 +9,7 @@
 **1 · Admin sign-in** — AC 17, 20
 ```
 Go to   /admin/sign-in
-Do      Continue with Google (your account)
+Do      Sign in with Google (your account)
 See     /admin/users, you are superadmin; the page offered Google only, no email field
 ```
 
@@ -17,7 +17,7 @@ See     /admin/users, you are superadmin; the page offered Google only, no email
 ```
 Go to   / in a new private window
 Do      wait · reload
-See     the duck splash about 3 s, once; "OfCourse" page with Continue with Google and "Your email"; no splash after reload
+See     the duck splash about 3 s, once; "OfCourse" page with Sign in with Google and no email field; no splash after reload
 ```
 
 **3 · Email code** — AC 8, 9, 10, 11, 12
@@ -31,7 +31,7 @@ Other   terminal: each code printed; in the admin, the new account's role is use
 **4 · Wrong page refused** — AC 16, 18, 19
 ```
 Go to   / (in the admin window, signed out first)
-Do      Continue with Google with your admin account · then /admin/sign-in with a Google account that has no admin role
+Do      Sign in with Google with your admin account · then /admin/sign-in with a Google account that has no admin role
 See     "This page is for students. This account signs in on the admin page." · "This account doesn't have admin access." — and no account created for the second
 ```
 

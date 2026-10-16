@@ -60,7 +60,10 @@ test('/onboarding opens the welcome for a new student too', async ({ page }) => 
   }
 })
 
-test('an account with no name (an email-code sign-in) is greeted "Welcome."', async ({ page }) => {
+// Email codes are off on the page (src/app/page.tsx, `codes`) until an email provider is set up.
+test.skip('an account with no name (an email-code sign-in) is greeted "Welcome."', async ({
+  page,
+}) => {
   const email = freshEmail('welcome-noname')
   try {
     await skipSplash(page)
@@ -169,7 +172,7 @@ test('a signed-out visit to the welcome gets the sign-in page instead', async ({
   await skipSplash(page)
   await page.goto('/onboarding/welcome')
   await expect(page).toHaveURL((url) => url.pathname === '/')
-  await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sign in with Google' })).toBeVisible()
   await expect(heading(page)).toHaveCount(0)
 })
 

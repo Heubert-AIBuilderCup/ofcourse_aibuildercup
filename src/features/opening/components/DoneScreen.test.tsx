@@ -61,12 +61,11 @@ const advance = (ms: number) =>
   act(async () => {
     jest.advanceTimersByTime(ms)
   })
-/** The three steps at their least, then the fade. */
+/** The three steps at their least. */
 const runThrough = async () => {
   await advance(700)
   await advance(700)
   await advance(700)
-  await advance(450)
 }
 
 function show(count = 0) {
@@ -101,12 +100,12 @@ it('finishes the roadmap, then has the server refresh her router, then replaces 
   expect(finishOnboardingAction).toHaveBeenCalledTimes(1)
   await advance(700)
   await advance(700)
-  await advance(700)
-  // Still fading: nothing has sent her on yet.
+  // Two steps in: nothing has sent her on yet.
   expect(routed).toEqual([])
-  await advance(450)
-  // The whole router is refreshed first, so Back from her roadmaps never shows a cached
-  // onboarding page; the client's own refresh would clear this route only.
+  await advance(700)
+  // As the last step ticks, with the loader still covering this screen: the whole router is
+  // refreshed first, so Back from her roadmaps never shows a cached onboarding page (the client's
+  // own refresh would clear this route only), then her roadmaps replace it.
   expect(routed).toEqual(['refresh action', 'replace /roadmaps'])
   expect(refresh).not.toHaveBeenCalled()
   expect(push).not.toHaveBeenCalled()

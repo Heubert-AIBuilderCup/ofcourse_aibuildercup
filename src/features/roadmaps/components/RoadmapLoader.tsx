@@ -7,14 +7,14 @@ import { Pond } from '@/shared/components/Pond'
 import { Button } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
 import { useLoaderRun } from '../hooks/useLoaderRun'
-import { LOADER_FADE_MS, type LoaderKind, loaderError } from '../model/loader'
+import { type LoaderKind, loaderError } from '../model/loader'
 import styles from './roadmaps.module.css'
 
 export type RoadmapLoaderProps = {
   kind: LoaderKind
   /** One piece of work per step, run in order: saving, drawing, loading the list. */
   work: ReadonlyArray<() => Promise<void>>
-  /** After the last tick and the fade: where she goes next. */
+  /** As the last step ticks: where she goes next. The loader stays until that page replaces it. */
   onDone: () => void
   /** A new roadmap's draft, made by the first step: a failure says nothing is created yet. */
   draft?: boolean
@@ -23,12 +23,13 @@ export type RoadmapLoaderProps = {
 /**
  * The full-screen loader between finishing a roadmap and her roadmaps: the blue grid field, the
  * pond, three steps that tick as their work finishes, a note when it runs long, and on failure the
- * reason with Try again. Each step is announced once, politely, as it starts. It fades out (a cut
- * under reduced motion) before `onDone`. Focus never drops to the page under it: it goes to the
- * status as the loader opens, and to Try again when a step fails.
+ * reason with Try again. Each step is announced once, politely, as it starts. It stays in full
+ * from the last tick until the next page replaces it (no fade: faded, it showed the page it was
+ * hiding). Focus never drops to the page under it: it goes to the status as the loader opens, and
+ * to Try again when a step fails.
  */
 export function RoadmapLoader({ kind, work, onDone, draft = false }: RoadmapLoaderProps) {
-  const { steps, failed, slow, fading, announce, retry } = useLoaderRun({ kind, work, onDone })
+  const { steps, failed, slow, announce, retry } = useLoaderRun({ kind, work, onDone })
   const statusRef = useRef<HTMLParagraphElement>(null)
   const tryAgain = useRef<HTMLButtonElement>(null)
 
@@ -43,11 +44,9 @@ export function RoadmapLoader({ kind, work, onDone, draft = false }: RoadmapLoad
     // Marked light: the blue field keeps its look in a dark page, as the board's does.
     <div
       data-theme="light"
-      style={{ transitionDuration: `${LOADER_FADE_MS}ms` }}
       className={cn(
         motion.grid,
-        '@container fixed inset-0 z-50 overflow-hidden text-panel-foreground motion-safe:transition-opacity',
-        fading && 'opacity-0',
+        '@container fixed inset-0 z-50 overflow-hidden text-panel-foreground',
       )}
     >
       <Pond className={styles.loaderPond} />

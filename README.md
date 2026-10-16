@@ -104,7 +104,7 @@ Run on the `applyims` Google Cloud project, 9 to 11 October 2026:
 
 The student slice (product truth in [PRODUCT.md](PRODUCT.md), intent in [docs/student-opening-three-futures/intent.md](docs/student-opening-three-futures/intent.md)):
 
-- **Sign-in** on `/` with Google or a six-digit email code; one account per address, whichever way she signs in. Staff sign in separately on `/admin/sign-in`, Google only.
+- **Sign-in** on `/` with Google (a six-digit email code is built too, off on the page until an email provider is configured); one account per address, whichever way she signs in. Staff sign in separately on `/admin/sign-in`, Google only.
 - **The opening** (`/onboarding/...`): a welcome, an optional comic-character question, then one question per screen about her facts (where she is now, budget, who pays, dates, qualification, English), what she would study and where and how she would live, then what she wants after graduating. Each step says why it asks, and "Not sure" is always allowed: it stores a default marked as assumed. Every tap is saved, so she can continue on another device, and `/onboarding` resumes where she left off.
 - **Three futures** (`/futures`): one route built around cost, one around staying, one around career, side by side, with what each gives and costs her. The chips under each future show the answers it rests on; changing one redraws all three. Figures come from a mock Australia catalogue and say so.
 - **Her attention** (`/attention`): ten coins to spend across her life values, or to put off.

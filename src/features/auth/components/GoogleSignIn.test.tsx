@@ -21,7 +21,7 @@ afterEach(() => {
 })
 
 const tap = () =>
-  act(async () => fireEvent.click(screen.getByRole('button', { name: 'Continue with Google' })))
+  act(async () => fireEvent.click(screen.getByRole('button', { name: 'Sign in with Google' })))
 
 it('signs in with Google on its page and comes back where the user was going', async () => {
   render(

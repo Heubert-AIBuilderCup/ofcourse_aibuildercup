@@ -14,8 +14,6 @@ export const LOADER_STEPS: Record<LoaderKind, readonly [string, string, string]>
 
 /** Each step stays at least this long, so it never flashes. */
 export const LOADER_MIN_MS = 700
-/** After the last tick, the loader fades over this long, then goes. */
-export const LOADER_FADE_MS = 450
 /** With a step still running this long, the loader says it is still working. */
 export const LOADER_SLOW_MS = 10000
 

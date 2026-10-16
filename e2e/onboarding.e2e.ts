@@ -62,7 +62,7 @@ test('Sign out on step 01 leaves for the sign-in page; signing in again resumes 
 
     await signOutViaMenu(page)
     await expect(page).toHaveURL((url) => url.pathname === '/' && url.search === '')
-    await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Sign in with Google' })).toBeVisible()
 
     await devLogin(page, email, 'E2E Student', { surface: 'student' })
     await page.goto('/')
@@ -84,7 +84,7 @@ test('a signed-out visit to step 01 gets the sign-in page instead', async ({ pag
   await skipSplash(page)
   await page.goto('/onboarding/facts/where')
   await expect(page).toHaveURL((url) => url.pathname === '/')
-  await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sign in with Google' })).toBeVisible()
   await expect(page.getByRole('radiogroup')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Where are you right now?' })).toHaveCount(0)
 })

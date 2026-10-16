@@ -22,8 +22,9 @@ async function ensure(action: () => Promise<ActionResult>): Promise<void> {
  * its pond, and the way on to her roadmaps. `spent` is true when her coins are placed, false when
  * she left them for later; `finished` counts the roadmaps she had before this one. The heading
  * takes focus on arrival, so a screen reader starts there. "Go to your roadmaps" hides this screen
- * under the loader, whose first step finishes the roadmap she answered (which closes onboarding).
- * Once it has run, the server refreshes her whole router (refreshAfterOnboardingAction), so Back
+ * under the loader, whose first step finishes the roadmap she answered (which closes onboarding);
+ * the loader stays up until her roadmaps have replaced this screen, so nothing of onboarding shows
+ * again. Once it has run, the server refreshes her whole router (refreshAfterOnboardingAction), so Back
  * never shows a cached onboarding page (the client's own refresh clears this route only); asked
  * any earlier, it would re-render this screen, which sends her on and cuts the loader short. Then
  * this screen is replaced with her roadmaps, so Back does not return here: the list, or for a

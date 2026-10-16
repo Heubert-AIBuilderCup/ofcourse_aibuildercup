@@ -458,7 +458,7 @@ test('signed out, a post page leads to the sign-in page and, once signed in, bac
   await expect(page).toHaveURL(/\/\?next=%2Ffeed$/)
   await page.goto(feedHref(posts.general))
   await expect(page).toHaveURL(new RegExp(`/\\?next=%2Ffeed%2F${posts.general}$`))
-  await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sign in with Google' })).toBeVisible()
 
   await devLogin(page, email, 'E2E Feed Return')
   await setRole(email, 'user')

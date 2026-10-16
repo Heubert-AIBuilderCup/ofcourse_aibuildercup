@@ -1,25 +1,33 @@
 'use client'
 
-import { Layers } from 'lucide-react'
 import { type MouseEvent, useEffect, useRef } from 'react'
 import { Blueprint } from '@/shared/components/Blueprint'
+import { Duck } from '@/shared/components/Duck'
 import motion from '@/shared/components/motion.module.css'
 import { cn } from '@/shared/lib/utils'
 import styles from './sign-in.module.css'
 
-const CELLS = [
-  ['A1', styles.c1],
-  ['B1', styles.c2],
-  ['C1', styles.c3],
-  ['D1', styles.c4],
-] as const
+/** One of the four blueprint cells: its uppercase label, and the icon's path strings, if any. */
+export type PanelCell = { label: string; paths?: readonly string[] }
+export type PanelCells = readonly [PanelCell, PanelCell, PanelCell, PanelCell]
+
+const POSITIONS = [styles.c1, styles.c2, styles.c3, styles.c4] as const
+
+const DEFAULT_CELLS: PanelCells = [
+  { label: 'A1' },
+  { label: 'B1' },
+  { label: 'C1' },
+  { label: 'D1' },
+]
 
 const pad = (n: number) => String(Math.max(0, n)).padStart(4, '0')
 
 /**
- * The sign-in page's left side: the brand mark, the headline and four blueprint cells on a dark
- * grid, with a scanline and a crosshair that follows the pointer and reads out its position. It is
- * where the splash lands (data-splash-target).
+ * The sign-in page's left side: the brand mark (the duck), the headline and four blueprint cells
+ * on a dark grid, with a scanline and a crosshair that follows the pointer and reads out its
+ * position. It is where the splash lands (data-splash-target). `headline` is the two lines of the
+ * title; `cells` the four squares' labels and icons (the board's lucide-style paths), each with
+ * its label top left and its icon centred, lit in turn left to right.
  *
  * As the artboard's stylesheet says: the layout follows the page's own width (the page is the
  * container); the cells hide on phones (below @xl, 36rem), and the crosshair hides on touch screens, which have no
@@ -28,11 +36,15 @@ const pad = (n: number) => String(Math.max(0, n)).padStart(4, '0')
 export function SignInPanel({
   productName,
   overline = 'Workspace access',
+  headline = ['Pick up where', 'you left off.'],
   lede,
+  cells = DEFAULT_CELLS,
 }: {
   productName: string
   overline?: string
+  headline?: readonly [string, string]
   lede: string
+  cells?: PanelCells
 }) {
   // The crosshair never goes through React state: the pointer's latest position is kept, and one
   // animation frame writes it as --mx/--my on the section (the lines and the label move by
@@ -122,7 +134,7 @@ export function SignInPanel({
             'flex size-9 items-center justify-center',
           )}
         >
-          <Layers aria-hidden="true" className="size-icon-md" />
+          <Duck size="1.75rem" eager className="size-7 object-contain" />
         </Blueprint>
         <span className="font-heading text-xl font-semibold tracking-[-0.015em]">
           {productName}
@@ -145,10 +157,10 @@ export function SignInPanel({
         {/* 48 to 56px from tablet to desktop; the design's compact layout drops to 38px. */}
         <h1 className="m-0 font-heading text-display font-semibold text-panel-foreground @max-xl:text-[2.375rem]">
           <span className={styles.line}>
-            <span className={motion.d3}>Pick up where</span>
+            <span className={motion.d3}>{headline[0]}</span>
           </span>
           <span className={styles.line}>
-            <span className={motion.d4}>you left off.</span>
+            <span className={motion.d4}>{headline[1]}</span>
           </span>
         </h1>
         <p
@@ -166,17 +178,38 @@ export function SignInPanel({
         aria-hidden="true"
         className="relative grid max-w-130 grid-cols-4 gap-5 @max-5xl:max-w-90 @max-5xl:gap-4 @max-xl:hidden"
       >
-        {CELLS.map(([label, position]) => (
+        {cells.map((cell, i) => (
           <Blueprint
-            key={label}
+            key={cell.label}
             className={cn(
               styles.cell,
-              position,
+              POSITIONS[i],
               motion.onPanel,
-              'aspect-square p-[0.425rem] text-micro text-panel-foreground/55',
+              // Label and icon share the one grid cell: the label in the padded corner, the icon
+              // centred.
+              'grid aspect-square p-[0.425rem] text-micro uppercase text-panel-foreground/55',
             )}
           >
-            {label}
+            <span className="col-start-1 row-start-1 self-start justify-self-start">
+              {cell.label}
+            </span>
+            {cell.paths ? (
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                // Two fifths of the cell, so the icon grows with it.
+                className="col-start-1 row-start-1 h-auto w-2/5 place-self-center text-panel-foreground/80"
+              >
+                {cell.paths.map((d) => (
+                  <path key={d} d={d} />
+                ))}
+              </svg>
+            ) : null}
           </Blueprint>
         ))}
       </div>

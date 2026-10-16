@@ -387,7 +387,7 @@ test.describe('on a phone', () => {
 
       await signOutViaMenu(page)
       await expect(page).toHaveURL((url) => url.pathname === '/')
-      await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Sign in with Google' })).toBeVisible()
 
       await devLogin(page, email, 'E2E Student', { surface: 'student' })
       await page.goto('/')

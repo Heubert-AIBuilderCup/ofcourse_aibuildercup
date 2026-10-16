@@ -486,7 +486,8 @@ test('AC7: with no stored choice a page opened follows the device', async ({ bro
 // AC8: text contrast in dark, as it paints, on the background and on cards (the criterion's
 // scope). The steel panel and the hero are left out: they look the same in both themes (AC3).
 
-test('AC8: text is at least 4.5:1 and large text 3:1 in dark [sign-in and its code error]', async ({
+// Email codes are off on the page (src/app/page.tsx, `codes`) until an email provider is set up.
+test.skip('AC8: text is at least 4.5:1 and large text 3:1 in dark [sign-in and its code error]', async ({
   page,
 }) => {
   const email = freshEmail('dm-ac8')
@@ -529,21 +530,24 @@ test('AC8: text is at least 4.5:1 and large text 3:1 in dark [step 01 impact lin
 test('AC9: native controls follow the theme (color-scheme dark)', async ({ page }) => {
   // No native select was found on the screens visited (study, living); the select itself is a
   // person check in dark-mode.manual.md. color-scheme on the root reaches every native control,
-  // scrollbars and focus rings included; the email field stands for them.
+  // scrollbars and focus rings included; the sign-in button stands for them (the email field is
+  // off the page while email codes are off: src/app/page.tsx, `codes`).
   for (const theme of ['light', 'dark'] as const) {
     await openIn(page, '/', theme)
     expect(await html(page).evaluate((el) => getComputedStyle(el).colorScheme)).toBe(theme)
-    const field = page.getByLabel('Your email')
-    expect(await field.evaluate((el) => getComputedStyle(el).colorScheme), 'a native field').toBe(
-      theme,
-    )
+    const control = page.getByRole('button', { name: 'Sign in with Google' })
+    expect(
+      await control.evaluate((el) => getComputedStyle(el).colorScheme),
+      'a native control',
+    ).toBe(theme)
   }
 })
 
 // ---------------------------------------------------------------------------------------------
 // AC10: every built screen in dark at 390 and 1440, nothing light-themed.
 
-test('AC10: nothing light-themed remains in dark [student sign-in, code step, errors]', async ({
+// Email codes are off on the page (src/app/page.tsx, `codes`) until an email provider is set up.
+test.skip('AC10: nothing light-themed remains in dark [student sign-in, code step, errors]', async ({
   page,
 }) => {
   const email = freshEmail('dm-ac10-signin')
@@ -661,16 +665,17 @@ test.describe('AC11', () => {
   test('AC11: the toggle works from the keyboard and nothing else on the page changes [sign-in]', async ({
     page,
   }) => {
+    // The Google button stands for the page's content (the email field is off the page while
+    // email codes are off: src/app/page.tsx, `codes`).
     await openIn(page, '/', 'light')
-    const field = page.getByLabel('Your email')
-    await field.fill('kept@e2e.starter.test')
-    const before = await boxOf(field)
+    const control = page.getByRole('button', { name: 'Sign in with Google' })
+    const before = await boxOf(control)
     await themeToggle(page).focus()
     await page.keyboard.press('Enter')
     await expect(html(page)).toHaveAttribute('data-theme', 'dark')
     await expect(page.getByRole('button', { name: 'Switch to light theme' })).toBeFocused()
-    await expect(field).toHaveValue('kept@e2e.starter.test')
-    expect(await boxOf(field), 'the layout stays').toEqual(before)
+    await expect(control).toBeEnabled()
+    expect(await boxOf(control), 'the layout stays').toEqual(before)
   })
 
   test('AC11: the menu works from the keyboard: Tab, Enter, arrows move, Space picks, Escape [onboarding]', async ({

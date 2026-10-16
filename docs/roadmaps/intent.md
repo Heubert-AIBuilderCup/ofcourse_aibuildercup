@@ -92,7 +92,7 @@ It replaces the old in-map arrival. Reference: `logic/roadmaps.js` (play, LT) an
   - Done: a ticked white circle.
   - Current: a spinning ring, in bold.
   - Next: a dashed circle at 45% opacity.
-- **Timing:** each step ticks when its real work finishes (answers saved / roadmap generated / list data loaded), and stays at least 0.7s so it never flashes. After the last tick the loader fades (0.45s) into /roadmaps.
+- **Timing:** each step ticks when its real work finishes (answers saved / roadmap generated / list data loaded), and stays at least 0.7s so it never flashes. After the last tick the loader stays in full until /roadmaps has replaced it (a fade would show the page it hides before the next one arrives).
 - **Taking a while:** after about 10s, add "Still working. This can take a little longer."
 - **Failure:**
   - The failed step shows a "!" mark.

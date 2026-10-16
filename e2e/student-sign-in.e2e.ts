@@ -16,6 +16,8 @@ import { STUDENT_APP_URL, skipSplash } from './helpers/student'
 // The student sign-in page at /: Google or a six-digit email code, the code rules (wrong, expired,
 // five wrong tries, a new code only after 30 seconds), the refusals, and the splash in front of
 // it. No mail is sent in development, so each spec reads its code from the database.
+// Email codes are off on the page (src/app/page.tsx, `codes`) until an email provider is set
+// up: the page offers Google alone, and the code specs are skipped until they are back.
 
 // Within the page's main: Next's route announcer is an (empty) alert too.
 const alert = (page: Page) => page.getByRole('main').getByRole('alert')
@@ -33,7 +35,7 @@ async function enterCode(page: Page, code: string) {
 
 const anotherCode = (code: string) => (code === '000000' ? '111111' : '000000')
 
-test('the page offers both ways in, at phone width and on desktop', async ({ page }) => {
+test('the page offers Google alone, at phone width and on desktop', async ({ page }) => {
   await skipSplash(page)
   for (const size of [
     { width: 390, height: 844 },
@@ -41,12 +43,12 @@ test('the page offers both ways in, at phone width and on desktop', async ({ pag
   ]) {
     await page.setViewportSize(size)
     await page.goto('/')
-    await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
-    await expect(page.getByLabel('Your email')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Sign in with Google' })).toBeVisible()
+    await expect(page.getByLabel('Your email')).toHaveCount(0)
   }
 })
 
-test('a new address signs in with a code and becomes a student', async ({ page }) => {
+test.skip('a new address signs in with a code and becomes a student', async ({ page }) => {
   const email = freshEmail('code-new')
   try {
     await skipSplash(page)
@@ -62,7 +64,9 @@ test('a new address signs in with a code and becomes a student', async ({ page }
   }
 })
 
-test('a wrong code is refused, and after the fifth that code no longer works', async ({ page }) => {
+test.skip('a wrong code is refused, and after the fifth that code no longer works', async ({
+  page,
+}) => {
   const email = freshEmail('code-wrong')
   try {
     await skipSplash(page)
@@ -81,7 +85,7 @@ test('a wrong code is refused, and after the fifth that code no longer works', a
   }
 })
 
-test('a code older than ten minutes has expired and does not sign in', async ({ page }) => {
+test.skip('a code older than ten minutes has expired and does not sign in', async ({ page }) => {
   const email = freshEmail('code-expired')
   try {
     await page.clock.install()
@@ -105,7 +109,7 @@ test('a code older than ten minutes has expired and does not sign in', async ({ 
   }
 })
 
-test('a new code is held back for 30 seconds, then replaces the old one', async ({ page }) => {
+test.skip('a new code is held back for 30 seconds, then replaces the old one', async ({ page }) => {
   const email = freshEmail('code-resend')
   try {
     await page.clock.install()
@@ -136,7 +140,9 @@ test('a new code is held back for 30 seconds, then replaces the old one', async 
   }
 })
 
-test('an admin account is refused on the student page and gets no session', async ({ page }) => {
+test.skip('an admin account is refused on the student page and gets no session', async ({
+  page,
+}) => {
   const adm = freshEmail('code-admin')
   try {
     await devLogin(page, adm)
@@ -165,7 +171,9 @@ test('an admin account is refused on the student page and gets no session', asyn
   }
 })
 
-test('a suspended student signing in with a code lands on the suspended page', async ({ page }) => {
+test.skip('a suspended student signing in with a code lands on the suspended page', async ({
+  page,
+}) => {
   const email = freshEmail('code-suspended')
   try {
     await devLogin(page, email, 'E2E Suspended', { surface: 'student' })
@@ -193,14 +201,14 @@ test('the splash plays once in a tab, lands on the page and never shows on the a
   await expect(splash).toHaveCount(0, { timeout: 6000 })
   await expect(page.getByRole('region', { name: 'About' })).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sign in with Google' })).toBeVisible()
   await expect(splash).toHaveCount(0)
 
   // A new tab that opens on the admin: the server never renders it there.
   const admin = await page.context().newPage()
   const res = await admin.goto('/admin/sign-in')
   expect(await res?.text()).not.toContain('data-testid="splash"')
-  await expect(admin.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
+  await expect(admin.getByRole('button', { name: 'Sign in with Google' })).toBeVisible()
   await expect(admin.getByTestId('splash')).toHaveCount(0)
 })
 
@@ -227,7 +235,7 @@ test('a reload in a tab that has seen the splash never paints it', async ({ page
   })
   await page.reload()
   await page.waitForLoadState('load')
-  await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sign in with Google' })).toBeVisible()
   const seen = await page.evaluate(() => {
     const w = window as unknown as { __splashFrames: number; __splashShown: number }
     return { frames: w.__splashFrames, shown: w.__splashShown }

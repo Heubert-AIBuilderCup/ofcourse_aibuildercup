@@ -1,8 +1,14 @@
 /// <reference lib="dom" />
 /// <reference path="../../../../node_modules/@testing-library/jest-dom/types/bun.d.ts" />
-import { afterEach, expect, it } from 'bun:test'
+import { afterAll, afterEach, beforeAll, expect, it } from 'bun:test'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { SignInPanel } from './SignInPanel'
+
+// next/image (the duck) resolves its src against the page's URL; happy-dom starts on about:blank.
+const dom = (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM
+const startUrl = location.href
+beforeAll(() => dom.setURL('http://localhost:3000/'))
+afterAll(() => dom.setURL(startUrl))
 
 const realRaf = window.requestAnimationFrame
 const realHidden = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden')

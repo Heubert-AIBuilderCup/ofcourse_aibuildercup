@@ -24,12 +24,12 @@ test('under reduced motion the splash holds only the final wordmark, then cuts t
   // The duck only swims; in the final frame it is gone.
   await expect(splash.locator('img')).toBeHidden()
   await expect(splash).toHaveCount(0, { timeout: 4000 })
-  await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sign in with Google' })).toBeVisible()
 })
 
-test('at phone width the page still offers Continue with Google', async ({ page }) => {
+test('at phone width the page still offers Sign in with Google', async ({ page }) => {
   await skipSplash(page)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
-  await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sign in with Google' })).toBeVisible()
 })

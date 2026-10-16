@@ -1,7 +1,8 @@
 /// <reference lib="dom" />
 /// <reference path="../../../../node_modules/@testing-library/jest-dom/types/bun.d.ts" />
 // The loader through its hook (useLoaderRun): the order the work runs in, the least time a step
-// stays, the fade before it goes, failure and Try again, the slow note and what it announces.
+// stays, that it stays in full until the page under it is replaced, failure and Try again, the slow
+// note and what it announces.
 
 import {
   afterAll,
@@ -120,19 +121,17 @@ describe('the run', () => {
     expect(states()).toEqual(['done', 'now', 'next'])
   })
 
-  it('once all three are done, fades for 0.45 s and only then is done', async () => {
+  it('is done as the last step ticks, and stays in full until the page under it is replaced', async () => {
     const onDone = load([instant(), instant(), instant()])
     await advance(700)
     await advance(700)
+    expect(onDone).not.toHaveBeenCalled()
     await advance(700)
     expect(states()).toEqual(['done', 'done', 'done'])
-    await advance(449)
-    expect(onDone).not.toHaveBeenCalled()
-    await advance(1)
     expect(onDone).toHaveBeenCalledTimes(1)
   })
 
-  it('under reduced motion, is done as the last step ticks, with no pause for a fade', async () => {
+  it('under reduced motion, the same', async () => {
     reduceMotion()
     const onDone = load([instant(), instant(), instant()])
     await advance(700)
@@ -164,7 +163,6 @@ describe('when a step fails', () => {
     expect(second.work).toHaveBeenCalledTimes(2)
     await advance(700)
     await advance(700)
-    await advance(450)
     expect(onDone).toHaveBeenCalledTimes(1)
   })
 
