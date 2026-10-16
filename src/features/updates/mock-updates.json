@@ -2,22 +2,108 @@
   "mock": true,
   "updates": [
     {
-      "id": "visa-fee-change",
-      "overline": "Impact · Rule change",
-      "title": "Student visa fee change",
-      "status": "Live · 1,920 students · email + feed"
+      "id": "visa-fee-2027",
+      "status": "Live · 1,920 students · email + feed",
+      "kind": "rule_change",
+      "category": "Visa",
+      "institution": "All institutions",
+      "title": "Student visa application fee rises to AUD 2,000 (mock)",
+      "body": "From 1 Jan 2027 the student visa application fee rises to AUD 2,000 (mock figure). Lodge your application before then to pay today's fee.",
+      "applyBy": "2026-12-31",
+      "sourceTitle": "Home Affairs visa pricing page (mock)",
+      "sourceCheckedAt": "2026-10-10",
+      "audience": { "institution": "All institutions", "homeCountry": null }
     },
     {
-      "id": "curtin-nursing-intake",
-      "overline": "Impact · Intake",
-      "title": "Curtin Nursing: February intake moved",
-      "status": "Live · 214 students · plans flagged"
+      "id": "graduate-visa-age-35",
+      "status": "Live · 1,920 students · feed",
+      "kind": "rule_change",
+      "category": "Graduate visa",
+      "institution": "All institutions",
+      "title": "485 graduate visa: age limit lowered to 35 (mock)",
+      "body": "You must be 35 or under when you apply for the Temporary Graduate visa, subclass 485 (mock rule). Plan your course length with this in mind.",
+      "applyBy": null,
+      "sourceTitle": "Home Affairs subclass 485 page (mock)",
+      "sourceCheckedAt": "2026-10-08",
+      "audience": { "institution": "All institutions", "homeCountry": null }
     },
     {
-      "id": "perth-cyber-internship",
-      "overline": "Opportunity · Internship",
-      "title": "Perth cyber internship (summer)",
-      "status": "Expired 15 Sep · 96 reached"
+      "id": "ecu-international-scholarship",
+      "status": "Live · 412 students · email + feed",
+      "kind": "opportunity",
+      "category": "Scholarship",
+      "institution": "ECU",
+      "title": "ECU International Scholarship: 20% off tuition (mock)",
+      "body": "20% off tuition for the full course (mock) if you hold an offer for an ECU postgraduate course.",
+      "applyBy": "2026-11-30",
+      "sourceTitle": "ECU international scholarships page (mock)",
+      "sourceCheckedAt": "2026-10-01",
+      "audience": { "institution": "ECU", "homeCountry": null }
+    },
+    {
+      "id": "unisa-vc-scholarship",
+      "status": "Live · 188 students · feed",
+      "kind": "opportunity",
+      "category": "Scholarship",
+      "institution": "UniSA",
+      "title": "UniSA Vice-Chancellor's International Scholarship: 15% off tuition (mock)",
+      "body": "15% off tuition for the full course (mock) for international students who start a UniSA course in 2027.",
+      "applyBy": "2027-01-15",
+      "sourceTitle": "UniSA international scholarships page (mock)",
+      "sourceCheckedAt": "2026-10-05",
+      "audience": { "institution": "UniSA", "homeCountry": null }
+    },
+    {
+      "id": "uts-master-ai",
+      "status": "Live · 640 students · feed",
+      "kind": "opportunity",
+      "category": "New program",
+      "institution": "UTS",
+      "title": "UTS launches a Master of Artificial Intelligence for Feb 2027 (mock)",
+      "body": "A new two-year Master of Artificial Intelligence starts in February 2027 (mock). Applications open in November.",
+      "applyBy": "2026-12-15",
+      "sourceTitle": "UTS course announcement (mock)",
+      "sourceCheckedAt": "2026-10-12",
+      "audience": { "institution": "UTS", "homeCountry": null }
+    },
+    {
+      "id": "deakin-business-analytics-july",
+      "status": "Live · 305 students · plans flagged",
+      "kind": "opportunity",
+      "category": "New program",
+      "institution": "Deakin",
+      "title": "Deakin adds a July intake for Business Analytics (mock)",
+      "body": "Business Analytics now starts in July as well as February (mock), so you can begin mid-year instead of waiting.",
+      "applyBy": "2027-05-31",
+      "sourceTitle": "Deakin course intakes page (mock)",
+      "sourceCheckedAt": "2026-10-03",
+      "audience": { "institution": "Deakin", "homeCountry": null }
+    },
+    {
+      "id": "study-adelaide-relocation-grant",
+      "status": "Live · 188 students · email + feed",
+      "kind": "opportunity",
+      "category": "Government grant",
+      "institution": "UniSA",
+      "title": "Study Adelaide: AUD 2,500 relocation grant for new international students (mock)",
+      "body": "A one-off AUD 2,500 grant (mock) towards moving to Adelaide, for new international students at a South Australian institution.",
+      "applyBy": "2027-03-31",
+      "sourceTitle": "Study Adelaide grants page (mock)",
+      "sourceCheckedAt": "2026-09-30",
+      "audience": { "institution": "UniSA", "homeCountry": null }
+    },
+    {
+      "id": "australia-awards-nepal",
+      "status": "Live · 480 students · email + feed",
+      "kind": "opportunity",
+      "category": "Government grant",
+      "institution": "All institutions",
+      "title": "Australia Awards: full scholarships for students from Nepal (mock)",
+      "body": "Full tuition, return travel and a living allowance (mock) for students from Nepal starting a postgraduate course in 2028.",
+      "applyBy": "2027-04-30",
+      "sourceTitle": "Australia Awards Nepal page (mock)",
+      "sourceCheckedAt": "2026-09-28",
+      "audience": { "institution": "All institutions", "homeCountry": "Nepal" }
     }
   ]
 }

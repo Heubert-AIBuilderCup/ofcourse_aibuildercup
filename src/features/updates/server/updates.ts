@@ -9,7 +9,8 @@ import { parseUpdateInput, type StoredUpdate, type UpdateStatus } from '../lib/u
 
 // Targeted updates (ADR-057): an editor writes one as a draft and sends it to review; a reviewer
 // approves it, which makes it live. Editors and superadmins write (canEdit); reviewers and
-// superadmins approve (canReview). Delivery to the students it reaches is not built.
+// superadmins approve (canReview). A live one reaches the students it targets on their feed and
+// course tiles; email is not built.
 
 type Actor = Staff & { id: string }
 
@@ -55,23 +56,13 @@ export async function latestLiveUpdate(): Promise<StoredUpdate | null> {
   return row ?? null
 }
 
-/** A live update as the students' boards read it: who it is from and for, and what it says. */
-export type LiveUpdateRow = Pick<
-  StoredUpdate,
-  'id' | 'status' | 'institution' | 'title' | 'body' | 'audience'
->
+/** A live update as the students' boards and feed read it: all its fields, the card draws them. */
+export type LiveUpdateRow = StoredUpdate
 
 /** The live updates, latest change first, at most LIST_LIMIT; never a draft or one in review. */
 export async function listLiveUpdates(): Promise<LiveUpdateRow[]> {
   return db
-    .select({
-      id: adminUpdate.id,
-      status: adminUpdate.status,
-      institution: adminUpdate.institution,
-      title: adminUpdate.title,
-      body: adminUpdate.body,
-      audience: adminUpdate.audience,
-    })
+    .select(COLUMNS)
     .from(adminUpdate)
     .where(eq(adminUpdate.status, 'live'))
     .orderBy(desc(adminUpdate.updatedAt))

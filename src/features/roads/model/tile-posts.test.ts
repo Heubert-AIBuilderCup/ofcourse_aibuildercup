@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from 'bun:test'
 import type { FeedPost } from '@/features/content/lib/feed'
+import { ALL_INSTITUTIONS } from '@/features/updates/lib/audience'
 import { courseById } from '../data/courses'
 import { roadById } from '../data/roads'
 import { specById } from './compose'
@@ -82,6 +83,11 @@ describe('tilePosts: updates', () => {
       'Nepal',
     )
     expect(result[SPEC.slots.course.id]?.map((p) => p.title)).toEqual(['Update mine'])
+  })
+
+  it('puts an update for all institutions on no tile: it is tied to no course', () => {
+    const all = [update('all', ALL_INSTITUTIONS), update('all-np', ALL_INSTITUTIONS, 'Nepal')]
+    expect(tilePosts(SPEC, { posts: [], updates: all }, 'Nepal')).toEqual({})
   })
 
   it('drops a country-specific update when she has not said where she is from', () => {

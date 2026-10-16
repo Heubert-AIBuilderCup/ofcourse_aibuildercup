@@ -516,7 +516,8 @@ export const contentIdeaDecision = pgTable(
  * A targeted update (ADR-057): a rule change, an intake change or an opportunity, written by an
  * editor, sent to review, and made live by a reviewer. `audience` is the rule it reaches students
  * by (updates/lib/audience.ts): an institution they ranked a route at, and a home country or none.
- * Delivery into the student feed and email is not built: reach is matched against mock students.
+ * Delivered into the student feed and onto course tiles; email is not built: reach is matched
+ * against mock students.
  */
 export const adminUpdate = pgTable(
   'admin_update',

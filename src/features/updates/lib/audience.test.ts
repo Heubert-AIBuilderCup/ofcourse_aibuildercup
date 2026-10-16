@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { COURSES } from '@/features/engine'
 import { MOCK_STUDENTS } from '..'
-import { INSTITUTIONS, matchAudience, routeName } from './audience'
+import { ALL_INSTITUTIONS, INSTITUTIONS, matchAudience, routeName } from './audience'
 
 const student = (id: string, homeCountry: string, ranked: string[]) => ({
   id,
@@ -39,6 +39,27 @@ describe('matchAudience', () => {
     const matched = matchAudience({ institution: 'ECU', homeCountry: null }, MOCK_STUDENTS)
     expect(matched[0].student.name).toBe('Priya')
     expect(MOCK_STUDENTS.length).toBeGreaterThanOrEqual(20)
+  })
+})
+
+describe('matchAudience: all institutions', () => {
+  it('reaches every student, in order, because it applies to every student', () => {
+    const matched = matchAudience({ institution: ALL_INSTITUTIONS, homeCountry: null }, STUDENTS)
+    expect(matched.map((m) => m.student.id)).toEqual(['priya', 'anjali', 'rohan'])
+    expect(matched.map((m) => m.why)).toEqual(Array(3).fill('Because it applies to every student'))
+    const all = matchAudience({ institution: ALL_INSTITUTIONS, homeCountry: null }, MOCK_STUDENTS)
+    expect(all.length).toBe(MOCK_STUDENTS.length)
+  })
+
+  it('narrows to a home country, and says so', () => {
+    const matched = matchAudience({ institution: ALL_INSTITUTIONS, homeCountry: 'India' }, STUDENTS)
+    expect(matched.map((m) => m.student.id)).toEqual(['anjali', 'rohan'])
+    expect(matched[0].why).toBe('Because it applies to every student from India')
+  })
+
+  it('is not one of the catalogue institutions', () => {
+    expect(ALL_INSTITUTIONS).toBe('All institutions')
+    expect(INSTITUTIONS).not.toContain(ALL_INSTITUTIONS)
   })
 })
 
