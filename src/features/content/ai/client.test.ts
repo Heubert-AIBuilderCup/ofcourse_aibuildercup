@@ -16,7 +16,9 @@ import type { AiSettings } from './settings'
 
 mock.module('server-only', () => ({}))
 
-const { AI_ERRORS, makeAi, SETTINGS_READ_TIMEOUT_MS, settingsFor } = await import('./client')
+const { AI_ERRORS, IMAGE_TIMEOUT_MS, makeAi, SETTINGS_READ_TIMEOUT_MS, settingsFor } = await import(
+  './client'
+)
 const { aiConfig } = await import('./config')
 const { FAKE_ENTRY_POINT, FAKE_SOURCES, makeFake } = await import('./fake')
 const { SYSTEM_RULES } = await import('./prompts')
@@ -1178,5 +1180,13 @@ describe('aiConfig', () => {
     expect(aiConfig({ GEMINI_FLASH_MODEL: 'f' }).models.lite).toBe('f')
     expect(aiConfig({ GEMINI_LITE_MODEL: 'l', GEMINI_FLASH_MODEL: 'f' }).models.lite).toBe('l')
     expect(aiConfig({}).models.lite).toBe('')
+  })
+})
+
+describe('the image timeout', () => {
+  // On 16 Oct the image model took about 23 s a picture on Cloud Run; at 20 s every call timed
+  // out, and the retries ran into the per-minute quota (429), so no slide was drawn.
+  it('waits a minute for a picture, longer than the model takes', () => {
+    expect(IMAGE_TIMEOUT_MS).toBeGreaterThanOrEqual(60_000)
   })
 })

@@ -150,7 +150,9 @@ export const SETTINGS_READ_TIMEOUT_MS = 300
 const JSON_TIMEOUT_MS = 30_000
 // A search runs queries before it answers, so it gets longer than a plain JSON call.
 const SEARCH_TIMEOUT_MS = 45_000
-const IMAGE_TIMEOUT_MS = 20_000
+// A picture takes the image model about 23 s on Cloud Run (16 Oct): a minute leaves it room, so a
+// slow picture is not abandoned, asked again and counted twice against the per-minute quota.
+export const IMAGE_TIMEOUT_MS = 60_000
 const MAX_RATE_LIMIT_WAIT_MS = 5_000
 // Bounds the retry prompt, however many issues an answer has.
 const MAX_PROBLEMS = 20
