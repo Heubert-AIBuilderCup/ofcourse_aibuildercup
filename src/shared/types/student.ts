@@ -96,6 +96,15 @@ export type RoadmapChoices = {
   country?: boolean
 }
 
+/** The question screens where she may write in her own words, and the most she may write on one. */
+export const OWN_WORDS_STEPS = ['facts', 'study', 'living', 'after'] as const
+export type OwnWordsStep = (typeof OWN_WORDS_STEPS)[number]
+export type OwnWords = Partial<Record<OwnWordsStep, string>>
+export const OWN_WORDS_MAX = 1000
+/** A tag read from her words, with the quote it came from; the most a roadmap keeps. */
+export type RoadmapTag = { text: string; quote: string; step: OwnWordsStep; wellbeing: boolean }
+export const TAGS_MAX = 30
+
 /** The most characters in a roadmap's name. */
 export const ROADMAP_NAME_MAX = 60
 
@@ -111,6 +120,10 @@ export type Roadmap = {
   relative: Relative | null
   coins: Coins | null
   choices: RoadmapChoices
+  /** Her own words per step; empty when she wrote none. */
+  ownWords: OwnWords
+  /** What was read in them; empty when none. */
+  tags: RoadmapTag[]
   lastStep: Step
   copiedFrom: string | null
   createdAt: Date
@@ -204,3 +217,23 @@ export const roadmapChoicesSchema = z.object({
   city: z.optional(z.boolean()),
   country: z.optional(z.boolean()),
 })
+
+/** Her own words on a question screen (a key outside the four steps is refused, not dropped). */
+export const ownWordsSchema = z.strictObject({
+  facts: z.optional(z.string().check(z.maxLength(OWN_WORDS_MAX))),
+  study: z.optional(z.string().check(z.maxLength(OWN_WORDS_MAX))),
+  living: z.optional(z.string().check(z.maxLength(OWN_WORDS_MAX))),
+  after: z.optional(z.string().check(z.maxLength(OWN_WORDS_MAX))),
+})
+
+/** What the model read in her words, each with the quote it came from. */
+export const roadmapTagsSchema = z
+  .array(
+    z.object({
+      text: z.string().check(z.maxLength(80)),
+      quote: z.string().check(z.maxLength(200)),
+      step: z.enum(OWN_WORDS_STEPS),
+      wellbeing: z.boolean(),
+    }),
+  )
+  .check(z.maxLength(TAGS_MAX))

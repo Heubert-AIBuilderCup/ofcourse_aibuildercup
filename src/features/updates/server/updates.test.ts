@@ -81,6 +81,18 @@ describe.skipIf(!enabled)('targeted updates against the database', () => {
     expect(latest?.id).toBe(id)
   })
 
+  test('the live read returns live updates only, never a draft or one in review', async () => {
+    const [drafted, reviewing, live] = [await draft(), await draft(), await draft()]
+    await updates.sendUpdateToReview(ED, reviewing)
+    await updates.sendUpdateToReview(ED, live)
+    await updates.approveUpdate(REV, live)
+
+    const ids = (await updates.listLiveUpdates()).map((u) => u.id)
+    expect(ids).toContain(live)
+    expect(ids).not.toContain(drafted)
+    expect(ids).not.toContain(reviewing)
+  })
+
   test('someone who is not a reviewer cannot approve, and a draft not in review cannot be approved', async () => {
     const id = await draft()
     await updates.sendUpdateToReview(ED, id)

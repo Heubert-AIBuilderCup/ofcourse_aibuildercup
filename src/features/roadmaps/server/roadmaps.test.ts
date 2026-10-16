@@ -56,6 +56,7 @@ describe.skipIf(!enabled)('the roadmaps against the database', () => {
         base('j'),
         base('k'),
         base('l'),
+        base('m'),
       ])
   })
 
@@ -189,6 +190,23 @@ describe.skipIf(!enabled)('the roadmaps against the database', () => {
     const choices = { swapped: true, read: false, sneaky: 'x' } as { swapped: boolean }
     expect(await server.saveChoices(uid, r.id, choices)).toBe(true)
     expect((await rowOf(r.id))?.choices).toEqual({ swapped: true, read: false })
+  })
+
+  test('her own words and tags read back empty when null, and tags empty when malformed', async () => {
+    const uid = `${P}m`
+    const r = await finished(uid)
+    await db
+      .update(schema.roadmap)
+      .set({ ownWords: null, tags: null })
+      .where(orm.eq(schema.roadmap.id, r.id))
+    const empty = await server.getRoadmap(uid, r.id)
+    expect(empty?.ownWords).toEqual({})
+    expect(empty?.tags).toEqual([])
+    await db
+      .update(schema.roadmap)
+      .set({ tags: [{ text: 5 }] as never })
+      .where(orm.eq(schema.roadmap.id, r.id))
+    expect((await server.getRoadmap(uid, r.id))?.tags).toEqual([])
   })
 
   test('a copy is finished, unnamed, with the answers given and the source’s person and coins', async () => {

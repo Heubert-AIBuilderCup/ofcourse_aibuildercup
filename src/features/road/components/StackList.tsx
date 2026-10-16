@@ -19,7 +19,7 @@ const ROW_ACTION = 'h-10 px-3.5 font-sans font-medium'
  * A stack's list (`open=list`): its title and Close, the filters as a button group, then a row per
  * course with its actions. "Put on my board" places a row's course beside her road; a row whose
  * course has no tile this round, and More, do nothing yet. A course already on the board is left
- * out.
+ * out. A row whose course is in a field next to the one she picked says so, with that field defined.
  */
 export function StackList({
   stack,
@@ -68,6 +68,14 @@ export function StackList({
             <span className="flex flex-col gap-0.5">
               <span className="font-heading text-lead font-semibold">{row.name}</span>
               <span className="text-sm text-muted-foreground">{row.sub}</span>
+              {row.related ? (
+                <span className="mt-1 text-caption text-muted-foreground">
+                  <span className="mr-1.5 border border-accent-700 px-2 py-0.5 text-accent-800">
+                    Related to what you picked
+                  </span>
+                  {row.related.field}: {row.related.definition}
+                </span>
+              ) : null}
             </span>
             {row.tag ? (
               <span

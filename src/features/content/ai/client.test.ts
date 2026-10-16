@@ -188,6 +188,17 @@ describe('makeAi.generateJson', () => {
     expect(t.reqs).toHaveLength(2)
   })
 
+  it('with cache false, stores nothing and is answered from nothing: the same request asks again', async () => {
+    const t = setup(['{"n":3}', '{"n":4}', '{"n":5}'])
+    const fresh = { data: { text: 'three' }, cache: false } as const
+    await t.ai.generateJson(SPEC, fresh)
+    expect(t.map.size).toBe(0)
+    await t.ai.generateJson(SPEC, { data: { text: 'three' } })
+    const again = await t.ai.generateJson(SPEC, fresh)
+    expect(again).toEqual({ ok: true, value: { n: 5 }, cached: false })
+    expect(t.reqs).toHaveLength(3)
+  })
+
   it('retries with the problems, then on Pro: invalid, invalid, valid is ok after three calls', async () => {
     const t = setup(['not json', '{"n":"three"}', '{"n":3}'])
     const res = await t.ai.generateJson(SPEC, { data: { text: 'three' } })
@@ -216,6 +227,32 @@ describe('makeAi.generateJson', () => {
       ['flash', false],
       ['pro', true],
     ])
+  })
+
+  it('stops a lite spec at its maxTier flash: lite, then flash, never pro (criterion 79)', async () => {
+    const t = setup(['nope', 'nope', '{"n":3}'])
+    const res = await t.ai.generateJson(
+      { ...LITE_SPEC, maxTier: 'flash' },
+      { data: { text: 'three' } },
+    )
+    expect(res).toEqual({ ok: false, reason: 'failed', error: AI_ERRORS.failed })
+    expect(t.reqs.map((r) => r.model)).toEqual(['lite-model', 'flash-model'])
+    expect(t.rows.map((r) => r.tier)).toEqual(['lite', 'flash'])
+  })
+
+  it('stops a flash spec at its maxTier flash: flash twice, never pro (criterion 79)', async () => {
+    const t = setup(['nope', 'nope', '{"n":3}'])
+    const res = await t.ai.generateJson({ ...SPEC, maxTier: 'flash' }, { data: { text: 'three' } })
+    expect(res).toEqual({ ok: false, reason: 'failed', error: AI_ERRORS.failed })
+    expect(t.reqs.map((r) => r.model)).toEqual(['flash-model', 'flash-model'])
+  })
+
+  it('makes exactly one attempt for a lite spec with maxTier lite, even when it fails', async () => {
+    const t = setup(['nope', '{"n":3}'])
+    const res = await t.ai.generateJson({ ...LITE_SPEC, maxTier: 'lite' }, { data: { text: 'x' } })
+    expect(res).toEqual({ ok: false, reason: 'failed', error: AI_ERRORS.failed })
+    expect(t.reqs.map((r) => r.model)).toEqual(['lite-model'])
+    expect(t.rows).toHaveLength(1)
   })
 
   it('tells the provider the use case, tier and prompt version of every call, for its billing labels (SR7)', async () => {
@@ -264,6 +301,20 @@ describe('makeAi.generateJson', () => {
     const res = await t.ai.generateJson(SPEC, { data: { text: 'x' }, timeoutMs: 20 })
     expect(res).toEqual({ ok: false, reason: 'failed', error: AI_ERRORS.failed })
     expect(t.reqs.every((r) => r.signal.aborted)).toBe(true)
+  })
+
+  it('aborts the attempt in flight and starts no other rung once the caller’s signal aborts (criterion 80)', async () => {
+    const t = setup(['hang', '{"n":3}', '{"n":3}'])
+    const caller = new AbortController()
+    const pending = t.ai.generateJson(
+      { ...LITE_SPEC, maxTier: 'flash' },
+      { data: { text: 'x' }, signal: caller.signal },
+    )
+    await Bun.sleep(5)
+    caller.abort()
+    expect(await pending).toEqual({ ok: false, reason: 'failed', error: AI_ERRORS.failed })
+    expect(t.reqs.map((r) => [r.model, r.signal.aborted])).toEqual([['lite-model', true]])
+    expect(t.map.size).toBe(0)
   })
 
   it('refuses a Pro call at the daily cap without calling; Flash ignores the cap', async () => {

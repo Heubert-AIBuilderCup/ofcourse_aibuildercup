@@ -3,6 +3,7 @@
 // the marks her saved answers leave. Pure: builds new tiles and lines, never changes the road it
 // reads.
 
+import { NOT_TAKEN } from '@/features/opening/model/english'
 import type { RoadmapChoices, StoredAnswers } from '@/shared/types/student'
 import type { Badge, BadgeId, LabelPlace, Road, Ruler, Tile, Walk } from './road-data'
 
@@ -261,8 +262,6 @@ export function buildScene(road: Road, session: Session, answers?: StoredAnswers
   return answers ? applyAnswers(scene, answers) : scene
 }
 
-/** What the English test's "Not taken yet" stores (the opening's question model). */
-const NOT_TAKEN = 'Not taken yet'
 /** The budget question's answer that drops "roughly" (the opening's question model). */
 const HARD_LIMIT = 'Hard limit'
 
@@ -281,7 +280,11 @@ export function applyAnswers(scene: Scene, answers: StoredAnswers): Scene {
   if (!course) return scene
   const amount = answers.amount?.value
   const over = typeof amount === 'number' && course.fees !== undefined ? course.fees - amount : 0
-  const unmet = answers.eng?.value === NOT_TAKEN && (course.badges ?? []).includes('ielts')
+  // A road built from her answers already says "Not met" (its badge carries the course's score).
+  const unmet =
+    answers.eng?.value === NOT_TAKEN &&
+    (course.badges ?? []).includes('ielts') &&
+    !scene.badges.ielts.value.startsWith('Not met')
   if (over <= 0 && !unmet) return scene
 
   const badges = { ...scene.badges }

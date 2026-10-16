@@ -132,6 +132,8 @@ const LADDERS: Record<PromptSpec<z.ZodType>['tier'], Array<'lite' | 'flash' | 'p
   flash: ['flash', 'flash', 'pro'],
   pro: ['pro', 'pro'],
 }
+/** A rung's height, so a spec's `maxTier` can drop the rungs above it. */
+const RUNG: Record<PromptSpec<z.ZodType>['tier'], number> = { lite: 0, flash: 1, pro: 2 }
 
 const FAILED = { ok: false, reason: 'failed', error: AI_ERRORS.failed } as const
 const DAILY_LIMIT = { ok: false, reason: 'daily_limit', error: AI_ERRORS.dailyLimit } as const
@@ -310,9 +312,14 @@ export function makeAi(deps: {
         postId?: string
         timeoutMs?: number
         attemptKey?: number
+        /** False: the answer is neither looked up in ai_cache nor stored there (a person's own words). */
+        cache?: boolean
         verify?: (value: z.infer<S>) => string[]
+        /** The caller's deadline: once it aborts, the attempt in flight stops and no rung starts. */
+        signal?: AbortSignal
       },
     ): Promise<AiResult<z.infer<S>>> {
+      const useCache = req.cache !== false
       try {
         const jsonSchema = modelSchema(spec.schema)
         const { system, user } = buildPrompt(spec, req.data)
@@ -339,7 +346,7 @@ export function makeAi(deps: {
         // 1. Cache: checked again, so a stale or tampered row is a miss, not an answer.
         let hit: unknown = null
         try {
-          hit = await cache.get(key)
+          if (useCache) hit = await cache.get(key)
         } catch {}
         if (hit !== null) {
           const cached = check(spec.schema, hit, req.verify)
@@ -366,11 +373,17 @@ export function makeAi(deps: {
           }
         }
 
-        // 2–5. Attempt, retry with the problems, then Pro: the ladder for the spec's tier.
-        const tiers = LADDERS[spec.tier]
+        // 2–5. Attempt, retry with the problems, then Pro: the ladder for the spec's tier, with no
+        // rung above its maxTier (a lite spec with maxTier 'lite' makes one attempt).
+        const top = spec.maxTier
+        const tiers = top
+          ? LADDERS[spec.tier].filter((tier) => RUNG[tier] <= RUNG[top])
+          : LADDERS[spec.tier]
         let problems: string[] = []
         let waited = false
         for (const [i, tier] of tiers.entries()) {
+          // Past the caller's deadline nobody reads the answer: no rung starts.
+          if (req.signal?.aborted) break
           const reserved =
             tier === 'pro'
               ? await reserve({
@@ -386,7 +399,8 @@ export function makeAi(deps: {
             break
           }
           const model = config.models[tier]
-          const signal = AbortSignal.timeout(req.timeoutMs ?? JSON_TIMEOUT_MS)
+          const timeout = AbortSignal.timeout(req.timeoutMs ?? JSON_TIMEOUT_MS)
+          const signal = req.signal ? AbortSignal.any([timeout, req.signal]) : timeout
           const started = Date.now()
           const info = {
             useCase: spec.useCase,
@@ -441,12 +455,13 @@ export function makeAi(deps: {
           else await record({ ...base, tier, model, ok: answer?.ok === true, cached: false, ms })
           if (answer?.ok) {
             try {
-              await cache.put(key, {
-                useCase: spec.useCase,
-                model,
-                promptVersion: spec.version,
-                value: answer.value,
-              })
+              if (useCache)
+                await cache.put(key, {
+                  useCase: spec.useCase,
+                  model,
+                  promptVersion: spec.version,
+                  value: answer.value,
+                })
             } catch {}
             return { ok: true, value: answer.value, cached: false }
           }

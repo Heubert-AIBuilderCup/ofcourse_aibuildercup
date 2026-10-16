@@ -18,6 +18,10 @@ export type Card = {
   guide?: string
   /** "On your board because: …" */
   because: string
+  /** Why the tile is there: the template, shown until the model's words arrive. */
+  why?: string
+  /** The heading over `why`. */
+  whyTitle?: string
   badges: BadgeId[]
   primary?: string
   secondary?: string
@@ -54,7 +58,8 @@ export function cardFor(road: Road, scene: Scene, tileId: string | null): Card {
   if (tile.id === here.id) {
     const copy = road.here[here.id]
     const nextStep = byId(scene.next[scene.next.length - 1])
-    return { kind: 'here', name: here.name, ...copy, routeId: nextStep?.routeId }
+    const { why, whyTitle } = road.cards[here.id] ?? {}
+    return { kind: 'here', name: here.name, ...copy, why, whyTitle, routeId: nextStep?.routeId }
   }
 
   const copy = road.cards[tile.id]
@@ -65,6 +70,8 @@ export function cardFor(road: Road, scene: Scene, tileId: string | null): Card {
     costs: copy.costs,
     guide: copy.guide,
     because: copy.because,
+    why: copy.why,
+    whyTitle: copy.whyTitle,
     badges: tile.badges ?? [],
   }
   if (tile.routeId) {

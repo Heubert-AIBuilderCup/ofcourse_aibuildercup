@@ -25,6 +25,8 @@ const roadmap = (over: Partial<Roadmap> = {}): Roadmap => ({
   relative: null,
   coins: { state: 'later' },
   choices: {},
+  ownWords: {},
+  tags: [],
   lastStep: 'attention',
   copiedFrom: null,
   createdAt: new Date('2026-10-14T09:00:00Z'),
@@ -472,7 +474,7 @@ describe('saveRoadmapAnswersAction', () => {
     const loose = saveRoadmapAnswersAction as (id: string, answers: unknown) => Promise<unknown>
     for (const bad of [
       { ...answers, amount: { value: 31, state: 'stated' } },
-      { ...answers, eng: 'IELTS 9.0' },
+      { ...answers, eng: 'IELTS 9.5' },
       { ...answers, nope: { value: 'Yes', state: 'stated' } },
       { ...answers, amount: { value: 24, state: 'assumed' } },
       [answers.amount],
@@ -578,7 +580,7 @@ describe('createRoadmapAction', () => {
     session = student()
     for (const answers of [
       { amount: { value: 31, state: 'stated' } },
-      { eng: 'IELTS 9.0' },
+      { eng: 'IELTS 9.5' },
       { nope: { value: 'Yes', state: 'stated' } },
       [{ value: 30, state: 'stated' }],
       null,

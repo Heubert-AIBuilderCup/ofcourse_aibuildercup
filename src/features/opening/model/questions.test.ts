@@ -114,6 +114,20 @@ describe('parseAnswer', () => {
   it('keeps only the value and the state of a stored answer', () => {
     expect(parseAnswer('amount', { value: 36, state: 'stated', extra: 1 })).toEqual(s(36))
   })
+
+  it('takes an exact English score besides the options, and no other question takes a free value', () => {
+    expect(parseAnswer('eng', 'PTE 58')).toEqual(s('PTE 58'))
+    expect(parseAnswer('eng', 'TOEFL 85')).toEqual(s('TOEFL 85'))
+    expect(parseAnswer('eng', s('PTE 58'))).toEqual(s('PTE 58'))
+    expect(parseAnswer('eng', 'IELTS 6.3')).toBeNull()
+    expect(parseAnswer('eng', 'PTE 91')).toBeNull()
+    expect(parseAnswer('eng', assumed('PTE 58'))).toBeNull()
+    for (const option of questionOf('eng').options) {
+      expect(parseAnswer('eng', option)).toEqual(s(option))
+    }
+    expect(parseAnswer('qual', 'PTE 58')).toBeNull()
+    expect(parseAnswer('dep', 'IELTS 6.5')).toBeNull()
+  })
 })
 
 describe('effective and isAssumed', () => {

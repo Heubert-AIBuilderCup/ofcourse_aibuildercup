@@ -67,6 +67,7 @@ const view = (step: QuestionStep, answers: StoredAnswers, relative: Relative | n
       relative={relative}
       saveAnswersAction={saveAnswersAction}
       saveRelativeAction={saveRelativeAction}
+      englishScores={[6, 6.5, 7]}
     />
   </OnboardingAnswersProvider>
 )
@@ -186,6 +187,17 @@ it('skips to the next question, storing nothing', async () => {
   expect(pushState).toHaveBeenCalledWith(null, '', '/onboarding/facts/covers')
   await act(() => new Promise((r) => setTimeout(r, 400)))
   expect(saveAnswersAction).not.toHaveBeenCalled()
+})
+
+it('saves an exact PTE score entered under the English quick options', async () => {
+  screenAt('english')
+  await press('Enter my exact score')
+  act(() => {
+    fireEvent.change(screen.getByLabelText('Test'), { target: { value: 'PTE' } })
+    fireEvent.change(screen.getByLabelText('Score'), { target: { value: '58' } })
+  })
+  await press('Use this score')
+  await waitFor(() => expect(saveAnswersAction).toHaveBeenCalledWith({ eng: 'PTE 58' }))
 })
 
 it('goes on to step 02 from the last question, with no way to leave the rest', async () => {

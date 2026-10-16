@@ -19,6 +19,8 @@ export type UseCase =
   | 'blog_text'
   | 'comic_story'
   | 'character_plan'
+  | 'student_why'
+  | 'student_ask'
   | SearchUseCase
 
 /** The calls made with Google Search: they share the search cap, counted by these use cases. */

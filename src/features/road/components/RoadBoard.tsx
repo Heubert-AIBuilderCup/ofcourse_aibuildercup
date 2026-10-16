@@ -4,8 +4,14 @@ import { List, Map as MapIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSelectedLayoutSegments } from 'next/navigation'
 import { type ReactNode, type RefObject, useLayoutEffect, useRef, useState } from 'react'
-import { answerGroups } from '@/features/opening'
+import { answerGroups, type RoadChangeOf } from '@/features/opening'
 import { RoadmapLoader } from '@/features/roadmaps'
+import {
+  type CardDetails,
+  roadChange,
+  type TileAsk as Suggested,
+  type TilePost,
+} from '@/features/roads/client'
 import motion from '@/shared/components/motion.module.css'
 import { Note } from '@/shared/components/Note'
 import { Toast } from '@/shared/components/Toast'
@@ -17,7 +23,9 @@ import type { ActionResult } from '@/shared/types/action-result'
 import type { Relative, RoadmapChoices, StoredAnswers } from '@/shared/types/student'
 import { BoardPath, useBoardPath } from '../hooks/useBoardPath'
 import { type BoardActions, useRoadSession } from '../hooks/useRoadSession'
+import type { WhyAction } from '../hooks/useTileWhy'
 import { type Layout, layoutOf } from '../model/camera'
+import type { MatchLine } from '../model/match-line'
 import { cardFor, primaryAction } from '../model/press'
 import type { Road, Tile } from '../model/road-data'
 import type { View } from '../model/road-url'
@@ -27,13 +35,15 @@ import answersStyles from './answers.module.css'
 import { BottomSheet } from './BottomSheet'
 import { ControlsBar } from './ControlsBar'
 import { LessonPanel } from './LessonPanel'
+import { MatchStrip } from './MatchStrip'
 import { Overview } from './Overview'
 import { PhoneMap } from './PhoneMap'
 import { PhoneRoad } from './PhoneRoad'
-import { RoadCard } from './RoadCard'
+import { type CardAsk, type CardWhy, RoadCard } from './RoadCard'
 import { RoadHeader } from './RoadHeader'
 import { RoadMap } from './RoadMap'
 import { StackList } from './StackList'
+import type { AskAction } from './TileAsk'
 
 /**
  * The board's layout from its own width: phone, stacked or wide (side by side); null until it has
@@ -93,16 +103,41 @@ const nothingSaved = async (): Promise<ActionResult> => ({ ok: true })
  * `saveRoadmapAnswersAction`. With `draft`, it is a
  * new roadmap's, at `/roadmaps/new?from=<id>`: the source's board, drawn only, under its answers in
  * draft mode; at `/roadmaps/new`, from scratch, the empty road under none. Create roadmap makes it
- * (`createRoadmapAction`).
+ * (`createRoadmapAction`). `match` is the line under the header when the road is not exactly
+ * hers (the closest, or the illustrative one); none, nothing. `rematch`: the road is the one her
+ * answers match (the switch is on), so Your answers says when a change would move her to another.
+ * `whyAction` writes why a tile her answers decided is on the roadmap; `whyEnabled` lets the cards
+ * ask it (the road is the one her answers match, or the closest); without, they show the template.
+ * `askAction` answers her questions about a city or course tile, and `asks` holds each such tile's
+ * suggested questions by tile id; a card offers its suggested questions with `asks`, and takes her
+ * own only with `askAction` too (the layout passes them on the same roads as the why, and no
+ * action while the student AI is off). `details`: each tile's catalogue facts, by tile id.
+ * `tilePosts`: the posts and updates about each tile, by tile id, that its card lists.
  */
 export function RoadBoard({
   road,
   roadmap,
+  match,
+  rematch = false,
+  whyAction,
+  whyEnabled = false,
+  askAction,
+  asks,
+  details,
+  tilePosts,
   children,
   ...writes
 }: Writes & {
   road: Road
   roadmap: BoardRoadmap
+  match?: MatchLine | null
+  rematch?: boolean
+  whyAction?: WhyAction
+  whyEnabled?: boolean
+  askAction?: AskAction
+  asks?: Record<string, Suggested[]>
+  details?: Record<string, CardDetails>
+  tilePosts?: Record<string, TilePost[]>
   children: ReactNode
 }) {
   const actions: BoardActions = writes.draft
@@ -115,6 +150,14 @@ export function RoadBoard({
         roadmap={writes.draft ? { ...roadmap, answers: writes.draft.answers } : roadmap}
         actions={actions}
         draft={writes.draft ? { ...writes.draft, create: writes.createRoadmapAction } : null}
+        match={match ?? null}
+        rematch={rematch}
+        whyAction={whyAction}
+        whyEnabled={whyEnabled}
+        askAction={askAction}
+        asks={asks}
+        details={details ?? {}}
+        tilePosts={tilePosts}
       >
         {children}
       </Board>
@@ -141,12 +184,28 @@ function Board({
   roadmap,
   actions,
   draft,
+  match,
+  rematch,
+  whyAction,
+  whyEnabled,
+  askAction,
+  asks,
+  details,
+  tilePosts,
   children,
 }: {
   road: Road
   roadmap: BoardRoadmap
   actions: BoardActions
   draft: (BoardDraft & { create: CreateRoadmap }) | null
+  match: MatchLine | null
+  rematch: boolean
+  whyAction: WhyAction | undefined
+  whyEnabled: boolean
+  askAction: AskAction | undefined
+  asks: Record<string, Suggested[]> | undefined
+  details: Record<string, CardDetails>
+  tilePosts: Record<string, TilePost[]> | undefined
   children: ReactNode
 }) {
   const router = useRouter()
@@ -187,6 +246,11 @@ function Board({
   } = useRoadSession(road, panel, roadmap, actions, phone, draft !== null)
   // Her answers' rows for a set of answers: the panel asks for them with its picks merged in.
   const groupsFor = (given: StoredAnswers) => answerGroups(given, roadmap.relative)
+  // With the road her answers match drawn, the rule that says when a pick would move her to
+  // another: the roads' keys only, never their copy (the road itself comes from the server).
+  const roadChangeOf: RoadChangeOf | undefined = rematch
+    ? (before, after) => roadChange(before, after, roadmap.relative)
+    : undefined
   // The map's key strip: shown on her first visit, then as Map key says.
   const [keyShown, setKeyShown] = useState(roadmap.firstVisit)
   const onLater = () => say('Ask and Compare come in a later round.')
@@ -215,6 +279,22 @@ function Board({
   const arrive = () => router.replace(madeId.current ? roadmapPath(madeId.current) : ROADMAPS_PATH)
 
   const card = cardFor(road, scene, state.tile)
+  const why: CardWhy = {
+    roadmapId: roadmap.id,
+    answers: roadmap.answers,
+    tileId: card.kind === 'here' ? scene.here : (state.tile ?? scene.here),
+    action: whyAction,
+    enabled: whyEnabled,
+  }
+  // A card takes questions when its tile is a city or course with suggested questions; her own
+  // only with `askAction` (none while the student AI is off).
+  const askOn = (tileId: string): CardAsk | undefined => {
+    const suggested = asks?.[tileId]
+    return suggested
+      ? { roadmapId: roadmap.id, tileId, asks: suggested, action: askAction }
+      : undefined
+  }
+  const posts = tilePosts?.[why.tileId]
   const stack = scene.tiles.find((t) => t.id === state.tile && t.kind === 'stack')
   const list = !!stack && state.open === 'list'
   const lesson = panel?.kind === 'lesson' ? panel.lesson : null
@@ -267,6 +347,7 @@ function Board({
         road={road}
         place={place}
         onPreview={preview}
+        rematch={roadChangeOf}
         onSave={saveAnswers}
         onClose={closeAnswers}
       />
@@ -288,6 +369,10 @@ function Board({
         onClose={close}
         onPrimary={onPrimary}
         onLesson={onLesson}
+        why={why}
+        ask={askOn(why.tileId)}
+        details={details[why.tileId]}
+        posts={posts}
       />
     )
   }
@@ -322,6 +407,10 @@ function Board({
             onClose={close}
             onPrimary={onPrimary}
             onLesson={onLesson}
+            why={why}
+            ask={askOn(why.tileId)}
+            details={details[why.tileId]}
+            posts={posts}
           />
         ),
       }
@@ -381,6 +470,7 @@ function Board({
           onLater={onLater}
           onAnswers={draft ? undefined : openAnswers}
         />
+        {match ? <MatchStrip line={match} /> : null}
         {phone ? (
           <>
             {answering ? null : <ViewSwitch view={state.view} onView={view} />}
@@ -398,6 +488,10 @@ function Board({
                   onClose={close}
                   onPrimary={primaryAction(road, scene, null) ? primary : undefined}
                   onLesson={onLesson}
+                  why={{ ...why, tileId: scene.here }}
+                  ask={askOn(scene.here)}
+                  details={details[scene.here]}
+                  posts={tilePosts?.[scene.here]}
                 />
               )}
               {toastEl(answering ? 'top-14' : phoneView === 'map' ? 'bottom-56' : 'bottom-4')}

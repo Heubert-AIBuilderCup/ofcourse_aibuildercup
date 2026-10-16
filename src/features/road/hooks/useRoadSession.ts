@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useMemo, useRef, useState } from 'react'
+import { NOT_TAKEN } from '@/features/opening/model/english'
 import type { ActionResult } from '@/shared/types/action-result'
 import type { RoadmapChoices, StoredAnswers } from '@/shared/types/student'
 import type { RoadFocus } from '../components/PhoneRoad'
@@ -36,9 +37,6 @@ export type BoardActions = {
 export type ToastState = { id: number; text: string; undo: (() => void) | null }
 
 const nameIn = (scene: Scene, id: string) => scene.tiles.find((t) => t.id === id)?.name ?? ''
-
-/** What the English test's "Not taken yet" stores (the opening's question model). */
-const NOT_TAKEN = 'Not taken yet'
 
 /** What her answers mark on the road: the badges' words and each tile's marked words. */
 const marksOf = (scene: Scene) =>

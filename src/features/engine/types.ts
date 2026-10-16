@@ -24,7 +24,15 @@ export type Claim = {
   notSure: boolean
 }
 export type LineData = { effect: Effect; text: string; claim: Claim }
-export type FieldId = 'cyber' | 'data' | 'business' | 'it' | 'psych'
+export type FieldId =
+  | 'cyber'
+  | 'data'
+  | 'business'
+  | 'it'
+  | 'psych'
+  | 'health'
+  | 'engineering'
+  | 'design'
 export type Level = 'Diploma' | "Bachelor's" | "Master's"
 export type Point = { lat: number; lng: number }
 export type City = Point & {

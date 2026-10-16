@@ -3,18 +3,28 @@
 import { ArrowRight, CircleAlert, Layers, Split } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
+import type {
+  CardDetails as Details,
+  TileAsk as Suggested,
+  TilePost,
+} from '@/features/roads/client'
 import { FrameMarks } from '@/shared/components/Blueprint'
 import { Duck } from '@/shared/components/Duck'
 import { Note } from '@/shared/components/Note'
 import { Button, buttonVariants } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
+import type { StoredAnswers } from '@/shared/types/student'
 import { useBoardPath } from '../hooks/useBoardPath'
+import { useTileWhy, type WhyAction } from '../hooks/useTileWhy'
 import { type Card, siblingsOf } from '../model/press'
 import type { BadgeId, Road, Tile } from '../model/road-data'
 import { routePath } from '../model/routes'
 import type { Scene } from '../model/scene'
+import { CardDetails } from './CardDetails'
 import { LessonLink } from './LessonLink'
 import { MockTag } from './MockTag'
+import { type AskAction, TileAsk } from './TileAsk'
+import { TilePosts } from './TilePosts'
 
 const BADGE_ICONS = { layers: Layers, alert: CircleAlert, split: Split }
 
@@ -35,13 +45,40 @@ function siblingLines(t: Tile): string[] {
 const ACTION = 'h-12 w-full'
 
 /**
+ * Where a card's why is asked for: her roadmap, its saved answers, the card's tile, the action, and
+ * whether to ask.
+ */
+export type CardWhy = {
+  roadmapId: string
+  answers: StoredAnswers
+  tileId: string
+  action: WhyAction | undefined
+  enabled: boolean
+}
+
+/**
+ * Ask on a city or course card: her roadmap, the card's tile, its suggested questions, the action
+ * (none when the student AI is off: the suggested questions only).
+ */
+export type CardAsk = {
+  roadmapId: string
+  tileId: string
+  asks: Suggested[]
+  action?: AskAction
+}
+
+/**
  * The card column's card: where she is (no tile open), or the tile she pressed, per cardFor. Its
  * badges open their explanation; a sibling opens that tile; the primary does what the board says
  * (`onPrimary`; without one it is drawn and does nothing this round); route detail and the lesson
  * are links (they push, so Back returns); Cancel (or Back to where she is) closes the card. "What
  * it asks for" and "More" do nothing yet. `flat`: the card inside the phone's road, its guide
  * without a box, its badges side by side and no course actions. The name where she is and each
- * sibling carry their tile (`data-swap-id`), so a swap can move them.
+ * sibling carry their tile (`data-swap-id`), so a swap can move them. A tile her answers decided
+ * says why it is there: the template at once, the model's words when `why` lets it ask. A city or
+ * course card on a road built from her answers takes questions (`ask`). `details` (the road's own
+ * catalogue facts for this tile) go under the guide when there are any. `posts`: the posts and
+ * updates about its tile; none, no section.
  */
 export function RoadCard({
   road,
@@ -52,6 +89,10 @@ export function RoadCard({
   onPrimary,
   onLesson,
   flat = false,
+  why,
+  ask,
+  details,
+  posts,
 }: {
   road: Road
   scene: Scene
@@ -62,7 +103,20 @@ export function RoadCard({
   /** A lesson link was followed from the board. */
   onLesson: () => void
   flat?: boolean
+  why?: CardWhy
+  ask?: CardAsk
+  /** What the card adds under its guide: subjects, work, jobs, the state list, the related mark. */
+  details?: Details
+  posts?: TilePost[]
 }) {
+  const whyText = useTileWhy({
+    roadmapId: why?.roadmapId ?? '',
+    tileId: why?.tileId ?? '',
+    template: card.why,
+    answers: why?.answers,
+    action: why?.action,
+    enabled: why?.enabled ?? false,
+  })
   const here = card.kind === 'here'
   const siblings = here ? siblingsOf(scene) : []
   const board = useBoardPath()
@@ -108,13 +162,37 @@ export function RoadCard({
         </div>
       ) : null}
 
+      {details ? <CardDetails details={details} /> : null}
+
       {badges.length ? <Badges ids={badges} badges={scene.badges} flat={flat} /> : null}
+
+      {card.why ? (
+        <div className="flex flex-col gap-1" aria-busy={whyText.loading}>
+          <span className="text-overline text-muted-foreground uppercase">
+            {card.whyTitle ?? 'Why it’s on your roadmap'}
+          </span>
+          <p aria-live="polite" className={cn('m-0', whyText.loading && 'text-muted-foreground')}>
+            {whyText.text}
+          </p>
+        </div>
+      ) : null}
 
       <p className="m-0 text-caption">
         <span className="text-muted-foreground">On your board because:</span> {card.because}
       </p>
 
       {card.lesson ? <LessonLink lessonId={card.lesson} onFollow={onLesson} /> : null}
+
+      {ask ? (
+        <TileAsk
+          roadmapId={ask.roadmapId}
+          tileId={ask.tileId}
+          asks={ask.asks}
+          action={ask.action}
+        />
+      ) : null}
+
+      {posts?.length ? <TilePosts posts={posts} /> : null}
 
       {siblings.length && card.siblingsTitle ? (
         <div className="flex flex-col gap-1.5 border-t pt-3">

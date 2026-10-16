@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { AccountMenu, onboardingResumePath } from '@/features/opening'
 import { getProfile } from '@/features/opening/server/profile'
-import { boardFacts, getRoad } from '@/features/road'
+import { boardFacts, type Road } from '@/features/road'
 import {
   answerDiffs,
   firstMade,
@@ -21,15 +21,15 @@ import {
   restoreRoadmapAction,
 } from '@/features/roadmaps/actions'
 import { listRoadmaps } from '@/features/roadmaps/server/roadmaps'
+import { roadFor } from '@/features/roads'
 import { Duck } from '@/shared/components/Duck'
 import { requireStudent } from '@/shared/lib/auth/session'
 import { SITE_NAME } from '@/shared/lib/site'
 
 const join = (...parts: (string | null | undefined)[]) => parts.filter(Boolean).join(' · ')
 
-/** What every row reads from the road (Priya's mock road for now, the same for each roadmap). */
-function roadWords() {
-  const road = getRoad()
+/** What a row reads from its roadmap's road. */
+function roadWords(road: Road) {
   const tile = (id: string | undefined) => road.tiles.find((t) => t.id === id)
   const here = tile(road.walk.here)
   const pointB = tile(road.walk.ahead.at(-1))
@@ -59,14 +59,18 @@ export default async function RoadmapsRoute({ searchParams }: PageProps<'/roadma
   ])
   if (profile.finished === 0) redirect(onboardingResumePath(profile))
 
-  const words = roadWords()
   const now = new Date()
   const byId = new Map(roadmaps.map((r) => [r.id, r]))
   const madeId = typeof made === 'string' && byId.has(made) ? made : null
-  const named = new Map(roadmaps.map((r) => [r.id, roadmapName(r, words.names)]))
+  // Each row reads its own roadmap's road: the one its answers match, else the closest.
+  const rows = roadmaps.map((r) => ({
+    r,
+    words: roadWords(roadFor({ answers: r.answers, relative: r.relative }, process.env).road),
+  }))
+  const named = new Map(rows.map(({ r, words }) => [r.id, roadmapName(r, words.names)]))
   const first = firstMade(roadmaps)
 
-  const summaries: RoadmapSummary[] = roadmaps.map((r) => {
+  const summaries: RoadmapSummary[] = rows.map(({ r, words }) => {
     // A deleted source is not in the list (only Undo reaches it).
     const source = r.copiedFrom ? byId.get(r.copiedFrom) : undefined
     const facts = boardFacts(words.road, r.choices)

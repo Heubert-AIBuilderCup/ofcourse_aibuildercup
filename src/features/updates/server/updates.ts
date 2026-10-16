@@ -55,6 +55,29 @@ export async function latestLiveUpdate(): Promise<StoredUpdate | null> {
   return row ?? null
 }
 
+/** A live update as the students' boards read it: who it is from and for, and what it says. */
+export type LiveUpdateRow = Pick<
+  StoredUpdate,
+  'id' | 'status' | 'institution' | 'title' | 'body' | 'audience'
+>
+
+/** The live updates, latest change first, at most LIST_LIMIT; never a draft or one in review. */
+export async function listLiveUpdates(): Promise<LiveUpdateRow[]> {
+  return db
+    .select({
+      id: adminUpdate.id,
+      status: adminUpdate.status,
+      institution: adminUpdate.institution,
+      title: adminUpdate.title,
+      body: adminUpdate.body,
+      audience: adminUpdate.audience,
+    })
+    .from(adminUpdate)
+    .where(eq(adminUpdate.status, 'live'))
+    .orderBy(desc(adminUpdate.updatedAt))
+    .limit(LIST_LIMIT)
+}
+
 /** A new draft from the form's fields, each checked; answers with its id. Never throws. */
 export async function createUpdate(
   actor: Actor,

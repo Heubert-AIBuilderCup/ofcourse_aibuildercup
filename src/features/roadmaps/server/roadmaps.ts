@@ -6,12 +6,14 @@ import { roadmap } from '@/shared/lib/db/schema'
 import {
   type Coins,
   coinsSchema,
+  ownWordsSchema,
   type Relative,
   ROADMAP_NAME_MAX,
   type Roadmap,
   type RoadmapChoices,
   relativeSchema,
   roadmapChoicesSchema,
+  roadmapTagsSchema,
   type StoredAnswers,
   storedAnswersSchema,
 } from '@/shared/types/student'
@@ -36,6 +38,8 @@ const fields = {
   relative: roadmap.relative,
   coins: roadmap.coins,
   choices: roadmap.choices,
+  ownWords: roadmap.ownWords,
+  tags: roadmap.tags,
   lastStep: roadmap.lastStep,
   copiedFrom: roadmap.copiedFrom,
   createdAt: roadmap.createdAt,
@@ -52,6 +56,8 @@ const toRoadmap = (row: Row): Roadmap => ({
   relative: relativeSchema.safeParse(row.relative).data ?? null,
   coins: coinsSchema.safeParse(row.coins).data ?? null,
   choices: roadmapChoicesSchema.safeParse(row.choices).data ?? {},
+  ownWords: ownWordsSchema.safeParse(row.ownWords).data ?? {},
+  tags: roadmapTagsSchema.safeParse(row.tags).data ?? [],
 })
 
 const alive = isNull(roadmap.deletedAt)
@@ -135,6 +141,13 @@ export async function finishRoadmap(userId: string): Promise<Roadmap | null> {
   return row ? toRoadmap(row) : null
 }
 
+// listRoadmaps' order: last opened first, a never opened one by when it was made, then by id.
+const lastOpenedFirst = [
+  sql`coalesce(${roadmap.lastOpenedAt}, ${roadmap.createdAt}) desc`,
+  desc(roadmap.createdAt),
+  asc(roadmap.id),
+]
+
 /**
  * Her finished roadmaps, archived ones too (archivedAt set), last opened first, a never opened one
  * by when it was made: a roadmap just made comes first (orderRoadmaps' 'opened' is the same rule).
@@ -144,13 +157,20 @@ export async function listRoadmaps(userId: string): Promise<Roadmap[]> {
     .select(fields)
     .from(roadmap)
     .where(and(eq(roadmap.userId, userId), finished, alive))
-    .orderBy(
-      sql`coalesce(${roadmap.lastOpenedAt}, ${roadmap.createdAt}) desc`,
-      desc(roadmap.createdAt),
-      asc(roadmap.id),
-    )
+    .orderBy(...lastOpenedFirst)
     .limit(LIST_MAX)
   return rows.map(toRoadmap)
+}
+
+/** The answers of the roadmap listRoadmaps puts first (archived ones count), or null: one row. */
+export async function lastOpenedAnswers(userId: string): Promise<StoredAnswers | null> {
+  const [row] = await db
+    .select({ answers: roadmap.answers })
+    .from(roadmap)
+    .where(and(eq(roadmap.userId, userId), finished, alive))
+    .orderBy(...lastOpenedFirst)
+    .limit(1)
+  return row ? (storedAnswersSchema.safeParse(row.answers).data ?? {}) : null
 }
 
 /** Her finished roadmap with this id; null when it is another student's, deleted or unknown. */

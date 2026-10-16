@@ -669,6 +669,29 @@ export const FAKE_ANSWERS: FakeAnswers = {
     const red = Buffer.from(fakeImage(TEXT_FILL)).toString('base64')
     return { has_text: images?.[0]?.base64 === red }
   },
+  /** The rules that chose the tile (or how it relates to hers), then the first fact; that fact as the one used. */
+  student_why(data) {
+    const { chosenBy, relation, facts } = data as {
+      chosenBy?: string[]
+      relation?: string[]
+      facts: { id: string; text: string }[]
+    }
+    const why = relation?.length
+      ? `It relates to yours: ${relation.join('; ')}. `
+      : chosenBy?.length
+        ? `It is here because ${chosenBy.join(' and ')}. `
+        : ''
+    const fact = facts[0]
+    return {
+      why: `${why}${fact ? `${fact.text}.` : 'Your answers put this on your roadmap.'}`,
+      used: fact ? [fact.id] : [],
+    }
+  },
+  /** The first row, word for word, cited. */
+  student_ask(data) {
+    const { rows } = data as { rows: { id: string; text: string }[] }
+    return { answerable: true, reply: rows[0].text, cited: [rows[0].id] }
+  },
 }
 
 /** The art the fake paints: an 8 × 8 square, #CCCCCC, or #CC0000 for art "with text"; each drawn by resvg once. */

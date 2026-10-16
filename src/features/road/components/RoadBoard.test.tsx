@@ -809,6 +809,27 @@ describe('on a phone', () => {
       expect(within(controls).getByRole('button', { name })).toBeInTheDocument()
   })
 
+  it('asks why her tile is on her roadmap from the card where she is (criterion 15)', async () => {
+    const { buildRoad, ROADS } = await import('@/features/roads')
+    const spec = ROADS[0]
+    const built = buildRoad(spec, { answers: {} })
+    const whyAction = mock(async () => ({
+      ok: true as const,
+      text: 'Because you study it.',
+      source: 'model' as const,
+    }))
+    render(
+      <Providers initialChoice="light" systemTheme={null}>
+        <RoadBoard road={built} {...props} whyAction={whyAction} whyEnabled>
+          {null}
+        </RoadBoard>
+      </Providers>,
+    )
+    await act(async () => {})
+    expect(whyAction).toHaveBeenCalledWith('rm-1', built.walk.here)
+    expect(within(roadList()).getByText('Because you study it.')).toBeInTheDocument()
+  })
+
   it('opens a pressed row in a bottom sheet; Escape and its Cancel close it', () => {
     board()
     press(button('Student visa · 500, next. Open'))
@@ -1092,6 +1113,37 @@ describe('Your answers', () => {
     press(button('Undo'))
     await settle()
     expect(within(amount()).queryByText('Changed just now')).not.toBeInTheDocument()
+  })
+
+  it('says when a pick would move her to another road, and when her road stays (criteria 11, 14)', async () => {
+    const { DEMO_PROFILES } = await import('@/features/roads')
+    const { answers, relative } = DEMO_PROFILES[0]
+    query = 'open=answers'
+    render(
+      <Providers initialChoice="light" systemTheme={null}>
+        <RoadBoard road={road} roadmap={{ ...ROADMAP, answers, relative }} {...actions} rematch>
+          {null}
+        </RoadBoard>
+      </Providers>,
+    )
+    press(row('Which field\\?'))
+    pick('Which field?', /^Data science/)
+    expect(
+      screen.getByText('Your road changes to Perth · Master of Data Science · 190.'),
+    ).toBeVisible()
+    pick('Which field?', /^Information technology/)
+    expect(
+      screen.getByText('Your road changes to Perth · Master of Information Technology · 190.'),
+    ).toBeVisible()
+    press(row('Study level'))
+    pick('Study level', /^Diploma/)
+    expect(
+      screen.queryAllByText(
+        'Your road changes to Perth · Diploma of Information Technology (Cyber Security) · no clear PR.',
+      ).length,
+    ).toBe(1)
+    pick('Study level', /^Bachelor/)
+    expect(screen.getByText('Nothing on your road moves.')).toBeVisible()
   })
 
   it('a save that changes nothing on the road says so, without Undo', async () => {

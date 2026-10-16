@@ -17,10 +17,12 @@ import {
 } from 'drizzle-orm/pg-core'
 import {
   type Coins,
+  type OwnWords,
   PERSONAS,
   type Relative,
   type Reminder,
   type RoadmapChoices,
+  type RoadmapTag,
   STEPS,
   type StoredAnswers,
 } from '@/shared/types/student'
@@ -198,6 +200,9 @@ export const roadmap = pgTable(
     coins: jsonb('coins').$type<Coins>(),
     // What she did on its board: swapped, added, read, walked to the city or the country.
     choices: jsonb('choices').$type<RoadmapChoices>().notNull().default({}),
+    // Her own words per question screen, and the tags read from them; null until she writes any.
+    ownWords: jsonb('own_words').$type<OwnWords>(),
+    tags: jsonb('tags').$type<RoadmapTag[]>(),
     // Where she left off while answering.
     lastStep: text('last_step', { enum: STEPS }).notNull().default('picture'),
     copiedFrom: text('copied_from').references((): AnyPgColumn => roadmap.id, {
@@ -543,4 +548,32 @@ export const adminUpdate = pgTable(
     check('admin_update_status_check', oneOf(t.status, ['draft', 'in_review', 'live'])),
     index('admin_update_status_updated_idx').on(t.status, t.updatedAt),
   ],
+)
+
+/**
+ * What a student asked on a roadmap's tile and what she was answered, one row per question: the
+ * daily cap counts it by (user, day). Personal data: read and written only for the signed-in
+ * student herself.
+ */
+export const studentAsk = pgTable(
+  'student_ask',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    roadmapId: text('roadmap_id')
+      .notNull()
+      .references(() => roadmap.id, { onDelete: 'cascade' }),
+    tileId: text('tile_id').notNull(),
+    question: text('question').notNull(),
+    reply: text('reply').notNull(),
+    outcome: text('outcome', { enum: ['answered', 'refused', 'failed'] }).notNull(),
+    // The UTC day of the question.
+    day: date('day', { mode: 'string' }).notNull(),
+    createdAt: tz('created_at').notNull().defaultNow(),
+  },
+  (t) => [index('student_ask_user_day_idx').on(t.userId, t.day)],
 )

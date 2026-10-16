@@ -58,6 +58,7 @@ const open = (button: HTMLElement) =>
     fireEvent.click(button)
   })
 const roadmapsItem = () => screen.getByRole('menuitem', { name: 'Your roadmaps' })
+const feedItem = () => screen.getByRole('menuitem', { name: 'Feed' })
 const darkItem = () => screen.getByRole('menuitemcheckbox', { name: 'Dark theme' })
 const signOutItem = () => screen.getByRole('menuitem', { name: 'Sign out' })
 
@@ -68,12 +69,13 @@ it('starts closed, a menu button', () => {
   expect(screen.queryByRole('menu')).toBeNull()
 })
 
-it('opens on Your roadmaps, Dark theme and Sign out, focus on the first item', async () => {
+it('opens on Your roadmaps, Feed, Dark theme and Sign out, focus on the first item', async () => {
   const button = show()
   await open(button)
   expect(button).toHaveAttribute('aria-expanded', 'true')
   expect(screen.getByRole('menu', { name: 'Menu' })).toBeInTheDocument()
   expect(roadmapsItem()).toHaveAttribute('href', '/roadmaps')
+  expect(feedItem()).toHaveAttribute('href', '/feed')
   expect(darkItem()).toHaveAttribute('aria-checked', 'false')
   expect(signOutItem()).toBeInTheDocument()
   expect(document.activeElement).toBe(roadmapsItem())
@@ -121,6 +123,8 @@ it('closes on a click outside it', async () => {
 it('moves between items with the arrow keys, Home and End', async () => {
   await open(show())
   fireEvent.keyDown(roadmapsItem(), { key: 'ArrowDown' })
+  expect(document.activeElement).toBe(feedItem())
+  fireEvent.keyDown(feedItem(), { key: 'ArrowDown' })
   expect(document.activeElement).toBe(darkItem())
   fireEvent.keyDown(darkItem(), { key: 'ArrowDown' })
   expect(document.activeElement).toBe(signOutItem())
@@ -132,7 +136,7 @@ it('moves between items with the arrow keys, Home and End', async () => {
   expect(document.activeElement).toBe(roadmapsItem())
 })
 
-it('on a board, offers Your answers second, which opens them and closes the menu', async () => {
+it('on a board, offers Your answers after the Feed, which opens them and closes the menu', async () => {
   const onAnswers = mock(() => {})
   render(
     <Providers initialChoice="light" systemTheme={null}>
@@ -143,6 +147,7 @@ it('on a board, offers Your answers second, which opens them and closes the menu
   const items = [...screen.getByRole('menu').querySelectorAll('[role^="menuitem"]')]
   expect(items.map((i) => i.textContent)).toEqual([
     'Your roadmaps',
+    'Feed',
     'Your answers',
     'Dark theme',
     'Sign out',

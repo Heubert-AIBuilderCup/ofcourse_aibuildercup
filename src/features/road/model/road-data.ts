@@ -70,6 +70,8 @@ export type Tile = {
   badges?: BadgeId[]
   /** A course's fees, AUD thousands a year: what her budget is measured against. */
   fees?: number
+  /** A course's overall IELTS entry score: what her English answer is measured against. */
+  ielts?: number
   /** What an answer she has not saved would change here ("If you save"); the session's preview. */
   prev?: string
   /** On the thinner road that forks off after the 485. */
@@ -95,6 +97,10 @@ export type CardCopy = {
   primary?: string
   /** The lesson id the card offers ("What happens here · 3-min lesson"). */
   lesson?: string
+  /** Why the tile is on her road, from her answers and the catalogue: only a tile they decided. */
+  why?: string
+  /** The heading over the why: on her roadmap, or beside it on her board. */
+  whyTitle?: string
 }
 
 /** The card where she is. */
@@ -119,6 +125,8 @@ export type StackRow = {
   blocked?: boolean
   /** The tile "Put on my board" places, when the row has one. */
   tileId?: string
+  /** When the row's course is in a field next to the one she picked: that field, defined. */
+  related?: { field: string; definition: string }
 }
 
 export type Lesson = {

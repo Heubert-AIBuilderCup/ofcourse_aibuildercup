@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 import {
   coinsSchema,
+  ownWordsSchema,
   type Relative,
   relativeSchema,
+  roadmapTagsSchema,
   type StoredAnswers,
   storedAnswersSchema,
 } from './student'
@@ -104,5 +106,44 @@ describe('relativeSchema', () => {
 
   it('refuses a name over forty characters', () => {
     expect(relativeSchema.safeParse({ ...relative, name: 'x'.repeat(41) }).success).toBe(false)
+  })
+})
+
+describe('ownWordsSchema', () => {
+  it('accepts one step, or none', () => {
+    expect(ownWordsSchema.safeParse({ facts: 'some text' }).success).toBe(true)
+    expect(ownWordsSchema.safeParse({}).success).toBe(true)
+  })
+
+  it('rejects a key outside the four steps', () => {
+    expect(ownWordsSchema.safeParse({ attention: 'x' }).success).toBe(false)
+  })
+
+  it('rejects a value over 1000 characters, and takes exactly 1000', () => {
+    expect(ownWordsSchema.safeParse({ study: 'a'.repeat(1001) }).success).toBe(false)
+    expect(ownWordsSchema.safeParse({ study: 'a'.repeat(1000) }).success).toBe(true)
+  })
+})
+
+describe('roadmapTagsSchema', () => {
+  const tag = {
+    text: 'near the beach',
+    quote: 'I want to live near the beach',
+    step: 'living',
+    wellbeing: false,
+  }
+
+  it('accepts a tag', () => {
+    expect(roadmapTagsSchema.safeParse([tag]).success).toBe(true)
+  })
+
+  it('rejects a text over 80 characters or a quote over 200', () => {
+    expect(roadmapTagsSchema.safeParse([{ ...tag, text: 'a'.repeat(81) }]).success).toBe(false)
+    expect(roadmapTagsSchema.safeParse([{ ...tag, quote: 'a'.repeat(201) }]).success).toBe(false)
+  })
+
+  it('rejects more than 30 tags, and takes 30', () => {
+    expect(roadmapTagsSchema.safeParse(Array.from({ length: 31 }, () => tag)).success).toBe(false)
+    expect(roadmapTagsSchema.safeParse(Array.from({ length: 30 }, () => tag)).success).toBe(true)
   })
 })

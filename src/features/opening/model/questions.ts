@@ -11,6 +11,7 @@ import {
   type StoredAnswers,
   storedAnswerSchema,
 } from '@/shared/types/student'
+import { NOT_TAKEN, parseEnglish } from './english'
 
 export const NOT_SURE = 'Not sure'
 
@@ -103,7 +104,7 @@ export const SCREENS: readonly Screen[] = [
             'IELTS 6.5',
             'IELTS 7.0',
             'IELTS 7.5 or more',
-            'Not taken yet',
+            NOT_TAKEN,
           ]),
         ],
       },
@@ -249,10 +250,13 @@ const isAreas = (options: readonly AnswerValue[], value: unknown): value is stri
   new Set(value).size === value.length &&
   value.every((v) => options.includes(v))
 
+/** The English test also takes her exact score ("PTE 58"), the one question with a free value. */
 const isOption = (question: Question, value: unknown): value is AnswerValue =>
   question.control === 'multi'
     ? isAreas(question.options, value)
-    : (typeof value === 'string' || typeof value === 'number') && question.options.includes(value)
+    : ((typeof value === 'string' || typeof value === 'number') &&
+        question.options.includes(value)) ||
+      (question.key === 'eng' && parseEnglish(value) !== null)
 
 /**
  * What a tap stores, or null when it is not an answer to this question. "Not sure" (where

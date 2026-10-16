@@ -765,6 +765,9 @@ export const FIELD_LABELS: Record<FieldId, string> = {
   business: 'business analytics',
   it: 'information technology',
   psych: 'psychology',
+  health: 'health',
+  engineering: 'engineering',
+  design: 'design',
 }
 
 /**

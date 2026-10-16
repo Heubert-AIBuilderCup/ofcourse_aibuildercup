@@ -6,11 +6,13 @@ import {
   type AnswerGroup,
   type AnswerRow,
   answerLabel,
+  ExactScore,
   effectOf,
   isVisible,
   NOT_SURE,
   parseAnswer,
   questionOf,
+  type RoadChangeOf,
   type RowKey,
 } from '@/features/opening'
 import { Note } from '@/shared/components/Note'
@@ -112,6 +114,7 @@ export function AnswersPanel({
   answers,
   road,
   place = 'column',
+  rematch,
   onPreview,
   ...ends
 }: {
@@ -121,6 +124,8 @@ export function AnswersPanel({
   answers: StoredAnswers
   road: Road
   place?: 'column' | 'sheet'
+  /** The board draws the road her answers match: its rule, so a pick says when it would change it. */
+  rematch?: RoadChangeOf
   onPreview: (prev: Record<string, string>) => void
 } & Ends) {
   const [openKey, setOpenKey] = useState<RowKey | null>(null)
@@ -153,7 +158,7 @@ export function AnswersPanel({
       Object.assign(
         {},
         ...Object.entries(next).map(
-          ([key, value]) => effectOf(road, key as RowKey, value, answers).prev,
+          ([key, value]) => effectOf(road, key as RowKey, value, answers, rematch).prev,
         ),
       ),
     )
@@ -259,7 +264,7 @@ export function AnswersPanel({
                   done.some((d) => d.key === row.key) &&
                   pending[row.key as QuestionKey] === undefined
                 }
-                lines={(value) => effectOf(road, row.key, value, answers).lines}
+                lines={(value) => effectOf(road, row.key, value, answers, rematch).lines}
                 onToggle={() => {
                   setOpenKey(openKey === row.key ? null : row.key)
                   setAsking(false)
@@ -479,6 +484,7 @@ function AnswerItem({
               })}
             </div>
           )}
+          {row.key === 'eng' ? <ExactScore value={value} onAnswer={onPick} /> : null}
           {waiting ? (
             <div
               aria-live="polite"

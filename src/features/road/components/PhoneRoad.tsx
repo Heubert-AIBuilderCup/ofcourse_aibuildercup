@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
+import type { CardDetails, TilePost } from '@/features/roads/client'
 import { Duck } from '@/shared/components/Duck'
 import { Button } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
@@ -12,7 +13,7 @@ import type { Scene } from '../model/scene'
 import { LessonLink } from './LessonLink'
 import { MockTag } from './MockTag'
 import styles from './phone-road.module.css'
-import { RoadCard } from './RoadCard'
+import { type CardAsk, type CardWhy, RoadCard } from './RoadCard'
 
 const STATE_WORDS: Record<RowState, string> = {
   lit: 'visited',
@@ -37,6 +38,14 @@ type Props = {
   onClose: () => void
   onPrimary?: () => void
   onLesson: () => void
+  /** Where her card asks why her tile is on her roadmap. */
+  why?: CardWhy
+  /** Where her card takes questions, when her tile is a city or course. */
+  ask?: CardAsk
+  /** What her card adds under its guide. */
+  details?: CardDetails
+  /** The posts and updates about her tile, for her card. */
+  posts?: TilePost[]
 }
 
 /**
@@ -55,6 +64,10 @@ export function PhoneRoad({
   onClose,
   onPrimary,
   onLesson,
+  why,
+  ask,
+  details,
+  posts,
 }: Props) {
   const rows = useMemo(() => phoneRows(road, scene), [road, scene])
   const listRef = useRef<HTMLOListElement>(null)
@@ -104,6 +117,10 @@ export function PhoneRoad({
                   onClose={onClose}
                   onPrimary={onPrimary}
                   onLesson={onLesson}
+                  why={why}
+                  ask={ask}
+                  details={details}
+                  posts={posts}
                   flat
                 />
               </div>

@@ -1,11 +1,12 @@
 'use client'
 
-import { ListChecks, LogOut, Map as MapIcon, Moon, Sun, User } from 'lucide-react'
+import { ListChecks, LogOut, Map as MapIcon, Moon, Newspaper, Sun, User } from 'lucide-react'
 import Link from 'next/link'
 import { useSignOut } from '@/features/auth'
 import { useThemeChoice } from '@/shared/components/Providers'
 import { Button } from '@/shared/components/ui/button'
 import { useMenuKeys } from '@/shared/hooks/useMenuKeys'
+import { FEED_PATH } from '@/shared/lib/auth/gate'
 import { HEADER_ACTION_ON_STEEL } from '@/shared/lib/header-action'
 import { ROADMAPS_PATH } from '@/shared/lib/student-paths'
 import { toggledChoice } from '@/shared/lib/theme'
@@ -15,7 +16,7 @@ const ITEM =
   'group flex min-h-11 cursor-pointer items-center gap-3 border-0 bg-transparent px-3 text-left text-foreground hover:bg-foreground/6 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary'
 
 /**
- * The onboarding header's one button (the design's `.hdr`): a menu with Your roadmaps first, then on
+ * The onboarding header's one button (the design's `.hdr`): a menu with Your roadmaps first, then the Feed, then on
  * a board Your answers (`onAnswers` opens them over it), Dark theme, a checkable item whose drawn
  * switch shows its state, and Sign out. Opening focuses the first item; the arrow
  * keys, Home and End move between items; Escape, Tab or a click outside closes it. Below @5xl it
@@ -87,6 +88,14 @@ export function AccountMenu({
                 className="size-icon text-neutral-700"
               />
               <span className="flex-1">Your roadmaps</span>
+            </Link>
+            <Link href={FEED_PATH} role="menuitem" onClick={() => setOpen(false)} className={ITEM}>
+              <Newspaper
+                aria-hidden="true"
+                strokeWidth={1.5}
+                className="size-icon text-neutral-700"
+              />
+              <span className="flex-1">Feed</span>
             </Link>
             {onAnswers ? (
               <button

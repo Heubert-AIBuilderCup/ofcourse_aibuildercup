@@ -2,12 +2,22 @@
 // that asked it, with what each would change on the road before it is saved. Pure and client-safe. The
 // rows come from the question model (questions.ts, onboarding.ts); the effects are the design's two
 // mock ones (board.js `ANS`/`eff`), read from the road passed in, whose types alone are imported:
-// the opening never loads the road's code.
+// the opening never loads the road's code, nor the roads' (the board passes its re-match rule in).
 
 import type { Road } from '@/features/road'
 import type { AnswerValue, QuestionKey, Relative, StoredAnswers } from '@/shared/types/student'
+import { englishMeets, NOT_TAKEN } from './english'
 import { askedQuestions, ONBOARDING_STEPS, PERSON } from './onboarding'
-import { DEFAULTS, display, effective, isAssumed, NOT_SURE, questionOf, SCREENS } from './questions'
+import {
+  DEFAULTS,
+  display,
+  effective,
+  isAssumed,
+  NOT_SURE,
+  parseAnswer,
+  questionOf,
+  SCREENS,
+} from './questions'
 
 /** A row: a question's stored answer, or her person. */
 export type RowKey = QuestionKey | typeof PERSON
@@ -32,7 +42,16 @@ export type AnswerGroup = { n: string; name: string; rows: AnswerRow[] }
 /** What an answer would change: in words, and on the tiles it names ("If you save"). */
 export type Effect = { lines: string[]; prev: Record<string, string> }
 
+/**
+ * Whether changing her answers from `before` to `after` would move her to another road, in the
+ * words to show ("Your road changes to …"); null when her road stays. The board passes it in (its
+ * road feature matches roads), so the opening never loads the roads.
+ */
+export type RoadChangeOf = (before: StoredAnswers, after: StoredAnswers) => string | null
+
 const NOTHING: Effect = { lines: ['Nothing on your roadmap changes.'], prev: {} }
+/** Re-matching on: neither her road nor a tile on it moves. */
+const ROAD_STAYS: Effect = { lines: ['Nothing on your road moves.'], prev: {} }
 
 const ASSUMED = ' · assumed'
 const SKIPPED = 'Skipped'
@@ -154,13 +173,27 @@ function budgetEffect(road: Road, value: AnswerValue, answers: StoredAnswers): E
   return { lines: ['Nothing on your roadmap moves.'], prev: {} }
 }
 
-/** "Not taken yet" on the English test: the course on her road loses its IELTS condition. */
-function englishEffect(road: Road, value: AnswerValue): Effect {
+/**
+ * An English answer that falls short of the course on her road: "Not taken yet", or a score under
+ * the course's own (its tile's `ielts`, read through `englishMeets`). A road whose course carries
+ * no score (Priya's) reads "Not taken yet" alone, against its badge. When her saved answer already
+ * fell short, the condition is still not met: nothing is lost.
+ */
+function englishEffect(road: Road, value: AnswerValue, answers: StoredAnswers): Effect {
   const course = road.tiles.find((t) => t.id === road.walk.courseLine[0])
-  const condition = road.badges.ielts.value
-  if (value !== 'Not taken yet' || !course?.badges?.includes('ielts')) return NOTHING
+  if (!course?.badges?.includes('ielts')) return NOTHING
+  const required = course.ielts
+  const shortOf = (answer: AnswerValue): boolean =>
+    required === undefined
+      ? answer === NOT_TAKEN
+      : englishMeets({ value: answer, state: 'stated' }, required) === false
+  if (!shortOf(value)) return NOTHING
+  const saved = answers.eng
+  const was = saved?.state === 'stated' && shortOf(saved.value) ? 'still not met' : 'no longer met'
+  const condition =
+    required === undefined ? road.badges.ielts.value : `IELTS ${required.toFixed(1)} overall`
   return {
-    lines: [`${course.name}’s entry condition is no longer met: it asks for ${condition}.`],
+    lines: [`${course.name}’s entry condition is ${was}: it asks for ${condition}.`],
     prev: { [course.id]: `Needs ${condition}` },
   }
 }
@@ -168,15 +201,27 @@ function englishEffect(road: Road, value: AnswerValue): Effect {
 /**
  * What picking this answer would change on the road, before it is saved: the budget and the
  * English test move tiles (the design's two mock effects); every other answer changes nothing.
- * `answers` are the roadmap's saved ones.
+ * `answers` are the roadmap's saved ones. With `rematch` (the board draws the road her answers
+ * match, and passes its rule), a pick that would move her to another road says so first, and one
+ * that moves nothing says her road stays.
  */
 export function effectOf(
   road: Road,
   key: RowKey,
   value: AnswerValue,
   answers: StoredAnswers,
+  rematch?: RoadChangeOf,
 ): Effect {
-  if (key === 'amount') return budgetEffect(road, value, answers)
-  if (key === 'eng') return englishEffect(road, value)
-  return NOTHING
+  const own =
+    key === 'amount'
+      ? budgetEffect(road, value, answers)
+      : key === 'eng'
+        ? englishEffect(road, value, answers)
+        : NOTHING
+  if (!rematch || key === PERSON) return own
+  const answer = parseAnswer(key, value)
+  const after = answer ? { ...answers, [key]: answer } : answers
+  const change = rematch(answers, after)
+  if (change) return { lines: [change, ...(own === NOTHING ? [] : own.lines)], prev: own.prev }
+  return own === NOTHING ? ROAD_STAYS : own
 }

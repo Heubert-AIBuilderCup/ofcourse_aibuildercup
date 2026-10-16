@@ -4,7 +4,7 @@ import { refresh } from 'next/cache'
 import { z } from 'zod'
 import { parseAnswer } from '@/features/opening/model/questions'
 import { getProfile } from '@/features/opening/server/profile'
-import { getRoad } from '@/features/road'
+import { roadFor } from '@/features/roads'
 import { asStudent, fail } from '@/shared/lib/auth/as-student'
 import type { ActionResult } from '@/shared/types/action-result'
 import {
@@ -204,7 +204,8 @@ export async function createRoadmapAction(input: {
     if (fromId) {
       const source = await getRoadmap(userId, fromId.data)
       if (!source) return fail(NOT_FOUND)
-      copy = { fromId: source.id, name: copyName(roadmapName(source, roadNames(getRoad()))) }
+      const { road } = roadFor({ answers: source.answers, relative: source.relative }, process.env)
+      copy = { fromId: source.id, name: copyName(roadmapName(source, roadNames(road))) }
     }
     const made = await createRoadmap(userId, copy ? { ...copy, answers } : { answers })
     if (made === 'not-found') return fail(NOT_FOUND)

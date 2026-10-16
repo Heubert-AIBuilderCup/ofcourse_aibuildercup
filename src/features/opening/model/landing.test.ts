@@ -19,6 +19,8 @@ const draft: Roadmap = {
   relative: null,
   coins: null,
   choices: {},
+  ownWords: {},
+  tags: [],
   lastStep: 'facts',
   copiedFrom: null,
   createdAt: new Date('2026-10-13T09:00:00Z'),

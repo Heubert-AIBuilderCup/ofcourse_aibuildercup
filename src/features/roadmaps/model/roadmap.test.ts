@@ -22,6 +22,8 @@ const make = (over: Partial<Roadmap>): Roadmap => ({
   relative: null,
   coins: null,
   choices: {},
+  ownWords: {},
+  tags: [],
   lastStep: 'attention',
   copiedFrom: null,
   createdAt: at(1),

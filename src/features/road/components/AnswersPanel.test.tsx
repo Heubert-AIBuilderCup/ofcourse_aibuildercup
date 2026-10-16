@@ -123,6 +123,27 @@ describe('the panel', () => {
     expect(onPreview).toHaveBeenLastCalledWith({})
   })
 
+  it('takes an exact score for the English test, waits unsaved, and refuses one out of range', async () => {
+    panel()
+    await click(rowButton(ENGLISH))
+    await click(screen.getByRole('button', { name: 'Enter my exact score' }))
+    act(() => {
+      fireEvent.change(screen.getByLabelText('Test'), { target: { value: 'PTE' } })
+      fireEvent.change(screen.getByLabelText('Score'), { target: { value: '95' } })
+    })
+    await click(screen.getByRole('button', { name: 'Use this score' }))
+    expect(screen.getByRole('alert').textContent).toBe('Enter a PTE Academic score from 10 to 90.')
+    expect(screen.queryByText('1 change not saved')).toBeNull()
+
+    act(() => {
+      fireEvent.change(screen.getByLabelText('Score'), { target: { value: '58' } })
+    })
+    await click(screen.getByRole('button', { name: 'Use this score' }))
+    expect(rowOf(ENGLISH).textContent).toContain('PTE 58')
+    await click(screen.getByRole('button', { name: 'Save changes' }))
+    expect(onSave).toHaveBeenCalledWith({ ...SAVED, eng: { value: 'PTE 58', state: 'stated' } })
+  })
+
   it('changes wait together, and Save sends her answers with them merged in', async () => {
     panel()
     await click(rowButton(AMOUNT))

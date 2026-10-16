@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'bun:test'
 import { CITIES, PLACES } from '@/features/engine'
+import { englishScores } from '@/features/roads'
 import type { QuestionKey, Relative, StoredAnswer, StoredAnswers } from '@/shared/types/student'
-import { impactLine, impactView, notSureLine, personLine } from './impact'
+import { impactLine as lineOf, notSureLine, personLine, impactView as viewOf } from './impact'
 import { DEFAULTS, NOT_SURE, parseAnswer, type Question, SCREENS } from './questions'
+
+/** The catalogue's English scores, as the onboarding page hands them to the screen. */
+const SCORES = englishScores()
+const impactLine = (itemId: string, answers: StoredAnswers, relative: Relative | null) =>
+  lineOf(itemId, answers, relative, SCORES)
+const impactView = (itemId: string, answers: StoredAnswers, relative: Relative | null) =>
+  viewOf(itemId, answers, relative, SCORES)
 
 const s = (value: StoredAnswer['value']): StoredAnswer => ({ value, state: 'stated' })
 /** What tapping "Not sure" stores: the default, marked assumed. */
@@ -333,17 +341,34 @@ describe('dep', () => {
 })
 
 describe('quals', () => {
-  it('says an IELTS of 6.5 or more meets every course in the preview', () => {
-    for (const eng of ['IELTS 6.5', 'IELTS 7.0', 'IELTS 7.5 or more']) {
+  it('says how many courses her IELTS meets, from each course’s own entry score (criterion 62)', () => {
+    // Six courses ask for 7.0 (UTS cyber, data and business analytics, Swinburne, both Nursing),
+    // five for 6.0 (the four Diplomas and ECU's Bachelor), the rest 6.5.
+    for (const eng of ['IELTS 7.0', 'IELTS 7.5 or more', 'IELTS 7.5']) {
       expect(impactLine('quals', { eng: s(eng) }, null)).toBe(
-        `${eng}: meets the English requirement of every course in this preview.`,
+        `${eng}: meets the English score of every course in this preview · mock`,
       )
     }
+    expect(impactLine('quals', { eng: s('IELTS 6.5') }, null)).toBe(
+      'IELTS 6.5: meets the English score of 23 of the 29 courses in this preview · mock',
+    )
+    expect(impactLine('quals', { eng: s('IELTS 6.0') }, null)).toBe(
+      'IELTS 6.0: meets the English score of 5 of the 29 courses in this preview · mock',
+    )
+    expect(impactLine('quals', { eng: s('IELTS 5.5') }, null)).toBe(
+      'IELTS 5.5: below the English score of every course in this preview · mock',
+    )
   })
 
-  it('says an IELTS of 6.0 falls short of some courses', () => {
-    expect(impactLine('quals', { eng: s('IELTS 6.0') }, null)).toBe(
-      'IELTS 6.0: some courses ask for 6.5 · mock',
+  it('reads PTE and TOEFL through their mock IELTS equivalent', () => {
+    expect(impactLine('quals', { eng: s('PTE 58') }, null)).toBe(
+      'PTE 58: about IELTS 6.5, which meets the English score of 23 of the 29 courses in this preview · mock',
+    )
+    expect(impactLine('quals', { eng: s('TOEFL 85') }, null)).toBe(
+      'TOEFL 85: about IELTS 6.5, which meets the English score of 23 of the 29 courses in this preview · mock',
+    )
+    expect(impactLine('quals', { eng: s('TOEFL 40') }, null)).toBe(
+      'TOEFL 40: about IELTS 5.0, which is below the English score of every course in this preview · mock',
     )
   })
 
@@ -361,7 +386,7 @@ describe('quals', () => {
 
   it('speaks of the English test first when both are answered', () => {
     expect(impactLine('quals', { qual: s("Bachelor's"), eng: s('IELTS 6.0') }, null)).toBe(
-      'IELTS 6.0: some courses ask for 6.5 · mock',
+      'IELTS 6.0: meets the English score of 5 of the 29 courses in this preview · mock',
     )
   })
 })

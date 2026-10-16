@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { QuestionScreen, questionBySlug } from '@/features/opening'
 import { saveAnswersAction } from '@/features/opening/actions'
 import { getProfile, markStep } from '@/features/opening/server/profile'
+import { englishScores } from '@/features/roads'
 import { requireStudent } from '@/shared/lib/auth/session'
 
 /**
@@ -19,6 +20,11 @@ export default async function FactQuestionPage({
   const [profile] = await Promise.all([getProfile(user.id), markStep(user.id, 'facts')])
 
   return (
-    <QuestionScreen step={1} relative={profile.relative} saveAnswersAction={saveAnswersAction} />
+    <QuestionScreen
+      step={1}
+      relative={profile.relative}
+      saveAnswersAction={saveAnswersAction}
+      englishScores={englishScores()}
+    />
   )
 }

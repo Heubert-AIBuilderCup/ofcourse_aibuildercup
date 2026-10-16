@@ -42,6 +42,8 @@ export default defineConfig({
       AI_PROVIDER: 'fake',
       AI_DAILY_CAP_PRO: '1000',
       AI_DAILY_CAP_IMAGE: '1000',
+      // Priya's road on every board: the standing board spec covers its shape until the matched roads get their own spec (intent, open question 2).
+      STUDENT_ROADS_OFF: '1',
     },
   },
 })

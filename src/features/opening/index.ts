@@ -5,6 +5,7 @@
 export { AccountMenu } from './components/AccountMenu'
 export { AttentionScreen } from './components/AttentionScreen'
 export { DoneScreen } from './components/DoneScreen'
+export { ExactScore } from './components/ExactScore'
 export { OnboardingShell } from './components/OnboardingShell'
 export { PictureQuestion } from './components/PictureQuestion'
 export { QuestionScreen } from './components/QuestionScreen'
@@ -19,6 +20,7 @@ export {
   type Effect,
   effectOf,
   optionsFor,
+  type RoadChangeOf,
   type RowKey,
 } from './model/answers-panel'
 export { onboardingClosed, onboardingResumePath, signedInLanding } from './model/landing'

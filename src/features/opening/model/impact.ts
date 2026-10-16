@@ -1,7 +1,9 @@
 // The one line under each question item on screens 1–4: what her answer does in this preview.
 // Ported from the prototype's r5-model.js `impact`, with the copy changed where the prototype
 // promises what this slice does not build or names data the mock catalogue does not hold. Pure:
-// the screens show it the instant she taps, and nothing on the server differs.
+// the screens show it the instant she taps, and nothing on the server differs. The courses' English
+// scores come in as data from the page (the roads' catalogue holds them; the opening loads nothing
+// of the roads).
 
 import {
   CAMPUSES,
@@ -21,6 +23,7 @@ import {
   type Relative,
   type StoredAnswers,
 } from '@/shared/types/student'
+import { ieltsEquivalent, NOT_TAKEN, parseEnglish } from './english'
 import { PERSON } from './onboarding'
 import {
   activeRelative,
@@ -36,7 +39,14 @@ import {
   SUGGEST_ME,
 } from './questions'
 
-type LineFn = (answers: StoredAnswers, relative: Relative | null) => string | null
+/** The overall IELTS score each course in the preview asks for, one per course. */
+export type EnglishScores = readonly number[]
+
+type LineFn = (
+  answers: StoredAnswers,
+  relative: Relative | null,
+  scores: EnglishScores,
+) => string | null
 
 /** Ends a line whose figures come from the mock preview, not from her answers (criterion 3). */
 const MOCK = ' · mock'
@@ -160,16 +170,29 @@ const timingLine: LineFn = (answers) => {
   return `Latest ${latest}: ${INTAKES[latest]} intakes open${note}${MOCK}`
 }
 
-const ENGLISH_MEETING_EVERY_COURSE = ['IELTS 6.5', 'IELTS 7.0', 'IELTS 7.5 or more']
+/** The quick option above the stored scores: read as its floor. */
+const IELTS_OR_MORE = 'IELTS 7.5 or more'
+
+/** How many courses a score meets, by each course's own entry score. */
+function reachText(ielts: number, scores: EnglishScores): string {
+  const meets = scores.filter((score) => ielts >= score).length
+  if (meets === scores.length) return 'meets the English score of every course in this preview'
+  if (meets === 0) return 'below the English score of every course in this preview'
+  return `meets the English score of ${meets} of the ${scores.length} courses in this preview`
+}
 
 /** The English test speaks first; her last qualification alone is only noted. */
-const qualsLine: LineFn = (answers) => {
+const qualsLine: LineFn = (answers, _relative, scores) => {
   const eng = textOf(answers, 'eng')
-  if (eng === 'IELTS 6.0') return `IELTS 6.0: some courses ask for 6.5${MOCK}`
-  if (eng === 'Not taken yet')
-    return 'Not taken yet: routes are marked unconfirmed until you sit it.'
-  if (eng !== undefined && ENGLISH_MEETING_EVERY_COURSE.includes(eng)) {
-    return `${eng}: meets the English requirement of every course in this preview.`
+  if (eng === NOT_TAKEN) return 'Not taken yet: routes are marked unconfirmed until you sit it.'
+  if (eng === IELTS_OR_MORE) return `${eng}: ${reachText(7.5, scores)}${MOCK}`
+  const exact = eng === undefined ? null : parseEnglish(eng)
+  if (eng !== undefined && exact) {
+    const ielts = ieltsEquivalent(exact)
+    const reach = reachText(ielts, scores)
+    return exact.test === 'IELTS'
+      ? `${eng}: ${reach}${MOCK}`
+      : `${eng}: about IELTS ${ielts.toFixed(1)}, which ${reach.replace(/^below/, 'is below')}${MOCK}`
   }
   const qual = textOf(answers, 'qual')
   return qual === undefined ? null : `${qual}: noted for entry requirements.`
@@ -361,19 +384,20 @@ function unsureQuestions(item: Item, answers: StoredAnswers): Question[] {
  * The one line under an item, or null when nothing in it is answered yet. A question she
  * answered "Not sure" (the first one, in the item's order) takes the line for the whole item.
  * `itemId` is an Item.id from SCREENS, or PERSON (step 03's "Who, and where?": her person line);
- * any other id has no line.
+ * any other id has no line. `scores` are the courses' English scores, for the English line.
  */
 export function impactLine(
   itemId: string,
   answers: StoredAnswers,
   relative: Relative | null,
+  scores: EnglishScores,
 ): string | null {
   if (itemId === PERSON) return personLine(relative)
   const item = ITEMS.get(itemId)
   if (!item) return null
   const [unsure] = unsureQuestions(item, answers)
   if (unsure) return notSureLine(unsure.key)
-  return LINES[itemId]?.(answers, relative) ?? null
+  return LINES[itemId]?.(answers, relative, scores) ?? null
 }
 
 export type ImpactKind = 'plain' | 'assume' | 'limit'
@@ -418,8 +442,9 @@ export function impactView(
   itemId: string,
   answers: StoredAnswers,
   relative: Relative | null,
+  scores: EnglishScores,
 ): ImpactView | null {
-  const line = impactLine(itemId, answers, relative)
+  const line = impactLine(itemId, answers, relative, scores)
   if (line === null) return null
   const item = ITEMS.get(itemId)
   const [first, ...others] = item ? unsureQuestions(item, answers) : []

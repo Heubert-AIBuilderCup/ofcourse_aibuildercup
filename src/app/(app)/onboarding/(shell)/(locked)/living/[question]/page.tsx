@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { QuestionScreen, questionBySlug } from '@/features/opening'
 import { saveAnswersAction, saveRelativeAction } from '@/features/opening/actions'
 import { getProfile, markStep } from '@/features/opening/server/profile'
+import { englishScores } from '@/features/roads'
 import { requireStudent } from '@/shared/lib/auth/session'
 
 /**
@@ -26,6 +27,7 @@ export default async function LivingQuestionPage({
       relative={profile.relative}
       saveAnswersAction={saveAnswersAction}
       saveRelativeAction={saveRelativeAction}
+      englishScores={englishScores()}
     />
   )
 }

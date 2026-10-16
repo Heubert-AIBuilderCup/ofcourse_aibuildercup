@@ -16,7 +16,7 @@ import {
   useAnswerSave,
   useRelativeSave,
 } from '../model/answer-save'
-import { impactView } from '../model/impact'
+import { type EnglishScores, impactView } from '../model/impact'
 import { ANSWER_SAVE_FAILED, PERSON_SAVE_FAILED } from '../model/messages'
 import {
   askedQuestions,
@@ -33,6 +33,7 @@ import { useOnboardingAnswers } from '../model/onboarding-answers'
 import { parseAnswer, type Question, questionOf } from '../model/questions'
 import { AnswerCards } from './AnswerCards'
 import { AreaChecks } from './AreaChecks'
+import { ExactScore } from './ExactScore'
 import styles from './facts.module.css'
 import { PersonForm } from './PersonForm'
 import { SaveFailed } from './SaveFailed'
@@ -114,6 +115,7 @@ export function QuestionScreen({
   relative,
   saveAnswersAction,
   saveRelativeAction,
+  englishScores,
 }: {
   step: QuestionStep
   /** As stored when the page rendered. */
@@ -121,6 +123,8 @@ export function QuestionScreen({
   saveAnswersAction: SaveAnswers
   /** Step 03 only: the others never ask for her person. */
   saveRelativeAction?: SaveRelative
+  /** Each course's English score, from the roads' catalogue: step 01's English line counts them. */
+  englishScores: EnglishScores
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -207,7 +211,8 @@ export function QuestionScreen({
   const question = key === PERSON ? null : questionOf(key)
   const multi = question?.control === 'multi'
   const answered = key === PERSON ? person !== null : answers[key] !== undefined
-  const impact = answered || item.opensWithLine ? impactView(item.itemId, answers, person) : null
+  const impact =
+    answered || item.opensWithLine ? impactView(item.itemId, answers, person, englishScores) : null
   const tagStop = impact?.tag?.after.startsWith('.') ? '.' : ''
   const status = key === PERSON ? personSave.statusOf(key) : answerSave.statusOf(key)
   const notes = notesFor(question)
@@ -242,6 +247,14 @@ export function QuestionScreen({
               onAnswer={(raw) => answer(question.key, raw)}
             />
           )}
+          {key === 'eng' ? (
+            <div className="mt-4">
+              <ExactScore
+                value={answers.eng?.state === 'stated' ? answers.eng.value : undefined}
+                onAnswer={(raw) => answer('eng', raw)}
+              />
+            </div>
+          ) : null}
         </div>
 
         {/* Empty, the live region leaves the flow (it stays rendered for screen readers), so it

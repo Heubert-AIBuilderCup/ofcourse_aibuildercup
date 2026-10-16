@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it, mock } from 'bun:test'
 // The road's data straight from its model: the test needs Priya's road, not the board.
 import { getRoad } from '@/features/road/model/road-data'
 import type { Relative, StoredAnswers } from '@/shared/types/student'
@@ -180,8 +180,95 @@ describe('effectOf', () => {
     expect(effectOf(road, 'eng', 'IELTS 7.0', {})).toEqual(NONE)
   })
 
+  it('reads the course’s own score: a score below it breaks the condition, and the line never says "Not met" (criterion 102)', () => {
+    // A built road whose course asks 7.0 and whose saved answer already falls short of it.
+    const asks7 = {
+      ...road,
+      badges: {
+        ...road.badges,
+        ielts: { ...road.badges.ielts, value: 'Not met: IELTS 7.0 overall' },
+      },
+      tiles: road.tiles.map((t) => (t.id === CYBER ? { ...t, ielts: 7 } : t)),
+    }
+    const breaks = {
+      lines: ['Cyber Security’s entry condition is no longer met: it asks for IELTS 7.0 overall.'],
+      prev: { [CYBER]: 'Needs IELTS 7.0 overall' },
+    }
+    expect(effectOf(asks7, 'eng', 'PTE 50', {})).toEqual(breaks)
+    expect(effectOf(asks7, 'eng', 'Not taken yet', {})).toEqual(breaks)
+    expect(effectOf(asks7, 'eng', 'IELTS 7.0', {})).toEqual(NONE)
+  })
+
+  it('says the condition stays unmet when her saved answer already fell short, never "no longer met"', () => {
+    const asks7 = {
+      ...road,
+      tiles: road.tiles.map((t) => (t.id === CYBER ? { ...t, ielts: 7 } : t)),
+    }
+    const savedShort: StoredAnswers = { eng: { value: 'PTE 50', state: 'stated' } }
+    expect(effectOf(asks7, 'eng', 'PTE 52', savedShort)).toEqual({
+      lines: ['Cyber Security’s entry condition is still not met: it asks for IELTS 7.0 overall.'],
+      prev: { [CYBER]: 'Needs IELTS 7.0 overall' },
+    })
+    const notTaken: StoredAnswers = { eng: { value: 'Not taken yet', state: 'stated' } }
+    expect(effectOf(road, 'eng', 'Not taken yet', notTaken).lines).toEqual([
+      'Cyber Security’s entry condition is still not met: it asks for IELTS 6.5 by March.',
+    ])
+    // A saved answer that met it: the pick breaks it.
+    const savedMet: StoredAnswers = { eng: { value: 'IELTS 7.0', state: 'stated' } }
+    expect(effectOf(asks7, 'eng', 'PTE 52', savedMet).lines).toEqual([
+      'Cyber Security’s entry condition is no longer met: it asks for IELTS 7.0 overall.',
+    ])
+  })
+
   it('any other answer changes nothing on the roadmap', () => {
     expect(effectOf(road, 'climate', 'Warm', {})).toEqual(NONE)
     expect(effectOf(road, 'where', 'India', {})).toEqual(NONE)
+  })
+})
+
+describe('effectOf, re-matching her road', () => {
+  const answers: StoredAnswers = { field: { value: 'Cyber security', state: 'stated' } }
+  /** The board's rule, stubbed: a field of Data science moves her road; nothing else does. */
+  const rematch = mock((_before: StoredAnswers, after: StoredAnswers) =>
+    after.field?.value === 'Data science'
+      ? 'Your road changes to Sydney · Data Science · 186.'
+      : null,
+  )
+
+  it('asks the board with her saved answers, and them with the pick stored as onboarding stores it', () => {
+    effectOf(road, 'field', 'Data science', answers, rematch)
+    expect(rematch).toHaveBeenLastCalledWith(answers, {
+      field: { value: 'Data science', state: 'stated' },
+    })
+  })
+
+  it('puts the road a change moves her to first', () => {
+    expect(effectOf(road, 'field', 'Data science', answers, rematch)).toEqual({
+      lines: ['Your road changes to Sydney · Data Science · 186.'],
+      prev: {},
+    })
+  })
+
+  it('a change that moves neither her road nor a tile says her road stays', () => {
+    expect(effectOf(road, 'climate', 'Warm', answers, rematch)).toEqual({
+      lines: ['Nothing on your road moves.'],
+      prev: {},
+    })
+  })
+
+  it('a budget change keeps its own lines and adds no road line', () => {
+    for (const value of [24, 30, 42, 'Not sure']) {
+      expect(effectOf(road, 'amount', value, answers, rematch)).toEqual(
+        effectOf(road, 'amount', value, answers),
+      )
+    }
+    expect(effectOf(road, 'eng', 'Not taken yet', answers, rematch)).toEqual(
+      effectOf(road, 'eng', 'Not taken yet', answers),
+    )
+  })
+
+  it('without rematch, a change of road says nothing of it (the switch is off)', () => {
+    expect(effectOf(road, 'field', 'Data science', answers)).toEqual(NONE)
+    expect(effectOf(road, 'climate', 'Warm', answers)).toEqual(NONE)
   })
 })
