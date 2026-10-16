@@ -22,7 +22,9 @@ OfCourse helps international students decide where and what to study abroad, sta
 - [Deploy](#deploy)
 - [Tests](#tests)
 - [Decision register](#decision-register)
+- [How it was built](#how-it-was-built)
 - [Third-party code](#third-party-code)
+- [Licence](#licence)
 
 ## Architecture
 
@@ -171,6 +173,10 @@ Database tests can also run by path: `DB_TESTS=1 DATABASE_URL=… bun test <file
 
 Every product and technical decision is recorded in [docs/decisions/](docs/decisions/README.md), ADR-001 to ADR-132, one file per decision, superseded and never deleted. Some ADRs describe work that has not been built yet; the code is the record of what has. The ones behind this README: ADR-112 (code decides what can be checked), ADR-115 (the models on `global`), ADR-119 (third-party code), ADR-120 (hosting), ADR-129 (no prompts for the editor), ADR-130 (a design language per page) and ADR-131 (a public page per post).
 
+## How it was built
+
+OfCourse was started on 5 Oct 2026 from Heubert's Next.js starter: Google sign-in, roles, a users admin and the Drizzle setup are that scaffolding; everything else was built for the AI Builder Cup. The history shows each step from that first commit.
+
 ## Third-party code
 
 Outside code enters as a dependency or as an idea written in our own code, never as a copied application (ADR-119).
@@ -237,5 +243,9 @@ Not part of the running app: `@biomejs/biome` (MIT OR Apache-2.0), `@happy-dom/g
 
 - **Barlow and Barlow Condensed** (SIL Open Font License 1.1, copyright 2017 The Barlow Project Authors): the slide fonts in `src/features/content/assets/fonts/` with the licence beside them in [`OFL.txt`](src/features/content/assets/fonts/OFL.txt), and the web fonts of the Industry design system, self-hosted through `next/font/google`.
 - **Noto Sans Devanagari and Noto Sans Thai**, Regular and Bold (SIL Open Font License 1.1, copyright 2022 The Noto Project Authors): the slide fonts for Nepali, Hindi and Thai text, in `src/features/content/assets/fonts/`, unmodified from the official release builds (notofonts/devanagari `NotoSansDevanagari-v2.007`, notofonts/thai `NotoSansThai-v2.002`, the `full/ttf` files), with their licences beside them in [`OFL-NotoSansDevanagari.txt`](src/features/content/assets/fonts/OFL-NotoSansDevanagari.txt) and [`OFL-NotoSansThai.txt`](src/features/content/assets/fonts/OFL-NotoSansThai.txt).
-- **Art library images** (`src/features/content/assets/library/open-book.png`, `new-head.png`): taken from the team's admin design handoff files. Their original source and licence are not recorded in this repository.
-- **The duck** (`public/brand/duck.png`): from the team's student design assets. **The splash video** (`public/brand/quack.mp4`): its source is not recorded in this repository. Neither carries a recorded licence.
+- **Art library images** (`src/features/content/assets/library/open-book.png`, `new-head.png`): the team's own work, from its admin design files, under this repository's licence.
+- **The duck** (`public/brand/duck.png`) and **the splash video** (`public/brand/quack.mp4`): the team's own work, from its student design assets, under this repository's licence.
+
+## Licence
+
+Copyright 2026 Heubert. All rights reserved: see [LICENSE](LICENSE). The third-party code, fonts and assets listed above stay under their own licences.

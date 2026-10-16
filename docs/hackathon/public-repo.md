@@ -4,6 +4,14 @@ _Checklist, 11 Oct 2026, for Nikhil and Jenish. Delivers SR4 of docs/submission-
 
 Today's remote is the private Bitbucket repository `heubert/decision-studio-ofcourse`; it stays the working remote. The public repository is a new one on GitHub, made from a fresh clone of the merged `main`.
 
+**Decided 16 Oct 2026 (Nikhil), where this differs from the plan below:**
+- **The remote:** GitHub becomes `origin` and the working remote; Bitbucket stays as a backup remote.
+- **What goes up:** `main` (after the release merge of `dev`) and `dev`, with the full history (29 commits, all from 5 Oct 2026). C3's single import commit is not used.
+- **The history scan:** the patterns of D2 were run over every commit of `dev`. There are no hits beyond the known false positives: the local `app:app` database URLs, and Secret Manager names in deploy.md.
+- **A1:** the art library images, the duck and the splash video are the team's own work (README, "Fonts and images").
+- **A2:** a proprietary `LICENSE`, "Copyright 2026 Heubert. All rights reserved."
+- **A3:** disclose only: the README's "How it was built" names the starter's scaffolding.
+
 ## A. Decisions to settle first (Nikhil; the first one blocks the push)
 
 ### A1. The three assets with no recorded source or licence — blocking
