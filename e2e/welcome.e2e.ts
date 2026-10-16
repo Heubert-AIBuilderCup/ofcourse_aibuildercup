@@ -1,16 +1,23 @@
 import { expect, test } from '@playwright/test'
 import { freshEmail } from './helpers/accounts'
-import { deleteUsers } from './helpers/db'
+import { deleteUsers, setRole } from './helpers/db'
 import { DEV_LOGIN_HEADER, devLogin } from './helpers/login'
+import { STUDENT_APP_URL } from './helpers/student'
 
-// The sign-in page and the gate: signed out, the app sends visitors to / and remembers the page;
-// signed in, / moves on to the dashboard.
+// The sign-in pages and the gate: signed out, the student app sends visitors to / and the admin
+// to its own sign-in page, each remembering the page; signed in, / moves a student on to the app
+// and an admin on to the admin.
 
-test('signed out, the admin goes to the sign-in page, which keeps the page asked for', async ({
+test('signed out, the admin goes to the admin sign-in page', async ({ page }) => {
+  await page.goto('/admin')
+  await expect(page).toHaveURL(/\/admin\/sign-in$/)
+})
+
+test('signed out, an admin page goes to the admin sign-in page, which keeps the page asked for', async ({
   page,
 }) => {
-  await page.goto('/admin')
-  await expect(page).toHaveURL(/\/\?next=%2Fadmin$/)
+  await page.goto('/admin/users')
+  await expect(page).toHaveURL(/\/admin\/sign-in\?next=%2Fadmin%2Fusers$/)
 })
 
 test('a failed Google sign-in says so on the sign-in page', async ({ page }) => {
@@ -29,13 +36,24 @@ test('the dev login refuses a request without the secret', async ({ request }) =
   expect(wrong.status()).toBe(404)
 })
 
-test('signed in, / moves on to the dashboard, which greets the user', async ({ page }) => {
+test('signed in, / moves a student on to the student app', async ({ page }) => {
   const email = freshEmail('gate')
   try {
-    await devLogin(page, email, 'E2E Gate')
+    await devLogin(page, email, 'E2E Gate', { surface: 'student' })
     await page.goto('/')
-    await expect(page).toHaveURL(/\/dashboard$/)
-    await expect(page.getByRole('heading', { level: 1, name: 'Hello, E2E Gate' })).toBeVisible()
+    await expect(page).toHaveURL(STUDENT_APP_URL)
+  } finally {
+    await deleteUsers([email])
+  }
+})
+
+test('signed in, / moves an admin on to the admin', async ({ page }) => {
+  const email = freshEmail('gate-admin')
+  try {
+    await devLogin(page, email, 'E2E Gate Admin')
+    await setRole(email, 'admin')
+    await page.goto('/')
+    await expect(page).toHaveURL(/\/admin\/users$/)
   } finally {
     await deleteUsers([email])
   }

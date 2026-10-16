@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test'
-import { formatWhen } from './site'
+import { formatWhen, SITE_NAME } from './site'
+
+describe('SITE_NAME', () => {
+  it('is OfCourse', () => {
+    expect(SITE_NAME).toBe('OfCourse')
+  })
+})
 
 describe('formatWhen', () => {
   it('formats in the app time zone, the same on server and browser', () => {

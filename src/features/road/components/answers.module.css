@@ -1,0 +1,29 @@
+/*
+ * Your answers over the board, for what Tailwind cannot say: a row with a change not saved marked
+ * by a bar on its left, the option cards sizing their own columns, the bar and the ask lifted off
+ * the rows they sit over, and the phone's sheet at the lower 62% (no scrim, so the map above stays
+ * the preview). From the reference build's road.css (rb-ans-*).
+ */
+
+.pending {
+  box-shadow: inset 0.1875rem 0 0 var(--accent-700);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.5rem;
+}
+
+.bar {
+  box-shadow: 0 -0.5rem 1rem color-mix(in oklch, var(--foreground) 6%, transparent);
+}
+
+.ask {
+  border-top: 0.125rem solid var(--foreground);
+  box-shadow: 0 -0.5rem 1.5rem color-mix(in oklch, var(--foreground) 12%, transparent);
+}
+
+.sheet {
+  height: 62dvh;
+}

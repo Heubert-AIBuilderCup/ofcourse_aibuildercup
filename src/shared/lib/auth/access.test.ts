@@ -4,14 +4,24 @@ import {
   type AccountAction,
   accountActionError,
   canActOn,
+  canEdit,
+  canManageModels,
   canManageRoles,
+  canReview,
+  canSeeBoard,
   canUseAdmin,
+  canUseStudentApp,
+  contentRolesError,
   INVITE_ROLES,
   isRole,
+  isStudent,
+  isSurface,
   ROLES,
   resolveSignupRole,
   roleChangeError,
   settleFirstAccountRole,
+  surfaceSessionError,
+  surfaceSignup,
 } from './access'
 
 describe('ROLES and INVITE_ROLES', () => {
@@ -68,6 +78,16 @@ describe('canManageRoles', () => {
     for (const role of ['admin', 'user', '', null, undefined]) {
       expect(canManageRoles(role)).toBe(false)
     }
+  })
+})
+
+describe('canManageModels', () => {
+  it('is for a superadmin only; an admin may still view the admin pages', () => {
+    expect(canManageModels('superadmin')).toBe(true)
+    for (const role of ['admin', 'user', '', null, undefined]) {
+      expect(canManageModels(role)).toBe(false)
+    }
+    expect(canUseAdmin('admin')).toBe(true)
   })
 })
 
@@ -147,6 +167,118 @@ describe('settleFirstAccountRole', () => {
       expect(
         settleFirstAccountRole({ ...first, createdRole, firstSuperadminId: 'earlier' }),
       ).toBeNull()
+    }
+  })
+})
+
+describe('surfaceSignup', () => {
+  it('makes a student-page sign-up a user, even the first account ever', () => {
+    expect(surfaceSignup({ surface: 'student', firstAccount: true, invitedRole: null })).toEqual({
+      role: 'user',
+    })
+    expect(surfaceSignup({ surface: 'student', firstAccount: false, invitedRole: null })).toEqual({
+      role: 'user',
+    })
+  })
+
+  it('refuses a student-page sign-up for an address with a role waiting', () => {
+    expect(
+      surfaceSignup({ surface: 'student', firstAccount: false, invitedRole: 'admin' }),
+    ).toEqual({ refuse: 'STUDENT_PAGE_ONLY' })
+  })
+
+  it('makes the first admin-page sign-up ever a superadmin', () => {
+    expect(surfaceSignup({ surface: 'admin', firstAccount: true, invitedRole: null })).toEqual({
+      role: 'superadmin',
+    })
+  })
+
+  it('gives an admin-page sign-up the role waiting for its address', () => {
+    expect(surfaceSignup({ surface: 'admin', firstAccount: false, invitedRole: 'admin' })).toEqual({
+      role: 'admin',
+    })
+    expect(
+      surfaceSignup({ surface: 'admin', firstAccount: false, invitedRole: 'superadmin' }),
+    ).toEqual({ role: 'superadmin' })
+  })
+
+  it('refuses an admin-page sign-up with no role waiting', () => {
+    expect(surfaceSignup({ surface: 'admin', firstAccount: false, invitedRole: null })).toEqual({
+      refuse: 'NOT_ADMIN',
+    })
+  })
+
+  it('makes an admin-page sign-up with only a content capability waiting a user (ADR-108)', () => {
+    expect(
+      surfaceSignup({
+        surface: 'admin',
+        firstAccount: false,
+        invitedRole: null,
+        invitedCapability: true,
+      }),
+    ).toEqual({ role: 'user' })
+  })
+
+  it('refuses a student-page sign-up for an address with a content capability waiting', () => {
+    expect(
+      surfaceSignup({
+        surface: 'student',
+        firstAccount: false,
+        invitedRole: null,
+        invitedCapability: true,
+      }),
+    ).toEqual({ refuse: 'STUDENT_PAGE_ONLY' })
+  })
+})
+
+describe('surfaceSessionError', () => {
+  it('lets a user open a session on the student page, and refuses an admin or superadmin', () => {
+    expect(surfaceSessionError('student', 'user')).toBeNull()
+    expect(surfaceSessionError('student', 'admin')).toBe('STUDENT_PAGE_ONLY')
+    expect(surfaceSessionError('student', 'superadmin')).toBe('STUDENT_PAGE_ONLY')
+  })
+
+  it('refuses a missing or unknown role on the student page', () => {
+    for (const role of [null, undefined, '', 'student', 'internal']) {
+      expect(surfaceSessionError('student', role)).toBe('STUDENT_PAGE_ONLY')
+    }
+  })
+
+  it('lets an admin or superadmin open a session on the admin page, and refuses everyone else', () => {
+    expect(surfaceSessionError('admin', 'admin')).toBeNull()
+    expect(surfaceSessionError('admin', 'superadmin')).toBeNull()
+    expect(surfaceSessionError('admin', 'user')).toBe('NOT_ADMIN')
+    expect(surfaceSessionError('admin', undefined)).toBe('NOT_ADMIN')
+    expect(surfaceSessionError('admin', null)).toBe('NOT_ADMIN')
+  })
+
+  it('sends a user with a content capability to the admin page, never the student page (ADR-108)', () => {
+    for (const caps of [{ editor: true }, { reviewer: true }, { editor: true, reviewer: true }]) {
+      expect(surfaceSessionError('student', 'user', caps)).toBe('STUDENT_PAGE_ONLY')
+      expect(surfaceSessionError('admin', 'user', caps)).toBeNull()
+    }
+    expect(surfaceSessionError('student', 'user', { editor: false, reviewer: false })).toBeNull()
+    expect(surfaceSessionError('admin', 'user', { editor: false, reviewer: false })).toBe(
+      'NOT_ADMIN',
+    )
+  })
+})
+
+describe('canUseStudentApp', () => {
+  it('is for a user only', () => {
+    expect(canUseStudentApp('user')).toBe(true)
+    for (const role of ['admin', 'superadmin', '', null, undefined]) {
+      expect(canUseStudentApp(role)).toBe(false)
+    }
+  })
+})
+
+describe('isSurface', () => {
+  it('accepts the two surfaces and nothing else', () => {
+    expect(isSurface('student')).toBe(true)
+    expect(isSurface('admin')).toBe(true)
+    for (const value of ['Admin', ' admin', '', null, undefined, 1, {}, ['admin']]) {
+      expect(isSurface(value)).toBe(false)
     }
   })
 })
@@ -421,5 +553,46 @@ describe('accountActionError', () => {
         ACCESS_ERRORS.hierarchy,
       )
     })
+  })
+})
+
+describe('content capabilities', () => {
+  const s = (role: string, editor = false, reviewer = false) => ({ role, editor, reviewer })
+  it('lets editors and superadmins edit, nobody else', () => {
+    expect([s('user', true), s('admin', true), s('superadmin')].map(canEdit)).toEqual([
+      true,
+      true,
+      true,
+    ])
+    expect([s('user'), s('user', false, true), s('admin'), { role: null }].map(canEdit)).toEqual([
+      false,
+      false,
+      false,
+      false,
+    ])
+  })
+  it('lets reviewers and superadmins review, nobody else', () => {
+    expect(
+      [s('user', false, true), s('admin', false, true), s('superadmin')].map(canReview),
+    ).toEqual([true, true, true])
+    expect([s('user'), s('user', true), s('admin')].map(canReview)).toEqual([false, false, false])
+  })
+  it('shows the board to every staff account, never to a student', () => {
+    expect(
+      [s('user', true), s('user', false, true), s('admin'), s('superadmin')].map(canSeeBoard),
+    ).toEqual([true, true, true, true])
+    expect([s('user'), { role: undefined }].map(canSeeBoard)).toEqual([false, false])
+  })
+  it('keeps the users admin to admins and superadmins', () => {
+    expect(canUseAdmin(s('user', true, true).role)).toBe(false)
+  })
+  it('treats only a user with no capability as a student', () => {
+    expect(isStudent(s('user'))).toBe(true)
+    for (const x of [s('user', true), s('user', false, true), s('admin'), s('superadmin')])
+      expect(isStudent(x)).toBe(false)
+  })
+  it('lets only a superadmin change capabilities', () => {
+    expect(contentRolesError({ actorRole: 'admin' })).toBe(ACCESS_ERRORS.rolesSuperadminOnly)
+    expect(contentRolesError({ actorRole: 'superadmin' })).toBeNull()
   })
 })

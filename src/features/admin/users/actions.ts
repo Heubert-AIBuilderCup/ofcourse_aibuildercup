@@ -8,8 +8,10 @@ import type { ActionResult } from '@/shared/types/action-result'
 import {
   type Actor,
   addRoleInviteAs,
+  type InviteApplied,
   reactivateAs,
   removeRoleInviteAs,
+  setCapabilitiesAs,
   setRoleAs,
   signOutEverywhereAs,
   suspendAs,
@@ -27,6 +29,7 @@ const INVALID_EMAIL = 'Enter a valid email address.'
 const userId = z.string().min(1).max(64)
 const role = z.string().max(32)
 const email = z.string().max(1_000)
+const capabilities = z.object({ editor: z.boolean(), reviewer: z.boolean() })
 // A reason of any length is cut to well past the 200 the command allows, so it still refuses it;
 // anything that is not text reads as no reason.
 const reason = z
@@ -63,18 +66,43 @@ export async function setRole(target: unknown, newRole: unknown): Promise<Action
   })
 }
 
-/** Give an address a role before its first sign-in, or an existing account the role at once. */
+/** Give or remove editor and reviewer (superadmins only); the account's sessions end at once. */
+export async function setCapabilities(
+  target: unknown,
+  editor: unknown,
+  reviewer: unknown,
+): Promise<ActionResult> {
+  return asActor(async (actor) => {
+    const id = userId.safeParse(target)
+    if (!id.success) return fail(UNKNOWN)
+    const c = capabilities.safeParse({ editor, reviewer })
+    if (!c.success) return fail(ACCESS_ERRORS.invalidRole)
+    const result = await setCapabilitiesAs(actor, id.data, c.data)
+    if (result.ok) accountChanged(id.data)
+    return result
+  })
+}
+
+/**
+ * Give an address a role, the capabilities or both before its first sign-in, or an existing
+ * account them at once. `inviteRole` is null for no admin role. Removing a capability an
+ * account holds answers `confirm` until `confirmed` is true.
+ */
 export async function addRoleInvite(
   address: unknown,
   inviteRole: unknown,
-): Promise<ActionResult<{ applied: 'invite' | 'account' }>> {
+  caps: unknown,
+  confirmed?: unknown,
+): Promise<ActionResult<InviteApplied>> {
   return asActor(async (actor) => {
     const e = email.safeParse(address)
     if (!e.success) return fail(INVALID_EMAIL)
-    const r = role.safeParse(inviteRole)
+    const r = role.nullable().safeParse(inviteRole)
     if (!r.success) return fail(ACCESS_ERRORS.invalidRole)
-    const result = await addRoleInviteAs(actor, e.data, r.data)
-    if (result.ok) {
+    const c = capabilities.safeParse(caps)
+    if (!c.success) return fail(ACCESS_ERRORS.invalidRole)
+    const result = await addRoleInviteAs(actor, e.data, r.data, c.data, confirmed === true)
+    if (result.ok && result.applied !== 'confirm') {
       // An existing account's role changed: its page (under this layout) too.
       revalidatePath('/admin/users', result.applied === 'account' ? 'layout' : undefined)
     }

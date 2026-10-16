@@ -1,0 +1,79 @@
+{
+  "palette": [
+    {
+      "name": "blue",
+      "hex": "#1877F2",
+      "role": "The brand blue: large fills, illustrations, logos. Too light for text of either ink at 4.5:1."
+    },
+    {
+      "name": "deep blue",
+      "hex": "#1260D8",
+      "role": "The brand blue darkened until white text on it reads at 4.5:1: backgrounds and text on paper."
+    },
+    {
+      "name": "yellow",
+      "hex": "#F5C542",
+      "role": "The pop accent: highlights and blocks, always with ink on it."
+    },
+    { "name": "paper", "hex": "#F4EFE6", "role": "The warm page colour." },
+    { "name": "ink", "hex": "#16191B", "role": "Text and the darkest shapes." },
+    { "name": "white", "hex": "#FFFFFF", "role": "Clean background and text on deep blue." },
+    { "name": "light blue", "hex": "#E3EDFD", "role": "Soft blocks and washes." },
+    { "name": "stone", "hex": "#5F5D58", "role": "Quiet secondary text." },
+    {
+      "name": "dark stone",
+      "hex": "#52504B",
+      "role": "Quiet secondary text on yellow, where stone falls short of 4.5:1."
+    }
+  ],
+  "presets": {
+    "pop": {
+      "base": { "bg": "white", "ink": "ink", "highlight": "yellow", "muted": "stone" },
+      "block": { "bg": "yellow", "ink": "ink", "highlight": "white", "muted": "dark stone" },
+      "deep": {
+        "bg": "deep blue",
+        "ink": "white",
+        "highlight": "yellow",
+        "highlightInk": "ink",
+        "muted": "light blue"
+      }
+    },
+    "subdued": {
+      "base": { "bg": "paper", "ink": "ink", "highlight": "light blue", "muted": "stone" },
+      "block": { "bg": "light blue", "ink": "ink", "highlight": "paper", "muted": "stone" },
+      "deep": { "bg": "paper", "ink": "deep blue", "highlight": "light blue", "muted": "stone" }
+    }
+  },
+  "tint": {
+    "pop": { "shadow": "deep blue", "light": "yellow" },
+    "subdued": { "wash": "paper", "strength": 0.35 }
+  },
+  "art": {
+    "style": "Flat, bold editorial illustration with simple shapes, generous space and one clear subject.",
+    "dos": [
+      "Use the palette colours only.",
+      "Keep one clear subject and leave room for text.",
+      "Show students in everyday study and campus moments."
+    ],
+    "donts": [
+      "Do not add text, letters or numbers to the image.",
+      "Do not use gradients, glow or glossy effects.",
+      "Do not copy a real person's likeness."
+    ],
+    "neverShow": [
+      "university logos or crests",
+      "identifiable real people",
+      "exam papers with legible questions",
+      "alcohol or drugs"
+    ]
+  },
+  "voice": {
+    "rules": [
+      "Be clear and confident.",
+      "Speak to every student, never down to them.",
+      "Say one thing per sentence.",
+      "Use plain words, not jargon or marketing."
+    ],
+    "readingLevel": "Plain English that a 16-year-old reads without a dictionary."
+  }
+}

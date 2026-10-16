@@ -1,0 +1,734 @@
+/* ── Your road: the board after onboarding ──
+   One road from Point A to Point B (PR), drawn as isometric tiles on the brand field (light: #0062c4, dark: steel).
+   Desktop ≥ 1024: map left, a 23.75rem card column right, a hairline between. Controls live in the header and on the map.
+   Stacked < 1024 (tablet and phone): header, map, card, then the controls bar. The card scrolls inside its own height.
+   Tiles carry their state by fill and outline, never by colour alone: lit (visited), dim (not visited), dark (unexplored, counted). */
+.rd{position:relative;container-type:inline-size;display:grid;grid-template-rows:auto minmax(0,1fr) auto;height:100vh;min-height:36rem;max-width:1920px;margin-inline:auto;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);overflow:hidden}
+
+/* header */
+.rd-head{position:relative;z-index:6;display:flex;align-items:center;gap:1rem;min-height:4rem;padding:0 1.5rem;border-bottom:1px solid var(--color-divider);background:var(--color-bg)}
+.rd-brand{display:flex;align-items:center;gap:0.5rem;font-family:var(--font-heading);font-weight:600;font-size:1.375rem;letter-spacing:.01em}
+.rd-brand-duck{width:1.75rem;height:1.75rem;object-fit:contain}
+.rd-tag{display:inline-flex;align-items:center;min-height:1.75rem;padding:0 0.625rem;border:1px dashed color-mix(in srgb,var(--color-text) 40%,transparent);font-size:0.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--color-neutral-700);white-space:nowrap}
+.rd-head-actions{display:flex;gap:0.5rem;margin-left:auto}
+.rd-hbtn{display:inline-flex;align-items:center;gap:0.5rem;min-height:2.75rem}
+.rd-head .hdr{position:relative;top:auto;right:auto;z-index:20}
+.rd-head .hdr .hdr-btn{color:var(--color-text);border-color:var(--color-divider)}
+.rd-head .hdr .hdr-btn[aria-expanded="true"]{background:var(--color-accent-100);border-color:var(--color-accent-700);color:var(--color-accent-800)}
+
+.rd-body{display:grid;grid-template-columns:minmax(0,1fr) 23.75rem;min-height:0}
+
+/* the map: a field of grid paper, the road drawn in svg, hit areas and labels in html over it */
+.rd-map{position:relative;overflow:hidden;min-height:0;--ink:#ffffff;--fld:var(--color-accent-600)}
+.rd[data-theme="dark"] .rd-map{--fld:#1d2d3d}
+.rd[data-theme="dark"] .rd-map.grid-paper{background-color:#1d2d3d}
+.rd-svg{position:absolute;inset:0;display:block;overflow:visible}
+
+/* roads, under the tiles */
+.rd-svg path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.rd-road.is-lit{stroke:var(--ink)}
+.rd-road.is-next{stroke:color-mix(in srgb,var(--ink) 42%,var(--fld));stroke-dasharray:0.1 0}
+.rd-road.is-fog{stroke:color-mix(in srgb,#000 30%,var(--fld))}
+.rd-road.is-fog.is-fork{stroke:color-mix(in srgb,#000 22%,var(--fld))}
+.rd-lvl{stroke:color-mix(in srgb,var(--ink) 55%,var(--fld));stroke-dasharray:2 6}
+.rd-lvl.is-open{stroke:color-mix(in srgb,var(--ink) 80%,var(--fld));stroke-dasharray:none}
+
+/* tiles: three faces each; a stack draws three slabs */
+.rd-tile polygon{stroke-linejoin:round;stroke-width:1}
+.rd-tile{--top:#fff;--left:#fff;--right:#fff;--edge:#000;transition:transform .2s var(--ease-out)}
+.rd-tile .rd-face-t{fill:var(--top);stroke:var(--edge)}
+.rd-tile .rd-face-l{fill:var(--left);stroke:var(--edge)}
+.rd-tile .rd-face-r{fill:var(--right);stroke:var(--edge)}
+/* visited · lit */
+.rd-tile.s-lit,.rd-tile.s-here{--top:var(--ink);--left:color-mix(in srgb,var(--ink) 66%,var(--fld));--right:color-mix(in srgb,var(--ink) 44%,var(--fld));--edge:color-mix(in srgb,#000 30%,var(--fld))}
+/* you are here: the lit tile with a second outline ring (drawn by the hit button) */
+.rd-tile.s-here{--edge:color-mix(in srgb,#000 45%,var(--fld))}
+/* not visited · dim */
+.rd-tile.s-alt,.rd-tile.s-next{--top:color-mix(in srgb,var(--ink) 30%,var(--fld));--left:color-mix(in srgb,var(--ink) 18%,var(--fld));--right:color-mix(in srgb,var(--ink) 10%,var(--fld));--edge:color-mix(in srgb,var(--ink) 70%,var(--fld))}
+/* unexplored · dark, counted by the fog plate */
+.rd-tile.s-fog{--top:color-mix(in srgb,#000 26%,var(--fld));--left:color-mix(in srgb,#000 40%,var(--fld));--right:color-mix(in srgb,#000 50%,var(--fld));--edge:color-mix(in srgb,#000 55%,var(--fld))}
+.rd-tile.k-stack.s-alt .rd-face-t{stroke-dasharray:none}
+.rd-tile.is-lift.s-alt,.rd-tile.is-sel.s-alt{--top:color-mix(in srgb,var(--ink) 46%,var(--fld))}
+
+/* hit areas: invisible buttons over each tile, 44px or more; the selected tile shows a ring */
+.rd-hit{position:absolute;z-index:2;padding:0;border:0;background:transparent;cursor:pointer;clip-path:polygon(50% 0,100% 40%,100% 60%,50% 100%,0 60%,0 40%)}
+.rd-hit:focus-visible{outline:none;clip-path:none;box-shadow:0 0 0 2px var(--fld),0 0 0 4px var(--ink)}
+.rd-hit.is-sel{clip-path:none;box-shadow:0 0 0 2px var(--ink);outline:2px dashed var(--fld);outline-offset:-4px}
+
+/* labels */
+.rd-lab{position:absolute;z-index:3;display:flex;flex-direction:column;align-items:center;gap:0.125rem;max-width:13rem;padding:0.25rem 0.5rem;background:color-mix(in srgb,var(--fld) 84%,transparent);color:var(--ink);text-align:center;pointer-events:none;transform:translate(-50%,0);transition:top .2s var(--ease-out)}
+.rd-lab.is-above{transform:translate(-50%,-100%)}
+.rd-lab.is-left{transform:translate(-100%,-50%);align-items:flex-end;text-align:right}
+.rd-lab.is-right{transform:translate(0,-50%);align-items:flex-start;text-align:left}
+.rd-lab-k{font-size:0.6875rem;letter-spacing:.1em;text-transform:uppercase;opacity:.86}
+.rd-lab-name{font-family:var(--font-heading);font-weight:600;font-size:1.0625rem;line-height:1.15}
+.rd-lab-sub{font-size:0.8125rem;line-height:1.3;opacity:.9}
+.rd-lab.s-fog{background:color-mix(in srgb,#000 30%,var(--fld));opacity:.92}
+.rd-lab.s-fog .rd-lab-name{font-weight:500;font-size:0.9375rem}
+.rd-lab.k-step .rd-lab-name{font-size:0.9375rem}
+/* the current tile: a full label on a white plate */
+.rd-lab.is-full{max-width:17rem;gap:0.375rem;padding:0.625rem 0.75rem;background:#fff;color:#1d1f20;box-shadow:0 0.25rem 1rem rgba(0,0,0,.18);text-align:left;align-items:flex-start}
+.rd-lab.is-full .rd-lab-name{font-size:1.25rem}
+.rd-lab.is-full .rd-lab-sub{color:#5d5d60;opacity:1}
+.rd-lab.is-here:not(.is-full){background:#fff;color:#1d1f20}
+.rd-lab-badges{display:flex;flex-wrap:wrap;gap:0.25rem}
+.rd-badge{display:inline-flex;align-items:center;gap:0.25rem;min-height:1.375rem;padding:0 0.375rem;border:1px solid rgba(29,31,32,.28);font-size:0.75rem;white-space:nowrap}
+.rd-badge-k{font-weight:700}
+.rd-badge-k::after{content:" ·"}
+.rd-badge-v{font-weight:400}
+.rd-badge-more{font-weight:700}
+.rd-lab-why{font-size:0.8125rem;line-height:1.35;opacity:.92}
+.rd-lab.is-full .rd-lab-why{padding-top:0.375rem;border-top:1px solid rgba(29,31,32,.16);color:#1d1f20;opacity:1}
+/* hover verb pill (desktop) */
+.rd-verb{margin-top:0.25rem;padding:0.25rem 0.5rem;background:#fff;color:#00509f;font-weight:600;font-size:0.8125rem;white-space:nowrap}
+.rd-lab.is-full .rd-verb{background:#00509f;color:#fff}
+
+/* the duck stands on the current tile and bobs */
+.rd-duck{position:absolute;z-index:4;pointer-events:none;transition:left .6s cubic-bezier(.3,.7,.3,1),top .6s cubic-bezier(.3,.7,.3,1)}
+.rd-duck img{display:block;width:100%;height:auto;transform:scaleX(-1);filter:drop-shadow(0 0.25rem 0.25rem rgba(0,0,0,.28))}
+.motion-on .rd-duck img{animation:rd-bob 2.4s ease-in-out infinite}
+@keyframes rd-bob{0%,100%{transform:scaleX(-1) translateY(0)}50%{transform:scaleX(-1) translateY(-3px)}}
+
+/* fog plate: what lies ahead, counted */
+.rd-fog{position:absolute;z-index:3;display:flex;flex-direction:column;align-items:flex-start;gap:0.375rem;padding:0.5rem 0.625rem;background:color-mix(in srgb,#000 38%,var(--fld));color:var(--ink);transform:translate(-50%,0)}
+.rd-fog-count{font-family:var(--font-heading);font-weight:600;font-size:1rem}
+.rd-fog-btn{white-space:nowrap;display:inline-flex;align-items:center;gap:0.5rem;min-height:2.75rem;padding:0 0.75rem 0 0.375rem;border:1px solid rgba(255,255,255,.5);background:transparent;color:var(--ink);font:inherit;font-size:0.875rem;cursor:pointer}
+.rd-fog-btn:hover{background:rgba(255,255,255,.12)}
+.rd-q{display:inline-flex;align-items:center;justify-content:center;width:1.375rem;height:1.375rem;border:1px solid currentColor;font-weight:700;font-size:0.8125rem}
+
+/* weights plaque, left of Point A (desktop) */
+.rd-plaque{position:absolute;z-index:3;width:12.5rem;display:flex;flex-direction:column;gap:0.625rem;padding:0.75rem;border:1px solid rgba(29,31,32,.16);background:#fff;color:#1d1f20;font:inherit;text-align:left;cursor:pointer;box-shadow:0 0.25rem 1rem rgba(0,0,0,.16)}
+.rd-plaque:hover .rd-plaque-a{text-decoration:underline}
+.rd-plaque-h{display:flex;justify-content:space-between;align-items:baseline;font-size:0.6875rem;letter-spacing:.1em;text-transform:uppercase;color:#5d5d60}
+.rd-plaque-a{color:#00509f;font-weight:600;letter-spacing:.04em}
+.rd-plaque-bars{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0.25rem;height:3.75rem}
+.rd-wbar{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:0.25rem;min-width:0}
+.rd-wbar i{display:block;width:0.75rem;background:#0062c4;min-height:0.25rem}
+.rd-wbar span{font-size:0.625rem;color:#5d5d60;white-space:nowrap}
+
+/* map controls: translucent white on the field */
+.rd-tl,.rd-tr{position:absolute;z-index:5;top:1rem;display:flex;gap:0.5rem}
+.rd-tl{left:1rem}.rd-tr{right:1rem}
+.rd-mbtn{display:inline-flex;align-items:center;gap:0.5rem;min-height:2.75rem;padding:0 0.875rem;border:1px solid rgba(255,255,255,.5);background:color-mix(in srgb,var(--fld) 70%,rgba(255,255,255,.18));color:var(--ink);font:inherit;font-size:0.875rem;font-weight:500;cursor:pointer;backdrop-filter:blur(4px)}
+.rd-mbtn:hover{background:color-mix(in srgb,var(--fld) 60%,#fff 22%)}
+.rd-mbtn:focus-visible,.rd-key:focus-visible,.rd-fog-btn:focus-visible,.rd-plaque:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.rd-key{position:absolute;z-index:5;right:1rem;bottom:1rem;width:2.75rem;height:2.75rem;padding:0;border:1px solid rgba(255,255,255,.5);background:color-mix(in srgb,var(--fld) 70%,rgba(255,255,255,.18));color:var(--ink);font-family:var(--font-heading);font-weight:600;font-size:1.125rem;cursor:pointer}
+.rd-tag-map{position:absolute;z-index:5;left:1rem;bottom:1rem;border-color:rgba(255,255,255,.6);color:var(--ink);background:color-mix(in srgb,var(--fld) 80%,transparent);font-size:0.6875rem}
+
+/* the card column */
+.rd-card{position:relative;z-index:4;display:flex;flex-direction:column;gap:1rem;min-height:0;overflow:auto;padding:1.5rem;border-left:1px solid var(--color-divider);background:var(--color-bg)}
+.rd-card > *{margin:0}
+.rd-card-k{font-size:0.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700)}
+.rd-card-h{margin:-0.5rem 0 0;font-size:2.25rem;line-height:1.05}
+.rd-card-h:focus{outline:none}
+.rd-card-sub{margin-top:-0.75rem;font-size:1rem;color:var(--color-neutral-700)}
+.rd-guide{display:flex;flex-direction:column;gap:0.5rem;padding:0.875rem 1rem;border:1px solid var(--color-divider);background:var(--color-surface)}
+.rd-guide-k{display:flex;align-items:center;gap:0.5rem;font-size:0.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700)}
+.rd-guide-k img{width:1.25rem;height:1.25rem;object-fit:contain;transform:scaleX(-1)}
+.rd-guide-p{margin:0;font-size:0.9375rem;line-height:1.5}
+.rd-g{color:var(--color-accent-800);font-weight:500}
+.rd-c{color:var(--color-danger-700);font-weight:500}
+.rd-src{margin:0;font-size:0.75rem;color:var(--color-neutral-700)}
+.rd-badges{display:flex;flex-direction:column;gap:0.375rem}
+.rd-badge-btn{display:flex;align-items:center;gap:0.625rem;width:100%;min-height:2.75rem;padding:0.375rem 0.75rem;border:1px solid var(--color-divider);background:transparent;color:var(--color-text);font:inherit;font-size:0.875rem;text-align:left;cursor:pointer}
+.rd-badge-btn:hover{border-color:color-mix(in srgb,var(--color-text) 40%,transparent)}
+.rd-badge-btn.is-open{border-color:var(--color-accent-700);background:var(--color-accent-100)}
+.rd-badge-btn:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+.rd-bico{display:flex;color:var(--color-accent-700)}
+.rd-bexp{margin:-0.125rem 0 0.25rem;padding:0 0.75rem;font-size:0.875rem;line-height:1.45;color:var(--color-neutral-700)}
+.rd-because{font-size:0.875rem}
+.rd-because span{color:var(--color-neutral-700)}
+.rd-course-actions{display:flex;flex-wrap:wrap;gap:0.5rem}
+.rd-cact{min-height:2.75rem}
+.rd-actions{display:flex;flex-direction:column;gap:0.5rem;margin-top:auto;padding-top:0.5rem}
+.rd-actions .btn{width:100%;min-height:3rem;justify-content:center}
+.rd-composer-room{display:none}
+
+/* controls bar (stacked layouts only) */
+.rd-controls{display:none}
+.rd-ctl-bars{display:inline-flex;align-items:flex-end;gap:2px;height:1.25rem}
+.rd-ctl-bars i{display:block;width:3px;min-height:2px;background:currentColor}
+
+@media (prefers-reduced-motion: reduce){
+.rd-duck{transition:none}
+.motion-on .rd-duck img{animation:none}
+}
+
+/* ── stacked: tablet and phone ── */
+@container (max-width: 1023.98px){
+.rd-head{min-height:3.5rem;padding:0 1rem}
+.rd-tag-wide,.rd-head-actions{display:none}
+.rd-head .hdr{margin-left:auto}
+.rd-body{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) 25rem}
+.rd-card{border-left:0;border-top:1px solid var(--color-divider);padding:1.25rem 1.5rem}
+.rd-controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--color-divider);background:var(--color-bg)}
+.rd-ctl{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.25rem;min-height:3.75rem;padding:0.375rem 0.25rem;border:0;background:transparent;color:var(--color-text);font:inherit;font-size:0.75rem;cursor:pointer}
+.rd-ctl:hover{background:color-mix(in srgb,var(--color-text) 6%,transparent)}
+.rd-ctl:focus-visible{outline:2px solid var(--color-accent);outline-offset:-2px}
+.rd-ctl + .rd-ctl{border-left:1px solid var(--color-divider)}
+/* the fog plate docks bottom right, over the dark tiles it counts */
+.rd-fog{left:auto !important;top:auto !important;right:1rem;bottom:4.25rem;transform:none;padding:0.375rem 0.5rem;gap:0.25rem}
+.rd-fog-count{font-size:0.9375rem}
+.rd-fog-btn{font-size:0.8125rem}
+}
+@container (max-width: 575.98px){
+.rd-brand-duck{display:none}
+.rd-brand{font-size:1.25rem}
+.rd-body{grid-template-rows:minmax(0,1fr) 26.25rem}
+.rd-card{padding:1rem 1rem 1.25rem;gap:0.875rem}
+.rd-card-h{font-size:1.875rem}
+.rd-tl{top:0.75rem;left:0.75rem}.rd-tr{top:0.75rem;right:0.75rem}
+.rd-key{right:0.75rem;bottom:0.75rem}
+.rd-tag-map{left:0.75rem;bottom:0.75rem}
+.rd-mbtn{padding:0 0.75rem}
+.rd-lab{max-width:10rem}
+.rd-lab-name{font-size:0.9375rem}
+.rd-lab.is-full .rd-lab-name,.rd-lab.is-here .rd-lab-name{font-size:1.0625rem}
+}
+/* placement: the current tile's full label sits below and to the left, clear of the road ahead */
+.rd-lab.is-below.is-here{transform:translate(-66%,0)}
+.rd-badge svg{flex:none;color:#00509f}
+@container (max-width: 575.98px){
+/* phone: the current tile's label is its name and the badge icons; the words are in the card below */
+.rd-lab.is-here .rd-badge-k,.rd-lab.is-here .rd-badge-v{display:none}
+.rd-lab.is-here .rd-lab-badges{flex-wrap:nowrap}
+.rd-lab.is-here .rd-badge{min-height:1.25rem;padding:0 0.3125rem}
+.rd-lab.is-below.is-here{transform:translate(-62%,0)}
+.rd-tag-map{bottom:0.5rem}
+.rd-key{top:0.75rem;right:0.75rem;bottom:auto}
+.rd-tr{right:4rem}
+.rd-tag-map{top:4.25rem;bottom:auto}
+/* the fog plate: one line, the lesson button keeps its full name for screen readers */
+.rd-fog{right:0.75rem;bottom:0.5rem;flex-direction:row;align-items:center;gap:0.5rem;padding:0 0 0 0.625rem}
+.rd-fog-count{font-size:0.875rem}
+.rd-fog-btn{width:2.75rem;padding:0;justify-content:center;border-width:0 0 0 1px}
+.rd-fog-t{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.rd-lab.is-here{flex-direction:row;align-items:center;gap:0.5rem;max-width:none;white-space:nowrap}
+}
+
+/* ══ Your road · B ══
+   The map zooms in three fixed stops (Whole road · Level · Tile) and re-fits whenever its space changes.
+   The road ahead is laid out in time: a ruler of years runs beside it, and a step that lasts is a slab as long as it lasts.
+   A press opens that tile in the card; the card's buttons act. Phone: a vertical road first, the map one tap away. */
+.rb .rd-hit.is-sel{box-shadow:none;outline:none;clip-path:polygon(50% 0,100% 40%,100% 60%,50% 100%,0 60%,0 40%)}
+.rb .rd-map{touch-action:none;cursor:grab;user-select:none}
+.rb .rd-map.is-dragging{cursor:grabbing}
+.rb .rd-map.is-dragging .rd-lab,.rb .rd-map.is-dragging .rd-duck{transition:none}
+.rb-ruler,.rb-tick{stroke:color-mix(in srgb,var(--ink) 55%,var(--fld));fill:none}
+.rb-year{position:absolute;z-index:2;transform:translate(-50%,-140%);font-size:0.6875rem;font-weight:500;letter-spacing:.08em;color:var(--ink);opacity:.9;pointer-events:none;white-space:nowrap}
+.rb-now{transform:translate(-50%,-140%);text-transform:uppercase;letter-spacing:.12em}
+.rb-ring{fill:none;stroke:var(--ink);stroke-width:2}
+.rb-ring.is-sel{stroke-dasharray:5 4}
+.rb .rd-tile.s-fog{--top:color-mix(in srgb,#000 22%,var(--fld));--left:color-mix(in srgb,#000 36%,var(--fld));--right:color-mix(in srgb,#000 46%,var(--fld));--edge:color-mix(in srgb,var(--ink) 30%,var(--fld))}
+.rb .rd-tile.s-fog.is-sel,.rb .rd-tile.s-fog.is-lift{--top:color-mix(in srgb,var(--ink) 18%,var(--fld))}
+.rb .rd-lab{transition:none}
+.rb .rd-lab.is-hint{opacity:.95}
+.rb .rd-lab.is-right{max-width:15rem}
+.rb .rd-lab.at-road .rd-lab-name{font-size:0.9375rem}
+.rb .rd-lab.s-fog{background:color-mix(in srgb,#000 26%,var(--fld));opacity:1}
+.rb .rb-when{opacity:.8}
+.rb .rd-duck{transition:none}
+.rb-fog{transform:none}
+.rb .rb-fog{left:var(--fx) !important;top:var(--fy) !important;right:auto;bottom:auto}
+.rb .rd-lab.is-below.is-here{transform:translate(-80%,0)}
+
+/* zoom: three named stops, with − and + either side */
+.rb-zoom{position:absolute;z-index:5;right:1rem;bottom:1rem;display:flex;align-items:stretch;background:#fff;color:#1d1f20;border:1px solid rgba(29,31,32,.2);box-shadow:0 0.25rem 1rem rgba(0,0,0,.16)}
+.rb-zstep,.rb-zbtn{min-width:2.75rem;min-height:2.75rem;padding:0 0.75rem;border:0;background:transparent;color:inherit;font:inherit;font-size:0.875rem;font-weight:500;cursor:pointer}
+.rb-zstep{display:flex;align-items:center;justify-content:center;padding:0}
+.rb-zstep + .rb-zbtn,.rb-zbtn + .rb-zstep{border-left:1px solid rgba(29,31,32,.16)}
+.rb-zbtn + .rb-zbtn{border-left:1px solid rgba(29,31,32,.16)}
+.rb-zstep:hover,.rb-zbtn:hover{background:rgba(29,31,32,.06)}
+.rb-zstep[aria-disabled="true"]{color:rgba(29,31,32,.35);cursor:default;background:transparent}
+.rb-zbtn.is-on{background:#0062c4;color:#fff;box-shadow:inset 0 -3px 0 #003f7f}
+.rb-zstep:focus-visible,.rb-zbtn:focus-visible{outline:2px solid #0062c4;outline-offset:-3px}
+
+/* weights plaque docks bottom left (desktop) */
+.rb-plaque{left:1rem;bottom:1rem}
+/* View: Goal, Layers and the map key in one menu */
+.rb-viewmenu{right:0;left:auto;top:calc(100% + 0.5rem);background:#fff;color:#1d1f20;border-color:rgba(29,31,32,.16)}
+.rb-viewmenu .hdr-item{color:#1d1f20}
+.rb-viewmenu .hdr-item svg{color:#5d5d60}
+.rb-viewmenu .rd-q{color:#5d5d60}
+.rb-mock{position:absolute;z-index:4;left:15rem;bottom:1.25rem;font-size:0.75rem;color:var(--ink);opacity:.9}
+.rb-mock .fx-mock{color:var(--ink);border-color:rgba(255,255,255,.6)}
+.rb-lesson{display:inline-flex;align-items:center;gap:0.5rem;min-height:2.75rem;padding:0 0.75rem 0 0.375rem;border:1px solid var(--color-divider);background:transparent;color:var(--color-text);font:inherit;font-size:0.875rem;cursor:pointer;align-self:flex-start}
+.rb-lesson:hover{border-color:color-mix(in srgb,var(--color-text) 40%,transparent)}
+
+@container (max-width: 1023.98px){
+.rb .rd-body{grid-template-rows:minmax(0,1fr) 22rem}
+.rb .rd-tag-wide{display:inline-flex}
+.rb .rd-head .hdr{margin-left:auto}
+.rb .rd-controls{grid-template-columns:repeat(3,minmax(0,1fr))}
+.rb-mock{left:1rem;bottom:1.25rem}
+}
+
+/* ── phone ── */
+/* the root can't query its own width: the component sets m-phone */
+.rb.m-phone{grid-template-rows:auto auto minmax(0,1fr) auto}
+@container (max-width: 575.98px){
+.rb .rd-body{grid-template-rows:minmax(0,1fr)}
+.rb .rd-tag-wide{display:none}
+.rb-switch{display:flex;align-items:center;gap:0.75rem;padding:0.5rem 1rem;border-bottom:1px solid var(--color-divider);background:var(--color-bg)}
+.rb-segs{display:flex;border:1px solid var(--color-divider)}
+.rb-seg{display:inline-flex;align-items:center;gap:0.375rem;min-height:2.75rem;padding:0 1rem;border:0;background:transparent;color:var(--color-text);font:inherit;font-size:0.875rem;font-weight:500;cursor:pointer}
+.rb-seg + .rb-seg{border-left:1px solid var(--color-divider)}
+.rb-seg.is-on{background:var(--color-accent-600);color:#fff}
+[data-theme="dark"] .rb-seg.is-on{color:#121417}
+.rb-seg:focus-visible{outline:2px solid var(--color-accent);outline-offset:-3px}
+.rb-tag-map{top:4.25rem;bottom:auto;left:0.75rem}
+.rb-mock{display:none}
+.rb .rd-fog{display:none}
+.rb-zoom{right:0.75rem;bottom:auto;top:0.75rem}
+.rb-zbtn{padding:0 0.5rem;font-size:0.8125rem}
+.rb .rd-tr{right:auto;left:5.75rem}
+.rb.v-map .rd-tl{left:0.75rem}
+.rb .rb-zoom .rb-zstep{display:none}
+.rb .rd-lab.is-here{flex-direction:column;align-items:center;white-space:normal;max-width:12rem}
+/* peek: the card, folded to its first lines, over the bottom of the map */
+.rb-peek{position:absolute;z-index:6;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:0.25rem;padding:0.875rem 1rem 1rem;background:var(--color-bg);color:var(--color-text);border-top:1px solid var(--color-divider);box-shadow:0 -0.25rem 1rem rgba(0,0,0,.14)}
+[data-theme="light"] .rb-peek{background:#f2f2f3;color:#1d1f20}
+.rb-peek-h{font-family:var(--font-heading);font-weight:600;font-size:1.5rem;line-height:1.1}
+.rb-peek-line{font-size:0.875rem;color:var(--color-neutral-700)}
+.rb-peek-actions{display:flex;gap:0.5rem;margin-top:0.5rem}
+.rb-peek-btn{flex:1;min-height:2.75rem}
+/* the vertical road */
+.rb-list{overflow:auto;min-height:0;padding:1rem 1rem 2rem;background:var(--color-bg)}
+.rb-tag-phone{margin-bottom:0.5rem}
+.rb-list-note{margin:0 0 1rem;font-size:0.75rem;color:var(--color-neutral-700)}
+.rb-rows{list-style:none;margin:0;padding:0}
+.rb-row{position:relative;display:grid;grid-template-columns:3.25rem 1.75rem minmax(0,1fr);column-gap:0.375rem}
+.rb-row::before{content:"";position:absolute;left:calc(3.25rem + 0.375rem + 0.875rem - 2px);top:0;bottom:0;width:4px;background:var(--color-accent-600)}
+.rb-row.s-here::before{background:linear-gradient(var(--color-accent-600) 0 1.25rem,color-mix(in srgb,var(--color-accent-600) 45%,transparent) 1.25rem)}
+.rb-row.s-next::before{background:repeating-linear-gradient(color-mix(in srgb,var(--color-accent-600) 45%,transparent) 0 6px,transparent 6px 10px)}
+.rb-row.s-fog::before{background:repeating-linear-gradient(var(--color-neutral-500) 0 6px,transparent 6px 10px)}
+.rb-row:last-child::before{bottom:auto;height:1.25rem}
+.rb-row:first-child::before{top:0.75rem}
+.rb-when-col{grid-column:1;padding-top:0.875rem;font-size:0.75rem;line-height:1.25;color:var(--color-neutral-700);text-align:right}
+.rb-node{grid-column:2;position:relative;z-index:1;justify-self:center;margin-top:1rem;width:0.875rem;height:0.875rem;transform:rotate(45deg);background:var(--color-accent-600);border:2px solid var(--color-bg);box-sizing:content-box}
+.rb-row.s-next .rb-node{background:var(--color-bg);border-color:var(--color-accent-600)}
+.rb-row.s-fog .rb-node{background:var(--color-neutral-700);border-color:var(--color-bg)}
+.rb-row.s-here .rb-node{transform:none;width:2rem;height:2rem;margin-top:0.25rem;background:transparent;border:0}
+.rb-row.s-here .rb-node img{width:2rem;height:2rem;object-fit:contain;transform:scaleX(-1)}
+.motion-on .rb-row.s-here .rb-node img{animation:rd-bob 2.4s ease-in-out infinite}
+.rb-row-body{grid-column:3;display:flex;flex-direction:column;gap:0.5rem;padding-bottom:1rem;min-width:0}
+.rb-row-btn{display:flex;flex-direction:column;gap:0.125rem;width:100%;min-height:2.75rem;padding:0.5rem 0.5rem 0.5rem 0;margin-left:0;border:0;background:transparent;color:var(--color-text);font:inherit;text-align:left;cursor:pointer}
+.rb-row-btn:hover .rb-row-name{text-decoration:underline}
+.rb-row-btn:focus-visible,.rb-alt:focus-visible,.rb-sib:focus-visible,.rb-way:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+.rb-row-k{font-size:0.6875rem;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700)}
+.rb-row-name{font-family:var(--font-heading);font-weight:600;font-size:1.1875rem;line-height:1.15}
+.rb-row-line{font-size:0.875rem;line-height:1.4;color:var(--color-neutral-700)}
+.rb-row.s-fog .rb-row-name{font-weight:500}
+.rb-alts{display:flex;flex-wrap:wrap;align-items:center;gap:0.375rem;margin-top:-0.25rem}
+.rb-alts-k{font-size:0.8125rem;color:var(--color-neutral-700)}
+.rb-alt{min-height:2.25rem;padding:0 0.625rem;border:1px dashed color-mix(in srgb,var(--color-text) 45%,transparent);background:transparent;color:var(--color-text);font:inherit;font-size:0.8125rem;cursor:pointer}
+/* where she is: the card lives in the road */
+.rb-here{gap:0.75rem;margin:0.25rem 0 1.25rem;padding:1rem;border:1px solid var(--color-divider);border-left:3px solid var(--color-accent-600);background:var(--color-surface)}
+.rb-here > p{margin:0}
+.rb-here-h{margin:-0.25rem 0 0;font-size:1.75rem;line-height:1.05}
+.rb-here-sub{margin-top:-0.5rem !important}
+.rb-here-trade{font-size:0.9375rem;line-height:1.45}
+.rb-sibs{display:flex;flex-direction:column;gap:0.375rem;padding-top:0.75rem;border-top:1px solid var(--color-divider)}
+.rb-sibs-k{font-size:0.6875rem;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700)}
+.rb-sib{display:flex;flex-direction:column;gap:0.125rem;min-height:2.75rem;padding:0.5rem 0.75rem;border:1px dashed color-mix(in srgb,var(--color-text) 40%,transparent);background:transparent;color:var(--color-text);font:inherit;text-align:left;cursor:pointer}
+.rb-sib-name{font-weight:600;font-size:0.9375rem}
+.rb-sib-name span{font-weight:400;color:var(--color-neutral-700)}
+.rb-sib-line{font-size:0.8125rem;color:var(--color-neutral-700)}
+.rb-here-actions{margin-top:0.25rem;padding-top:0}
+.rb-here .rd-badge-btn{font-size:0.8125rem;padding:0.25rem 0.625rem}
+.rb-fork-k{margin:0.875rem 0 0}
+.rb-ways{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0.5rem}
+.rb-way{display:flex;flex-direction:column;gap:0.25rem;padding:0.625rem;border:2px solid var(--color-neutral-500);background:transparent;color:var(--color-text);font:inherit;text-align:left;cursor:pointer}
+.rb-way.is-thin{border-width:1px;border-style:dashed}
+.rb-way .rb-row-name{font-size:1rem}
+.rb-way .rb-row-line{font-size:0.8125rem}
+.rb-way-end{margin-top:0.25rem;padding-top:0.375rem;border-top:1px solid var(--color-divider);font-size:0.8125rem;font-weight:600}
+}
+
+/* ── B · round 1 states ── */
+.rb .rd-tile.s-seen{--top:color-mix(in srgb,var(--ink) 22%,var(--fld));--left:color-mix(in srgb,var(--ink) 12%,var(--fld));--right:color-mix(in srgb,var(--ink) 6%,var(--fld));--edge:color-mix(in srgb,var(--ink) 60%,var(--fld))}
+.rb .rd-lab.s-seen{background:color-mix(in srgb,var(--fld) 84%,transparent)}
+/* not picked yet: a dotted outline, nothing filled */
+.rb .rd-tile.s-unknown{--top:transparent;--left:transparent;--right:transparent;--edge:var(--ink)}
+.rb .rd-tile.s-unknown polygon{stroke-dasharray:3 4;stroke-width:1.5}
+.rb .rd-lab.s-unknown{background:transparent;border:1px dashed rgba(255,255,255,.7)}
+.rb .rd-lab.is-here.s-here.k-place,.rb .rd-lab.is-here.s-here.k-point{background:#fff;color:#1d1f20}
+.rb-arc{fill:none;stroke:var(--ink);stroke-dasharray:6 6;opacity:.95}
+.rb.m-phone .rb-swaptag ~ .rb-tag-map{display:none}
+/* the one-time hint: a ring that pulses on the next tile, and the duck's line */
+.rb-hintring{fill:none;stroke:#fff;stroke-width:2.5}
+.motion-on .rb-hintring{animation:rb-pulse 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes rb-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.12)}}
+.rb-bubble{position:absolute;z-index:6;display:flex;align-items:center;gap:0.5rem;margin:0;padding:0.5rem 0.75rem 0.5rem 0.5rem;background:#fff;color:#1d1f20;font-size:0.9375rem;font-weight:500;white-space:nowrap;transform:translate(-50%,-100%);box-shadow:0 0.25rem 1rem rgba(0,0,0,.2)}
+.rb-bubble::after{content:"";position:absolute;left:50%;bottom:-0.375rem;width:0.75rem;height:0.75rem;background:#fff;transform:translateX(-50%) rotate(45deg)}
+.rb-bubble img{width:1.5rem;height:1.5rem;object-fit:contain;transform:scaleX(-1)}
+.rb-bubble-row{position:relative;transform:none;align-self:flex-start;margin:-0.25rem 0 0.25rem;border:1px solid var(--color-divider)}
+.rb-bubble-row::after{left:1.25rem;top:-0.375rem;bottom:auto;border-left:1px solid var(--color-divider);border-top:1px solid var(--color-divider)}
+.rb-row.has-hint .rb-node{box-shadow:0 0 0 4px color-mix(in srgb,var(--color-accent-600) 35%,transparent)}
+.motion-on .rb-row.has-hint .rb-node{animation:rb-node-pulse 1.6s ease-in-out infinite}
+@keyframes rb-node-pulse{0%,100%{box-shadow:0 0 0 3px color-mix(in srgb,var(--color-accent-600) 45%,transparent)}50%{box-shadow:0 0 0 8px color-mix(in srgb,var(--color-accent-600) 10%,transparent)}}
+@media (prefers-reduced-motion: reduce){.motion-on .rb-hintring,.motion-on .rb-row.has-hint .rb-node{animation:none}}
+/* swap: the tag during the move */
+.rb-swaptag{position:absolute;z-index:6;left:50%;top:1rem;transform:translateX(-50%);display:inline-flex;align-items:center;min-height:2.75rem;padding:0 1rem;background:#fff;color:#00509f;font-weight:600;font-size:0.9375rem;box-shadow:0 0.25rem 1rem rgba(0,0,0,.2)}
+/* toast: bottom centre, above everything; Undo lives only here */
+.rb-toast{position:absolute;z-index:30;left:50%;bottom:1.25rem;transform:translateX(-50%);display:flex;align-items:center;gap:1rem;max-width:min(36rem,calc(100% - 2rem));padding:0.75rem 0.75rem 0.75rem 1rem;background:#1d1f20;color:#f2f2f3;font-size:0.9375rem;line-height:1.4;box-shadow:0 0.5rem 1.5rem rgba(0,0,0,.3)}
+[data-theme="dark"] .rb-toast{background:#e6e7e9;color:#121417}
+.motion-on .rb-toast{animation:rb-rise .3s var(--ease-out) both}
+@keyframes rb-rise{from{opacity:0;transform:translate(-50%,0.75rem)}to{opacity:1;transform:translate(-50%,0)}}
+.rb-undo{flex:none;min-height:2.75rem;padding:0 0.875rem;border:1px solid currentColor;background:transparent;color:inherit;font:inherit;font-weight:600;cursor:pointer}
+.rb.m-wide .rb-toast{left:calc((100% - 23.75rem) / 2);bottom:5.5rem}
+.rb.m-mid .rb-toast{bottom:27.5rem}
+/* panels: in the card column (desktop) and in sheets (phone) */
+.rb-panel{display:flex;flex-direction:column;gap:1rem}
+.rb-panel > p{margin:0}
+.rb-ph{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}
+.rb-ph .rd-card-k{margin:0 0 0.25rem}
+.rb-ph-h{margin:0;font-size:1.75rem;line-height:1.1}
+.rb-close{min-height:2.75rem;flex:none}
+.rb-ph-sub{font-size:0.9375rem;color:var(--color-neutral-700);margin-top:-0.5rem !important}
+.rb-chips{display:flex;flex-wrap:wrap;gap:0.375rem}
+.rb-chip{min-height:2.25rem;padding:0 0.75rem;border:1px solid var(--color-divider);background:transparent;color:var(--color-text);font:inherit;font-size:0.875rem;cursor:pointer}
+.rb-chip.is-on{background:var(--color-accent-600);border-color:var(--color-accent-600);color:#fff}
+[data-theme="dark"] .rb-chip.is-on{color:#121417}
+.rb-srows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.rb-srow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0.375rem 0.75rem;padding:0.875rem 0;border-top:1px solid var(--color-divider)}
+.rb-srow-t{display:flex;flex-direction:column;gap:0.125rem}
+.rb-srow-name{font-family:var(--font-heading);font-weight:600;font-size:1.125rem}
+.rb-srow-sub{font-size:0.875rem;color:var(--color-neutral-700)}
+.rb-stag{align-self:start;padding:0.125rem 0.5rem;border:1px solid var(--color-accent-700);color:var(--color-accent-800);font-size:0.75rem;white-space:nowrap}
+.rb-srow.is-blocked{background:repeating-linear-gradient(135deg,transparent 0 6px,color-mix(in srgb,var(--color-text) 7%,transparent) 6px 7px)}
+.rb-srow.is-blocked .rb-stag{border-style:dashed;border-color:var(--color-neutral-600);color:var(--color-neutral-700)}
+.rb-srow-acts{grid-column:1 / -1;display:flex;gap:0.5rem}
+.rb-sbtn{min-height:2.5rem;font-size:0.875rem}
+.rb-lesson-l{margin:0;padding-left:1.25rem;display:flex;flex-direction:column;gap:0.75rem;font-size:1rem;line-height:1.5}
+.rb-bar{height:0.5rem;background:var(--color-neutral-300)}
+.rb-bar i{display:block;width:27%;height:100%;background:var(--color-accent-600)}
+.rb-ov{list-style:none;margin:0;padding:0}
+.rb-ov li{padding:0.75rem 0;border-top:1px solid var(--color-divider);font-size:0.9375rem}
+.rb-ov-note{font-size:0.875rem;color:var(--color-neutral-700)}
+.rb-key-k{margin:0;font-size:0.6875rem;letter-spacing:.1em;text-transform:uppercase;color:#5d5d60}
+.rb-key-l{list-style:none;margin:0 0 0.5rem;padding:0;display:flex;flex-direction:column;gap:0.5rem;font-size:0.875rem;line-height:1.4}
+.rb-key-l li{display:flex;align-items:center;gap:0.625rem}
+.rb-sw{flex:none;width:1.75rem;height:1rem;border:1px solid rgba(29,31,32,.4)}
+.rb-sw.is-lit{background:#fff}
+.rb-sw.is-alt{background:color-mix(in srgb,#fff 30%,#0062c4)}
+.rb-sw.is-fog{background:color-mix(in srgb,#000 26%,#0062c4)}
+.rb-sw.is-hatch{background:repeating-linear-gradient(135deg,#0062c4 0 3px,#fff 3px 4px)}
+.rb-sw.is-dot{border:1.5px dotted #1d1f20;background:transparent}
+.rb-keypop{position:absolute;top:calc(100% + 0.5rem);right:0;z-index:12;width:22rem;display:flex;flex-direction:column;gap:0.75rem;padding:1rem;background:#fff;color:#1d1f20;border:1px solid rgba(29,31,32,.16);box-shadow:0 0.5rem 1.5rem rgba(0,0,0,.25)}
+.rb-keypop .rb-ph-h{font-size:1.375rem;color:#1d1f20}
+.rb-keypop .rb-close{color:#00509f}
+.rb-sheet .rb-key-k{color:var(--color-neutral-700)}
+.rb-sheet .rb-key-l{margin-bottom:1rem}
+/* sibling list in the desktop card too */
+.rd-card .rb-sibs{display:flex;flex-direction:column;gap:0.375rem;padding-top:0.75rem;border-top:1px solid var(--color-divider)}
+.rd-card .rb-sibs-k{font-size:0.6875rem;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700)}
+.rd-card .rb-sib,.rb-sib{display:flex;flex-direction:column;gap:0.125rem;min-height:2.75rem;padding:0.5rem 0.75rem;border:1px dashed color-mix(in srgb,var(--color-text) 40%,transparent);background:transparent;color:var(--color-text);font:inherit;text-align:left;cursor:pointer}
+.rb-sib.is-visited{border-style:solid;background:var(--color-bg)}
+.rd-card .rb-sib-name,.rb-sib-name{font-weight:600;font-size:0.9375rem}
+.rb-sib-name span{font-weight:400;color:var(--color-neutral-700)}
+.rd-card .rb-sib-line,.rb-sib-line{font-size:0.8125rem;color:var(--color-neutral-700)}
+/* futures: option A switcher; option B pick first */
+.rb-futures{position:absolute;z-index:6;left:50%;top:1rem;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:0.375rem}
+.rb-fsegs{display:flex;background:#fff;border:1px solid rgba(29,31,32,.2);box-shadow:0 0.25rem 1rem rgba(0,0,0,.16)}
+.rb-fbtn{min-height:2.75rem;padding:0 0.875rem;border:0;background:transparent;color:#1d1f20;font:inherit;font-size:0.875rem;font-weight:500;cursor:pointer;white-space:nowrap}
+.rb-fbtn + .rb-fbtn{border-left:1px solid rgba(29,31,32,.16)}
+.rb-fbtn.is-on{background:#0062c4;color:#fff;box-shadow:inset 0 -3px 0 #003f7f}
+.rb-fnote{font-size:0.75rem;color:var(--ink);text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.rb-fnote .fx-mock{color:var(--ink);border-color:rgba(255,255,255,.6)}
+.rb-futures-list{position:static;transform:none;align-items:stretch;margin-bottom:1rem}
+.rb-futures-list .rb-fsegs{box-shadow:none;border-color:var(--color-divider);background:transparent;flex-direction:column}
+.rb-futures-list .rb-fbtn{color:var(--color-text);text-align:left}
+.rb-futures-list .rb-fbtn + .rb-fbtn{border-left:0;border-top:1px solid var(--color-divider)}
+.rb-futures-list .rb-fnote{color:var(--color-neutral-700);text-shadow:none}
+.rb-futures-list .rb-fnote .fx-mock{color:var(--color-neutral-700);border-color:var(--color-neutral-500)}
+.rb-pick{grid-column:1 / -1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:center;padding:2rem 1.5rem;color:#fff}
+.rb-pick-in{width:100%;max-width:64rem;display:flex;flex-direction:column;gap:1rem}
+.rb-pick-k{margin:0;font-size:0.75rem;letter-spacing:.1em;text-transform:uppercase}
+.rb-pick-k .fx-mock{color:#fff;border-color:rgba(255,255,255,.6)}
+.rb-pick-h{margin:0;font-size:2.75rem;line-height:1.05;color:#fff}
+.rb-pick-lead{margin:0 0 1rem;font-size:1.0625rem}
+.rb-pick-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
+.rb-pick-card{display:flex;flex-direction:column;gap:0.75rem;padding:1.25rem;background:#fff;color:#1d1f20}
+.rb-pick-name{font-family:var(--font-heading);font-weight:600;font-size:1.5rem}
+.rb-pick-steps{flex:1;font-size:0.9375rem;line-height:1.45;color:#5d5d60}
+.rb-pick-btn{min-height:2.75rem}
+/* loading: the shared loader, the duck on the water */
+.rb-loading{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.75rem;color:var(--ink)}
+.rb-loading .cn-pond{width:min(22rem,80%)}
+.rb-loading-t{font-family:var(--font-heading);font-weight:600;font-size:1.25rem}
+.rb-loading-list{position:static;padding:3rem 0;color:var(--color-text)}
+.rb-skel{display:flex;flex-direction:column;gap:0.75rem}
+.rb-skel i{display:block;height:0.875rem;background:var(--color-neutral-300)}
+.rb-skel i.is-k{width:40%;height:0.625rem}
+.rb-skel i.is-h{width:70%;height:2rem}
+.rb-skel i.is-short{width:55%}
+.motion-on .rb-skel i{animation:rb-skel 1.4s ease-in-out infinite}
+@keyframes rb-skel{50%{opacity:.5}}
+.rb.is-pick .rd-body{grid-template-columns:minmax(0,1fr)}
+@container (max-width: 1023.98px){
+.rb-pick-cards{grid-template-columns:minmax(0,1fr)}
+.rb-pick-h{font-size:2.25rem}
+.rb.is-pick .rd-body{grid-template-rows:minmax(0,1fr)}
+}
+/* phone sheets */
+.rb-scrim{position:absolute;inset:0;z-index:20;background:rgba(0,0,0,.4)}
+.rb-sheet{position:absolute;z-index:21;left:0;right:0;bottom:0;max-height:82%;overflow:auto;display:flex;flex-direction:column;gap:1rem;padding:0.75rem 1rem 1.25rem;background:var(--color-bg);color:var(--color-text);box-shadow:0 -0.5rem 1.5rem rgba(0,0,0,.25)}
+.rb-sheet > p,.rb-sheet .rd-card-k,.rb-sheet .rd-card-sub{margin:0}
+.rb-sheet .rd-card-h{margin:-0.5rem 0 0;font-size:1.875rem}
+.rb-sheet .rd-card-sub{margin-top:-0.75rem}
+.motion-on .rb-sheet{animation:rb-sheet .3s var(--ease-out) both}
+@keyframes rb-sheet{from{transform:translateY(0.75rem);opacity:0}to{transform:none;opacity:1}}
+.rb-grab{align-self:center;width:2.5rem;height:0.25rem;background:var(--color-neutral-400)}
+@container (max-width: 575.98px){
+.rb-toast{bottom:5rem;left:1rem;right:1rem;transform:none;max-width:none}
+.motion-on .rb-toast{animation:rb-sheet .3s var(--ease-out) both}
+.rb.v-map .rb-toast{bottom:13.5rem}
+.rb-swaptag{top:4.25rem;font-size:0.875rem;z-index:7}
+.rb-futures{display:none}
+.rb-futures-list{display:flex}
+.rb-bubble{font-size:0.875rem}
+}
+
+/* hint bubble beside the next tile on the map, its point to the left */
+.rb-map .rb-bubble{transform:translate(0,-50%)}
+.rb-map .rb-bubble::after{left:-0.375rem;top:50%;bottom:auto;transform:translateY(-50%) rotate(45deg)}
+/* loading and empty: only what makes sense yet */
+.rb.is-loading .rd-tl,.rb.is-loading .rd-tr,.rb.is-loading .rb-zoom,.rb.is-loading .rb-plaque,.rb.is-loading .rb-mock{display:none}
+.rb.is-empty .rd-tl,.rb.is-empty .rb-zoom{display:none}
+.rb-map .rb-loading{--color-accent-200:rgba(255,255,255,.28);--color-accent-300:rgba(255,255,255,.55)}
+.rb-pick{align-items:flex-start}
+.rb-pick-in{margin:auto 0}
+
+/* phone road, roomier: the date moves into each step's kicker, so the road is a narrow line on the left;
+   where she is, the card spans the full width with the duck standing on the road just above it;
+   the guide is flat (no inner box) and the badges sit side by side */
+@container (max-width: 575.98px){
+.rb-list{padding:0.75rem 1rem 2rem}
+.rb-row{grid-template-columns:1.25rem minmax(0,1fr);column-gap:0.75rem}
+.rb-row::before{left:calc(0.625rem - 2px)}
+.rb-when-col{display:none}
+.rb-node{grid-column:1}
+.rb-row-body{grid-column:2}
+.rb-row.s-here{grid-template-columns:minmax(0,1fr);padding-top:2.5rem}
+.rb-row.s-here::before{background:linear-gradient(var(--color-accent-600) 0 2.75rem,color-mix(in srgb,var(--color-accent-600) 45%,transparent) 2.75rem)}
+.rb-row.s-here .rb-node{position:absolute;left:-0.375rem;top:0.25rem;margin:0;width:2rem;height:2rem;z-index:2}
+.rb-row-body.rb-here{grid-column:1;margin:0 0 1.25rem;padding:1rem;border-left-width:4px;position:relative;z-index:1}
+.rb-here .rd-guide{padding:0;border:0;background:transparent;gap:0.375rem}
+.rb-here .rd-guide-k{display:none}
+.rb-here .rd-badges{flex-direction:row;flex-wrap:wrap;gap:0.375rem}
+.rb-here .rd-badge-btn{width:auto;min-height:2.5rem;padding:0.25rem 0.625rem;font-size:0.8125rem;background:var(--color-bg)}
+.rb-here .rd-bexp{flex-basis:100%;padding:0}
+.rb-here .rb-sib{background:var(--color-bg)}
+.rb-here-h,.rb-here .rd-card-h{font-size:1.875rem}
+.rb-ways{gap:0.5rem}
+.rb-way{padding:0.75rem}
+}
+/* phone road: the card's left edge is the road itself, so the line runs straight into it and out again */
+@container (max-width: 575.98px){
+.rb-row-body.rb-here{margin-left:calc(0.625rem - 2px);border-left:4px solid var(--color-accent-600)}
+.rb-row.s-here::before{background:linear-gradient(var(--color-accent-600) 0 calc(100% - 1.25rem),color-mix(in srgb,var(--color-accent-600) 45%,transparent) calc(100% - 1.25rem))}
+}
+
+/* ── Arrival from "You're all set" ──
+   One continuous move: the onboarding panel widens into the map field, the end screen's words fade,
+   the pond (same duck, same water) drifts to the map's centre and floats while the road loads;
+   tiles settle in road order, the water drains, the duck steps out onto Australia, then the card fills. */
+.rb .rd-head,.rb .rd-card,.rb .rb-switch,.rb .rd-controls{opacity:var(--chrome,1)}
+.rb .rd-tl,.rb .rd-tr,.rb .rb-zoom,.rb .rb-plaque,.rb .rb-mock,.rb .rb-tag-map,.rb .rd-fog,.rb .rb-tag-phone,.rb .rb-list-note{opacity:var(--ctl,1)}
+.rb .rd-lab,.rb .rb-year{opacity:var(--lab,1)}
+.rb .rb-ruler,.rb .rb-tick{opacity:calc(var(--lab,1) * 1)}
+.rb.is-arriving .rd-map{cursor:default}
+.rb-arrive{position:absolute;inset:0;z-index:40;pointer-events:none}
+.rb-ghost{position:absolute;left:42.875rem;top:13.6875rem;width:41.6875rem;display:flex;flex-direction:column;gap:1rem}
+.rb-ghost .fx-leave-text{max-width:52ch}
+.rb-apond{position:absolute;display:flex;flex-direction:column;align-items:center;gap:0.75rem}
+.rb-apond .cn-pond{width:100%;margin:0;
+  --color-accent-200:color-mix(in srgb,#d3e7ff calc((1 - var(--m)) * 100%),rgba(255,255,255,.28));
+  --color-accent-300:color-mix(in srgb,#a6cdfb calc((1 - var(--m)) * 100%),rgba(255,255,255,.55))}
+[data-theme="dark"] .rb-apond .cn-pond{--color-accent-200:color-mix(in srgb,#1f3247 calc((1 - var(--m)) * 100%),rgba(255,255,255,.2));--color-accent-300:color-mix(in srgb,#2c4761 calc((1 - var(--m)) * 100%),rgba(255,255,255,.4))}
+.rb-apond .cn-wave{opacity:var(--wop)}
+.rb-apond .cn-swim{opacity:var(--pdo)}
+.motion-on .rb-apond .cn-swim{animation:none}
+.rb-apond-t{font-family:var(--font-heading);font-weight:600;font-size:1.25rem;opacity:var(--wop);color:color-mix(in srgb,var(--color-text) calc((1 - var(--m)) * 100%),#fff)}
+/* phone: the duck lands on the road line beside the card */
+.rb.is-arriving:not(.arr-landed) .rb-row.s-here .rb-node img{opacity:0}
+.motion-on.rb.arr-landed.is-arriving .rb-row.s-here .rb-node img{animation:rb-hop .45s cubic-bezier(.3,.7,.3,1) both}
+@keyframes rb-hop{0%{transform:scaleX(-1) translateY(-1.5rem);opacity:0}60%{transform:scaleX(-1) translateY(-0.375rem);opacity:1}100%{transform:scaleX(-1) translateY(0);opacity:1}}
+.rb .rd-svg path{opacity:var(--rd,1)}
+.rb-aduck{position:absolute;height:auto;transform:scaleX(-1);filter:drop-shadow(0 0.25rem 0.25rem rgba(0,0,0,.2))}
+.motion-on.rb.arr-landed.is-arriving .rb-row.s-here .rb-node img{animation:none}
+
+/* ── Changing an answer from the board ── */
+/* not saved yet: what would move gets a dashed outline and an "If you save" line on its label */
+.rb-ring.is-preview{fill:none;stroke:#fff;stroke-width:2;stroke-dasharray:6 5}
+.rb-prev{display:block;margin-top:0.25rem;padding:0.125rem 0.375rem;border:1px dashed rgba(255,255,255,.75);font-size:0.75rem;line-height:1.35;color:var(--ink)}
+.rd-lab.is-here .rb-prev,.rd-lab.is-full .rb-prev{border-color:#00509f;color:#00509f}
+.rb-prev b{font-weight:600}
+/* Point A's card: her facts, each with "Change this answer" */
+.rb-facts{display:flex;flex-direction:column;gap:0.25rem}
+.rb-facts-k{margin:0;font-size:0.6875rem;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-700)}
+.rb-facts-l{list-style:none;margin:0;padding:0}
+.rb-facts-l li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 0.75rem;align-items:center;padding:0.5rem 0;border-top:1px solid var(--color-divider)}
+.rb-facts-q{grid-column:1;font-size:0.8125rem;color:var(--color-neutral-700)}
+.rb-facts-a{grid-column:1;font-size:0.9375rem;font-weight:500}
+.rb-facts-btn{grid-column:2;grid-row:1 / span 2;min-height:2.75rem;padding:0 0.5rem;color:var(--color-accent-700);font-weight:600;font-size:0.8125rem}
+/* the one-question panel (desktop card column, phone sheet) */
+.rb-change .pq-why{margin:-0.5rem 0 0;font-size:0.875rem;line-height:1.5;color:var(--color-neutral-700)}
+.rb-change-g{margin:0 0 0.125rem;font-size:0.8125rem;color:var(--color-neutral-700)}
+.rb-change-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:0.5rem}
+.rb-change-cards .fx-card{min-height:3.5rem;flex-direction:column;align-items:flex-start;justify-content:center;font-size:1.0625rem}
+.rb-change-if{margin:0;font-size:0.9375rem;line-height:1.45}
+.rb-change-note{margin:0;font-size:0.8125rem;color:var(--color-neutral-700)}
+
+/* ── Your answers, over the live board ──
+   Desktop: the card column widens a little and holds the answers; the map stays live and is the preview.
+   Phone: a sheet over the Map view's lower part; the road fits above it. Rows open one at a time;
+   unsaved changes wait together under a bar; closing with changes asks first. */
+.rb.is-answers .rd-body{grid-template-columns:minmax(0,1fr) 28rem}
+.rb.is-answers .rb-hit{cursor:default}
+.rb-previewtag{display:inline-flex;align-items:center;gap:0.5rem;border:1px dashed #00509f}
+.rb-ans{gap:0.75rem;padding-bottom:5rem}
+.rb-ans-lead{margin:-0.25rem 0 0;font-size:0.9375rem;line-height:1.5;color:var(--color-neutral-700)}
+.rb-ans-g{display:flex;flex-direction:column;margin-top:0.5rem}
+.rb-ans-gh{display:flex;align-items:baseline;gap:0.5rem;margin:0 0 0.25rem;font-size:1.125rem}
+.rb-ans-gt{font-family:var(--font-heading);font-weight:600;font-size:1.25rem;color:var(--color-text)}
+.rb-ans-rows{list-style:none;margin:0;padding:0}
+.rb-ans-li{border-top:1px solid var(--color-divider)}
+.rb-ans-li.is-pending{box-shadow:inset 3px 0 0 var(--color-accent-700)}
+.rb-ans-row{display:flex;align-items:center;justify-content:space-between;gap:0.75rem;width:100%;min-height:3rem;padding:0.5rem 0.25rem 0.5rem 0;border:0;background:transparent;color:var(--color-text);font:inherit;text-align:left;cursor:pointer}
+.rb-ans-li.is-pending .rb-ans-row{padding-left:0.75rem}
+.rb-ans-row:focus-visible{outline:2px solid var(--color-accent);outline-offset:-2px}
+.rb-ans-txt{display:flex;flex-direction:column;align-items:flex-start;gap:0.125rem;min-width:0}
+.rb-ans-a{font-size:0.9375rem;font-weight:500;line-height:1.35}
+.rb-ans-act{flex:none;color:var(--color-accent-700);font-weight:600;font-size:0.875rem}
+.rb-ans-flag{display:inline-flex;margin-top:0.125rem;padding:0 0.375rem;border:1px solid var(--color-accent-700);font-size:0.75rem;font-weight:500;color:var(--color-accent-800)}
+.rb-ans-flag.is-done{border-style:solid;border-color:var(--color-divider);color:var(--color-neutral-700)}
+.rb-ans-edit{display:flex;flex-direction:column;gap:0.625rem;padding:0 0 1rem}
+.rb-ans-sub{margin:0;font-family:var(--font-heading);font-weight:600;font-size:1.25rem}
+.rb-ans-why{margin:0;font-size:0.875rem;line-height:1.5;color:var(--color-neutral-700)}
+/* unsaved changes wait together; the bar stays at the bottom of the panel */
+.rb-ans-bar{position:sticky;bottom:-1.5rem;z-index:2;display:flex;align-items:center;gap:0.5rem;margin:0 -1.5rem -1.5rem;padding:0.75rem 1.5rem;background:var(--color-bg);border-top:1px solid var(--color-divider);box-shadow:0 -0.5rem 1rem rgba(0,0,0,.06)}
+.rb-ans-bar-t{flex:1;font-size:0.875rem;font-weight:500}
+.rb-ans-bbtn{min-height:2.75rem}
+.rb-ans-ask{position:sticky;bottom:-1.5rem;z-index:3;display:flex;flex-direction:column;gap:0.5rem;margin:0 -1.5rem -1.5rem;padding:1rem 1.5rem 1.25rem;background:var(--color-bg);border-top:2px solid var(--color-text);box-shadow:0 -0.5rem 1.5rem rgba(0,0,0,.12)}
+.rb-ans-ask-h{margin:0;font-family:var(--font-heading);font-weight:600;font-size:1.25rem}
+.rb-ans-ask-p{margin:0;font-size:0.875rem;color:var(--color-neutral-700)}
+.rb-ans-ask-b{display:flex;gap:0.5rem;justify-content:flex-end}
+.rb-ans-ask-b .btn{min-height:2.75rem}
+@container (max-width: 1023.98px){
+.rb.is-answers .rd-body{grid-template-columns:minmax(0,1fr)}
+}
+@container (max-width: 575.98px){
+/* the answers sheet: the lower 60%, no scrim, so the map above stays the preview */
+.rb.is-answers .rb-scrim{background:transparent;pointer-events:none}
+.rb.is-answers .rb-sheet{max-height:none;height:60%;padding-bottom:0}
+.rb-ans-bar,.rb-ans-ask{bottom:0;margin:0 -1rem;padding-left:1rem;padding-right:1rem}
+.rb.is-answers .rb-peek{display:none}
+.rb-previewtag{top:4.25rem}
+}
+.rb-ans-li.is-pending .rb-ans-edit{padding-left:0.75rem}
+@container (max-width: 575.98px){
+/* phone, answers open: the map above the sheet is only the preview — no controls over it */
+.rb.is-answers .rb-switch,.rb.is-answers .rd-tl,.rb.is-answers .rd-tr,.rb.is-answers .rb-zoom,.rb.is-answers .rb-tag-map,.rb.is-answers .rd-fog,.rb.is-answers .rb-mock{display:none}
+.rb.is-answers .rb-sheet{height:62%}
+.rb.is-answers .rb-previewtag{top:0.5rem;font-size:0.8125rem;min-height:2.25rem}
+.rb.is-answers .rb-toast{bottom:auto;top:calc(56px + 0.5rem)}
+}
+.rb.m-phone.is-answers{grid-template-rows:auto minmax(0,1fr) auto}
+@container (max-width: 575.98px){.rb.is-answers .rb-toast{top:auto;bottom:calc(62% + 0.5rem)}}
+
+/* ── Sample: a legible board (sample="legible") ──
+   every tile says what it is: a kind word above its name and an icon on its top face;
+   labels hang on a short line to their tile; the key shows on first visit; trade-offs in plain words */
+.rb-ico path{fill:none;stroke-width:1.5px;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;stroke:var(--fld)}
+.rd-tile.s-alt .rb-ico path,.rd-tile.s-next .rb-ico path,.rd-tile.s-seen .rb-ico path{stroke:var(--ink)}
+.rd-tile.s-fog .rb-ico path{stroke:color-mix(in srgb,var(--ink) 62%,var(--fld))}
+.rd-tile.s-unknown .rb-ico path{stroke:var(--ink);opacity:.7}
+.rb.is-lg .rd-lab{width:max-content}
+.rb.is-lg .rd-lab:not(.is-here):not(.is-full){background:color-mix(in srgb,var(--fld) 94%,#000)}
+.rb.is-lg .rd-lab.s-fog:not(.is-here):not(.is-full){background:color-mix(in srgb,#000 30%,var(--fld))}
+@container (min-width: 1024px){ .rb.is-lg .rb-fog{left:auto !important;top:auto !important;right:1rem;bottom:5.25rem;transform:none} }
+.rb.is-lg .rd-lab-k{font-family:var(--font-heading);font-weight:500;font-size:0.6875rem;letter-spacing:.12em;opacity:.9}
+.rb.is-lg .rd-lab::after{content:"";position:absolute;background:var(--ink);opacity:.75;pointer-events:none}
+.rb.is-lg .rd-lab.is-above{margin-top:-0.75rem}
+.rb.is-lg .rd-lab.is-above::after{left:50%;top:100%;width:1px;height:0.75rem}
+.rb.is-lg .rd-lab.is-below{margin-top:0.75rem}
+.rb.is-lg .rd-lab.is-below::after{left:50%;bottom:100%;width:1px;height:0.75rem}
+.rb.is-lg .rd-lab.is-below.is-here{transform:translate(-50%,0)}
+.rb.is-lg .rd-lab.is-left{margin-left:-0.75rem}
+.rb.is-lg .rd-lab.is-left::after{left:100%;top:50%;height:1px;width:0.75rem}
+.rb.is-lg .rd-lab.is-right{margin-left:0.75rem}
+.rb.is-lg .rd-lab.is-right::after{right:100%;top:50%;height:1px;width:0.75rem}
+.rb.is-lg .rd-lab-why{white-space:pre-line}
+.rb.is-lg .rd-sep{display:none}
+.rb.is-lg .rd-guide-p .rd-g,.rb.is-lg .rd-guide-p .rd-c{display:block}
+.rb.is-lg .rd-guide-p .rd-c{margin-bottom:0.25rem}
+.rb.is-lg .rb-sib-line,.rb.is-lg .rb-peek-line{white-space:pre-line}
+.rb.is-lg .rb-year{transform:translate(-50%,40%)}
+.rb.is-lg .rb-now{transform:translate(-50%,40%)}
+.rb.is-lg .rb-lgfork{stroke-linejoin:round;stroke-linecap:round}
+
+.rb-lgkey{position:absolute;z-index:6;top:1rem;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:1.125rem;padding:0.25rem 0.25rem 0.25rem 0.875rem;background:color-mix(in srgb,var(--fld) 90%,#000);border:1px solid color-mix(in srgb,var(--ink) 45%,transparent);color:var(--ink);font-size:0.8125rem;white-space:nowrap;opacity:var(--ctl,1)}
+.rb-lgkey-i{display:inline-flex;align-items:center;gap:0.5rem}
+.rb-lgsw{width:1.875rem;height:1.375rem;flex:none;overflow:visible}
+.rb-lgsw polygon{stroke-width:1;stroke-linejoin:round}
+.rb-lgkey-x{min-height:2.75rem;padding:0 0.875rem;border:1px solid color-mix(in srgb,var(--ink) 55%,transparent);background:transparent;color:var(--ink);font:inherit;font-weight:500;cursor:pointer}
+.rb-lgkey-x:hover{background:color-mix(in srgb,var(--ink) 12%,transparent)}
+.rb-lgkey-x:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+@container (max-width: 1023.98px){
+  .rb-lgkey{gap:0.75rem;font-size:0.75rem;padding-left:0.625rem}
+}
+@container (max-width: 575.98px){
+  .rb-lgkey{top:6.5rem;left:0.75rem;right:0.75rem;transform:none;display:grid;grid-template-columns:1fr 1fr auto;gap:0.25rem 0.75rem;padding:0.375rem 0.375rem 0.375rem 0.625rem;white-space:normal}
+  .rb-lgkey-x{grid-column:3;grid-row:1 / span 2;align-self:center}
+}
+
+/* ── Arrival, round 2: a full-screen loader ──
+   three steps tick as the work behind each finishes; the pond floats above them; then the loader fades over the board */
+.rb-load{position:absolute;inset:0;color:#fff;pointer-events:none}
+.rb-load-l{position:absolute;left:50%;transform:translateX(-50%);list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0.875rem;width:max-content;max-width:calc(100% - 2rem)}
+.rb-ls{display:flex;align-items:center;gap:0.75rem;font-family:var(--font-heading);font-weight:500;font-size:1.375rem;line-height:1.2;transition:opacity .3s var(--ease-out)}
+.rb-load-i{position:relative;flex:none;display:grid;place-items:center;width:1.5rem;height:1.5rem;border:1.5px solid currentColor;border-radius:50%}
+.rb-ls.is-next{opacity:.45}
+.rb-ls.is-next .rb-load-i{border-style:dashed}
+.rb-ls.is-done{opacity:.8}
+.rb-ls.is-done .rb-load-i{background:#fff;color:var(--color-accent-700,#00509f);border-color:#fff}
+.rb-ls.is-now{font-weight:600}
+.rb-ls.is-now .rb-load-i{border-color:rgba(255,255,255,.35)}
+.rb-ls.is-now .rb-load-i::after{content:"";position:absolute;inset:-1.5px;border-radius:50%;border:1.5px solid transparent;border-top-color:#fff}
+.motion-on .rb-ls.is-now .rb-load-i::after{animation:rb-spin .9s linear infinite}
+@keyframes rb-spin{to{transform:rotate(360deg)}}
+.motion-on .rb-ls.is-done .rb-load-i svg{animation:rb-tick .3s var(--ease-out) both}
+@keyframes rb-tick{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+.rb-ls.is-bad{font-weight:600}
+.rb-ls.is-bad .rb-load-i{background:#fff;border-color:#fff;color:#b3261e}
+.rb-load-x{font-weight:700;font-size:0.875rem;line-height:1}
+.rb-load-note,.rb-load-err{position:absolute;left:50%;transform:translateX(-50%);margin:0;margin-top:8.5rem;width:max-content;max-width:calc(100% - 2rem);text-align:center}
+.rb-load-note{font-size:1rem;opacity:.9}
+.rb-load-err{display:flex;flex-direction:column;align-items:center;gap:1rem;pointer-events:auto}
+.rb-load-err-t{margin:0;font-size:1.0625rem;line-height:1.4}
+.rb-load-btn{min-height:2.75rem;padding:0 1.5rem;border:0;background:#fff;color:#00509f;font-family:var(--font-heading);font-weight:600;font-size:1.0625rem;cursor:pointer}
+.rb-load-btn:hover{background:#ebf4ff}
+.rb-load-btn:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.rb .rb-arrive .rb-apond-t{display:none}
+@container (max-width: 575.98px){
+  .rb-ls{font-size:1.1875rem}
+}
+
+/* ── Map controls, round 3: no Back (the header's Your roadmaps leaves the board; tiles move her along it),
+   and one Map key button in place of View. The key strip sits top left. ── */
+.rb .rb-keybtn{gap:0.5rem}
+.rb .rb-keybtn[aria-pressed="true"]{background:color-mix(in srgb,var(--ink) 16%,transparent)}
+.rb .rb-keybtn .rd-q{display:inline-grid;place-items:center;width:1.125rem;height:1.125rem;border:1.5px solid currentColor;border-radius:50%;font-size:0.6875rem;font-weight:700;line-height:1}
+.rb-lgkey{left:1rem;transform:none}
+@container (max-width: 575.98px){
+  .rb .rd-tr.rb-keybtn-wrap{left:0.75rem;right:auto}
+}
+/* hover: an eased rise and a quick fade on the name; nothing moves with reduced motion */
+.rb .rd-tile{transition:transform .18s cubic-bezier(.2,.7,.3,1)}
+.rb .rd-tile polygon{transition:fill .18s ease-out}
+.rb.is-arriving .rd-tile,.rb.motion-off .rd-tile,.rb.motion-off .rd-tile polygon{transition:none}
+.motion-on.rb .rd-lab.is-hint{animation:rb-labin .16s ease-out both}
+@keyframes rb-labin{from{opacity:0;translate:0 0.25rem}}
+@media (prefers-reduced-motion: reduce){.rb .rd-tile,.rb .rd-tile polygon{transition:none}.rb .rd-lab.is-hint{animation:none}}

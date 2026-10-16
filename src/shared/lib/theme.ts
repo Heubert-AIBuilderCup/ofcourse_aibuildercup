@@ -22,3 +22,6 @@ export function parseThemeChoice(value: string | null | undefined): ThemeChoice 
 export function resolveTheme(choice: ThemeChoice, system: Theme | null): Theme {
   return choice === 'system' ? (system ?? 'light') : choice
 }
+
+/** The explicit choice a toggle makes from the theme on screen: always the opposite one. */
+export const toggledChoice = (theme: Theme): ThemeChoice => (theme === 'dark' ? 'light' : 'dark')

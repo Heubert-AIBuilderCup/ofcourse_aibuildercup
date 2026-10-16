@@ -1,0 +1,31 @@
+/*
+ * The onboarding shell's own motion, from the design's pq.css and facts.css: the duck bobbing. The
+ * end screen's pond is the shared one (src/shared/components/Pond.tsx). The easings, the steel
+ * panel's grid paper, the rise sequence (d1–d8) and the pause behind the splash are the shared
+ * motion's (src/shared/components/motion.module.css); a step's own motion (step 00's figures, for
+ * one) is in its own module.
+ *
+ * The base styles are the final frame. Every animation is declared only under
+ * prefers-reduced-motion: no-preference, so under reduce nothing moves.
+ */
+
+/* The duck faces left; mirrored, it faces the question. */
+.duck {
+  transform: scaleX(-1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .duck {
+    animation: bob 2.6s ease-in-out infinite;
+  }
+}
+
+@keyframes bob {
+  0%,
+  100% {
+    transform: scaleX(-1) translateY(0) rotate(0);
+  }
+  50% {
+    transform: scaleX(-1) translateY(-0.1875rem) rotate(-3deg);
+  }
+}

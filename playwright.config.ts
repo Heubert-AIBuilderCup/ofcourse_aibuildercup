@@ -19,7 +19,10 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : 4,
+  // One, as on CI: the content specs render slides and run checks on one dev server. On 7 Oct,
+  // two and four workers each failed different steps on timeouts (never the same one twice),
+  // and one worker passed every spec in the same 5 minutes four workers took.
+  workers: 1,
   // The dev server compiles each route on its first visit.
   timeout: 90_000,
   expect: { timeout: 15_000 },
@@ -31,8 +34,16 @@ export default defineConfig({
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
-    // A server Playwright starts gets the dev login; a reused one must have DEV_LOGIN_SECRET
-    // (the same value) in its own .env.
-    env: { DEV_LOGIN_SECRET: process.env.DEV_LOGIN_SECRET },
+    // A server Playwright starts gets the dev login and the fake model provider, with caps no run
+    // reaches; a reused one keeps its own environment, so it must have DEV_LOGIN_SECRET (the same
+    // value) in its .env, and the content specs refuse it unless it runs AI_PROVIDER=fake.
+    env: {
+      DEV_LOGIN_SECRET: process.env.DEV_LOGIN_SECRET,
+      AI_PROVIDER: 'fake',
+      AI_DAILY_CAP_PRO: '1000',
+      AI_DAILY_CAP_IMAGE: '1000',
+      // Priya's road on every board: the standing board spec covers its shape until the matched roads get their own spec (intent, open question 2).
+      STUDENT_ROADS_OFF: '1',
+    },
   },
 })

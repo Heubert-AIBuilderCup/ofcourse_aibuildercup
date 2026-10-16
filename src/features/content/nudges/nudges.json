@@ -1,0 +1,66 @@
+{
+  "text": [
+    {
+      "id": "shorter",
+      "label": "Shorter",
+      "instruction": "Cut each slot to about two thirds of its length, and keep every fact."
+    },
+    {
+      "id": "simpler",
+      "label": "Simpler words",
+      "instruction": "Use shorter, everyday words and plain sentences a first-year student reads at a glance."
+    },
+    {
+      "id": "personal",
+      "label": "More personal",
+      "instruction": "Speak to the reader as you, about their own week and choices."
+    },
+    {
+      "id": "surprising",
+      "label": "More surprising",
+      "instruction": "Lead with the fact the reader would least expect, and let the wording show why it surprises."
+    },
+    {
+      "id": "practical",
+      "label": "More practical",
+      "instruction": "Turn each point into something the reader can do, with the step stated plainly."
+    },
+    {
+      "id": "warmer",
+      "label": "Warmer",
+      "instruction": "Sound kinder and closer, like a friend who has been there, without softening the facts."
+    }
+  ],
+  "image": [
+    {
+      "id": "closer",
+      "label": "Closer",
+      "instruction": "Move in closer on the subject so it fills more of the frame."
+    },
+    {
+      "id": "wider",
+      "label": "Wider",
+      "instruction": "Pull back to a wider view that shows more of the place around the subject."
+    },
+    {
+      "id": "more-people",
+      "label": "More people",
+      "instruction": "Show a few more people in the scene, going about their day."
+    },
+    {
+      "id": "fewer-things",
+      "label": "Fewer things",
+      "instruction": "Clear the scene: fewer objects, more open space around the subject."
+    },
+    {
+      "id": "warmer-light",
+      "label": "Warmer light",
+      "instruction": "Light the scene with warmer light, like late afternoon sun or a desk lamp."
+    },
+    {
+      "id": "calmer",
+      "label": "Calmer",
+      "instruction": "Make the scene calmer: slower, quieter, softer contrast and less going on."
+    }
+  ]
+}

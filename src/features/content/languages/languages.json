@@ -1,0 +1,6 @@
+[
+  { "id": "en", "label": "English", "nativeLabel": "English", "script": "latin", "home": null },
+  { "id": "ne", "label": "Nepali", "nativeLabel": "नेपाली", "script": "devanagari", "home": "NP" },
+  { "id": "hi", "label": "Hindi", "nativeLabel": "हिन्दी", "script": "devanagari", "home": "IN" },
+  { "id": "th", "label": "Thai", "nativeLabel": "ไทย", "script": "thai", "home": "TH" }
+]

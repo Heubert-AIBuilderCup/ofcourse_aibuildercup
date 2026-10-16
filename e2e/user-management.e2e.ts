@@ -2,6 +2,7 @@ import { type Browser, type BrowserContext, expect, type Page, test } from '@pla
 import { freshEmail, SUPERADMINS } from './helpers/accounts'
 import { accountState, countUsers, deleteRoleInvites, deleteUsers, setRole } from './helpers/db'
 import { DEV_LOGIN_HEADER, devLogin, signInUser, type User } from './helpers/login'
+import { STUDENT_APP_URL } from './helpers/student'
 
 // User management: the admin is for admins, roles are for superadmins, a role can wait on an
 // address, and suspension and sign-out everywhere end sessions.
@@ -83,9 +84,9 @@ test('a user is kept out of the admin', async ({ browser }) => {
   const p = await person(browser, 'um-user')
   try {
     await p.page.goto('/admin')
-    await expect(p.page).toHaveURL(/\/dashboard$/)
+    await expect(p.page).toHaveURL(STUDENT_APP_URL)
     await p.page.goto('/admin/users')
-    await expect(p.page).toHaveURL(/\/dashboard$/)
+    await expect(p.page).toHaveURL(STUDENT_APP_URL)
   } finally {
     await p.context.close()
   }
@@ -123,10 +124,10 @@ test('a role change applies at once', async ({ page, browser }) => {
     expect((await accountState(p.email))?.role).toBe('admin')
 
     // Their sessions ended with the change.
-    await p.page.goto('/dashboard')
+    await p.page.goto('/start')
     await expect(p.page).toHaveURL(/\/$/)
     await devLogin(p.page, p.email)
-    await p.page.goto('/admin')
+    await p.page.goto('/admin/users')
     await expect(p.page).toHaveURL(/\/admin\/users$/)
     await expect(p.page.getByRole('heading', { level: 1, name: 'Users' })).toBeVisible()
   } finally {
@@ -177,7 +178,7 @@ test('an admin suspends a user and reactivates them', async ({ browser }) => {
     await expect(a.page.getByText(/^Suspended .*: E2E check$/)).toBeVisible()
 
     // Signed out at once, and refused a new session.
-    await p.page.goto('/dashboard')
+    await p.page.goto('/start')
     await expect(p.page).toHaveURL(/\/$/)
     const refused = await p.page.request.post('/api/dev-login', {
       headers: { [DEV_LOGIN_HEADER]: process.env.DEV_LOGIN_SECRET ?? '' },
@@ -209,8 +210,8 @@ test('sign out everywhere ends every session and leaves the account active', asy
   try {
     const other = await second.newPage()
     await devLogin(other, p.email)
-    await other.goto('/dashboard')
-    await expect(other).toHaveURL(/\/dashboard$/)
+    await other.goto('/start')
+    await expect(other).toHaveURL(STUDENT_APP_URL)
     expect((await accountState(p.email))?.sessions).toBe(2)
 
     await openAccount(a.page, p.userId)
@@ -219,9 +220,9 @@ test('sign out everywhere ends every session and leaves the account active', asy
     await dialog.getByRole('button', { name: 'Sign out', exact: true }).click()
     await expect(dialog).toBeHidden()
 
-    await p.page.goto('/dashboard')
+    await p.page.goto('/start')
     await expect(p.page).toHaveURL(/\/$/)
-    await other.goto('/dashboard')
+    await other.goto('/start')
     await expect(other).toHaveURL(/\/$/)
     expect(await accountState(p.email)).toMatchObject({
       role: 'user',
@@ -238,6 +239,9 @@ test('sign out everywhere ends every session and leaves the account active', asy
 test("the users list shows who's live", async ({ page, browser }) => {
   const p = await person(browser, 'um-live')
   try {
+    // A page load in the student app is what records presence.
+    await p.page.goto('/start')
+    await expect(p.page).toHaveURL(STUDENT_APP_URL)
     await superadmin(page)
     await page.goto('/admin/users')
     await page.getByLabel('Search users').fill(p.email)

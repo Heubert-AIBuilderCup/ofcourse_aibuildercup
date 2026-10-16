@@ -1,0 +1,34 @@
+{
+  "id": "comics",
+  "name": "OfCourse Comics",
+  "kind": "page",
+  "fonts": {
+    "heading": {
+      "family": "Barlow Condensed",
+      "file": "BarlowCondensed-Bold.ttf"
+    },
+    "body": {
+      "family": "Barlow",
+      "file": "Barlow-Regular.ttf"
+    }
+  },
+  "tone": "Warm and true to life. One student's path, told as a story.",
+  "byline": "OfCourse Comics",
+  "themes": [
+    {
+      "id": "main",
+      "name": "Main",
+      "bg": "#1877F2",
+      "ink": "#FFFFFF",
+      "highlight": "#F5C542",
+      "muted": "#E3EDFD"
+    }
+  ],
+  "instagram": {
+    "handle": "ofcourse_comics",
+    "url": "https://www.instagram.com/ofcourse_comics/"
+  },
+  "linkedin": {
+    "url": "https://www.linkedin.com/company/ofcourse-comics/"
+  }
+}

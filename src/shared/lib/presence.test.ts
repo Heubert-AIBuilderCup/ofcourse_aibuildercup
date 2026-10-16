@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { isOnline, LAST_SEEN_THROTTLE_MS, lastSeenLabel, ONLINE_WINDOW_MS } from './presence'
+import { LAST_SEEN_THROTTLE_MS, lastSeenLabel, ONLINE_WINDOW_MS } from './presence'
 
 const NOW = new Date('2026-10-26T12:00:00.000Z').getTime()
 const agoMs = (ms: number) => NOW - ms
@@ -16,20 +16,6 @@ describe('the windows', () => {
     expect(LAST_SEEN_THROTTLE_MS).toBe(2 * MIN)
     expect(LAST_SEEN_THROTTLE_MS).toBeLessThan(ONLINE_WINDOW_MS)
   })
-})
-
-describe('isOnline', () => {
-  it('is true within the window', () => expect(isOnline(agoMs(2 * MIN), NOW)).toBe(true))
-
-  it('is true up to the last millisecond of the window', () =>
-    expect(isOnline(agoMs(ONLINE_WINDOW_MS - 1), NOW)).toBe(true))
-
-  it('is false past the window', () => expect(isOnline(agoMs(4 * MIN), NOW)).toBe(false))
-
-  it('is false for someone who has never been seen', () => expect(isOnline(null, NOW)).toBe(false))
-
-  it('is false at exactly the window, which is exclusive', () =>
-    expect(isOnline(agoMs(ONLINE_WINDOW_MS), NOW)).toBe(false))
 })
 
 describe('lastSeenLabel', () => {
@@ -66,6 +52,5 @@ describe('lastSeenLabel', () => {
 
   it('reads a time a little ahead of now, the database clock running fast, as Online', () => {
     expect(lastSeenLabel(NOW + 5_000, NOW)).toBe('Online')
-    expect(isOnline(NOW + 5_000, NOW)).toBe(true)
   })
 })

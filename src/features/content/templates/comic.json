@@ -1,0 +1,132 @@
+{
+  "id": "comic",
+  "name": "Comic",
+  "format": "carousel",
+  "description": "a path told as panels, each a picture over its caption",
+  "slides": [
+    {
+      "spec": {
+        "kind": "cover",
+        "artBox": {
+          "x": 0,
+          "y": 0,
+          "w": 1080,
+          "h": 960
+        },
+        "sourceLine": false,
+        "surface": "base",
+        "panel": false,
+        "slots": [
+          {
+            "key": "caption",
+            "label": "Caption",
+            "factual": false,
+            "presentational": false,
+            "limit": {
+              "unit": "chars",
+              "min": 1,
+              "max": 140
+            },
+            "font": "body",
+            "fontPx": 44,
+            "lineHeight": 1.25,
+            "box": {
+              "x": 72,
+              "y": 984,
+              "w": 936,
+              "h": 165
+            },
+            "mark": "none"
+          }
+        ]
+      },
+      "repeat": {
+        "min": 1,
+        "max": 1
+      }
+    },
+    {
+      "spec": {
+        "kind": "body",
+        "artBox": {
+          "x": 0,
+          "y": 0,
+          "w": 1080,
+          "h": 960
+        },
+        "sourceLine": false,
+        "surface": "base",
+        "panel": false,
+        "slots": [
+          {
+            "key": "caption",
+            "label": "Caption",
+            "factual": false,
+            "presentational": false,
+            "limit": {
+              "unit": "chars",
+              "min": 1,
+              "max": 140
+            },
+            "font": "body",
+            "fontPx": 44,
+            "lineHeight": 1.25,
+            "box": {
+              "x": 72,
+              "y": 984,
+              "w": 936,
+              "h": 165
+            },
+            "mark": "none"
+          }
+        ]
+      },
+      "repeat": {
+        "min": 2,
+        "max": 5
+      }
+    }
+  ],
+  "canvas": {
+    "width": 1080,
+    "height": 1350
+  },
+  "look": true,
+  "layouts": {
+    "panel": {
+      "kind": "body",
+      "artBox": {
+        "x": 0,
+        "y": 0,
+        "w": 1080,
+        "h": 960
+      },
+      "sourceLine": false,
+      "surface": "base",
+      "panel": false,
+      "slots": [
+        {
+          "key": "caption",
+          "label": "Caption",
+          "factual": false,
+          "presentational": false,
+          "limit": {
+            "unit": "chars",
+            "min": 1,
+            "max": 140
+          },
+          "font": "body",
+          "fontPx": 44,
+          "lineHeight": 1.25,
+          "box": {
+            "x": 72,
+            "y": 984,
+            "w": 936,
+            "h": 165
+          },
+          "mark": "none"
+        }
+      ]
+    }
+  }
+}

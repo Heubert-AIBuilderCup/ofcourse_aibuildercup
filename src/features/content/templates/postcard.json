@@ -1,0 +1,789 @@
+{
+  "id": "postcard",
+  "name": "Postcard",
+  "format": "carousel",
+  "description": "one wide picture behind every slide, the words on a card",
+  "slides": [
+    {
+      "spec": {
+        "kind": "cover",
+        "artBox": {
+          "x": 0,
+          "y": 0,
+          "w": 1080,
+          "h": 1350
+        },
+        "sourceLine": false,
+        "surface": "base",
+        "panel": true,
+        "slots": [
+          {
+            "key": "kicker",
+            "label": "Kicker",
+            "factual": false,
+            "presentational": true,
+            "limit": {
+              "unit": "chars",
+              "min": 4,
+              "max": 30
+            },
+            "font": "body",
+            "fontPx": 44,
+            "lineHeight": 1.2,
+            "box": {
+              "x": 96,
+              "y": 760,
+              "w": 888,
+              "h": 60
+            },
+            "mark": "none"
+          },
+          {
+            "key": "heading",
+            "label": "Heading",
+            "factual": false,
+            "presentational": true,
+            "limit": {
+              "unit": "chars",
+              "min": 1,
+              "max": 48
+            },
+            "font": "heading",
+            "fontPx": 104,
+            "lineHeight": 1.05,
+            "box": {
+              "x": 96,
+              "y": 840,
+              "w": 888,
+              "h": 330
+            },
+            "mark": "none"
+          }
+        ]
+      },
+      "repeat": {
+        "min": 1,
+        "max": 1
+      }
+    },
+    {
+      "spec": {
+        "kind": "body",
+        "artBox": {
+          "x": 0,
+          "y": 0,
+          "w": 1080,
+          "h": 1350
+        },
+        "sourceLine": true,
+        "surface": "base",
+        "panel": true,
+        "slots": [
+          {
+            "key": "heading",
+            "label": "Heading",
+            "factual": false,
+            "presentational": false,
+            "limit": {
+              "unit": "chars",
+              "min": 1,
+              "max": 40
+            },
+            "font": "heading",
+            "fontPx": 76,
+            "lineHeight": 1.1,
+            "box": {
+              "x": 96,
+              "y": 700,
+              "w": 888,
+              "h": 170
+            },
+            "mark": "none"
+          },
+          {
+            "key": "body",
+            "label": "Body",
+            "factual": true,
+            "presentational": false,
+            "limit": {
+              "unit": "words",
+              "min": 15,
+              "max": 25
+            },
+            "font": "body",
+            "fontPx": 44,
+            "lineHeight": 1.35,
+            "box": {
+              "x": 96,
+              "y": 890,
+              "w": 888,
+              "h": 330
+            },
+            "mark": "none"
+          }
+        ]
+      },
+      "repeat": {
+        "min": 3,
+        "max": 5
+      }
+    },
+    {
+      "spec": {
+        "kind": "take",
+        "artBox": {
+          "x": 0,
+          "y": 0,
+          "w": 1080,
+          "h": 1350
+        },
+        "sourceLine": false,
+        "surface": "base",
+        "panel": true,
+        "slots": [
+          {
+            "key": "heading",
+            "label": "Heading",
+            "factual": false,
+            "presentational": true,
+            "limit": {
+              "unit": "chars",
+              "min": 1,
+              "max": 60
+            },
+            "font": "heading",
+            "fontPx": 96,
+            "lineHeight": 1.1,
+            "box": {
+              "x": 96,
+              "y": 420,
+              "w": 888,
+              "h": 330
+            },
+            "mark": "none"
+          },
+          {
+            "key": "body",
+            "label": "Body",
+            "factual": false,
+            "presentational": true,
+            "limit": {
+              "unit": "words",
+              "min": 5,
+              "max": 25
+            },
+            "font": "body",
+            "fontPx": 44,
+            "lineHeight": 1.35,
+            "box": {
+              "x": 96,
+              "y": 770,
+              "w": 888,
+              "h": 240
+            },
+            "mark": "none"
+          }
+        ]
+      },
+      "repeat": {
+        "min": 1,
+        "max": 1
+      }
+    }
+  ],
+  "canvas": {
+    "width": 1080,
+    "height": 1350
+  },
+  "look": true,
+  "layouts": {
+    "cover": {
+      "kind": "cover",
+      "artBox": {
+        "x": 0,
+        "y": 0,
+        "w": 1080,
+        "h": 1350
+      },
+      "sourceLine": false,
+      "surface": "base",
+      "panel": true,
+      "slots": [
+        {
+          "key": "kicker",
+          "label": "Kicker",
+          "factual": false,
+          "presentational": true,
+          "limit": {
+            "unit": "chars",
+            "min": 4,
+            "max": 30
+          },
+          "font": "body",
+          "fontPx": 44,
+          "lineHeight": 1.2,
+          "box": {
+            "x": 96,
+            "y": 760,
+            "w": 888,
+            "h": 60
+          },
+          "mark": "none"
+        },
+        {
+          "key": "heading",
+          "label": "Heading",
+          "factual": false,
+          "presentational": true,
+          "limit": {
+            "unit": "chars",
+            "min": 1,
+            "max": 48
+          },
+          "font": "heading",
+          "fontPx": 104,
+          "lineHeight": 1.05,
+          "box": {
+            "x": 96,
+            "y": 840,
+            "w": 888,
+            "h": 330
+          },
+          "mark": "none"
+        }
+      ]
+    },
+    "picture": {
+      "kind": "body",
+      "artBox": {
+        "x": 0,
+        "y": 0,
+        "w": 1080,
+        "h": 1350
+      },
+      "sourceLine": true,
+      "surface": "base",
+      "panel": true,
+      "slots": [
+        {
+          "key": "heading",
+          "label": "Heading",
+          "factual": false,
+          "presentational": false,
+          "limit": {
+            "unit": "chars",
+            "min": 1,
+            "max": 40
+          },
+          "font": "heading",
+          "fontPx": 76,
+          "lineHeight": 1.1,
+          "box": {
+            "x": 96,
+            "y": 700,
+            "w": 888,
+            "h": 170
+          },
+          "mark": "none"
+        },
+        {
+          "key": "body",
+          "label": "Body",
+          "factual": true,
+          "presentational": false,
+          "limit": {
+            "unit": "words",
+            "min": 15,
+            "max": 25
+          },
+          "font": "body",
+          "fontPx": 44,
+          "lineHeight": 1.35,
+          "box": {
+            "x": 96,
+            "y": 890,
+            "w": 888,
+            "h": 330
+          },
+          "mark": "none"
+        }
+      ]
+    },
+    "number": {
+      "kind": "body",
+      "artBox": {
+        "x": 0,
+        "y": 0,
+        "w": 1080,
+        "h": 1350
+      },
+      "sourceLine": true,
+      "surface": "base",
+      "panel": true,
+      "slots": [
+        {
+          "key": "number",
+          "label": "Number",
+          "factual": false,
+          "presentational": true,
+          "limit": {
+            "unit": "chars",
+            "min": 1,
+            "max": 8
+          },
+          "font": "heading",
+          "fontPx": 260,
+          "lineHeight": 1,
+          "box": {
+            "x": 96,
+            "y": 420,
+            "w": 888,
+            "h": 280
+          },
+          "mark": "none"
+        },
+        {
+          "key": "label",
+          "label": "Label",
+          "factual": false,
+          "presentational": true,
+          "limit": {
+            "unit": "chars",
+            "min": 1,
+            "max": 40
+          },
+          "font": "heading",
+          "fontPx": 72,
+          "lineHeight": 1.1,
+          "box": {
+            "x": 96,
+            "y": 720,
+            "w": 888,
+            "h": 160
+          },
+          "mark": "none"
+        },
+        {
+          "key": "body",
+          "label": "Body",
+          "factual": true,
+          "presentational": false,
+          "limit": {
+            "unit": "words",
+            "min": 15,
+            "max": 25
+          },
+          "font": "body",
+          "fontPx": 44,
+          "lineHeight": 1.35,
+          "box": {
+            "x": 96,
+            "y": 900,
+            "w": 888,
+            "h": 300
+          },
+          "mark": "none"
+        }
+      ]
+    },
+    "bars": {
+      "kind": "body",
+      "artBox": {
+        "x": 0,
+        "y": 0,
+        "w": 1080,
+        "h": 1350
+      },
+      "sourceLine": true,
+      "surface": "base",
+      "panel": true,
+      "slots": [
+        {
+          "key": "heading",
+          "label": "Heading",
+          "factual": false,
+          "presentational": false,
+          "limit": {
+            "unit": "chars",
+            "min": 1,
+            "max": 40
+          },
+          "font": "heading",
+          "fontPx": 76,
+          "lineHeight": 1.1,
+          "box": {
+            "x": 96,
+            "y": 520,
+            "w": 888,
+            "h": 170
+          },
+          "mark": "none"
+        },
+        {
+          "key": "labelA",
+          "label": "First label",
+          "factual": false,
+          "presentational": true,
+          "limit": {
+            "unit": "chars",
+            "min": 1,
+            "max": 32
+          },
+          "font": "body",
+          "fontPx": 44,
+          "lineHeight": 1.2,
+          "box": {
+            "x": 96,
+            "y": 720,
+            "w": 888,
+            "h": 110
+          },
+          "mark": "none"
+        },
+        {
+          "key": "valueA",
+          "label": "First value",
+          "factual": false,
+          "presentational": false,
+          "limit": {
+            "unit": "chars",
+            "min": 1,
+            "max": 12
+          },
+          "font": "heading",
+          "fontPx": 96,
+          "lineHeight": 1.1,
+          "box": {
+            "x": 96,
+            "y": 840,
+            "w": 888,
+            "h": 110
+          },
+          "mark": "none"
+        },
+        {
+          "key": "labelB",
+          "label": "Second label",
+          "factual": false,
+          "presentational": true,
+          "limit": {
+            "unit": "chars",
+            "min": 1,
+            "max": 32
+          },
+          "font": "body",
+          "fontPx": 44,
+          "lineHeight": 1.2,
+          "box": {
+            "x": 96,
+            "y": 990,
+            "w": 888,
+            "h": 110
+          },
+          "mark": "none"
+        },
+        {
+          "key": "valueB",
+          "label": "Second value",
+          "factual": false,
+          "presentational": false,
+          "limit": {
+            "unit": "chars",
+            "min": 1,
+            "max": 12
+          },
+          "font": "heading",
+          "fontPx": 96,
+          "lineHeight": 1.1,
+          "box": {
+            "x": 96,
+            "y": 1110,
+            "w": 888,
+            "h": 110
+          },
+          "mark": "none"
+        }
+      ]
+    },
+    "quote": {
+      "kind": "body",
+      "artBox": {
+        "x": 0,
+        "y": 0,
+        "w": 1080,
+        "h": 1350
+      },
+      "sourceLine": true,
+      "surface": "base",
+      "panel": true,
+      "slots": [
+        {
+          "key": "quote",
+          "label": "Quote",
+          "factual": true,
+          "presentational": false,
+          "limit": {
+            "unit": "words",
+            "min": 5,
+            "max": 30
+          },
+          "font": "heading",
+          "fontPx": 72,
+          "lineHeight": 1.15,
+          "box": {
+            "x": 96,
+            "y": 600,
+            "w": 888,
+            "h": 500
+          },
+          "mark": "none"
+        },
+        {
+          "key": "credit",
+          "label": "Credit",
+          "factual": false,
+          "presentational": false,
+          "limit": {
+            "unit": "chars",
+            "min": 1,
+            "max": 60
+          },
+          "font": "body",
+          "fontPx": 44,
+          "lineHeight": 1.2,
+          "box": {
+            "x": 96,
+            "y": 1110,
+            "w": 888,
+            "h": 110
+          },
+          "mark": "none"
+        }
+      ]
+    },
+    "checklist": {
+      "kind": "body",
+      "artBox": {
+        "x": 0,
+        "y": 0,
+        "w": 1080,
+        "h": 1350
+      },
+      "sourceLine": true,
+      "surface": "base",
+      "panel": true,
+      "slots": [
+        {
+          "key": "heading",
+          "label": "Heading",
+          "factual": false,
+          "presentational": false,
+          "limit": {
+            "unit": "chars",
+            "min": 1,
+            "max": 40
+          },
+          "font": "heading",
+          "fontPx": 76,
+          "lineHeight": 1.1,
+          "box": {
+            "x": 96,
+            "y": 520,
+            "w": 888,
+            "h": 170
+          },
+          "mark": "none"
+        },
+        {
+          "key": "items",
+          "label": "Items",
+          "factual": false,
+          "presentational": false,
+          "limit": {
+            "unit": "words",
+            "min": 4,
+            "max": 36
+          },
+          "font": "body",
+          "fontPx": 48,
+          "lineHeight": 1.4,
+          "box": {
+            "x": 96,
+            "y": 710,
+            "w": 888,
+            "h": 520
+          },
+          "mark": "none"
+        }
+      ]
+    },
+    "bullets": {
+      "kind": "body",
+      "artBox": {
+        "x": 0,
+        "y": 0,
+        "w": 1080,
+        "h": 1350
+      },
+      "sourceLine": true,
+      "surface": "base",
+      "panel": true,
+      "slots": [
+        {
+          "key": "heading",
+          "label": "Heading",
+          "factual": false,
+          "presentational": false,
+          "limit": {
+            "unit": "chars",
+            "min": 1,
+            "max": 40
+          },
+          "font": "heading",
+          "fontPx": 76,
+          "lineHeight": 1.1,
+          "box": {
+            "x": 96,
+            "y": 520,
+            "w": 888,
+            "h": 170
+          },
+          "mark": "none"
+        },
+        {
+          "key": "points",
+          "label": "Points",
+          "factual": true,
+          "presentational": false,
+          "limit": {
+            "unit": "points",
+            "min": 3,
+            "max": 5
+          },
+          "font": "body",
+          "fontPx": 44,
+          "lineHeight": 1.35,
+          "box": {
+            "x": 96,
+            "y": 710,
+            "w": 888,
+            "h": 520
+          },
+          "mark": "none"
+        }
+      ]
+    },
+    "takeaway": {
+      "kind": "take",
+      "artBox": {
+        "x": 0,
+        "y": 0,
+        "w": 1080,
+        "h": 1350
+      },
+      "sourceLine": false,
+      "surface": "base",
+      "panel": true,
+      "slots": [
+        {
+          "key": "heading",
+          "label": "Heading",
+          "factual": false,
+          "presentational": true,
+          "limit": {
+            "unit": "chars",
+            "min": 1,
+            "max": 60
+          },
+          "font": "heading",
+          "fontPx": 96,
+          "lineHeight": 1.1,
+          "box": {
+            "x": 96,
+            "y": 420,
+            "w": 888,
+            "h": 330
+          },
+          "mark": "none"
+        },
+        {
+          "key": "body",
+          "label": "Body",
+          "factual": false,
+          "presentational": true,
+          "limit": {
+            "unit": "words",
+            "min": 5,
+            "max": 25
+          },
+          "font": "body",
+          "fontPx": 44,
+          "lineHeight": 1.35,
+          "box": {
+            "x": 96,
+            "y": 770,
+            "w": 888,
+            "h": 240
+          },
+          "mark": "none"
+        }
+      ]
+    }
+  },
+  "sourcesLayout": {
+    "kind": "body",
+    "artBox": {
+      "x": 0,
+      "y": 0,
+      "w": 1080,
+      "h": 1350
+    },
+    "sourceLine": false,
+    "surface": "base",
+    "panel": true,
+    "slots": [
+      {
+        "key": "heading",
+        "label": "Heading",
+        "factual": false,
+        "presentational": true,
+        "limit": {
+          "unit": "chars",
+          "min": 1,
+          "max": 20
+        },
+        "font": "heading",
+        "fontPx": 76,
+        "lineHeight": 1.1,
+        "box": {
+          "x": 96,
+          "y": 300,
+          "w": 888,
+          "h": 170
+        },
+        "mark": "none"
+      },
+      {
+        "key": "rows",
+        "label": "Sources",
+        "factual": false,
+        "presentational": false,
+        "limit": {
+          "unit": "words",
+          "min": 1,
+          "max": 240
+        },
+        "font": "body",
+        "fontPx": 44,
+        "lineHeight": 1.3,
+        "box": {
+          "x": 96,
+          "y": 490,
+          "w": 888,
+          "h": 520
+        },
+        "mark": "none"
+      }
+    ]
+  }
+}

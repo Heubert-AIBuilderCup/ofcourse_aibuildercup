@@ -1,7 +1,7 @@
 // Site constants: the name, the public origin and the suspended contact.
 // Safe for client components: no secrets, and the origin falls back to the public URL only.
 
-export const SITE_NAME = 'Heubert Starter'
+export const SITE_NAME = 'OfCourse'
 
 /** Canonical public origin for absolute links. Server-side it also reads BETTER_AUTH_URL. */
 export const SITE_URL =

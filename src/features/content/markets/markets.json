@@ -1,0 +1,23 @@
+[
+  {
+    "id": "NP",
+    "name": "Nepal",
+    "currency": "NPR",
+    "decisionFrame": "family",
+    "notes": "Families often decide together; Dashain falls in autumn; plain, respectful tone."
+  },
+  {
+    "id": "IN",
+    "name": "India",
+    "currency": "INR",
+    "decisionFrame": "family",
+    "notes": "Families decide together; fees are compared in lakh; plain, respectful tone."
+  },
+  {
+    "id": "TH",
+    "name": "Thailand",
+    "currency": "THB",
+    "decisionFrame": "family",
+    "notes": "Parents often fund the first year; plain, warm tone."
+  }
+]

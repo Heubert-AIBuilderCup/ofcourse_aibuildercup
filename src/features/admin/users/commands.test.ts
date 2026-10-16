@@ -16,6 +16,7 @@ const enabled = process.env.DB_TESTS === '1'
 const P = 'um-c-'
 const email = (k: string) => `${P}${k}@um.e2e.test`
 const NEW_ADDRESS = 'new@um.e2e.test'
+const NO_CAPS = { editor: false, reviewer: false }
 
 const SUPER = { id: `${P}super`, role: 'superadmin' }
 const ADMIN = { id: `${P}admin`, role: 'admin' }
@@ -74,6 +75,18 @@ describe.skipIf(!enabled)('the account commands against the database', () => {
     return r ?? null
   }
 
+  async function waitingAccess(address: string) {
+    const [r] = await db
+      .select({
+        role: schema.roleInvite.role,
+        editor: schema.roleInvite.editor,
+        reviewer: schema.roleInvite.reviewer,
+      })
+      .from(schema.roleInvite)
+      .where(orm.eq(schema.roleInvite.email, address))
+    return r ?? null
+  }
+
   beforeAll(async () => {
     commands = await import('./commands')
     ;({ db } = await import('@/shared/lib/db'))
@@ -116,6 +129,48 @@ describe.skipIf(!enabled)('the account commands against the database', () => {
     })
   })
 
+  describe('content capabilities', () => {
+    async function capsOf(id: string) {
+      const r = await row(id)
+      return { editor: r.editor, reviewer: r.reviewer }
+    }
+
+    test('an admin is refused and nothing changes', async () => {
+      const id = await account('caps-admin-try')
+      expect(await commands.setCapabilitiesAs(ADMIN, id, { editor: true, reviewer: true })).toEqual(
+        { ok: false, error: ACCESS_ERRORS.rolesSuperadminOnly },
+      )
+      expect(await capsOf(id)).toEqual({ editor: false, reviewer: false })
+      expect(await sessionsOf(id)).toBe(2)
+    })
+
+    test("a superadmin gives both at once and ends the account's sessions", async () => {
+      const id = await account('caps')
+      expect(await commands.setCapabilitiesAs(SUPER, id, { editor: true, reviewer: true })).toEqual(
+        { ok: true },
+      )
+      expect(await capsOf(id)).toEqual({ editor: true, reviewer: true })
+      expect((await row(id)).role).toBe('user')
+      expect(await sessionsOf(id)).toBe(0)
+    })
+
+    test('a superadmin removes one and keeps the other', async () => {
+      const id = `${P}caps`
+      expect(
+        await commands.setCapabilitiesAs(SUPER, id, { editor: false, reviewer: true }),
+      ).toEqual({ ok: true })
+      expect(await capsOf(id)).toEqual({ editor: false, reviewer: true })
+    })
+
+    test('an unknown account is refused', async () => {
+      const result = await commands.setCapabilitiesAs(SUPER, `${P}nobody`, {
+        editor: true,
+        reviewer: false,
+      })
+      expect(result.ok).toBe(false)
+    })
+  })
+
   describe('waiting roles', () => {
     test('an address is stored trimmed and lowercased with its role', async () => {
       expect(await commands.addRoleInviteAs(SUPER, '  New@UM.e2e.test ', 'admin')).toEqual({
@@ -147,6 +202,102 @@ describe.skipIf(!enabled)('the account commands against the database', () => {
         error: ACCESS_ERRORS.invalidRole,
       })
       expect(await waiting(email('p-invite'))).toBeNull()
+    })
+
+    test('no role and no capability is refused', async () => {
+      expect(
+        await commands.addRoleInviteAs(SUPER, email('nothing'), null, {
+          editor: false,
+          reviewer: false,
+        }),
+      ).toEqual({ ok: false, error: ACCESS_ERRORS.invalidRole })
+      expect(await waiting(email('nothing'))).toBeNull()
+    })
+
+    test('capabilities can wait without a role, or beside one', async () => {
+      expect(
+        await commands.addRoleInviteAs(SUPER, email('editor-invite'), null, {
+          editor: true,
+          reviewer: false,
+        }),
+      ).toEqual({ ok: true, applied: 'invite' })
+      expect(await waitingAccess(email('editor-invite'))).toEqual({
+        role: null,
+        editor: true,
+        reviewer: false,
+      })
+      await commands.addRoleInviteAs(SUPER, email('admin-reviewer-invite'), 'admin', {
+        editor: false,
+        reviewer: true,
+      })
+      expect(await waitingAccess(email('admin-reviewer-invite'))).toEqual({
+        role: 'admin',
+        editor: false,
+        reviewer: true,
+      })
+    })
+
+    test("an existing account's address gets the capabilities at once", async () => {
+      const id = await account('existing-caps')
+      expect(
+        await commands.addRoleInviteAs(SUPER, email('existing-caps'), null, {
+          editor: true,
+          reviewer: true,
+        }),
+      ).toEqual({ ok: true, applied: 'account' })
+      const r = await row(id)
+      expect({ role: r.role, editor: r.editor, reviewer: r.reviewer }).toEqual({
+        role: 'user',
+        editor: true,
+        reviewer: true,
+      })
+      expect(await sessionsOf(id)).toBe(0)
+      expect(await waiting(email('existing-caps'))).toBeNull()
+    })
+
+    test('removing a tick from an existing account asks first, and changes nothing until confirmed', async () => {
+      const id = await account('had-editor')
+      await db.update(schema.user).set({ editor: true }).where(orm.eq(schema.user.id, id))
+      expect(await commands.addRoleInviteAs(SUPER, email('had-editor'), 'admin')).toEqual({
+        ok: true,
+        applied: 'confirm',
+        removes: ['editor'],
+      })
+      let r = await row(id)
+      expect({ role: r.role, editor: r.editor }).toEqual({ role: 'user', editor: true })
+      expect(await sessionsOf(id)).toBe(2)
+
+      expect(
+        await commands.addRoleInviteAs(SUPER, email('had-editor'), 'admin', NO_CAPS, true),
+      ).toEqual({ ok: true, applied: 'account' })
+      r = await row(id)
+      expect({ role: r.role, editor: r.editor }).toEqual({ role: 'admin', editor: false })
+      expect(await sessionsOf(id)).toBe(0)
+    })
+
+    test('a failure in the capability update rolls back the role change', async () => {
+      const id = await account('rollback')
+      // Refuses any change to this one account's editor tick, so the second update fails.
+      await db.execute(orm.sql`
+        create or replace function um_c_refuse_editor() returns trigger language plpgsql as $$
+        begin raise exception 'refused by the test'; end $$`)
+      await db.execute(orm.sql`
+        create trigger um_c_refuse_editor before update on "user" for each row
+        when (new.id = ${orm.sql.raw(`'${id}'`)} and new.editor is distinct from old.editor)
+        execute function um_c_refuse_editor()`)
+      try {
+        const res = await commands.addRoleInviteAs(SUPER, email('rollback'), 'admin', {
+          editor: true,
+          reviewer: false,
+        })
+        expect(res.ok).toBe(false)
+      } finally {
+        await db.execute(orm.sql`drop trigger if exists um_c_refuse_editor on "user"`)
+        await db.execute(orm.sql`drop function if exists um_c_refuse_editor()`)
+      }
+      const r = await row(id)
+      expect({ role: r.role, editor: r.editor }).toEqual({ role: 'user', editor: false })
+      expect(await sessionsOf(id)).toBe(2)
     })
 
     test('an address that is not an email is refused', async () => {

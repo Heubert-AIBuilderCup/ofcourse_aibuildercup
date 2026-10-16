@@ -1,0 +1,120 @@
+{
+  "mock": true,
+  "students": [
+    {
+      "id": "priya",
+      "name": "Priya",
+      "homeCountry": "Nepal",
+      "ranked": ["ecu-cyber", "curtin-it", "unisa-cyber"]
+    },
+    {
+      "id": "aarav",
+      "name": "Aarav",
+      "homeCountry": "Nepal",
+      "ranked": ["curtin-it", "ecu-bsc-cyber"]
+    },
+    {
+      "id": "bikash",
+      "name": "Bikash",
+      "homeCountry": "Nepal",
+      "ranked": ["tafe-cyber", "ecu-cyber"]
+    },
+    {
+      "id": "sita",
+      "name": "Sita",
+      "homeCountry": "Nepal",
+      "ranked": ["deakin-cyber", "uow-cyber"]
+    },
+    {
+      "id": "anjali",
+      "name": "Anjali",
+      "homeCountry": "India",
+      "ranked": ["ecu-cyber", "deakin-ba"]
+    },
+    {
+      "id": "rohan",
+      "name": "Rohan",
+      "homeCountry": "India",
+      "ranked": ["monash-data", "uts-data"]
+    },
+    {
+      "id": "meera",
+      "name": "Meera",
+      "homeCountry": "India",
+      "ranked": ["uts-cyber", "ecu-cyber"]
+    },
+    {
+      "id": "kabir",
+      "name": "Kabir",
+      "homeCountry": "India",
+      "ranked": ["deakin-ba", "monash-data"]
+    },
+    {
+      "id": "nok",
+      "name": "Nok",
+      "homeCountry": "Thailand",
+      "ranked": ["swin-cyberpsych", "deakin-cyber"]
+    },
+    {
+      "id": "ploy",
+      "name": "Ploy",
+      "homeCountry": "Thailand",
+      "ranked": ["ecu-bsc-cyber", "unisa-it"]
+    },
+    {
+      "id": "arthit",
+      "name": "Arthit",
+      "homeCountry": "Thailand",
+      "ranked": ["unisa-cyber", "unisa-it"]
+    },
+    {
+      "id": "linh",
+      "name": "Linh",
+      "homeCountry": "Vietnam",
+      "ranked": ["uts-data", "monash-data"]
+    },
+    {
+      "id": "minh",
+      "name": "Minh",
+      "homeCountry": "Vietnam",
+      "ranked": ["ecu-cyber", "uow-cyber"]
+    },
+    {
+      "id": "nimal",
+      "name": "Nimal",
+      "homeCountry": "Sri Lanka",
+      "ranked": ["utas-it", "curtin-it"]
+    },
+    {
+      "id": "tharushi",
+      "name": "Tharushi",
+      "homeCountry": "Sri Lanka",
+      "ranked": ["deakin-cyber", "ecu-cyber"]
+    },
+    {
+      "id": "farhan",
+      "name": "Farhan",
+      "homeCountry": "Bangladesh",
+      "ranked": ["uow-cyber", "uts-cyber"]
+    },
+    { "id": "nusrat", "name": "Nusrat", "homeCountry": "Bangladesh", "ranked": ["monash-data"] },
+    {
+      "id": "maria",
+      "name": "Maria",
+      "homeCountry": "Philippines",
+      "ranked": ["curtin-it", "utas-it"]
+    },
+    {
+      "id": "jose",
+      "name": "Jose",
+      "homeCountry": "Philippines",
+      "ranked": ["swin-cyberpsych", "ecu-bsc-cyber"]
+    },
+    {
+      "id": "dewi",
+      "name": "Dewi",
+      "homeCountry": "Indonesia",
+      "ranked": ["unisa-it", "deakin-ba"]
+    }
+  ]
+}

@@ -1,0 +1,182 @@
+{
+  "id": "the-long-read",
+  "name": "Article carousel · The long read",
+  "format": "carousel",
+  "description": "the whole study, fewer slides",
+  "slides": [
+    {
+      "spec": {
+        "kind": "cover",
+        "artBox": {
+          "x": 0,
+          "y": 0,
+          "w": 1080,
+          "h": 810
+        },
+        "sourceLine": false,
+        "slots": [
+          {
+            "key": "kicker",
+            "label": "Kicker",
+            "factual": false,
+            "presentational": true,
+            "limit": {
+              "unit": "chars",
+              "min": 4,
+              "max": 30
+            },
+            "font": "body",
+            "fontPx": 40,
+            "lineHeight": 1.2,
+            "box": {
+              "x": 96,
+              "y": 850,
+              "w": 888,
+              "h": 50
+            },
+            "mark": "none"
+          },
+          {
+            "key": "phrase",
+            "label": "Phrase",
+            "factual": false,
+            "presentational": true,
+            "limit": {
+              "unit": "chars",
+              "min": 1,
+              "max": 10
+            },
+            "font": "heading",
+            "fontPx": 72,
+            "lineHeight": 1.1,
+            "box": {
+              "x": 96,
+              "y": 910,
+              "w": 888,
+              "h": 180
+            },
+            "mark": "highlight"
+          },
+          {
+            "key": "byline",
+            "label": "Byline",
+            "factual": false,
+            "presentational": false,
+            "limit": {
+              "unit": "chars",
+              "min": 1,
+              "max": 40
+            },
+            "font": "body",
+            "fontPx": 38,
+            "lineHeight": 1.2,
+            "box": {
+              "x": 96,
+              "y": 1240,
+              "w": 888,
+              "h": 50
+            },
+            "mark": "none"
+          }
+        ]
+      },
+      "repeat": {
+        "min": 1,
+        "max": 1
+      }
+    },
+    {
+      "spec": {
+        "kind": "body",
+        "artBox": null,
+        "sourceLine": true,
+        "slots": [
+          {
+            "key": "heading",
+            "label": "Heading",
+            "factual": false,
+            "presentational": false,
+            "limit": {
+              "unit": "chars",
+              "min": 1,
+              "max": 24
+            },
+            "font": "heading",
+            "fontPx": 72,
+            "lineHeight": 1.1,
+            "box": {
+              "x": 96,
+              "y": 120,
+              "w": 888,
+              "h": 180
+            },
+            "mark": "none"
+          },
+          {
+            "key": "body",
+            "label": "Body",
+            "factual": true,
+            "presentational": false,
+            "limit": {
+              "unit": "words",
+              "min": 30,
+              "max": 70
+            },
+            "font": "body",
+            "fontPx": 40,
+            "lineHeight": 1.35,
+            "box": {
+              "x": 96,
+              "y": 330,
+              "w": 888,
+              "h": 860
+            },
+            "mark": "none"
+          }
+        ]
+      },
+      "repeat": {
+        "min": 2,
+        "max": 3
+      }
+    },
+    {
+      "spec": {
+        "kind": "take",
+        "artBox": null,
+        "sourceLine": true,
+        "slots": [
+          {
+            "key": "takeaway",
+            "label": "Takeaway",
+            "factual": false,
+            "presentational": true,
+            "limit": {
+              "unit": "chars",
+              "min": 1,
+              "max": 70
+            },
+            "font": "heading",
+            "fontPx": 72,
+            "lineHeight": 1.15,
+            "box": {
+              "x": 96,
+              "y": 400,
+              "w": 888,
+              "h": 500
+            },
+            "mark": "none"
+          }
+        ]
+      },
+      "repeat": {
+        "min": 1,
+        "max": 1
+      }
+    }
+  ],
+  "canvas": {
+    "width": 1080,
+    "height": 1350
+  }
+}

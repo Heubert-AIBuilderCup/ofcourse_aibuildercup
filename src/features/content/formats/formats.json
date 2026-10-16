@@ -1,0 +1,62 @@
+[
+  {
+    "id": "myth-vs-fact",
+    "label": "Myth vs fact",
+    "description": "Each slide names a common belief, then what the facts say instead.",
+    "jobs": ["hook", "compare", "compare", "proof", "takeaway"]
+  },
+  {
+    "id": "things-nobody-tells-you",
+    "label": "N things nobody tells you",
+    "description": "A numbered list of things students learn too late, one per slide.",
+    "jobs": ["hook", "point", "point", "point", "takeaway"]
+  },
+  {
+    "id": "this-or-that",
+    "label": "This or that",
+    "description": "Two choices side by side, with what each one means for the reader.",
+    "jobs": ["hook", "compare", "proof", "compare", "takeaway"]
+  },
+  {
+    "id": "step-by-step",
+    "label": "Step by step",
+    "description": "One thing to do per slide, in the order to do it.",
+    "jobs": ["hook", "step", "step", "step", "takeaway"]
+  },
+  {
+    "id": "one-idea-per-slide",
+    "label": "Informative, one idea per slide",
+    "description": "A clear explainer: each slide makes one point and backs it with a fact.",
+    "jobs": ["hook", "point", "proof", "point", "takeaway"]
+  },
+  {
+    "id": "bullet-points",
+    "label": "Bullet points",
+    "description": "Short points under a heading, quick to scan on a phone.",
+    "jobs": ["hook", "point", "point", "proof", "takeaway"]
+  },
+  {
+    "id": "day-in-the-life",
+    "label": "A day in the life",
+    "description": "One student's day, morning to night, with the facts along the way.",
+    "jobs": ["hook", "point", "point", "point", "takeaway"]
+  },
+  {
+    "id": "question-and-answer",
+    "label": "Question and answer",
+    "description": "The questions students ask, each answered from the facts.",
+    "jobs": ["hook", "point", "proof", "point", "takeaway"]
+  },
+  {
+    "id": "before-you-go",
+    "label": "Before you go (checklist)",
+    "description": "What to sort out before you leave, as a list to tick off.",
+    "jobs": ["hook", "step", "step", "step", "takeaway"]
+  },
+  {
+    "id": "then-vs-now",
+    "label": "Then vs now (timeline)",
+    "description": "How things changed over time, from what was to what is now.",
+    "jobs": ["hook", "compare", "proof", "compare", "takeaway"]
+  }
+]

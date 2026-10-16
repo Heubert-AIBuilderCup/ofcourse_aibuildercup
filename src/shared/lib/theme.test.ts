@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { parseTheme, parseThemeChoice, resolveTheme } from './theme'
+import { parseTheme, parseThemeChoice, resolveTheme, toggledChoice } from './theme'
 
 describe('parseThemeChoice', () => {
   it('reads the stored choice', () => {
@@ -35,5 +35,12 @@ describe('resolveTheme', () => {
 
   it('falls back to light before the phone has been read', () => {
     expect(resolveTheme('system', null)).toBe('light')
+  })
+})
+
+describe('toggledChoice', () => {
+  it('flips the theme on screen into the explicit opposite choice', () => {
+    expect(toggledChoice('light')).toBe('dark')
+    expect(toggledChoice('dark')).toBe('light')
   })
 })

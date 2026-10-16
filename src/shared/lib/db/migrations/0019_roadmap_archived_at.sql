@@ -1,0 +1,1 @@
+ALTER TABLE "roadmap" ADD COLUMN "archived_at" timestamp with time zone;

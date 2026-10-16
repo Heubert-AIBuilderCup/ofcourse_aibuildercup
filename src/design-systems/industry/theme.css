@@ -2,10 +2,12 @@
  * Industry (Claude Design: https://claude.ai/artifact/Dtp9Gw4cZP9Kt2hRYc8Mec): steel blue on a light
  * technical ground, Barlow Condensed over Barlow, square hairline-framed objects with "+" marks.
  * Its tokens, converted to OKLCH, mapped onto the shadcn variables every component reads.
- * Industry ships a light theme only; the dark theme is derived from its own ramps.
+ * Industry ships both themes; the dark one is its own set, below.
  */
 
-:root {
+:root,
+[data-theme="light"] {
+  color-scheme: light;
   --ds-font-body: var(--font-industry-body), system-ui, sans-serif;
   --ds-font-heading: var(--font-industry-heading), system-ui, sans-serif;
   --ds-heading-weight: 600;
@@ -17,7 +19,7 @@
   /* The smallest role: card kickers, cell labels, the crosshair readout. 10px, wide tracking. */
   --ds-text-micro: 0.625rem;
   --ds-text-micro-tracking: 0.1em;
-  /* Type roles on Industry's fixed scale at 1440 (h1 42, h2 32, h3 25, h4 20, lead 17, caption 13; display is the sign-in hero at 56). Fluid between a 360px phone and a 1440px desktop; body text stays fixed. */
+  /* Type roles on Industry's fixed scale at 1440 (h1 42, h2 32, h3 25, h4 20, lead 17, caption 13; display is the sign-in hero at 56). Fluid between a 360px phone and a 1440px desktop; body text stays fixed. Above 1440 the whole design scales with the root font-size (globals.css). */
   --ds-text-display: clamp(3rem, 2.429rem + 1.19vw, 3.5rem);
   --ds-text-display-leading: 1.04;
   --ds-text-h1: clamp(2rem, 1.792rem + 0.926vw, 2.625rem);
@@ -32,7 +34,7 @@
   --ds-text-lead-leading: 1.55;
   --ds-text-caption: clamp(0.75rem, 0.7292rem + 0.0926vw, 0.8125rem);
   --ds-text-caption-leading: 1.55;
-  /* Spacing roles, fluid between a 768px tablet and a 1440px desktop (the design's values at both); the ≤560px layout sets its own compact values. */
+  /* Spacing roles, fluid between a 768px tablet and a 1440px desktop (the design's values at both); the phone layout sets its own compact values. Above 1440 they scale with the root font-size (globals.css). */
   --ds-space-gutter: clamp(3rem, 2.429rem + 1.19vw, 3.5rem);
   --ds-space-section: clamp(2.5rem, 1.929rem + 1.19vw, 3rem);
   --ds-space-block: clamp(2rem, 1.429rem + 1.19vw, 2.5rem);
@@ -91,6 +93,18 @@
   /* hover tint: accent-200 */
   --accent: oklch(0.931 0.035 246.9);
   --accent-foreground: oklch(0.381 0.052 248.3);
+  /* Industry's danger ramp (#fef2f0 … #4c1814; danger is 600), for validation states only:
+     the invalid field and its message, the form's error block. */
+  --danger: oklch(0.582 0.17 27.1);
+  --danger-100: oklch(0.97 0.013 28.9);
+  --danger-200: oklch(0.93 0.034 26.8);
+  --danger-300: oklch(0.871 0.069 26.3);
+  --danger-400: oklch(0.78 0.128 26.7);
+  --danger-500: oklch(0.681 0.161 26.7);
+  --danger-600: oklch(0.582 0.17 27.1);
+  --danger-700: oklch(0.482 0.151 26.9);
+  --danger-800: oklch(0.382 0.12 27.1);
+  --danger-900: oklch(0.291 0.08 27.5);
   /* Industry has no red; errors still need one, kept muted beside the steel. */
   --destructive: oklch(0.52 0.13 25);
   --destructive-foreground: oklch(0.961 0 0);
@@ -116,40 +130,82 @@
   --sidebar-ring: oklch(0.586 0.073 248.5);
 }
 
-/* Derived dark theme: accent-900 depth for the ground, the 500 step as the accent so it keeps contrast. */
+/* Industry's dark theme (the canvas's [data-theme="dark"] set, in OKLCH). The steel panel tokens
+   (--panel*) are not redefined: a panel is the same steel in both themes. */
 [data-theme="dark"] {
-  --background: oklch(0.2 0.012 249);
-  --foreground: oklch(0.934 0 0);
+  color-scheme: dark;
+  /* the accent ramp, 100 deep to 900 (900 stays the steel) */
+  --accent-100: oklch(0.256 0.034 252.6);
+  --accent-200: oklch(0.311 0.045 251.8);
+  --accent-300: oklch(0.388 0.055 248.5);
+  --accent-400: oklch(0.607 0.074 249.1);
+  --accent-500: oklch(0.681 0.073 247.7);
+  --accent-600: oklch(0.78 0.071 248.1);
+  --accent-700: oklch(0.871 0.063 248.6);
+  --accent-800: oklch(0.931 0.035 246.9);
+  --accent-900: oklch(0.291 0.036 249.2);
+  /* the neutral ramp */
+  --neutral-100: oklch(0.246 0.009 255.6);
+  --neutral-200: oklch(0.284 0.01 260.7);
+  --neutral-300: oklch(0.351 0.01 260.7);
+  --neutral-400: oklch(0.438 0.009 260.7);
+  --neutral-500: oklch(0.572 0.008 260.7);
+  --neutral-600: oklch(0.662 0.008 260.7);
+  --neutral-700: oklch(0.75 0.008 260.7);
+  --neutral-800: oklch(0.863 0.006 264.5);
+  --neutral-900: oklch(0.139 0.003 246.3);
+  /* the danger ramp */
+  --danger: oklch(0.681 0.161 26.7);
+  --danger-100: oklch(0.222 0.037 25.9);
+  --danger-200: oklch(0.265 0.053 26.6);
+  --danger-300: oklch(0.382 0.098 27.7);
+  --danger-400: oklch(0.582 0.17 27.1);
+  --danger-500: oklch(0.681 0.161 26.7);
+  --danger-600: oklch(0.681 0.161 26.7);
+  --danger-700: oklch(0.794 0.119 26.3);
+  --danger-800: oklch(0.871 0.069 26.3);
+  --danger-900: oklch(0.931 0.035 26.5);
+  /* the solid "aa" button: accent-700 fill with the ground as its label; accent-800 hover, accent-900 pressed */
+  --primary-strong: oklch(0.871 0.063 248.6);
+  --primary-strong-foreground: oklch(0.19 0.007 258.4);
+  --primary-strong-hover: oklch(0.931 0.035 246.9);
+  --primary-strong-active: oklch(0.291 0.036 249.2);
+  /* color-bg, color-text, color-surface */
+  --background: oklch(0.19 0.007 258.4);
+  --foreground: oklch(0.928 0.003 264.5);
   --card: transparent;
-  --card-foreground: oklch(0.934 0 0);
-  --popover: oklch(0.24 0.016 249);
-  --popover-foreground: oklch(0.934 0 0);
-  --primary: oklch(0.681 0.073 247.7);
-  --primary-foreground: oklch(0.2 0.012 249);
-  --secondary: oklch(0.291 0.036 249.2);
-  --secondary-foreground: oklch(0.934 0 0);
-  --muted: oklch(0.26 0.02 249);
-  --muted-foreground: oklch(0.78 0.01 249);
-  --accent: oklch(0.291 0.036 249.2);
+  --card-foreground: oklch(0.928 0.003 264.5);
+  --popover: oklch(0.234 0.009 255.6);
+  --popover-foreground: oklch(0.928 0.003 264.5);
+  /* color-accent, with the ground as its label */
+  --primary: oklch(0.711 0.07 248.2);
+  --primary-foreground: oklch(0.19 0.007 258.4);
+  --secondary: oklch(0.284 0.01 260.7);
+  --secondary-foreground: oklch(0.928 0.003 264.5);
+  --muted: oklch(0.234 0.009 255.6);
+  --muted-foreground: oklch(0.75 0.008 260.7);
+  /* hover tint: accent-200; its text accent-800 */
+  --accent: oklch(0.311 0.045 251.8);
   --accent-foreground: oklch(0.931 0.035 246.9);
-  --destructive: oklch(0.68 0.13 25);
-  --destructive-foreground: oklch(0.2 0.012 249);
-  --border: oklch(0.934 0 0 / 16%);
-  --input: oklch(0.934 0 0 / 16%);
-  --ring: oklch(0.681 0.073 247.7);
+  --destructive: oklch(0.681 0.161 26.7);
+  --destructive-foreground: oklch(0.19 0.007 258.4);
+  /* color-divider: color-text at 16% */
+  --border: oklch(0.928 0.003 264.5 / 16%);
+  --input: oklch(0.928 0.003 264.5 / 16%);
+  --ring: oklch(0.711 0.07 248.2);
   --chart-1: oklch(0.681 0.073 247.7);
-  --chart-2: oklch(0.78 0.071 248.1);
-  --chart-3: oklch(0.586 0.073 248.5);
-  --chart-4: oklch(0.871 0.063 248.6);
-  --chart-5: oklch(0.481 0.063 248.5);
-  --sidebar: oklch(0.2 0.012 249);
-  --sidebar-foreground: oklch(0.934 0 0);
-  --sidebar-primary: oklch(0.681 0.073 247.7);
-  --sidebar-primary-foreground: oklch(0.2 0.012 249);
-  --sidebar-accent: oklch(0.291 0.036 249.2);
+  --chart-2: oklch(0.871 0.063 248.6);
+  --chart-3: oklch(0.607 0.074 249.1);
+  --chart-4: oklch(0.931 0.035 246.9);
+  --chart-5: oklch(0.388 0.055 248.5);
+  --sidebar: oklch(0.19 0.007 258.4);
+  --sidebar-foreground: oklch(0.928 0.003 264.5);
+  --sidebar-primary: oklch(0.711 0.07 248.2);
+  --sidebar-primary-foreground: oklch(0.19 0.007 258.4);
+  --sidebar-accent: oklch(0.311 0.045 251.8);
   --sidebar-accent-foreground: oklch(0.931 0.035 246.9);
-  --sidebar-border: oklch(0.934 0 0 / 16%);
-  --sidebar-ring: oklch(0.681 0.073 247.7);
+  --sidebar-border: oklch(0.928 0.003 264.5 / 16%);
+  --sidebar-ring: oklch(0.711 0.07 248.2);
 }
 
 @layer components {

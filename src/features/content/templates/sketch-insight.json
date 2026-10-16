@@ -1,0 +1,135 @@
+{
+  "id": "sketch-insight",
+  "name": "Sketch insight",
+  "format": "single",
+  "description": "one image, one underlined finding",
+  "slides": [
+    {
+      "spec": {
+        "kind": "single",
+        "artBox": {
+          "x": 0,
+          "y": 0,
+          "w": 1080,
+          "h": 600
+        },
+        "sourceLine": true,
+        "slots": [
+          {
+            "key": "pre",
+            "label": "Lead-in",
+            "factual": false,
+            "presentational": false,
+            "limit": {
+              "unit": "chars",
+              "min": 1,
+              "max": 20
+            },
+            "font": "body",
+            "fontPx": 40,
+            "lineHeight": 1.2,
+            "box": {
+              "x": 96,
+              "y": 640,
+              "w": 888,
+              "h": 60
+            },
+            "mark": "none"
+          },
+          {
+            "key": "underline",
+            "label": "Finding",
+            "factual": true,
+            "presentational": false,
+            "limit": {
+              "unit": "chars",
+              "min": 1,
+              "max": 16
+            },
+            "font": "heading",
+            "fontPx": 72,
+            "lineHeight": 1.1,
+            "box": {
+              "x": 96,
+              "y": 710,
+              "w": 888,
+              "h": 100
+            },
+            "mark": "underline"
+          },
+          {
+            "key": "post",
+            "label": "Follow-on",
+            "factual": true,
+            "presentational": false,
+            "limit": {
+              "unit": "chars",
+              "min": 1,
+              "max": 40
+            },
+            "font": "body",
+            "fontPx": 40,
+            "lineHeight": 1.2,
+            "box": {
+              "x": 96,
+              "y": 820,
+              "w": 888,
+              "h": 120
+            },
+            "mark": "none"
+          },
+          {
+            "key": "aphorism",
+            "label": "Aphorism",
+            "factual": false,
+            "presentational": true,
+            "limit": {
+              "unit": "chars",
+              "min": 1,
+              "max": 50
+            },
+            "font": "heading",
+            "fontPx": 56,
+            "lineHeight": 1.15,
+            "box": {
+              "x": 96,
+              "y": 960,
+              "w": 888,
+              "h": 120
+            },
+            "mark": "none"
+          },
+          {
+            "key": "credit",
+            "label": "Credit",
+            "factual": true,
+            "presentational": false,
+            "limit": {
+              "unit": "chars",
+              "min": 1,
+              "max": 60
+            },
+            "font": "body",
+            "fontPx": 38,
+            "lineHeight": 1.2,
+            "box": {
+              "x": 96,
+              "y": 1080,
+              "w": 888,
+              "h": 50
+            },
+            "mark": "none"
+          }
+        ]
+      },
+      "repeat": {
+        "min": 1,
+        "max": 1
+      }
+    }
+  ],
+  "canvas": {
+    "width": 1080,
+    "height": 1350
+  }
+}

@@ -7,3 +7,5 @@ export const ROLE_LABELS: Record<Role, string> = {
   admin: 'Admin',
   superadmin: 'Superadmin',
 }
+
+export const CAPABILITY_LABELS = { editor: 'Editor', reviewer: 'Reviewer' } as const

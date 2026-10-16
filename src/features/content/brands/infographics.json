@@ -1,0 +1,34 @@
+{
+  "id": "infographics",
+  "name": "Infographics",
+  "kind": "page",
+  "fonts": {
+    "heading": {
+      "family": "Barlow Condensed",
+      "file": "BarlowCondensed-Bold.ttf"
+    },
+    "body": {
+      "family": "Barlow",
+      "file": "Barlow-Regular.ttf"
+    }
+  },
+  "tone": "Visual and calm. One number at a time.",
+  "byline": "OfCourse Infographics",
+  "themes": [
+    {
+      "id": "infographics",
+      "name": "Infographics",
+      "bg": "#E9F1EC",
+      "ink": "#123B2A",
+      "highlight": "#7FD8C0",
+      "muted": "#4B6B5C"
+    }
+  ],
+  "instagram": {
+    "handle": "ofcourse_selfhelp",
+    "url": "https://www.instagram.com/ofcourse_selfhelp/"
+  },
+  "linkedin": {
+    "url": "https://www.linkedin.com/company/ofcourse-selfhelp/"
+  }
+}

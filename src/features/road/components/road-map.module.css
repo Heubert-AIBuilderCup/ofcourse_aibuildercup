@@ -1,0 +1,353 @@
+/*
+ * The map's look, for what Tailwind cannot say: the field (the brand field: blue in light, steel in
+ * dark) and its ink, and every colour the map mixes from those two, so both themes follow; the
+ * tile faces per state and the icons on them; the labels' hanging lines; the hit areas clipped to
+ * a tile's shape; the hover's rise, the duck's bob and the hint's pulse. From the reference build's
+ * road.css (rd-*, rb-*). Transitions and animations are declared only under
+ * prefers-reduced-motion: no-preference, so under reduce nothing moves.
+ */
+
+.map,
+.key {
+  /* What darkens the field (fog, forks, plates, edges, the duck's shadow): the one raw colour. */
+  --shade: black;
+}
+.map {
+  --fld: var(--panel);
+  --ink: var(--panel-foreground);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+.map[data-dragging] {
+  cursor: grabbing;
+}
+
+/* Roads, under the tiles. */
+.svg path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.lit {
+  stroke: var(--ink);
+}
+.next {
+  stroke: color-mix(in oklch, var(--ink) 42%, var(--fld));
+}
+.fog {
+  stroke: color-mix(in oklch, var(--shade) 30%, var(--fld));
+}
+.fork {
+  stroke: color-mix(in oklch, var(--shade) 22%, var(--fld));
+}
+.level {
+  stroke: color-mix(in oklch, var(--ink) 55%, var(--fld));
+  stroke-dasharray: 2 6;
+}
+.open {
+  stroke: color-mix(in oklch, var(--ink) 80%, var(--fld));
+}
+.ruler {
+  stroke: color-mix(in oklch, var(--ink) 55%, var(--fld));
+}
+
+/* Tiles: three faces each, coloured by state; never colour alone (rings, labels, the duck). */
+.tile {
+  --top: var(--ink);
+  --left: var(--ink);
+  --right: var(--ink);
+  --edge: var(--shade);
+}
+.tile polygon {
+  stroke-linejoin: round;
+  stroke-width: 1;
+}
+.top {
+  fill: var(--top);
+  stroke: var(--edge);
+}
+.left {
+  fill: var(--left);
+  stroke: var(--edge);
+}
+.right {
+  fill: var(--right);
+  stroke: var(--edge);
+}
+/* Visited: lit. Where she is: lit, with a darker edge and the ring. */
+.tile[data-state="lit"],
+.tile[data-state="here"] {
+  --top: var(--ink);
+  --left: color-mix(in oklch, var(--ink) 66%, var(--fld));
+  --right: color-mix(in oklch, var(--ink) 44%, var(--fld));
+  --edge: color-mix(in oklch, var(--shade) 30%, var(--fld));
+}
+.tile[data-state="here"] {
+  --edge: color-mix(in oklch, var(--shade) 45%, var(--fld));
+}
+/* Not visited: dim, the ink at about 30% over the field. */
+.tile[data-state="alt"],
+.tile[data-state="next"] {
+  --top: color-mix(in oklch, var(--ink) 30%, var(--fld));
+  --left: color-mix(in oklch, var(--ink) 18%, var(--fld));
+  --right: color-mix(in oklch, var(--ink) 10%, var(--fld));
+  --edge: color-mix(in oklch, var(--ink) 70%, var(--fld));
+}
+.tile[data-state="alt"][data-lift] {
+  --top: color-mix(in oklch, var(--ink) 46%, var(--fld));
+}
+/* Unexplored: dark, the field darkened, named. */
+.tile[data-state="fog"] {
+  --top: color-mix(in oklch, var(--shade) 22%, var(--fld));
+  --left: color-mix(in oklch, var(--shade) 36%, var(--fld));
+  --right: color-mix(in oklch, var(--shade) 46%, var(--fld));
+  --edge: color-mix(in oklch, var(--ink) 30%, var(--fld));
+}
+.tile[data-state="fog"][data-lift] {
+  --top: color-mix(in oklch, var(--ink) 18%, var(--fld));
+}
+/* Looked at: dim, a shade under not visited. */
+.tile[data-state="seen"] {
+  --top: color-mix(in oklch, var(--ink) 22%, var(--fld));
+  --left: color-mix(in oklch, var(--ink) 12%, var(--fld));
+  --right: color-mix(in oklch, var(--ink) 6%, var(--fld));
+  --edge: color-mix(in oklch, var(--ink) 60%, var(--fld));
+}
+
+/* The icon on a tile's top face: the field's colour on the lit ink, the ink on dim tiles. */
+.icon path {
+  stroke: var(--fld);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+.tile[data-state="alt"] .icon path,
+.tile[data-state="next"] .icon path,
+.tile[data-state="seen"] .icon path {
+  stroke: var(--ink);
+}
+.tile[data-state="fog"] .icon path {
+  stroke: color-mix(in oklch, var(--ink) 62%, var(--fld));
+}
+.tile[data-state="unknown"] .icon path {
+  stroke: var(--ink);
+  opacity: 0.7;
+}
+
+/* Not picked yet (the empty road's destination): a dotted outline, nothing filled. */
+.tile[data-state="unknown"] {
+  --top: transparent;
+  --left: transparent;
+  --right: transparent;
+  --edge: var(--ink);
+}
+.tile[data-state="unknown"] polygon {
+  stroke-dasharray: 3 4;
+  stroke-width: 1.5;
+}
+
+/* Where she is: a solid ring; the pressed tile: a dashed one. */
+.ring {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+.ring[data-pressed] {
+  stroke-dasharray: 5 4;
+}
+/* A pick in her answers not saved yet: what would change gets a dashed outline, wider than the ring. */
+.prevRing {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
+}
+/* Its "If you save" line on the label: dashed, in the field's ink; on her own white plate, the brand. */
+.prev {
+  display: block;
+  border: 1px dashed color-mix(in oklch, var(--ink) 75%, transparent);
+  color: var(--ink);
+}
+.label[data-here] .prev {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+/* While her answers are open, tiles wait: no pointer over them. */
+.map[data-answering] .hit {
+  cursor: default;
+}
+/* The one-time hint on the next tile. */
+.hint {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2.5;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* The invisible button over each tile, clipped to its shape; focused, it shows its box. */
+.hit {
+  clip-path: polygon(50% 0, 100% 40%, 100% 60%, 50% 100%, 0 60%, 0 40%);
+}
+.hit:focus-visible {
+  outline: none;
+  clip-path: none;
+  box-shadow:
+    0 0 0 0.125rem var(--fld),
+    0 0 0 0.25rem var(--ink);
+}
+
+/* Labels sit on a plate of the field; a dark tile's on the darkened field. */
+.label {
+  background: color-mix(in oklch, var(--fld) 94%, var(--shade));
+}
+.label[data-state="fog"] {
+  background: color-mix(in oklch, var(--shade) 30%, var(--fld));
+}
+/* Each hangs on a 0.75rem line to its tile (labelOf leaves the gap). */
+.label::after {
+  content: "";
+  position: absolute;
+  background: var(--ink);
+  opacity: 0.75;
+  pointer-events: none;
+}
+.label[data-place="above"]::after,
+.label[data-place="below"]::after {
+  left: 50%;
+  width: 1px;
+  height: 0.75rem;
+}
+.label[data-place="above"]::after {
+  top: 100%;
+}
+.label[data-place="below"]::after {
+  bottom: 100%;
+}
+.label[data-place="left"]::after,
+.label[data-place="right"]::after {
+  top: 50%;
+  width: 0.75rem;
+  height: 1px;
+}
+.label[data-place="left"]::after {
+  left: 100%;
+}
+.label[data-place="right"]::after {
+  right: 100%;
+}
+.label[data-state="unknown"] {
+  background: transparent;
+  border: 1px dashed color-mix(in oklch, var(--ink) 70%, transparent);
+}
+/* Where she is: a plate of the page's ground. */
+.label[data-here] {
+  background: var(--background);
+  color: var(--foreground);
+}
+.year {
+  transform: translate(-50%, -140%);
+}
+
+/* The road ahead, counted. */
+.plate {
+  background: color-mix(in oklch, var(--shade) 38%, var(--fld));
+}
+
+.duck {
+  transform: scaleX(-1);
+  filter: drop-shadow(0 0.25rem 0.25rem color-mix(in oklch, var(--shade) 28%, transparent));
+}
+
+/* The duck's one-time line beside the hint, its point towards the tile. */
+.bubble {
+  transform: translateY(-50%);
+}
+.bubble::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -0.375rem;
+  width: 0.75rem;
+  height: 0.75rem;
+  background: var(--background);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+/* A stack row not yet reachable: hatched (never colour alone). */
+.hatch {
+  background: repeating-linear-gradient(
+    135deg,
+    transparent 0 0.375rem,
+    color-mix(in oklch, var(--foreground) 7%, transparent) 0.375rem 0.4375rem
+  );
+}
+
+/* The key strip: the field darkened a little, in its ink; its swatches are tiles (.tile). */
+.key {
+  --fld: var(--panel);
+  --ink: var(--panel-foreground);
+  background: color-mix(in oklch, var(--fld) 90%, var(--shade));
+  border: 1px solid color-mix(in oklch, var(--ink) 45%, transparent);
+  color: var(--ink);
+}
+
+/* Hovered, a tile rises about as far as a pressed one is drawn lifted (LIFT, RoadMap.tsx). */
+.tile[data-hover] {
+  transform: translateY(-0.375rem);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .duck {
+    animation: bob 2.4s ease-in-out infinite;
+  }
+  .hint {
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  .tile {
+    transition: transform 0.18s cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  /*
+   * A pressed tile is drawn lifted (its geometry), so the hover's rise it loses must not ease
+   * back: pressed while hovered, the two would add up to twice the lift for a moment.
+   */
+  .tile[data-pressed] {
+    transition: none;
+  }
+  .tile polygon {
+    transition: fill 0.18s ease-out;
+  }
+  .label[data-hint] {
+    animation: label-in 0.16s ease-out both;
+  }
+}
+
+/* A hovered tile's name: a quick fade, up from just below. */
+@keyframes label-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.25rem);
+  }
+}
+
+/* The duck bobs 0.1875rem on a 2.4 s loop, facing the way it travels. */
+@keyframes bob {
+  0%,
+  100% {
+    transform: scaleX(-1) translateY(0);
+  }
+  50% {
+    transform: scaleX(-1) translateY(-0.1875rem);
+  }
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(1.12);
+  }
+}

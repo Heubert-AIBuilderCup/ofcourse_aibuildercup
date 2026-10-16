@@ -68,7 +68,7 @@ On 8 Oct a tester opens a public Google Cloud URL on their phone, signs up, and 
 11. Given a wrong code, when it is entered, then the page says the code is wrong. After the fifth wrong try, that code no longer works and the page asks her to send a new one.
 12. Given a code was sent less than 30 seconds ago, when she looks for "Send a new code", then it is unavailable. After 30 seconds it sends a new code, and the previous code no longer works.
 13. Given a student account created with an email code, when the same address signs in with Google on the student page (or the reverse), then she reaches the same account with the same saved answers.
-14. Given the picture question ("How should we picture you?": male / female / prefer not to say), when she picks an answer or skips, then her comic-character choice is that answer (neutral when skipped), and screen 1 opens within 3 s of pressing Start.
+14. Given the picture question ("How would you like your comic character drawn?": male / female / prefer not to say), when she picks an answer or skips, then her comic-character choice is that answer (neutral when skipped), and screen 1 opens within 3 s of pressing Continue.
 15. Given a Google account with a name and a photo, when the student account is created, then her comic-character choice stays neutral until she answers the picture question. Nothing is set from her name or photo.
 16. Given an account with role `admin` or `superadmin`, when it signs in on the student page, then it is refused with a message that the page is for students, and it is not signed in to the student app.
 17. Given the admin sign-in page under `/admin`, when it is shown, then it offers Google sign-in only.
@@ -79,7 +79,7 @@ On 8 Oct a tester opens a public Google Cloud URL on their phone, signs up, and 
 
 ### 2. Answer the four question screens
 
-22. Given screens 1–6, when any of them is shown, then six progress dots show which screen she is on.
+22. Given screens 1–6, when any of them is shown, then she can see which screen she is on: on the onboarding steps built from the design (00 and 01 so far), the panel shows the seven steps 00–06 (a list on desktop, seven segments on tablet and phone, "Step N of 6" for screen readers); screens not yet redesigned show six progress dots.
 23. Given screen 1 (Facts about you), when it is shown, then it asks where she is now, her budget per year (amount, what it covers, who pays, hard limit or roughly), timing (earliest start, latest start, most years), who is coming with her, and her qualifications and English score.
 24. Given "Where are you right now?" on screen 1, when she picks "Australia (on a visa)", then the impact line differs from the one shown for an offshore country.
 25. Given any answer on screens 1–4, when she taps it, then a one-line impact appears under the question within 300 ms.
@@ -243,3 +243,44 @@ Not designed, built from the Industry system and the nearest frame: the Google b
 ## Changes
 
 - 5 Oct 2026, Jenish, before planning: criteria 32, 33, 41 and 49 corrected to match the frozen design (relationship options, flight-time distances to other cities, chips list every answer a future rests on, the inline chip editor). Open question 10 and the Design reference section added from the design check.
+- 6 Oct 2026, review fixes: criterion 32 refined in the build, its wording unchanged. A future in another city less than 300 km from her person's city (Melbourne to Geelong, Sydney to Wollongong) reads "<city>: about N min by road from <name, or else the relationship> in <their city> · estimate" instead of a flight; 300 km or more stays a flight.
+- 7 Oct 2026, Jenish, onboarding UI pass: criteria 14 and 22 corrected to match the design. Step 00's question now reads "How would you like your comic character drawn?"; the onboarding panel shows the seven steps 00–06 instead of six dots, which screens not yet redesigned keep.
+- 8 Oct 2026, Jenish, onboarding URLs: one URL per screen under `/onboarding`, named steps (`character`, `facts`, `study`, `living`, `after`) and the question as a readable slug (`/onboarding/facts/who-pays`), chosen over a single URL for native Back and refresh on phones, per-question drop-off from page views, direct links from the futures and for tests, and less custom code. `/onboarding` and a bare step resume at the first unanswered question; `/futures` and `/attention` stay top-level; onboarding stays reachable after it is done (criterion 62). `/picture` and `/opening/*` redirect permanently.
+- 8 Oct 2026, Jenish, with the welcome screen: step 00's button reads "Continue" (the welcome's button is Start), so criterion 14 says Continue; step 00 opens on its kicker instead of a greeting, since the welcome greets her.
+
+## Verification — 2026-10-07 · onboarding UI pass (steps 00–01)
+Branch `feat/student-opening-build` at `98b1471` (tests committed on top) · local dev server `http://localhost:3000` · QA tests: `e2e/student-opening-three-futures/student-opening-three-futures.e2e.ts`, person checks beside it.
+
+| Criterion | Result |
+| --- | --- |
+| 2 · no "best" / "recommended" / "ranked 1st" | pass |
+| 3 · mock figures labelled | pass |
+| 4 · duck loader on waits over ~400 ms | pass (serial run); flaky under parallel workers on the dev server, see below |
+| 14 · picture question, Start opens step 01 within 3 s | pass |
+| 22 · progress (seven-step onboarding panel, per the plan's decision) | pass |
+| 23 · step 01 asks the eleven questions | pass |
+| 24 · onshore vs offshore impact line | pass |
+| 25 · a one-line impact under the question within 300 ms of any answer | fail (product) at QA; **fixed** in `d00b7ca`, QA test passing |
+| 26 · "Not sure" stores the default, assumed | pass |
+| 27 · Partner: saved, no form, family line | pass |
+| 30 · Back keeps answers | pass |
+| 60 · returning student resumes with her answers | pass |
+| Developer asks: save failure and Try again · keyboard radiogroup · 1920 scaling · 2560 centring | pass |
+
+**Change request (criterion 25), fixed in `d00b7ca` with the design's in-between lines:** on step 01, answering "It covers", "Who pays", "Earliest start" or "Most years you'd give it" before the question that gives the group its line (Amount for the budget, Latest you'd accept for timing) shows no impact line at all; the student sees nothing happen. Expected: every answer shows a one-line impact under the question. The design has lines for these cases (for example "Add an amount and I'll show which cities stay open.", "From Feb 2027. Tell me the latest you'd accept.", "Up to 2 years: longer courses stay out.").
+
+**Flaky, not product:** the loader and Start tests (`AC4` slow and reduced motion, `e2e/onboarding.e2e.ts` "step 00's Start opens step 01…") pass alone and in a serial run (`--workers=1`: 69 passed, 1 failed, AC25) but can time out when the whole suite runs in parallel against one dev server.
+
+**Person checks:** 15, all "Could not check: one-shot run" (e2e/student-opening-three-futures/student-opening-three-futures.manual.md).
+**Not visited:** most criteria ran at 390 wide; desktop only for AC22 and the wide checks; 360, 1024, 1366, 1536 are person checks; AC14 not run for Male and Prefer not to say.
+
+<details><summary>Run summary</summary>
+
+- Full suite, parallel: 70 tests · 67 passed · 3 failed (AC25 product; 2 flaky under load)
+- Full suite, serial: 70 tests · 69 passed · 1 failed (AC25 product)
+- Onboarding specs alone: 30 tests · 29 passed · 1 failed (AC25 product)
+</details>
+
+## Delivery — 2026-10-08 · onboarding steps 00–01 on one system
+Branch `feat/onboarding-steps-00-01` → `dev`: https://bitbucket.org/heubert/decision-studio-ofcourse/pull-requests/new?source=feat/onboarding-steps-00-01&dest=dev&t=1
+Covered by tests: criteria 2, 3, 4, 14, 22, 23, 24, 25, 26, 27, 30, 60, 62 (unit and `bun run test:e2e`). QA to re-check by hand: the 15 person checks in `e2e/student-opening-three-futures/student-opening-three-futures.manual.md` (motion, reduced motion, focus ring, widths 360/1024/1366/1536, a real offline Try again).
