@@ -19,6 +19,7 @@ import {
   renameRoadmapAction,
   restoreArchivedAction,
   restoreRoadmapAction,
+  startFromScratchAction,
 } from '@/features/roadmaps/actions'
 import { listRoadmaps } from '@/features/roadmaps/server/roadmaps'
 import { roadFor } from '@/features/roads'
@@ -109,6 +110,7 @@ export default async function RoadmapsRoute({ searchParams }: PageProps<'/roadma
         restoreRoadmapAction={restoreRoadmapAction}
         archiveRoadmapAction={archiveRoadmapAction}
         restoreArchivedAction={restoreArchivedAction}
+        startFromScratchAction={startFromScratchAction}
       />
     </div>
   )

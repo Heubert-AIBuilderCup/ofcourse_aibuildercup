@@ -12,6 +12,7 @@ const deleteRoadmapAction = mock(async (_id: string) => ok())
 const restoreRoadmapAction = mock(async (_id: string) => ok())
 const archiveRoadmapAction = mock(async (_id: string) => ok())
 const restoreArchivedAction = mock(async (_id: string) => ok())
+const startFromScratchAction = mock(ok)
 
 const replace = mock((_: string) => {})
 const push = mock((_: string) => {})
@@ -30,6 +31,7 @@ afterEach(() => {
     restoreRoadmapAction,
     archiveRoadmapAction,
     restoreArchivedAction,
+    startFromScratchAction,
   ]) {
     action.mockClear()
   }
@@ -97,6 +99,7 @@ function show(roadmaps: RoadmapSummary[] = THREE, madeId: string | null = null) 
       restoreRoadmapAction={restoreRoadmapAction}
       archiveRoadmapAction={archiveRoadmapAction}
       restoreArchivedAction={restoreArchivedAction}
+      startFromScratchAction={startFromScratchAction}
     />,
   )
 }
@@ -636,17 +639,30 @@ describe('New roadmap', () => {
     expect(replace).toHaveBeenCalledWith('/roadmaps/new?from=ds')
   })
 
-  it('starts from scratch: no roadmap to pick, on to a blank draft, never to onboarding', async () => {
+  it('from scratch: no roadmap to pick, and Start the questions opens onboarding, one question a screen', async () => {
     show()
     const dialog = await openNew()
     await click(within(dialog).getByRole('radio', { name: SCRATCH }))
     expect(
       within(dialog).queryByRole('radiogroup', { name: 'Copy which roadmap?' }),
     ).not.toBeInTheDocument()
-    await click(within(dialog).getByRole('button', { name: 'Start with no answers' }))
+    await click(within(dialog).getByRole('button', { name: 'Start the questions' }))
+    expect(startFromScratchAction).toHaveBeenCalledTimes(1)
     expect(replace).toHaveBeenCalledTimes(1)
-    expect(replace).toHaveBeenCalledWith('/roadmaps/new')
-    expect(push).not.toHaveBeenCalled()
+    expect(replace).toHaveBeenCalledWith('/onboarding/character')
+  })
+
+  it('stays and says why when a new roadmap cannot be started', async () => {
+    startFromScratchAction.mockImplementationOnce(async () => ({
+      ok: false,
+      error: "You're already answering a new roadmap.",
+    }))
+    show()
+    const dialog = await openNew()
+    await click(within(dialog).getByRole('radio', { name: SCRATCH }))
+    await click(within(dialog).getByRole('button', { name: 'Start the questions' }))
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('already answering')
+    expect(replace).not.toHaveBeenCalled()
   })
 
   it('closes on Cancel and on Escape, focus back on New roadmap', async () => {

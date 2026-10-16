@@ -44,6 +44,7 @@ export type RoadmapsPageProps = {
   restoreRoadmapAction: (id: string) => Promise<ActionResult>
   archiveRoadmapAction: (id: string) => Promise<ActionResult>
   restoreArchivedAction: (id: string) => Promise<ActionResult>
+  startFromScratchAction: () => Promise<ActionResult>
 }
 
 /**
@@ -65,6 +66,7 @@ export function RoadmapsPage({
   restoreRoadmapAction,
   archiveRoadmapAction,
   restoreArchivedAction,
+  startFromScratchAction,
 }: RoadmapsPageProps) {
   const [removed, setRemoved] = useState<ReadonlySet<string>>(new Set())
   const [names, setNames] = useState<Readonly<Record<string, string>>>({})
@@ -269,6 +271,7 @@ export function RoadmapsPage({
         open={dialog === 'new'}
         roadmaps={active}
         onOpenChange={close}
+        startFromScratchAction={startFromScratchAction}
         onCloseAutoFocus={restoreFocus}
       />
       {target ? (

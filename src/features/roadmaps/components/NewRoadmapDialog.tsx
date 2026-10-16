@@ -2,10 +2,12 @@
 
 import { useRouter } from 'next/navigation'
 import { useId, useState } from 'react'
+import { Note } from '@/shared/components/Note'
 import { Button } from '@/shared/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/shared/components/ui/dialog'
-import { newRoadmapPath } from '@/shared/lib/student-paths'
+import { newRoadmapPath, PICTURE_PATH } from '@/shared/lib/student-paths'
 import { cn } from '@/shared/lib/utils'
+import type { ActionResult } from '@/shared/types/action-result'
 import styles from './roadmaps.module.css'
 
 type Choice = 'copy' | 'scratch'
@@ -15,6 +17,7 @@ type Props = {
   /** Hers, in the list's order; the first is the one copied unless she picks another. */
   roadmaps: { id: string; name: string }[]
   onOpenChange: (open: boolean) => void
+  startFromScratchAction: () => Promise<ActionResult>
   onCloseAutoFocus: (event: Event) => void
 }
 
@@ -29,15 +32,22 @@ const CHOICES: { value: Choice; title: string; description: string }[] = [
   {
     value: 'scratch',
     title: 'Start from scratch',
-    description: 'Answer every question again. About 5 minutes.',
+    description:
+      'Answer every question again, from your character to your ten coins. About 8 minutes.',
   },
 ]
 
 /**
- * New roadmap: copy one of hers (on to its draft), or start from scratch (on to a blank draft, its
- * questions answered in the answers panel; never onboarding again). Escape and Cancel close it.
+ * New roadmap: copy one of hers (the default; on to its draft) or start from scratch (a new roadmap
+ * to answer, from onboarding's first question). Escape and Cancel close it.
  */
-export function NewRoadmapDialog({ open, roadmaps, onOpenChange, onCloseAutoFocus }: Props) {
+export function NewRoadmapDialog({
+  open,
+  roadmaps,
+  onOpenChange,
+  startFromScratchAction,
+  onCloseAutoFocus,
+}: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -45,7 +55,11 @@ export function NewRoadmapDialog({ open, roadmaps, onOpenChange, onCloseAutoFocu
         onCloseAutoFocus={onCloseAutoFocus}
         className={styles.dialog}
       >
-        <NewRoadmapForm roadmaps={roadmaps} onCancel={() => onOpenChange(false)} />
+        <NewRoadmapForm
+          roadmaps={roadmaps}
+          startFromScratchAction={startFromScratchAction}
+          onCancel={() => onOpenChange(false)}
+        />
       </DialogContent>
     </Dialog>
   )
@@ -54,14 +68,32 @@ export function NewRoadmapDialog({ open, roadmaps, onOpenChange, onCloseAutoFocu
 /** Inside the dialog's content, so each opening starts on copying the first roadmap. */
 function NewRoadmapForm({
   roadmaps,
+  startFromScratchAction,
   onCancel,
-}: Pick<Props, 'roadmaps'> & { onCancel: () => void }) {
+}: Pick<Props, 'roadmaps' | 'startFromScratchAction'> & { onCancel: () => void }) {
   const router = useRouter()
   const id = useId()
   const [choice, setChoice] = useState<Choice>('copy')
   const [fromId, setFromId] = useState(roadmaps[0]?.id ?? '')
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
 
-  const go = () => router.replace(newRoadmapPath(choice === 'copy' ? fromId : undefined))
+  async function go() {
+    if (busy) return
+    if (choice === 'copy') {
+      router.replace(newRoadmapPath(fromId))
+      return
+    }
+    setBusy(true)
+    setError(null)
+    const result = await startFromScratchAction()
+    if (result.ok) {
+      router.replace(PICTURE_PATH)
+      return
+    }
+    setError(result.error)
+    setBusy(false)
+  }
 
   return (
     <>
@@ -128,14 +160,27 @@ function NewRoadmapForm({
             </div>
           </div>
         ) : null}
+
+        {error ? (
+          <Note tone="limit" role="alert">
+            {error}
+          </Note>
+        ) : null}
       </div>
 
       <div className={styles.actions}>
         <Button type="button" variant="outline" size="lg" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="button" variant="strong" size="lg" onClick={go}>
-          {choice === 'copy' ? 'Copy and change answers' : 'Start with no answers'}
+        <Button
+          type="button"
+          variant="strong"
+          size="lg"
+          aria-disabled={busy}
+          aria-busy={busy}
+          onClick={go}
+        >
+          {choice === 'copy' ? 'Copy and change answers' : 'Start the questions'}
         </Button>
       </div>
     </>

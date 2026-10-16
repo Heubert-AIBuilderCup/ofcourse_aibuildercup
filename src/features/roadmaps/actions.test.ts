@@ -119,6 +119,7 @@ const {
   saveChoicesAction,
   saveRoadmapAnswersAction,
   refreshAfterOnboardingAction,
+  startFromScratchAction,
 } = await import('./actions')
 
 const SIGN_IN = 'Please sign in again.'
@@ -127,6 +128,7 @@ const SAVE_FAILED = 'Could not save. Please try again.'
 
 const calls = [
   ['finishOnboardingAction', () => finishOnboardingAction()],
+  ['startFromScratchAction', () => startFromScratchAction()],
   ['renameRoadmapAction', () => renameRoadmapAction('rm-1', 'On a budget')],
   ['deleteRoadmapAction', () => deleteRoadmapAction('rm-1')],
   ['restoreRoadmapAction', () => restoreRoadmapAction('rm-1')],
@@ -242,6 +244,23 @@ describe('finishOnboardingAction', () => {
       logged.mockRestore()
     }
     expect(refresh).not.toHaveBeenCalled()
+  })
+})
+
+describe('startFromScratchAction', () => {
+  it('makes an empty roadmap for her to answer, on her own account', async () => {
+    session = student()
+    expect(await startFromScratchAction()).toEqual({ ok: true })
+    expect(getDraft).toHaveBeenCalledWith('student-1')
+    expect(ensureDraft).toHaveBeenCalledWith('student-1')
+  })
+
+  it('refuses while she is answering another, and says so', async () => {
+    session = student()
+    draft = roadmap()
+    const result = await startFromScratchAction()
+    expect(result).toEqual({ ok: false, error: expect.stringContaining('already answering') })
+    expect(ensureDraft).not.toHaveBeenCalled()
   })
 })
 
@@ -561,10 +580,6 @@ describe('createRoadmapAction', () => {
     expect(createRoadmap).toHaveBeenCalledWith('student-1', {
       answers: { climate: { value: 'Warm', state: 'stated' } },
     })
-  })
-
-  it('is the only way to a new roadmap: nothing starts onboarding again', async () => {
-    expect(await import('./actions')).not.toHaveProperty('startFromScratchAction')
   })
 
   it('refuses a bad source id, and makes nothing', async () => {

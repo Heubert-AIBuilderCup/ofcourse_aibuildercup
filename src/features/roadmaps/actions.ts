@@ -19,7 +19,9 @@ import { copyName, roadmapName, roadNames } from './model/roadmap'
 import {
   archiveRoadmap,
   createRoadmap,
+  ensureDraft,
   finishRoadmap,
+  getDraft,
   getRoadmap,
   hasArchived,
   renameRoadmap,
@@ -41,6 +43,8 @@ const ONLY_ONE = 'Your only roadmap stays. Make another before you delete this o
 const KEEP_ONE = 'Keep one roadmap out of the archive.'
 const BAD_CHOICES = "We couldn't save that change. Reload the page and try again."
 const BAD_ANSWERS = "We couldn't save your answers. Reload the page and try again."
+const ALREADY_ANSWERING =
+  "You're already answering a new roadmap. Finish its questions, or pick up where you left off."
 
 /** A roadmap id from the request: a claim, checked against her own rows by the repository. */
 const idSchema = z.string().min(1).max(64)
@@ -67,6 +71,18 @@ export async function finishOnboardingAction(): Promise<ActionResult<{ id: strin
     // Coins are stored only on the roadmap she is answering; none left means it was just finished.
     if (finished === null) return fail(COINS_FIRST)
     return { ok: true, id: finished.id }
+  })
+}
+
+/**
+ * "Start from scratch": an empty roadmap for her to answer through onboarding, one question a
+ * screen. Refused while she is answering another (one at a time).
+ */
+export async function startFromScratchAction(): Promise<ActionResult> {
+  return asStudent('roadmaps.startFromScratch', async (userId) => {
+    if (await getDraft(userId)) return fail(ALREADY_ANSWERING)
+    await ensureDraft(userId)
+    return { ok: true }
   })
 }
 
