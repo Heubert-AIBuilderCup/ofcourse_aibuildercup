@@ -3,13 +3,18 @@
 
 import { describe, expect, test } from 'bun:test'
 import { parseAnswer } from '@/features/opening/model/questions'
+import { matchLine } from '@/features/road/model/match-line'
 import {
   coinsSchema,
   type QuestionKey,
   relativeSchema,
   storedAnswersSchema,
 } from '@/shared/types/student'
+import { askFacts } from '../model/ask'
+import { courseConditions } from '../model/conditions'
 import { type RoadFor, roadFor } from '../model/road-for'
+import { whyTemplate } from '../model/why'
+import { courseById } from './courses'
 import { JUDGE_STORIES, judgeStoryById } from './judge-stories'
 
 /** Each story's road: its kind, city, course and ending (the PR route it stays on, or home). */
@@ -18,30 +23,47 @@ const ROADS: Record<
   { kind: RoadFor['kind']; id: string; city: string; course: string; ending: string }
 > = {
   priya: { kind: 'matched', id: 'perth-cyber', city: 'perth', course: 'ecu-cyber', ending: '190' },
-  aarav: { kind: 'matched', id: 'sydney-data', city: 'sydney', course: 'uts-data', ending: '186' },
-  sita: { kind: 'matched', id: 'adelaide-it', city: 'adelaide', course: 'unisa-it', ending: '491' },
+  aarav: {
+    kind: 'matched',
+    id: 'sydney-uts-civil-stay',
+    city: 'sydney',
+    course: 'uts-civil',
+    ending: '491',
+  },
+  sita: {
+    kind: 'matched',
+    id: 'adelaide-unisa-nursing-stay',
+    city: 'adelaide',
+    course: 'unisa-nursing',
+    ending: '190',
+  },
   meera: {
     kind: 'matched',
-    id: 'melbourne-home',
+    id: 'melbourne-swin-ux-home',
     city: 'melbourne',
-    course: 'monash-data',
+    course: 'swin-ux',
     ending: 'home',
   },
-  // She'd stay, and the road stays, but a Diploma gives no clear road to PR: the closest road,
-  // with the strip saying so.
+  // He'd stay, and the road stays, but psychology leads to no occupation on a state list or
+  // sponsored by an employer: the closest road, with the strip saying so.
   rohan: {
     kind: 'nearest',
-    id: 'perth-tafe-cyber-stay',
-    city: 'perth',
-    course: 'tafe-cyber',
+    id: 'melbourne-swin-cyberpsych-stay',
+    city: 'melbourne',
+    course: 'swin-cyberpsych',
     ending: 'none',
   },
 }
 
-const roadOf = (id: string) => {
+/** A story, and the road roadFor gives its answers. */
+const roadForStory = (id: string) => {
   const story = judgeStoryById(id)
   if (!story) throw new Error(`No story "${id}"`)
-  const r = roadFor({ answers: story.answers, relative: story.relative }, {})
+  return { story, r: roadFor({ answers: story.answers, relative: story.relative }, {}) }
+}
+
+const roadOf = (id: string) => {
+  const { r } = roadForStory(id)
   return {
     kind: r.kind,
     id: r.spec?.id,
@@ -63,16 +85,56 @@ describe('the judges’ stories', () => {
   }
 
   test("Rohan's road differs from his answers only in its way to PR", () => {
-    const story = judgeStoryById('rohan')
-    if (!story) throw new Error('No Rohan')
-    const r = roadFor({ answers: story.answers, relative: story.relative }, {})
+    const { r } = roadForStory('rohan')
     expect(r.differences.map((d) => `${d.key}: ${d.road}`)).toEqual(['stay: No clear PR'])
+  })
+
+  test('Rohan’s board shows "Why this road?" on Cyberpsychology, its chip naming the way to PR', () => {
+    const { r } = roadForStory('rohan')
+    expect(courseById(r.spec?.courseId ?? '')?.name).toBe('Master of Psychology (Cyberpsychology)')
+    const line = matchLine(r)
+    expect(line?.title).toBe('Closest road to your answers')
+    expect(line?.chips).toEqual([
+      "Staying: this road has no clear road to PR (you said you'd stay)",
+    ])
   })
 
   test('each lands on a road of its own', () => {
     const ids = JUDGE_STORIES.map((s) => roadOf(s.id).id)
     expect(new Set(ids).size).toBe(JUDGE_STORIES.length)
   })
+
+  test('the five are on five courses, in at least four fields', () => {
+    const courses = JUDGE_STORIES.map((s) => roadOf(s.id).course ?? '')
+    expect(new Set(courses).size).toBe(5)
+    expect(new Set(courses.map((id) => courseById(id)?.field)).size).toBeGreaterThanOrEqual(4)
+  })
+
+  test("Sita's English misses Nursing's stricter score, so her course card shows it unmet", () => {
+    const { story, r } = roadForStory('sita')
+    const english = courseConditions(r.spec?.courseId ?? '', story.answers).find(
+      (c) => c.id === 'english',
+    )
+    expect(`${english?.text} · ${english?.met}`).toBe('Needs IELTS 7.0 · false')
+  })
+
+  for (const id of Object.keys(ROADS)) {
+    test(`${id}'s course tile has catalogue facts for Ask, and a why from the template`, () => {
+      const { story, r } = roadForStory(id)
+      if (!r.spec) throw new Error(`No road for ${id}`)
+      const course = courseById(r.spec.courseId)
+      const ids = askFacts(r.spec, 'course', story.answers, []).rows.map((row) => row.id)
+      for (const row of ['course-fees', 'course-units', 'course-entry-english', 'ask-1'])
+        expect(`${id}: ${row} ${ids.includes(row)}`).toBe(`${id}: ${row} true`)
+      expect(ids.some((row) => row.startsWith('occupation-'))).toBe(true)
+      const why = whyTemplate(r.spec, 'course', story.answers, {
+        differences: r.differences,
+        relative: story.relative,
+      })
+      expect(why.startsWith('On your roadmap: ')).toBe(true)
+      expect(why).toContain(`${course?.name} at ${course?.university}`)
+    })
+  }
 
   test('each is a set onboarding could have stored: answers, person and coins', () => {
     for (const story of JUDGE_STORIES) {

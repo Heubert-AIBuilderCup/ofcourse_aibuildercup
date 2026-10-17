@@ -16,12 +16,7 @@ const DRAWN = "A few areas I'm drawn to"
 const NO_CLEAR_PR_CHIP: Difference = { key: 'stay', yours: 'Yes', road: 'No clear PR' }
 const drawn = (areas: string[], more: Values = {}) => a({ know: DRAWN, areas, ...more })
 /** The picks no answer can reach, so matching leaves them out. */
-const UNREACHABLE = [
-  'perth-curtin-infosys-stay',
-  'perth-curtin-infosys-home',
-  'melbourne-swin-cyberpsych-stay',
-  'melbourne-swin-cyberpsych-home',
-]
+const UNREACHABLE = ['perth-curtin-infosys-stay', 'perth-curtin-infosys-home']
 const candidate = (id: string) => {
   const c = ROAD_CANDIDATES.find((r) => r.id === id)
   if (!c) throw new Error(`No candidate ${id}`)
@@ -64,8 +59,7 @@ describe('ROAD_CANDIDATES', () => {
 
   it('leaves out a pick an earlier candidate always ties or beats (criterion 86)', () => {
     // Curtin's Information Systems has every key matching reads (Perth, IT, a Master's, open
-    // entry) in common with Curtin's Information Technology, which comes first; Swinburne's
-    // Cyberpsychology is in psychology, a field no answer names, beside Monash's data Master's.
+    // entry) in common with Curtin's Information Technology, which comes first.
     const ids = ROAD_CANDIDATES.map((c) => c.id)
     for (const id of UNREACHABLE) {
       expect(ids).not.toContain(id)
@@ -105,6 +99,21 @@ describe('ROAD_CANDIDATES', () => {
 })
 
 describe('matchRoad: her field, at a level her qualification opens', () => {
+  it('gives a student who picks Psychology, as her field or an area, Swinburne’s Cyberpsychology', () => {
+    for (const answers of [
+      a({ stay: 'Yes', know: PARTICULAR, field: 'Psychology', level: "Master's" }),
+      drawn(['Psychology'], { stay: 'Yes', level: "Master's" }),
+    ]) {
+      const m = matchRoad(answers, null)
+      expect(m.spec.id).toBe('melbourne-swin-cyberpsych-stay')
+      // Psychology leads to no occupation on a list or sponsored: the strip says so.
+      expect(m.exact).toBe(false)
+      expect(m.differences).toEqual([NO_CLEAR_PR_CHIP])
+    }
+    const home = matchRoad(a({ stay: 'No', know: PARTICULAR, field: 'Psychology' }), null)
+    expect([home.spec.id, home.exact]).toEqual(['melbourne-swin-cyberpsych-home', true])
+  })
+
   it('gives a Bachelor’s holder drawn to Health a health Master’s, exactly (criterion 56)', () => {
     const m = matchRoad(drawn(['Health'], { stay: 'Yes', qual: "Bachelor's" }), null)
     expect(courseById(m.spec.courseId)?.field).toBe('health')
@@ -419,10 +428,22 @@ describe('matchRoad: what it reads', () => {
 describe('the matching sweep (criterion 86)', () => {
   const STAYS = ['Yes', 'Not sure', 'No', undefined]
   const PICKS: Values[] = [
-    ...['Cyber security', 'Data science', 'Business analytics', 'Information technology'].map(
-      (field) => ({ know: PARTICULAR, field }),
-    ),
-    ...['IT and computing', 'Business', 'Data', 'Health', 'Engineering', 'Design'].map((area) => ({
+    ...[
+      'Cyber security',
+      'Data science',
+      'Business analytics',
+      'Information technology',
+      'Psychology',
+    ].map((field) => ({ know: PARTICULAR, field })),
+    ...[
+      'IT and computing',
+      'Business',
+      'Data',
+      'Health',
+      'Engineering',
+      'Design',
+      'Psychology',
+    ].map((area) => ({
       know: DRAWN,
       areas: [area],
     })),
@@ -454,7 +475,7 @@ describe('the matching sweep (criterion 86)', () => {
     return null
   }
 
-  it('matches at least half of the matchable answer sets exactly and reaches every candidate (full product: 67,200 combinations)', () => {
+  it('matches at least half of the matchable answer sets exactly and reaches every candidate (full product: 80,640 combinations)', () => {
     let total = 0
     let matchable = 0
     let exactAll = 0
@@ -499,7 +520,7 @@ describe('the matching sweep (criterion 86)', () => {
     )
     const unreached = ROAD_CANDIDATES.map((c) => c.id).filter((id) => !reached.has(id))
     console.log(`unreached candidates: ${unreached.join(', ') || 'none'}`)
-    expect(total).toBe(67_200)
+    expect(total).toBe(80_640)
     expect(exactMatchable / matchable).toBeGreaterThanOrEqual(0.5)
     expect(unreached).toEqual([])
   }, 120_000)
@@ -515,6 +536,8 @@ describe('pickedFields: the fields she picked, as matching reads them', () => {
     expect(pickedFields(drawn(['IT and computing']))).toEqual(['it', 'cyber'])
     expect(pickedFields(drawn(['Health']))).toEqual(['health'])
     expect(pickedFields(drawn(['Engineering', 'Design']))).toEqual(['engineering', 'design'])
+    expect(pickedFields(drawn(['Psychology']))).toEqual(['psych'])
+    expect(pickedFields(a({ know: PARTICULAR, field: 'Psychology' }))).toEqual(['psych'])
   })
 
   it('is null when she picked no field: unanswered, suggest me, or only assumed', () => {

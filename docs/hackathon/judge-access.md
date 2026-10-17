@@ -13,13 +13,13 @@ _For the AI Builder Cup judges, on the live app (https://ofcourse-44805428675.as
 
 The stories (`src/features/roads/data/judge-stories.ts`; the test beside it pins each road):
 
-| Story | From | Road |
-| --- | --- | --- |
-| Priya | Nepal | Perth · Master of Cyber Security · stays, 190 (`perth-cyber`) |
-| Aarav | India | Sydney · Master of Data Science and Innovation · stays, 186 (`sydney-data`) |
-| Sita | Nepal | Adelaide · Master of Information Technology · regional, 491 (`adelaide-it`) |
-| Meera | Sri Lanka | Melbourne · Master of Data Science · goes home (`melbourne-home`) |
-| Rohan | India | Perth · Diploma of IT (Cyber Security) at TAFE · no clear PR (`perth-tafe-cyber-stay`, the closest road, saying so) |
+| Story | From | Field | Road |
+| --- | --- | --- | --- |
+| Priya | Nepal | Cyber security | Perth · Master of Cyber Security (ECU) · stays, 190 (`perth-cyber`) |
+| Aarav | India | Civil engineering | Sydney · Master of Engineering (civil) (UTS) · stays, 491 or an employer's 186 (`sydney-uts-civil-stay`) |
+| Sita | Nepal | Nursing | Adelaide · Master of Nursing (graduate entry) (UniSA) · regional city, stays, 190 (`adelaide-unisa-nursing-stay`); her IELTS 6.5 is short of the course's 7.0, so the card shows it not met |
+| Meera | Sri Lanka | Interaction design | Melbourne · Master of Interaction Design (Swinburne) · goes home (`melbourne-swin-ux-home`) |
+| Rohan | India | Psychology (Cyberpsychology) | Melbourne · Master of Psychology (Cyberpsychology) (Swinburne) · no clear PR (`melbourne-swin-cyberpsych-stay`, the closest road: "Why this road?" shows one chip, "Staying: this road has no clear road to PR (you said you'd stay)") |
 
 ## Setting the passcode
 
@@ -43,7 +43,7 @@ To change it: `printf '%s' 'new-passphrase' | gcloud secrets versions add ofcour
 
 > **Trying OfCourse.** Open https://ofcourse-44805428675.asia-southeast1.run.app.
 >
-> - **As a student**, sign in with your own Google account, or choose **Judge access** under the sign-in card, enter the passcode **`<passcode>`**, and pick a student: Priya (Nepal, cyber security in Perth, PR through 190), Aarav (India, data science in Sydney, 186), Sita (Nepal, IT in Adelaide, regional 491), Meera (Sri Lanka, data science in Melbourne, then home) or Rohan (India, a TAFE diploma in Perth with no clear PR). Each opens on her finished roadmap. **Start from the beginning** goes through onboarding as a new student. Every choice is a new account, so you can try as many as you like.
+> - **As a student**, sign in with your own Google account, or choose **Judge access** under the sign-in card, enter the passcode **`<passcode>`**, and pick a student: Priya (Nepal, cyber security in Perth, PR through 190), Aarav (India, civil engineering in Sydney, 491 or 186), Sita (Nepal, nursing in Adelaide, 190), Meera (Sri Lanka, interaction design in Melbourne, then home) or Rohan (India, cyberpsychology at Swinburne in Melbourne, with no clear PR). Each opens on her finished roadmap. **Start from the beginning** goes through onboarding as a new student. Every choice is a new account, so you can try as many as you like.
 > - **As the admin**, open https://ofcourse-44805428675.asia-southeast1.run.app/admin/sign-in, choose **Judge access** and enter the same passcode. You sign in as an editor and reviewer: the Board, Comic gaps, Updates, Ideas and Insights.
 >
 > After ten wrong tries the passcode rests for ten minutes.

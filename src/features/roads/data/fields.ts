@@ -173,6 +173,7 @@ export const FIELD_OF_OPTION: Readonly<Record<string, string>> = {
   'Data science': 'data',
   'Business analytics': 'business',
   'Information technology': 'it',
+  Psychology: 'psych',
 }
 
 /** The fields each area of study reaches. */
@@ -183,6 +184,7 @@ export const AREA_FIELDS: Readonly<Record<string, readonly string[]>> = {
   Health: ['health'],
   Engineering: ['engineering'],
   Design: ['design'],
+  Psychology: ['psych'],
 }
 
 /** Every field an answer can name, through a field option or an area. */
