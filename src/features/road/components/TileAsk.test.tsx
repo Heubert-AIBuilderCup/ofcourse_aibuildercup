@@ -108,6 +108,15 @@ describe('a typed question', () => {
     expect(
       screen.getByText('Living costs in Perth about AUD 24k a year (mock)'),
     ).toBeInTheDocument()
+    // The facts it was answered from are named as such, so the retrieval is visible.
+    expect(document.body.textContent).toContain('Answered from these facts')
+  })
+
+  it('suggests what to ask in her own box', () => {
+    ask(replying({ ok: true, kind: 'answered', reply: 'x', cited: [] }))
+    expect(screen.getByLabelText('Your own question').getAttribute('placeholder')).toBe(
+      'e.g. Can I afford this?',
+    )
   })
 
   it('at the cap, says the limit is reached, and the suggested questions still answer', async () => {

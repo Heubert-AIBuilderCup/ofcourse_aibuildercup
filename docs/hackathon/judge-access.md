@@ -44,6 +44,7 @@ To change it: `printf '%s' 'new-passphrase' | gcloud secrets versions add ofcour
 > **Trying OfCourse.** Open https://ofcourse-44805428675.asia-southeast1.run.app.
 >
 > - **As a student**, sign in with your own Google account, or choose **Judge access** under the sign-in card, enter the passcode **`<passcode>`**, and pick a student: Priya (Nepal, cyber security in Perth, PR through 190), Aarav (India, civil engineering in Sydney, 491 or 186), Sita (Nepal, nursing in Adelaide, 190), Meera (Sri Lanka, interaction design in Melbourne, then home) or Rohan (India, cyberpsychology at Swinburne in Melbourne, with no clear PR). Each opens on her finished roadmap. **Start from the beginning** goes through onboarding as a new student. Every choice is a new account, so you can try as many as you like.
+> - **To see the AI answer from the data**, open a city or course on the roadmap and **type** a question in Ask, e.g. "Can I afford this?" or "How is this different from my course?". Gemini answers only from the catalogue facts the code retrieves for that tile, and the reply lists them under "Answered from these facts". A question the data can't answer gets "I don't have that in our data". (The suggested question chips show pre-written answers, with no model call.)
 > - **As the admin**, open https://ofcourse-44805428675.asia-southeast1.run.app/admin/sign-in, choose **Judge access** and enter the same passcode. You sign in as an editor and reviewer: the Board, Comic gaps, Updates, Ideas and Insights.
 >
 > After ten wrong tries the passcode rests for ten minutes.
