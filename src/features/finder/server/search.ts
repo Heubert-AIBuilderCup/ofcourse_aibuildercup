@@ -1,8 +1,9 @@
 // The finder's search: her words' embedding, then two queries on course_doc at once, the nearest
 // courses by meaning (cosine distance, pgvector) and, for the engine room, the keyword search's
 // best for the same words (Postgres full text). Each hit carries the hard filters it fails, its
-// subjects and whether two of her stated interests each reach one of them. Text
-// of fewer than FINDER_MIN_WORDS content words is nothing close, with nothing embedded or queried.
+// subjects and whether two of her stated interests each reach one of them, and, with the course
+// detail on, its related fields, jobs and job market in its own city. Text of fewer than
+// FINDER_MIN_WORDS content words is nothing close, with nothing embedded or queried.
 // The caller's signal bounds the embedding call; the action bounds the whole search. Errors
 // propagate; the action maps them. Nothing here logs the text (criterion 11).
 
@@ -19,6 +20,8 @@ import { FINDER_FLOOR, FINDER_MIN_WORDS, FINDER_TOP } from '../model/config'
 import { failedFilters } from '../model/filters'
 import type { FinderHit, FinderResult } from '../model/types'
 import { contentWords } from '../model/words'
+import { courseDetailOn } from '../switch'
+import { courseDetail } from './detail'
 import { embedModelName, embedQuery } from './embed'
 
 /** The keyword search's results shown beside the meaning search's. */
@@ -118,9 +121,11 @@ export async function searchCourses(
       .limit(KEYWORD_TOP),
   ])
 
+  const withDetail = courseDetailOn(process.env)
   const hits: FinderHit[] = nearest.map(({ distance, ...row }) => {
     const level = row.level as Level
     const field = row.field as FieldId
+    const detail = withDetail ? courseDetail(row.courseId, row.cityId) : null
     return {
       ...row,
       level,
@@ -129,6 +134,7 @@ export async function searchCourses(
       definition: row.niche ? (definitionOf.get(row.graphField) ?? null) : null,
       score: Math.round((1 - Number(distance)) * 1000) / 1000,
       failed: failedFilters(answers, { level, feeK: row.feeK, cityId: row.cityId }),
+      ...(detail ? { detail } : {}),
     }
   })
 

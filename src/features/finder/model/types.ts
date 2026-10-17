@@ -2,6 +2,7 @@
 // and its engine room, and a card's why. Client-safe: types only.
 
 import type { FieldId, Level } from '@/features/engine/types'
+import type { CourseJobGroup, FieldNear } from '@/features/roads/data/types'
 
 /** What the finder knows about a catalogue course beyond the engine's Course row. */
 export type FinderExtra = {
@@ -46,6 +47,8 @@ export type FinderHit = {
   /** Cosine similarity, 0–1, rounded to 3 places. */
   score: number
   failed: FilterKey[]
+  /** Its related fields, jobs and job market, when the course detail is on (COURSE_DETAIL_ON). */
+  detail?: CourseDetailData
 }
 
 /** A course the keyword search found for the same words, for the engine room. */
@@ -73,3 +76,9 @@ export type FinderWhy = {
   source: 'model' | 'template'
   ms: number
 }
+
+/**
+ * A course's detail: the fields one step from its own, and the jobs it leads to with their
+ * sample market, grouped by the subjects it combines (its `fields`, in order).
+ */
+export type CourseDetailData = { fieldsNear: FieldNear[]; jobGroups: CourseJobGroup[] }

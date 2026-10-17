@@ -9,7 +9,7 @@ import { subjectsOf } from '../data/subjects'
 import type { Occupation } from '../data/types'
 import { specById } from './compose'
 import { stated as a } from './demo-profiles'
-import { cardDetails, detailsByTile, listLines } from './details'
+import { cardDetails, detailsByTile, fieldsNear, listLines } from './details'
 
 /** No answers: she picked no field, so the road's own field stands for hers. */
 const NONE: StoredAnswers = {}
@@ -219,6 +219,62 @@ describe('detailsByTile: the layout sends one entry per tile that has something 
     expect(cardDetails(spec, 'visa-485', NONE)).toEqual(byTile[spec.slots['visa-485'].id])
     expect(spec.slots['point-a'].id in byTile).toBe(false)
     expect(Object.values(byTile).every((d) => d !== null)).toBe(true)
+  })
+})
+
+describe('detailsByTile with the course detail (criteria 22 and 23)', () => {
+  it('gives the course tile the fields one step from the road field and its occupations with their market', () => {
+    const spec = road('perth-cyber')
+    const course = detailsByTile(spec, NONE, { detail: true })[spec.slots.course.id]
+    expect(course?.fieldsNear?.map((f) => f.name)).toEqual([
+      'Digital forensics',
+      'Security governance and risk',
+      'Cyber-psychology',
+      'Information technology',
+      'Networks and cloud',
+      'Industrial and critical infrastructure security',
+      'Cyber policy and strategy',
+    ])
+    expect(course?.fieldsNear?.[0]?.definition).toBe(
+      FIELDS.find((f) => f.id === 'digital-forensics')?.definition,
+    )
+    expect(course?.occupations?.map((o) => `${o.code} ${o.name}`)).toEqual([
+      '262112 ICT Security Specialist',
+    ])
+    expect(course?.occupations?.[0]?.market?.cityId).toBe('perth')
+    expect(course?.occupations?.[0]?.market?.openings).toBe(310)
+    expect(course?.subjects).toBeDefined()
+  })
+
+  it('gives the alternative and the stack their own course’s fields near and jobs, in its own city', () => {
+    // Adelaide IT: the alternative is UniSA cyber in Adelaide, the stack UTAS IT in Hobart.
+    const spec = road('adelaide-it')
+    const byTile = detailsByTile(spec, NONE, { detail: true })
+    const alt = byTile[spec.slots['alt-course'].id]
+    const stack = byTile[spec.slots['stack-course'].id]
+    expect(alt?.fieldsNear?.map((f) => f.name)).toEqual(fieldsNear('cyber').map((f) => f.name))
+    expect(stack?.fieldsNear?.map((f) => f.name)).toEqual(fieldsNear('it').map((f) => f.name))
+    const jobs = (d: typeof alt) =>
+      d?.occupations?.map((o) => `${o.code} ${o.market?.cityId} ${o.market?.openings}`)
+    expect(jobs(alt)).toEqual(['262112 adelaide 248'])
+    expect(jobs(stack)).toEqual(['261313 hobart 108', '261112 hobart 46'])
+    expect(alt?.subjects).toBeDefined()
+    expect(stack?.subjects).toBeDefined()
+  })
+
+  it('leaves every tile exactly as it was with the detail off or not asked for (22)', () => {
+    for (const id of ['perth-cyber', 'adelaide-it', 'hobart-it', 'melbourne-home']) {
+      const spec = road(id)
+      const byTile = detailsByTile(spec, NONE)
+      expect(JSON.stringify(detailsByTile(spec, NONE, { detail: false }))).toBe(
+        JSON.stringify(byTile),
+      )
+      expect(
+        Object.values(byTile).every(
+          (d) => !('fieldsNear' in d) && !d.occupations?.some((o) => 'market' in o),
+        ),
+      ).toBe(true)
+    }
   })
 })
 

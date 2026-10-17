@@ -1,5 +1,11 @@
 import type { ReactNode } from 'react'
-import type { CardDetails as Details } from '@/features/roads/client'
+import { CITIES } from '@/features/engine'
+import type {
+  CourseJob,
+  CardDetails as Details,
+  FieldNear,
+  JobMarketRow,
+} from '@/features/roads/client'
 import { MockTag } from './MockTag'
 
 const KIND = {
@@ -12,16 +18,31 @@ const DEMAND = { low: 'low demand', moderate: 'moderate demand', high: 'high dem
 
 const LIST = 'm-0 flex list-none flex-col gap-1.5 p-0'
 
+const SAMPLE = 'OfCourse sample data'
+
+/** The level a section title is drawn at: h2 on the board, one under the card title elsewhere. */
+export type HeadingLevel = 'h2' | 'h3' | 'h4'
+
 /** A block of the card: its title, its lines, and the source line with the mock tag beside it. */
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({
+  title,
+  source = 'OfCourse preview data',
+  headingLevel: Heading = 'h2',
+  children,
+}: {
+  title: string
+  source?: string
+  headingLevel?: HeadingLevel
+  children: ReactNode
+}) {
   return (
     <section className="flex flex-col gap-1">
-      <h2 className="m-0 font-sans text-overline font-normal text-muted-foreground uppercase">
+      <Heading className="m-0 font-sans text-overline font-normal text-muted-foreground uppercase">
         {title}
-      </h2>
+      </Heading>
       {children}
       <p className="m-0 flex items-center gap-1 text-caption text-muted-foreground">
-        Source: OfCourse preview data ·
+        Source: {source} ·
         <MockTag />
       </p>
     </section>
@@ -37,15 +58,76 @@ function Line({ label, items }: { label: string; items: string[] }) {
   ) : null
 }
 
+const cityName = (id: string): string => CITIES.find((c) => c.id === id)?.name ?? id
+
+/** "620 openings · AUD 104–142k starting · Sydney". */
+const marketLine = (m: JobMarketRow): string =>
+  `${m.openings.toLocaleString('en-AU')} openings · AUD ${m.payLowK}–${m.payHighK}k starting · ${cityName(m.cityId)}`
+
+/**
+ * Each job with its sample openings and starting pay in the city, where there is a sample row,
+ * under `title` (a found course's subject, "Psychology roles") and an optional muted `note`.
+ */
+export function JobMarketSection({
+  jobs,
+  headingLevel,
+  title = 'Job market (sample data)',
+  note,
+}: {
+  jobs: CourseJob[]
+  headingLevel?: HeadingLevel
+  title?: string
+  note?: string
+}) {
+  return (
+    <Section title={title} source={SAMPLE} headingLevel={headingLevel}>
+      {note ? <p className="m-0 text-caption text-muted-foreground">{note}</p> : null}
+      <ul className={LIST}>
+        {jobs.map((j) => (
+          <li key={j.code}>
+            <span className="font-medium">{j.name}</span>
+            <span className="block text-caption text-muted-foreground">
+              {j.market ? marketLine(j.market) : 'No sample figures for this city'}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Section>
+  )
+}
+
+/** The fields one step from this one on the field graph, each defined. */
+export function FieldsNearSection({
+  fields,
+  headingLevel,
+}: {
+  fields: FieldNear[]
+  headingLevel?: HeadingLevel
+}) {
+  return (
+    <Section title="Fields close to this one" source={SAMPLE} headingLevel={headingLevel}>
+      <ul className={LIST}>
+        {fields.map((f) => (
+          <li key={f.name}>
+            <span className="font-medium">{f.name}</span>: {f.definition}
+          </li>
+        ))}
+      </ul>
+    </Section>
+  )
+}
+
 /**
  * What a card adds under its guide (criteria 29 to 33): a course's majors, units and conditions
  * (entry and course ones alike, so not called "to get in"); the work beside it; the graduate jobs
- * and occupations after it; whether its occupation is on the state's list; and, on the stack and
- * the alternative, the field next to hers its course is in, defined. A section with nothing in it
- * is not drawn. Nothing is ranked: the catalogue's order.
+ * and occupations after it; whether its occupation is on the state's list; on the stack and the
+ * alternative, the field next to hers its course is in, defined; and, with the course detail on,
+ * each course card's job market per occupation and the fields close to its own (sample data). A
+ * section with nothing in it is not drawn. Nothing is ranked: the catalogue's order.
  */
 export function CardDetails({ details }: { details: Details }) {
-  const { subjects, work, graduate, occupations, listStatus, related } = details
+  const { subjects, work, graduate, occupations, listStatus, related, fieldsNear } = details
+  const markets = occupations?.filter((o) => o.market) ?? []
   return (
     <div className="flex flex-col gap-4">
       {subjects ? (
@@ -94,6 +176,10 @@ export function CardDetails({ details }: { details: Details }) {
           </ul>
         </Section>
       ) : null}
+
+      {markets.length ? <JobMarketSection jobs={markets} /> : null}
+
+      {fieldsNear?.length ? <FieldsNearSection fields={fieldsNear} /> : null}
 
       {listStatus ? (
         <Section title="On the state's list?">
