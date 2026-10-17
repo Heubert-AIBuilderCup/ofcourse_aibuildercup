@@ -4,6 +4,8 @@ import { alias } from 'drizzle-orm/pg-core'
 import { db } from '@/shared/lib/db'
 import { roadmap } from '@/shared/lib/db/schema'
 import {
+  type BoardChoices,
+  boardChoicesSchema,
   type Coins,
   coinsSchema,
   type OwnWordsStep,
@@ -331,15 +333,21 @@ export async function touchOpened(userId: string, id: string): Promise<boolean> 
   return false
 }
 
-/** What she did on its board; a key the schema does not know is dropped. False when not hers. */
+/**
+ * What she did on its board; a key a board does not have is dropped. Its pin, set when it was made,
+ * stays as stored, in the same write. False when not hers.
+ */
 export async function saveChoices(
   userId: string,
   id: string,
-  choices: RoadmapChoices,
+  choices: BoardChoices,
 ): Promise<boolean> {
+  const board = JSON.stringify(boardChoicesSchema.parse(choices))
   const rows = await db
     .update(roadmap)
-    .set({ choices: roadmapChoicesSchema.parse(choices) })
+    .set({
+      choices: sql`${board}::jsonb || jsonb_strip_nulls(jsonb_build_object('pinned', ${roadmap.choices} -> 'pinned'))`,
+    })
     .where(hers(userId, id))
     .returning({ id: roadmap.id })
   return rows.length > 0

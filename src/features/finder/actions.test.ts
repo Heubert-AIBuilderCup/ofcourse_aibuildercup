@@ -1,11 +1,22 @@
-// The finder's two actions (criteria 9, 10 and 11, and the refusals): who they refuse, the switch,
+// The finder's actions (criteria 9, 10, 11 and 27, and the refusals): who they refuse, the switch,
 // her text's bounds, the hourly limit, the time limit on the whole search with its one retry, the
 // one log line per search, and a failed search that says so without logging her words.
 // The session and the repository are mocked; search and why are spies over the real modules, so
 // the rest of the run still gets them (bun's module mocks last for the process). The time limit is
 // tested on fake timers: a slow search moves the clock itself.
 
-import { afterAll, afterEach, beforeEach, describe, expect, it, jest, mock, spyOn } from 'bun:test'
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+  mock,
+  spyOn,
+} from 'bun:test'
 import type { Roadmap } from '@/shared/types/student'
 import type { FinderResult, FinderWhy } from './model/types'
 
@@ -31,11 +42,14 @@ const realWhy = { ...(await import('./server/why')) }
 const writeFinderWhy = mock(realWhy.writeFinderWhy)
 mock.module('./server/why', () => ({ ...realWhy, writeFinderWhy }))
 
-const { findCoursesAction, finderWhyAction } = await import('./actions')
+const { compareCourseAction, findCoursesAction, finderWhyAction } = await import('./actions')
 const { FINDER_PER_HOUR, SEARCH_RETRY_MS, SEARCH_TIMEOUT_MS } = await import('./model/config')
 const { WHY_PER_HOUR } = await import('@/features/roads/server/why-limit')
 const { FINDER_COURSES, FINDER_EXTRAS } = await import('./data/catalogue')
 const { finderWhyTemplate } = await import('./model/why')
+const { alternativeForCourse, compareRows } = await import('./model/compare')
+const { roadFor } = await import('@/features/roads/model/road-for')
+const { stated } = await import('@/features/roads/model/demo-profiles')
 
 const TEXT = 'I like taking things apart'
 const RESULT: FinderResult = {
@@ -90,6 +104,7 @@ const searchLines = () => lines().filter((line) => line.startsWith('[finder.sear
 
 beforeEach(() => {
   process.env.FINDER_ON = '1'
+  process.env.COMPARE_ON = '1'
   delete process.env.STUDENT_AI_OFF
   found = roadmap()
   session = { user: { id: 'student-1', role: 'user' } }
@@ -111,6 +126,7 @@ afterAll(() => {
   searchCourses.mockImplementation(realSearch.searchCourses)
   writeFinderWhy.mockImplementation(realWhy.writeFinderWhy)
   delete process.env.FINDER_ON
+  delete process.env.COMPARE_ON
 })
 
 describe('findCoursesAction', () => {
@@ -318,5 +334,79 @@ describe('finderWhyAction', () => {
       },
     })
     expect(writeFinderWhy).not.toHaveBeenCalled()
+  })
+})
+
+describe('compareCourseAction (criterion 27)', () => {
+  // Finder courses resolve only once the server module has registered them; loaded under a key of
+  // its own (Bun caches a module by its specifier, query included), so it registers here whichever
+  // test file loaded it first.
+  const key = 'actions=1'
+  beforeAll(() => import(`./server/road-courses?${key}`))
+
+  const answers = stated({ stay: 'Yes', field: 'Cyber security', level: "Master's" })
+  const twoYear = FINDER_COURSES.find((c) => c.years === 2)?.id ?? ''
+  const oneYear = FINDER_COURSES.find((c) => c.years === 1)?.id ?? ''
+
+  it('compares her road with a found course, which she can pin when it runs two years', async () => {
+    found = roadmap({ answers })
+    const spec = roadFor({ answers, relative: null }, process.env).spec
+    if (!spec) throw new Error('her answers draw no road')
+    const alt = alternativeForCourse(spec, twoYear)
+    if (!alt) throw new Error(`no road around ${twoYear}`)
+
+    expect(await compareCourseAction('rm-1', twoYear)).toEqual({
+      ok: true,
+      rows: compareRows(spec, alt, answers, alt.cityId),
+      pinnable: true,
+    })
+    expect(getRoadmap).toHaveBeenCalledWith('student-1', 'rm-1')
+  })
+
+  it('compares a one-year course too, but it cannot be pinned yet', async () => {
+    found = roadmap({ answers })
+    const res = await compareCourseAction('rm-1', oneYear)
+    expect(res.ok).toBe(true)
+    expect(res.ok && res.pinnable).toBe(false)
+  })
+
+  it('compares the longest real catalogue course id, and refuses one past 80 characters', async () => {
+    found = roadmap({ answers })
+    const longest = [...FINDER_COURSES].sort((a, b) => b.id.length - a.id.length)[0]
+    expect(longest.id.length).toBe(74)
+    expect(await compareCourseAction('rm-1', longest.id)).toMatchObject({ ok: true })
+    expect(await compareCourseAction('rm-1', 'x'.repeat(81))).toEqual({
+      ok: false,
+      error: 'Not found',
+    })
+  })
+
+  it('refuses a visitor who is not signed in, and one who is not a student', async () => {
+    session = null
+    expect(await compareCourseAction('rm-1', twoYear)).toMatchObject({ ok: false })
+    session = { user: { id: 'admin-1', role: 'admin' } }
+    expect(await compareCourseAction('rm-1', twoYear)).toMatchObject({ ok: false })
+    expect(getRoadmap).not.toHaveBeenCalled()
+  })
+
+  it("is not found for another student's roadmap, an unknown course or a malformed id", async () => {
+    found = null
+    expect(await compareCourseAction('rm-1', twoYear)).toEqual({ ok: false, error: 'Not found' })
+    found = roadmap({ answers })
+    expect(await compareCourseAction('rm-1', 'no-such-course')).toEqual({
+      ok: false,
+      error: 'Not found',
+    })
+    expect(await compareCourseAction('x'.repeat(65), twoYear)).toEqual({
+      ok: false,
+      error: 'Not found',
+    })
+  })
+
+  it('is not found with the compare switch off', async () => {
+    found = roadmap({ answers })
+    delete process.env.COMPARE_ON
+    expect(await compareCourseAction('rm-1', twoYear)).toEqual({ ok: false, error: 'Not found' })
+    expect(getRoadmap).not.toHaveBeenCalled()
   })
 })

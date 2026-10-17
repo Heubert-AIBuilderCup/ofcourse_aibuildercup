@@ -1,3 +1,4 @@
+import { courseFallback } from './course-fallback'
 import { courseById } from './courses'
 import type { Occupation, Source, StateId } from './types'
 
@@ -220,9 +221,10 @@ export const OCCUPATIONS: readonly Occupation[] = [
   },
 ]
 
-/** The occupations a course leads to. */
+/** The occupations a course leads to; for a course the lists do not name, any the server registered. */
 export function occupationsFor(courseId: string): Occupation[] {
-  return OCCUPATIONS.filter((o) => o.courseIds.includes(courseId))
+  const own = OCCUPATIONS.filter((o) => o.courseIds.includes(courseId))
+  return own.length > 0 ? own : courseFallback().occupationsFor(courseId)
 }
 
 export type StayingRoute = '190' | '491' | '186' | 'none'

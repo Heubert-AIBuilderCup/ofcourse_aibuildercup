@@ -2,8 +2,13 @@
 // refused, what is checked first, and what reaches the repository. The repository itself is proven
 // against the database in ./server/roadmaps.test.ts.
 
-import { afterEach, describe, expect, it, mock, spyOn } from 'bun:test'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from 'bun:test'
+import { cityOf } from '@/features/engine/catalogue'
+import { FINDER_COURSES } from '@/features/finder/data/catalogue'
 import type { Roadmap } from '@/shared/types/student'
+
+// The actions resolve finder courses through a server-only module.
+mock.module('server-only', () => ({}))
 
 type FakeSession = { user: { id: string; role: string | null } } | null
 let session: FakeSession = null
@@ -396,6 +401,14 @@ describe('saveChoicesAction', () => {
     expect(saveChoices).toHaveBeenCalledWith('student-1', 'rm-1', { swapped: true })
   })
 
+  it('never pins a course: a pin is only made with a new roadmap', async () => {
+    session = student()
+    const loose = saveChoicesAction as (id: string, choices: unknown) => Promise<unknown>
+    const pinned = { courseId: 'uts-cyber', cityId: 'sydney' }
+    expect(await loose('rm-1', { swapped: true, pinned })).toEqual({ ok: true })
+    expect(saveChoices).toHaveBeenCalledWith('student-1', 'rm-1', { swapped: true })
+  })
+
   it('refuses a bad shape or id, and saves nothing', async () => {
     session = student()
     const loose = saveChoicesAction as (id: unknown, choices: unknown) => Promise<{ ok: boolean }>
@@ -615,5 +628,97 @@ describe('createRoadmapAction', () => {
     expect(await loose({ fromId: 'rm-2', answers: {} })).toEqual({ ok: false, error: NOT_FOUND })
     created = 'bad-answers'
     expect(await loose({ fromId: 'rm-1', answers: {} })).toEqual({ ok: false, error: BAD_ANSWERS })
+  })
+})
+
+describe('createRoadmapAction, pinned to a course (criteria 29 and 30)', () => {
+  // Finder courses resolve once the server module has registered them; loaded under a key of its
+  // own (Bun caches a module by its specifier, query included), so it registers here whichever
+  // test file loaded it first.
+  const key = 'roadmaps=1'
+  beforeAll(() => import(`../finder/server/road-courses?${key}`))
+  beforeEach(() => {
+    process.env.COMPARE_ON = '1'
+  })
+  afterEach(() => {
+    delete process.env.COMPARE_ON
+  })
+
+  const loose = createRoadmapAction as (input: unknown) => Promise<unknown>
+  const pinned = { courseId: 'uts-cyber', cityId: 'sydney' }
+  const finderPin = (years: number) => {
+    const course = FINDER_COURSES.find((c) => c.years === years)
+    if (!course) throw new Error(`no ${years}-year finder course`)
+    return { courseId: course.id, cityId: cityOf(course).id }
+  }
+
+  it('stores the pin on the new roadmap, and writes nothing to its source', async () => {
+    session = student()
+    expect(await loose({ fromId: 'rm-1', answers: {}, pinned })).toEqual({ ok: true, id: 'rm-new' })
+    expect(createRoadmap).toHaveBeenCalledWith('student-1', {
+      fromId: 'rm-1',
+      name: 'Copy of Cyber Security in Perth',
+      answers: {},
+      choices: { pinned },
+    })
+    expect(writeCalls()).toBe(1)
+  })
+
+  it('pins a two-year course the finder found', async () => {
+    session = student()
+    const pin = finderPin(2)
+    expect(await loose({ fromId: 'rm-1', answers: {}, pinned: pin })).toEqual({
+      ok: true,
+      id: 'rm-new',
+    })
+    const [, made] = createRoadmap.mock.lastCall ?? []
+    expect((made as { choices?: unknown }).choices).toEqual({ pinned: pin })
+  })
+
+  it('names a copy of a pinned roadmap from the road its source draws', async () => {
+    session = student()
+    source = roadmap({ choices: { pinned }, finishedAt: new Date() })
+    await loose({ fromId: 'rm-1', answers: {} })
+    const [, made] = createRoadmap.mock.lastCall ?? []
+    expect((made as { name: string }).name).toBe('Copy of Cyber Security in Sydney')
+  })
+
+  it('refuses an unknown course, a one-year one, another city or a bad pin, and makes nothing', async () => {
+    session = student()
+    for (const bad of [
+      { courseId: 'no-such-course', cityId: 'sydney' },
+      finderPin(1),
+      { courseId: 'uts-cyber', cityId: 'perth' },
+      { courseId: 'uts-cyber' },
+      { courseId: ['uts-cyber'], cityId: 'sydney' },
+      'uts-cyber',
+      null,
+    ]) {
+      expect(await loose({ fromId: 'rm-1', answers: {}, pinned: bad })).toEqual({
+        ok: false,
+        error: NOT_FOUND,
+      })
+    }
+    expect(createRoadmap).not.toHaveBeenCalled()
+  })
+
+  it('refuses a new pin with the compare switch off, and makes nothing', async () => {
+    session = student()
+    delete process.env.COMPARE_ON
+    expect(await loose({ fromId: 'rm-1', answers: {}, pinned })).toEqual({
+      ok: false,
+      error: NOT_FOUND,
+    })
+    expect(await loose({ answers: {}, pinned })).toEqual({ ok: false, error: NOT_FOUND })
+    expect(createRoadmap).not.toHaveBeenCalled()
+  })
+
+  it("with the switch off, a copy of a pinned roadmap still keeps its source's pin", async () => {
+    session = student()
+    delete process.env.COMPARE_ON
+    source = roadmap({ choices: { pinned }, finishedAt: new Date() })
+    expect(await loose({ fromId: 'rm-1', answers: {}, pinned })).toEqual({ ok: true, id: 'rm-new' })
+    const [, made] = createRoadmap.mock.lastCall ?? []
+    expect((made as { choices?: unknown }).choices).toEqual({ pinned })
   })
 })

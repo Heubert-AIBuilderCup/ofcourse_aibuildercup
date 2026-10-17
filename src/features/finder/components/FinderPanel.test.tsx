@@ -1,13 +1,17 @@
 /// <reference lib="dom" />
-// The Find card's subjects: a combined course says which subjects it combines, and one that fits two
-// of her stated interests carries the "Fits both" tag. A found course's card in the Find panel
-// (criteria 23 and 24): a hit that carries the course detail shows it, as an expandable part of its
-// card; a hit without it shows nothing more (22). Compared as strings and counts, never elements.
+// The Find panel (criteria 22 to 27): a found course's card shows its course detail when the hit
+// carries it (23, 24), and nothing more when it does not (22); with the compare action, each card
+// offers "Compare with my roadmap", whose comparison takes the results' place until Back (27).
+// The Find card's subjects: a combined course says which subjects it combines, and one that fits
+// two of her stated interests carries the "Fits both" tag. Compared as strings and counts, never
+// elements.
+
 import { afterEach, describe, expect, it, mock } from 'bun:test'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import type { FieldId } from '@/features/engine/types'
+import type { CompareRow } from '@/features/roads/data/types'
 import type { CourseDetailData, FinderHit } from '../model/types'
-import { FinderPanel } from './FinderPanel'
+import { type FinderCompare, FinderPanel } from './FinderPanel'
 import type { FinderSearch, FinderWhyCall } from './useFinder'
 
 afterEach(cleanup)
@@ -62,14 +66,14 @@ async function found(hits: FinderHit[]) {
   })
 }
 
-const count = (text: string) => screen.queryAllByText(text).length
+const countText = (text: string) => screen.queryAllByText(text).length
 
 describe('FinderPanel cards', () => {
   it('says which subjects a combined course combines, two with "and", three with commas', async () => {
     await found([hit(1, ['psych', 'cyber']), hit(2, ['health', 'data', 'it']), hit(3, ['it'])])
-    expect(count('Combines Psychology and Cyber security')).toBe(1)
-    expect(count('Combines Health, Data science and Information technology')).toBe(1)
-    expect(count('Fits both')).toBe(0)
+    expect(countText('Combines Psychology and Cyber security')).toBe(1)
+    expect(countText('Combines Health, Data science and Information technology')).toBe(1)
+    expect(countText('Fits both')).toBe(0)
     const combines = [...document.querySelectorAll('li')].filter((li) =>
       li.textContent?.includes('Combines'),
     )
@@ -81,7 +85,7 @@ describe('FinderPanel cards', () => {
     const tags = screen.queryAllByText('Fits both')
     expect(tags.length).toBe(1)
     expect(tags[0]?.getAttribute('aria-hidden')).toBe('true')
-    expect(count('Fits both your interests')).toBe(1)
+    expect(countText('Fits both your interests')).toBe(1)
   })
 })
 
@@ -179,5 +183,142 @@ describe('a found course card', () => {
     const card = screen.getByRole('heading', { level: 3, name: 'Course 1' }).closest('li')
     const titles = [...(card?.querySelectorAll('section > :first-child') ?? [])]
     expect(titles.map((t) => t.tagName)).toEqual(['H4', 'H4'])
+  })
+})
+
+const ROWS: CompareRow[] = [
+  {
+    key: 'money',
+    label: 'Money',
+    current: 'AUD 33k a year',
+    alternative: 'AUD 30k a year',
+    changed: true,
+  },
+]
+const COMPARED = { ok: true as const, rows: ROWS, pinnable: true }
+const COMPARE = 'Compare with my roadmap'
+const BACK = 'Back to results'
+
+/** A compare call whose answers arrive when the test says, in the order they were asked. */
+function deferredCompare() {
+  const pending: ((answer: Awaited<ReturnType<FinderCompare>>) => void)[] = []
+  const compare = mock<FinderCompare>(() => new Promise((resolve) => pending.push(resolve)))
+  const answer = (i: number, a: Awaited<ReturnType<FinderCompare>> = COMPARED) =>
+    act(async () => pending[i]?.(a))
+  return { compare, answer }
+}
+
+/** The panel with its two found courses on show. */
+async function showResults(compare?: FinderCompare) {
+  render(
+    <FinderPanel
+      roadmapId="rm-1"
+      seed="robots and puzzles"
+      search={search}
+      why={why}
+      compare={compare}
+      onClose={() => {}}
+    />,
+  )
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }))
+  })
+}
+
+/** The Compare button on the card whose title is `name`. */
+const compareOn = (name: string) => {
+  const card = screen.getByRole('heading', { level: 3, name }).closest('li')
+  if (!card) throw new Error(`no card "${name}"`)
+  return within(card).getByRole('button', { name: COMPARE })
+}
+
+const press = (el: HTMLElement) =>
+  act(async () => {
+    fireEvent.click(el)
+  })
+
+const count = (role: string, name: string) => screen.queryAllByRole(role, { name }).length
+const statusText = () => screen.getByRole('status').textContent ?? ''
+
+describe('Compare with my roadmap on a found course (criterion 27)', () => {
+  it('has no Compare button without the compare action (criterion 25), one per card with it', async () => {
+    await showResults()
+    expect(count('button', COMPARE)).toBe(0)
+    cleanup()
+    await showResults(deferredCompare().compare)
+    expect(count('button', COMPARE)).toBe(2)
+  })
+
+  it('drops an answer that arrives after Back to results, or after another course was asked', async () => {
+    const { compare, answer } = deferredCompare()
+    await showResults(compare)
+    await press(compareOn('Course 1'))
+    expect(statusText()).toBe('Comparing…')
+    await press(screen.getByRole('button', { name: BACK }))
+    await answer(0)
+    expect(count('button', BACK)).toBe(0)
+    expect(count('heading', 'Course 1')).toBe(1)
+
+    await press(compareOn('Course 2'))
+    await answer(0)
+    expect(screen.queryAllByText('What changes').length).toBe(0)
+    expect(statusText()).toBe('Comparing…')
+    await answer(1)
+    expect(screen.queryAllByText('What changes').length).toBe(1)
+    expect(count('heading', 'Course 2')).toBe(1)
+  })
+
+  it('says what went wrong when the comparison is refused or throws', async () => {
+    const { compare, answer } = deferredCompare()
+    await showResults(compare)
+    await press(compareOn('Course 1'))
+    await answer(0, { ok: false, error: 'Not found' })
+    expect(statusText()).toBe('Not found')
+    cleanup()
+
+    await showResults(
+      mock<FinderCompare>(async () => {
+        throw new Error('network')
+      }),
+    )
+    await press(compareOn('Course 1'))
+    expect(statusText()).toBe("Couldn't compare right now")
+    expect(screen.queryAllByText('What changes').length).toBe(0)
+  })
+
+  it('Back to results gives the same results back, without searching again', async () => {
+    const { compare, answer } = deferredCompare()
+    await showResults(compare)
+    const searches = search.mock.calls.length
+    await press(compareOn('Course 1'))
+    await answer(0)
+    expect(screen.queryAllByText('What changes').length).toBe(1)
+    expect(count('heading', 'Course 2')).toBe(0)
+    await press(screen.getByRole('button', { name: BACK }))
+    expect(count('heading', 'Course 1')).toBe(1)
+    expect(count('heading', 'Course 2')).toBe(1)
+    expect(cardText('Course 1').includes('350 openings · AUD 87–123k starting · Perth')).toBe(true)
+    expect(search.mock.calls.length).toBe(searches)
+  })
+
+  it("moves focus to the comparison's title, and back to the pressed card's Compare on Back", async () => {
+    const { compare, answer } = deferredCompare()
+    await showResults(compare)
+    await press(compareOn('Course 2'))
+    const title = screen.getByRole('heading', { level: 2, name: 'Course 2' })
+    expect(document.activeElement === title).toBe(true)
+    await answer(0)
+    expect(document.activeElement === title).toBe(true)
+    await press(screen.getByRole('button', { name: BACK }))
+    expect(document.activeElement === compareOn('Course 2')).toBe(true)
+  })
+
+  it('keeps one status region mounted in both views, so what it says is announced', async () => {
+    await showResults(deferredCompare().compare)
+    const region = screen.getByRole('status')
+    await press(compareOn('Course 1'))
+    expect(screen.getByRole('status') === region).toBe(true)
+    await press(screen.getByRole('button', { name: BACK }))
+    expect(screen.getByRole('status') === region).toBe(true)
   })
 })

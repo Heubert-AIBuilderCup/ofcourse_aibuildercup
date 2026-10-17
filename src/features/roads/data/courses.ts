@@ -3,6 +3,7 @@
 
 import { COURSES } from '@/features/engine/catalogue'
 import type { Claim, Course, DataState, LineData, Pips } from '@/features/engine/types'
+import { courseFallback } from './course-fallback'
 
 const claim = (
   pips: Pips,
@@ -1146,7 +1147,7 @@ export const EXTRA_COURSES: readonly Course[] = [
 
 const EXTRA_BY_ID = new Map(EXTRA_COURSES.map((c) => [c.id, c]))
 
-/** A course by id: the engine's first, then the roads' own. */
+/** A course by id: the engine's first, then the roads' own, then any the server registered. */
 export function courseById(id: string): Course | undefined {
-  return COURSES.find((c) => c.id === id) ?? EXTRA_BY_ID.get(id)
+  return COURSES.find((c) => c.id === id) ?? EXTRA_BY_ID.get(id) ?? courseFallback().courseById(id)
 }

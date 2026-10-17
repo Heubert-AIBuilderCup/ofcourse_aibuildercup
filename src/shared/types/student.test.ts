@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 import {
+  boardChoicesSchema,
   coinsSchema,
   ownWordsSchema,
   type Relative,
   relativeSchema,
+  roadmapChoicesSchema,
   roadmapTagsSchema,
   type StoredAnswers,
   storedAnswersSchema,
@@ -145,5 +147,35 @@ describe('roadmapTagsSchema', () => {
   it('rejects more than 30 tags, and takes 30', () => {
     expect(roadmapTagsSchema.safeParse(Array.from({ length: 31 }, () => tag)).success).toBe(false)
     expect(roadmapTagsSchema.safeParse(Array.from({ length: 30 }, () => tag)).success).toBe(true)
+  })
+})
+
+describe('roadmapChoicesSchema', () => {
+  const pinned = { courseId: 'uts-cyber', cityId: 'sydney' }
+
+  it('keeps the course a roadmap is pinned to, through a round trip', () => {
+    const choices = { swapped: true, pinned }
+    const stored = JSON.parse(JSON.stringify(roadmapChoicesSchema.parse(choices)))
+    expect(roadmapChoicesSchema.parse(stored)).toEqual(choices)
+  })
+
+  it('drops a malformed pin and keeps the rest', () => {
+    for (const bad of [
+      { courseId: 'uts-cyber' },
+      { courseId: '', cityId: 'sydney' },
+      { courseId: 7, cityId: 'sydney' },
+      { courseId: 'x'.repeat(81), cityId: 'sydney' },
+      'uts-cyber',
+      null,
+    ]) {
+      const parsed = roadmapChoicesSchema.safeParse({ read: true, pinned: bad })
+      expect(parsed.success).toBe(true)
+      expect(parsed.data?.pinned).toBeUndefined()
+      expect(parsed.data?.read).toBe(true)
+    }
+  })
+
+  it("the board's own choices never carry a pin", () => {
+    expect(boardChoicesSchema.parse({ swapped: true, pinned })).toEqual({ swapped: true })
   })
 })

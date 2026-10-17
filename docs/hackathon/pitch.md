@@ -6,12 +6,13 @@ Placeholders in square brackets, starting `[from the 12 Oct test: …]`, are fil
 
 ## 1. The video script
 
-Under three minutes: 426 spoken words (the scene 7 placeholder counted as three) at about 150 words a minute is 2:50; the scene times below add up to **2:52**. Record the voice first, then cut the screen recording to it. Speak the product name as "Of Course". Burn in captions (the judges may watch without sound).
+Three to four minutes: the rules quoted on 16 Oct ask for a 3 to 4 minute video, and over four may be penalised. With scene 2b, about 520 spoken words (the scene 7 placeholder counted as three) at about 150 words a minute is 3:28. The scene times below, plus 2b's 45 seconds, add up to about **3:37**. Record the voice first, then cut the screen recording to it. Speak the product name as "Of Course". Burn in captions (the judges may watch without sound).
 
 | # | Seconds | On screen | Said |
 | --- | --- | --- | --- |
 | 1 | 0:00–0:21 | A student's phone, then the OfCourse sign-in at `/`. A caption: "Study in Australia, and stay if I can." | A student in Nepal wants to study in Australia, and stay if she can. Course search tells her what she can study. She is asking what happens to her life for the next six years. When the advice she reads is wrong, she can't tell, until it costs her money or an application. |
-| 2 | 0:21–0:36 | `/futures`: the three futures side by side, the chips under each. Then a cut to the admin Board. | OfCourse shows her three possible futures side by side, built around cost, staying and career, with nothing ranked. Around it sits a content engine, so that what she reads in the feed stays true to its source. |
+| 2 | 0:21–0:36 | Her roadmap's board (`/roadmaps/<id>`): the road from where she starts, through the course and the student visa, to the years of work after it and the fork to staying or going home. Where the road is the nearest rather than an exact match, "Why this road?" opens on the answers that shaped it. Then a cut to the admin Board. | OfCourse turns her answers into a roadmap: the course, the visa, the years she can work after it, and the way to stay or go home, with nothing ranked. Around it sits a content engine, so that what she reads in the feed stays true to its source. |
+| 2b | about 45 s, inserted after scene 2 (shift the later times) | A student whose roadmap was made from two interests, **Psychology** and **IT and computing**: her board (a Master of Information Technology, Monash, Melbourne). She presses **Find courses**; the box is already filled with her own picks, "I'm drawn to Psychology and IT and computing." She presses Search. First result: **Master of Cyber Psychology (UTAS, Hobart)**, with its Wildcard tag, "Combines Psychology and Cyber security" and **Fits both**, and its why quoting the course. Open the fold: "Psychology roles" and "Cyber security roles" with sample pay and openings. Open **How this was found**: the meaning scores beside what keyword search found. Press **Compare with my roadmap**: AUD 44k becomes 34k a year; 2 years of work rights in Melbourne become up to 5 in regional Hobart; staying goes from a 491 route to no clear PR. Press **Start a new roadmap from it**, then **Your roadmaps** shows both. | She's drawn to psychology and to IT, but she has never heard of the field where they meet. She opens Find, and OfCourse searches by meaning: Google's embedding model, over our course catalogue in Cloud SQL. Cyberpsychology comes first. It combines both of her interests, and its explanation quotes the course itself. A keyword search would never have found it. Compared with her roadmap, it's cheaper and gives her up to five years of work in regional Hobart, but no clear way to stay, where her IT road has one. Nothing is ranked. She keeps both futures, and she decides. |
 | 3 | 0:36–0:53 | The new post screen: a link pasted, "Make post" pressed. The steps tick over. The source pane with numbered sentences (¶2.3) and the facts list. Then the three versions side by side. | An editor pastes a link and presses Make post. There is no prompt box. Gemini 3.8 Flash points at the sentences that state facts, and our code copies them word for word. Then Flash drafts three versions, each from a different angle. |
 | 4 | 0:53–1:06 | The editor picks a version, clicks a slot on the slide and types; the fit-check row changes as they type. "Another take" on one slide. The history panel with "Restore". | The editor picks one and edits right on the slide, with the fit checks updating as they type. Another take redrafts a single slide. Every version is kept and can be restored. |
 | 5 | 1:06–1:29 | The planted error: the editor changes one figure on a slide (use a figure from the actual demo source; the eval's example is "45 days" changed to "54 days") and clicks away. The sentence is flagged "Not found", with the source sentence beside it. "Send to review" is unavailable. "Use the source's wording" is pressed and the flag clears. | Now a planted error. The source says forty-five days; the editor types fifty-four. On leaving the slot, the source checker flags it and shows the sentence it should match. A number the source doesn't contain is rejected by code, whatever the model says. One click restores the source's wording; until then, the post can't go to review. |
@@ -22,6 +23,16 @@ Under three minutes: 426 spoken words (the scene 7 placeholder counted as three)
 | 10 | 2:44–2:52 | The OfCourse logo and `[live URL]`. | Gemini where only a model can help. Code for everything it can check. A person before anything is published. That's OfCourse. |
 
 **Notes for the recording**
+
+- **Scene 2b (added 17 Oct 2026), its setup and checks.**
+  - **The student:** a fresh judge student (or a new roadmap) who picks "A few areas I'm drawn to", then **Psychology** and **IT and computing**. "Fits both" needs both picks; a student who chose only Psychology (Rohan) gets no tag.
+  - **Switches:** `FINDER_ON`, `COURSE_DETAIL_ON` and `COMPARE_ON` on; the catalogue seeded (`bun run finder:seed`).
+  - **Warm-up:** search once before recording, so the first search isn't the cold one.
+  - **The figures** (44k, 34k, Melbourne 2 years, Hobart up to 5, 491, no clear PR) were checked on 17 Oct against the seeded catalogue. Confirm them on the database you record from, and say only what the screen shows.
+  - **The script is not on screen:** her text is her own picks, and the results come from the live model.
+  - **Optional, about 8 s:** type "I like understanding why people do things, and I'm good with computers"; Master of Human-Computer Interaction (UniSA, Adelaide) appears as a second intersection (IT and Design).
+  - **Length:** the video is 3 to 4 minutes under the rules quoted on 16 Oct, so 2b fits without cuts.
+- **Scene 2 changed on 17 Oct:** it used to show `/futures`, which was removed on 12 Oct (docs/cleanup). It now shows her roadmap's board, so re-record its visual if the old footage shows the futures.
 
 - Scene 1 says "a student in Nepal": Nepal, India and Thailand are the home markets in `src/features/content/markets/markets.json`. She is an illustration, not a tester.
 - Scene 3: "There is no prompt box" is ADR-129. The two optional fields (a cover idea, the editor's own word for the emotion) are not prompts to the model; do not show them as if they were.
@@ -49,14 +60,16 @@ Twelve slides, exported as a PDF. Industry design system colours and Barlow, as 
 ### 3. Who it is for
 
 - **Message:** Three groups, one product.
-- **Visual:** Three columns with an icon each. **Students** from Nepal, India and Thailand choosing a course and a route abroad (`/`, the opening, the futures, the feed). **Editors and reviewers** on the marketing team (`/admin`, Google sign-in). **Anyone** who finds a post on Instagram or Google (`/posts/<slug>`, no sign-in).
+- **Visual:** Three columns with an icon each. **Students** from Nepal, India and Thailand choosing a course and a route abroad (`/`, the opening, their roadmaps and Find courses, the feed). **Editors and reviewers** on the marketing team (`/admin`, Google sign-in). **Anyone** who finds a post on Instagram or Google (`/posts/<slug>`, no sign-in).
 - **Speaker note:** The student is the audience; the marketing team is who the content engine serves; the public page is how a post found elsewhere leads back to OfCourse.
 
 ### 4. The solution
 
-- **Message:** Three futures side by side for the student, and a content engine that keeps every post true to its source.
-- **Visual:** Left: `/futures` with the three futures (cost, staying, career) and their chips. Right: the pipeline in one line: source → facts → three versions → edit → source check → covers → review → live.
-- **Speaker note:** The futures are rules in code over a mock Australia catalogue, with no model call. The content engine uses Gemini only where a model is needed, and a person approves every post.
+- **Message:** For the student, roadmaps she can compare, and courses found by meaning, including the field where her interests meet. Around it, a content engine that keeps every post true to its source.
+- **Visual:**
+  - **Left:** her board, with a Find card over it: "Master of Cyber Psychology · Combines Psychology and Cyber security · Fits both", and its "What changes" rows.
+  - **Right:** the pipeline in one line: source → facts → three versions → edit → source check → covers → review → live.
+- **Speaker note:** Roads, comparisons, work rights and PR routes are rules in code over a sample Australia catalogue, with no model deciding them. Find uses Google's embedding model to match her words to courses by meaning, and Gemini writes each explanation from the course's own text, which code checks. The content engine uses Gemini only where a model is needed, and a person approves every post.
 
 ### 5. The demo: from a link to a post a student finds again
 
@@ -64,7 +77,7 @@ Twelve slides, exported as a PDF. Industry design system colours and Barlow, as 
 - **Visual:** Six screenshots in a row, numbered: (1) link pasted, "Make post"; (2) three versions; (3) edit on the slide; (4) the planted error flagged with the source sentence beside it; (5) the reviewer's "Approve and publish"; (6) the feed and the last slide's line "To find this again, search “OfCourse <title>”".
 - **Speaker note:** The three versions came back in 14.8 seconds in our live smoke run. In the user test, a marketer went from link to published in [from the 12 Oct test: time from link to published]. [from the 12 Oct test: one quote from the marketer, with their consent.]
 
-### 6. Eight agents, and what code checks
+### 6. Ten agents, and what code checks
 
 - **Message:** Each agent does one job with its own versioned prompt, and code checks every answer before it is used.
 - **Visual:** The README's agents table, shortened to three columns:
@@ -79,6 +92,8 @@ Twelve slides, exported as a PDF. Industry design system colours and Barlow, as 
   | Localiser | Code; 3.5 Flash-Lite rewording | Money converted by code at a dated rate; the rewording may not change a number. |
   | Captioner | 3.5 Flash-Lite | Writes only the hook and the call to action; no numbers. |
   | Style reader | 3.5 Flash-Lite | A page's design language from reference images; the template must exist. |
+  | Course finder | gemini-embedding-001 | Finds courses by meaning in pgvector. Her level, budget and destination filters, and every PR route, are code; fewer than three content words never searches. |
+  | Course explainer | 3.5 Flash-Lite | Must quote the course's own text word for word, with no figure or ranking word the course lacks; anything else gets the template. |
 
 - **Speaker note:** These are steps in a pipeline our code runs, not autonomous agents: none calls another or picks its own tools. That is deliberate: every step can be checked.
 
@@ -92,13 +107,18 @@ Twelve slides, exported as a PDF. Industry design system colours and Barlow, as 
 
 - **Message:** One Cloud Run service, Cloud SQL, Secret Manager, and Gemini on Agent Platform, with every call visible in Cloud Trace, Cloud Logging and billing.
 - **Visual:** docs/architecture.svg, full slide.
-- **Speaker note:** One Next.js 16 app on Cloud Run, migrations as a Cloud Run job from the same image, built by Cloud Build and stored in Artifact Registry. Postgres 17 on Cloud SQL holds every record, the model call log and the answer cache. Secrets come from Secret Manager at start-up; Gemini is reached through a service account, with no API key.
+- **Speaker note:** One Next.js 16 app on Cloud Run, migrations as a Cloud Run job from the same image, built by Cloud Build and stored in Artifact Registry. Postgres 17 on Cloud SQL holds every record, the model call log, the answer cache and the course embeddings (pgvector), which a seed job refreshes for changed courses only. Secrets come from Secret Manager at start-up; Gemini is reached through a service account, with no API key.
 
 ### 9. Gemini where only a model can help, and the eval
 
-- **Message:** Four Gemini models by tier, one retry ladder, and an accuracy eval: 10 of 10 planted errors caught, 0 false alarms.
-- **Visual:** Left: the tiers (Flash-Lite for checks and short text; 3.8 Flash for extraction and drafts; 3.1 Pro as the last rung, capped; Nano Banana 2.1 for covers, capped). The ladder: cache → first model → retry with the list of problems → Pro. Right, large: "10 / 10 planted errors caught · 0 false alarms" with the line "30 claims over 5 sources; 10 planted: a changed number, a changed unit, a generalisation, a claim only in the title. Source check on 3.5 Flash-Lite. Pass bar: 10 of 10, at most 2 false alarms."
-- **Speaker note:** The eval runs live with `bun run ai:eval`. The source check runs on Flash-Lite: 1.1 seconds in the smoke run.
+- **Message:** Gemini models by tier, an embedding model for meaning, one retry ladder, and two evals: 10 of 10 planted errors caught, and 19 of 20 held-out course searches answered.
+- **Visual:**
+  - **Left, the tiers:** Flash-Lite for checks and short text; 3.8 Flash for extraction and drafts; 3.1 Pro as the last rung, capped; Nano Banana 2.1 for covers, capped; gemini-embedding-001 for finding courses.
+  - **Left, the ladder:** cache → first model → retry with the list of problems → Pro.
+  - **Right, large, two numbers:**
+    - "10 / 10 planted errors caught · 0 false alarms", with the line "30 claims over 5 sources; 10 planted: a changed number, a changed unit, a generalisation, a claim only in the title. Source check on 3.5 Flash-Lite. Pass bar: 10 of 10, at most 2 false alarms."
+    - "19 / 20 held-out searches find the expected field in the top 3", with the line "20 sentences written by an agent that never saw the catalogue; the three demo searches rank first; both negatives keep Cyberpsychology out of the top 3."
+- **Speaker note:** Both evals run live: `bun run ai:eval` and `bun run finder:eval`. The source check runs on Flash-Lite: 1.1 seconds in the smoke run.
 
 ### 10. Cost and safety
 
@@ -109,13 +129,26 @@ Twelve slides, exported as a PDF. Industry design system colours and Barlow, as 
 ### 11. Impact, and what comes next
 
 - **Message:** What we measured, and what we build next.
-- **Visual:** Left, measured: the eval (10 of 10, 0 false alarms); the smoke run (each live use case answered in 1 to 15 seconds); [from the 12 Oct test: time from link to published]; [from the 12 Oct test: how many of the three students found a post again from its title]; [from the 12 Oct test: one student or counsellor quote, with consent]. Right, next (decided, not built): the research agent on ADK TypeScript (ADR-118); course matching with retrieval in Postgres (ADR-117); the feed chips pre-set from the student's profile (ADR-126); briefs for the counsellor and the family at submission (ADR-064).
+- **Visual:**
+  - **Left, measured:**
+    - the source-check eval (10 of 10, 0 false alarms);
+    - the course-finder eval (19 of 20 held-out, the demo searches first);
+    - the smoke run (each live use case answered in 1 to 15 seconds);
+    - [from the 12 Oct test: time from link to published];
+    - [from the 12 Oct test: how many of the three students found a post again from its title];
+    - [from the 12 Oct test: one student or counsellor quote, with consent].
+  - **Right, next (decided, not built):**
+    - the research agent on ADK TypeScript (ADR-118);
+    - the real course catalogue loaded through a sync job into the same pgvector table;
+    - one-year courses and wider interests in onboarding (docs/course-finder, PRs 4 and 5);
+    - the feed chips pre-set from the student's profile (ADR-126);
+    - briefs for the counsellor and the family at submission (ADR-064).
 - **Speaker note:** The decision record names the measures we will track: posts per editor per week and cost per post, from the model call log and the billing labels.
 
 ### 12. The team
 
 - **Message:** Who built OfCourse.
-- **Visual:** A photo and one line each. **Nikhil**: product, the content engine and the admin. **Jenish**: the student opening and the futures. [confirm names, titles and photos against the roster locked on 11 Oct.]
+- **Visual:** A photo and one line each. **Nikhil**: product, the content engine and the admin. **Jenish**: the student opening, the roadmaps and the board. [confirm Jenish's line with him; names, titles and photos against the roster locked on 11 Oct.]
 - **Speaker note:** Thank you. The repository, the live site and this deck are linked on the first slide.
 
 ## 3. Shots to capture
@@ -148,7 +181,9 @@ During the deploy and the 12 Oct test, so the video and deck can be cut from rea
 
 **From the user test (students and counsellor)**
 
-- [ ] `/futures` with three futures, at phone and desktop width.
+- [ ] Her roadmap's board (`/roadmaps/<id>`), at phone and desktop width.
+- [ ] Find courses for a student drawn to Psychology and IT and computing: the Cyber Psychology card with "Combines Psychology and Cyber security" and "Fits both", its two groups of roles, How this was found, and Compare with my roadmap (scene 2b).
+- [ ] "Start a new roadmap from it", and Your roadmaps showing both.
 - [ ] `/feed` at 390 wide: the chips, a picked destination and home country.
 - [ ] A market version with the rate line under a price.
 - [ ] A post page: slides, the related posts, the last slide's search line.

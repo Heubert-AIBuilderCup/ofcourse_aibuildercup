@@ -7,6 +7,7 @@ import type {
   JobMarketRow,
 } from '@/features/roads/client'
 import { MockTag } from './MockTag'
+import { WhatChanges } from './WhatChanges'
 
 const KIND = {
   placement: 'Placement',
@@ -122,14 +123,18 @@ export function FieldsNearSection({
  * (entry and course ones alike, so not called "to get in"); the work beside it; the graduate jobs
  * and occupations after it; whether its occupation is on the state's list; on the stack and the
  * alternative, the field next to hers its course is in, defined; and, with the course detail on,
- * each course card's job market per occupation and the fields close to its own (sample data). A
- * section with nothing in it is not drawn. Nothing is ranked: the catalogue's order.
+ * each course card's job market per occupation and the fields close to its own (sample data). With
+ * compare on, the other-city and other-course cards open on "What changes". A section with
+ * nothing in it is not drawn. Nothing is ranked: the catalogue's order.
  */
 export function CardDetails({ details }: { details: Details }) {
-  const { subjects, work, graduate, occupations, listStatus, related, fieldsNear } = details
+  const { subjects, work, graduate, occupations, listStatus, related, fieldsNear, compare } =
+    details
   const markets = occupations?.filter((o) => o.market) ?? []
   return (
     <div className="flex flex-col gap-4">
+      {compare ? <WhatChanges {...compare} /> : null}
+
       {subjects ? (
         <Section title="What you would study">
           <Line label="Majors" items={subjects.majors} />

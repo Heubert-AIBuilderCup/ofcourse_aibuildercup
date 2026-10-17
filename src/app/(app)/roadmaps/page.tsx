@@ -21,6 +21,8 @@ import {
   restoreRoadmapAction,
   startFromScratchAction,
 } from '@/features/roadmaps/actions'
+// For its side effect: a roadmap pinned to a finder course draws its road.
+import '@/features/finder/server/road-courses'
 import { listRoadmaps } from '@/features/roadmaps/server/roadmaps'
 import { roadFor } from '@/features/roads'
 import { Duck } from '@/shared/components/Duck'
@@ -63,10 +65,14 @@ export default async function RoadmapsRoute({ searchParams }: PageProps<'/roadma
   const now = new Date()
   const byId = new Map(roadmaps.map((r) => [r.id, r]))
   const madeId = typeof made === 'string' && byId.has(made) ? made : null
-  // Each row reads its own roadmap's road: the one its answers match, else the closest.
+  // Each row reads its own roadmap's road: around its pinned course, else the one its answers
+  // match, else the closest.
   const rows = roadmaps.map((r) => ({
     r,
-    words: roadWords(roadFor({ answers: r.answers, relative: r.relative }, process.env).road),
+    words: roadWords(
+      roadFor({ answers: r.answers, relative: r.relative, pinned: r.choices.pinned }, process.env)
+        .road,
+    ),
   }))
   const named = new Map(rows.map(({ r, words }) => [r.id, roadmapName(r, words.names)]))
   const first = firstMade(roadmaps)

@@ -1,13 +1,19 @@
+import type { Ref } from 'react'
 import { Button } from '@/shared/components/ui/button'
 
-/** A panel's head in the card column: its kicker and title, and Close when it has one. */
+/**
+ * A panel's head in the card column: its kicker and title, and Close when it has one. With
+ * `titleRef`, the title takes focus from code (never from Tab), for a panel that swaps its view.
+ */
 export function PanelHead({
   kicker,
   title,
+  titleRef,
   onClose,
 }: {
   kicker?: string
   title: string
+  titleRef?: Ref<HTMLHeadingElement>
   onClose?: () => void
 }) {
   return (
@@ -16,7 +22,13 @@ export function PanelHead({
         {kicker ? (
           <p className="m-0 text-overline text-muted-foreground uppercase">{kicker}</p>
         ) : null}
-        <h2 className="m-0 text-h3 leading-tight">{title}</h2>
+        <h2
+          ref={titleRef}
+          tabIndex={titleRef ? -1 : undefined}
+          className="m-0 text-h3 leading-tight outline-none"
+        >
+          {title}
+        </h2>
       </div>
       {onClose ? (
         <Button

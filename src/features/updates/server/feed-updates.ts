@@ -4,6 +4,8 @@ import 'server-only'
 // country), matched against the live updates by feedUpdates. A read that fails gives nothing, so a
 // failing update read never breaks the feed. An admin has no roadmaps, so sees none.
 
+// For its side effect: a roadmap pinned to a finder course draws its road, with its institution.
+import '@/features/finder/server/road-courses'
 import { roadmapName, roadNames } from '@/features/roadmaps/model/roadmap'
 // A namespace, read at call time: a test elsewhere that mocks this module without listRoadmaps
 // (bun's module mocks are process-wide) then cannot break this module's loading.
@@ -28,7 +30,10 @@ const SOURCES: Sources = {
 
 /** A roadmap as the match needs it; none when its answers match no road (or the roads are off). */
 function feedRoadmap(r: Roadmap, env: Sources['env']): FeedRoadmap[] {
-  const { road, spec } = roadFor({ answers: r.answers, relative: r.relative }, env)
+  const { road, spec } = roadFor(
+    { answers: r.answers, relative: r.relative, pinned: r.choices.pinned },
+    env,
+  )
   if (!spec) return []
   const universities = [spec.courseId, spec.altCourseId, spec.stackCourseId].flatMap(
     (id) => courseById(id)?.university ?? [],

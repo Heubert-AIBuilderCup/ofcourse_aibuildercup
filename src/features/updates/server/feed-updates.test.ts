@@ -33,8 +33,8 @@ const update = (id: string, institution: string, homeCountry: string | null = nu
     audience: { institution, homeCountry },
   }) as StoredUpdate
 
-const roadmapOf = (id: string, name: string | null, answers = PERTH.answers) =>
-  ({ id, name, answers, relative: PERTH.relative }) as Roadmap
+const roadmapOf = (id: string, name: string | null, answers = PERTH.answers, choices = {}) =>
+  ({ id, name, answers, relative: PERTH.relative, choices }) as Roadmap
 
 const sources = (env: Record<string, string | undefined> = {}) => ({
   listLiveUpdates,
@@ -66,6 +66,19 @@ describe('readFeedUpdates', () => {
       ['main', 'r1', `Because ${main} is on your roadmap "Mine"`],
       ['alt', 'r1', `Because ${alt} is on your roadmap "Mine"`],
     ])
+  })
+
+  it('reads a pinned roadmap’s institutions from the road around its pinned course', async () => {
+    const pinned = university('uts-cyber')
+    const perth = university(SPEC.courseId)
+    updates = [update('pinned', pinned), update('perth', perth)]
+    roadmaps = [
+      roadmapOf('r1', 'Mine', PERTH.answers, {
+        pinned: { courseId: 'uts-cyber', cityId: 'sydney' },
+      }),
+    ]
+    const found = await readFeedUpdates('u-1', sources())
+    expect(found.map((f) => f.update.id)).toEqual(['pinned'])
   })
 
   it('reads her country from the answers of the roadmap', async () => {

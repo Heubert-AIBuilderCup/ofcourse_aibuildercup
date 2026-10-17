@@ -8,7 +8,7 @@ import type { StoredAnswers } from '@/shared/types/student'
 import { courseById } from '../data/courses'
 import { entryOf } from '../data/entry'
 import { PRIYA_SLOT, type RoadSpec, SLOTS, type SlotId } from '../data/types'
-import { courseConditions } from './conditions'
+import { courseConditions, englishScore } from './conditions'
 import { herFields, relatedMark } from './details'
 import { isWhySlot, type WhyMatch, whyTemplate, whyTitle } from './why'
 
@@ -43,20 +43,20 @@ function startLine(answers: StoredAnswers): string {
 /**
  * The road's badges with the course's own entry conditions, read against her answers: the English
  * badge names its score and says met, not met or to take the test, and a course that asks a
- * degree in its field carries that on the `maths` slot. A course with no entry rule keeps the
- * spec's badges.
+ * degree in its field carries that on the `maths` slot (a finder course's typical score says it is
+ * a sample). A course with no entry rule keeps the spec's badges.
  */
 function entryBadges(spec: RoadSpec, answers: StoredAnswers): Road['badges'] {
   const badges = { ...spec.badges }
+  const entry = entryOf(spec.courseId)
   for (const condition of courseConditions(spec.courseId, answers)) {
-    if (condition.id === 'english') {
-      const score = condition.text.replace(/^Needs /, '')
+    if (condition.id === 'english' && entry) {
       badges.ielts = {
         ...badges.ielts,
-        value: `${condition.met === false ? 'Not met: ' : ''}${score} overall`,
+        value: `${condition.met === false ? 'Not met: ' : ''}${englishScore(entry, true)}`,
         explanation: condition.explanation,
       }
-    } else {
+    } else if (condition.id === 'degree') {
       badges.maths = {
         kind: 'Condition',
         value: condition.text,
