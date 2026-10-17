@@ -229,3 +229,7 @@ _Intent written 16 Oct 2026 with Nikhil. From a brainstorm in chat; there is no 
 4. **Jenish's sign-off.** Does Jenish accept the onboarding changes (stories 4 and 5) and the switch of the local database image? Owner: Jenish. Does not block the start; blocks merging PRs 4 and 5.
 5. **Migration.** Which migration number does the finder take? Owner: Jenish and Nikhil. Does not block the start; blocks the deploy.
 6. **Video.** When is the new scene recorded, and which beats move to fit it? Owner: Nikhil. Does not block.
+
+## Delivery
+
+17 Oct 2026. Pull requests (stacked, merge in order with a merge commit or rebase, not squash): `feat/course-finder` → main (stories 1 and 6, criteria 1–21), `feat/course-detail` → feat/course-finder (story 2, criteria 22–24), `feat/course-compare` → feat/course-detail (story 3, criteria 25–30). Criteria 31–39 (PRs 4 and 5, wider interests and one-year courses) are not built. Covered by tests: every built criterion except 7 (speed on the warm live site) and 41 (switch independence), which are smoke steps. QA re-checks by hand: docs/course-finder/smoke.md, smoke-pr2.md and smoke-pr3.md; the deploy steps are docs/course-finder/deploy-checklist.md (service, migrations job, seed job, then FINDER_ON, COURSE_DETAIL_ON, COMPARE_ON).

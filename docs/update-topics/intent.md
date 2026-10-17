@@ -91,3 +91,7 @@ _Intent written 16 Oct 2026 with Nikhil. From a conversation in chat; there is n
 ## Open questions
 
 None.
+
+## Delivery
+
+17 Oct 2026. Pull request `feat/update-topics` → feat/course-compare (stacked last; merges after the course finder). Covered by tests: criteria 1–11 (criterion 2 by a database test). QA re-checks by hand: docs/update-topics/smoke.md. No migration and no switch.
