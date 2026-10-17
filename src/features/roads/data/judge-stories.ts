@@ -69,7 +69,7 @@ export const JUDGE_STORIES: readonly JudgeStory[] = [
     answers: stated({
       where: 'India',
       amount: 42,
-      covers: 'Fees and living',
+      covers: 'Fees only',
       who: 'A mix',
       hard: 'Roughly',
       earliest: 'Jul 2027',
@@ -146,7 +146,7 @@ export const JUDGE_STORIES: readonly JudgeStory[] = [
     answers: stated({
       where: 'Sri Lanka',
       amount: 42,
-      covers: 'Fees and living',
+      covers: 'Fees only',
       who: 'Savings',
       hard: 'Roughly',
       earliest: 'Feb 2027',

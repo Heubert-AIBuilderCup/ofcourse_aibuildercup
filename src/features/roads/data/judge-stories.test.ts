@@ -2,6 +2,7 @@
 // story drift to another road fails here, and each is a set onboarding could have stored.
 
 import { describe, expect, test } from 'bun:test'
+import { cityById } from '@/features/engine/catalogue'
 import { parseAnswer } from '@/features/opening/model/questions'
 import { matchLine } from '@/features/road/model/match-line'
 import {
@@ -169,5 +170,34 @@ describe('the judges’ stories', () => {
 
   test('an unknown id is no story', () => {
     expect(judgeStoryById('nobody')).toBeUndefined()
+  })
+})
+
+describe('the judges’ stories: their budgets', () => {
+  // A year's cost for her answers: the course's fees, plus the city's living costs when her budget
+  // covers living too. Only two stories show the over-budget condition, each a different kind.
+  const gap = (id: string) => {
+    const story = judgeStoryById(id)!
+    const answers = story.answers as Record<string, { value: unknown } | undefined>
+    const spec = roadFor({ answers: story.answers, relative: story.relative }, {}).spec!
+    const course = courseById(spec.courseId)!
+    const living = answers.covers?.value === 'Fees and living' ? cityById(spec.cityId).livingK : 0
+    return {
+      over: course.feeK + living - (answers.amount?.value as number),
+      hard: answers.hard?.value,
+    }
+  }
+
+  test('Priya, Meera and Rohan are within their budgets', () => {
+    for (const id of ['priya', 'meera', 'rohan']) expect(gap(id).over).toBeLessThanOrEqual(0)
+  })
+
+  test('Aarav is a little over a rough budget, and Sita just over a hard limit', () => {
+    const aarav = gap('aarav')
+    expect(aarav.over > 0 && aarav.over <= 5).toBe(true)
+    expect(aarav.hard).toBe('Roughly')
+    const sita = gap('sita')
+    expect(sita.over > 0 && sita.over <= 2).toBe(true)
+    expect(sita.hard).toBe('Hard limit')
   })
 })
