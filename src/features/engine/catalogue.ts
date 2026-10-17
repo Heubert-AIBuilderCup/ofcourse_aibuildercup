@@ -757,6 +757,7 @@ export const FIELD_OF_OPTION: Readonly<Record<string, FieldId>> = {
   'Data science': 'data',
   'Business analytics': 'business',
   'Information technology': 'it',
+  Psychology: 'psych',
 }
 
 export const FIELD_LABELS: Record<FieldId, string> = {
@@ -783,6 +784,7 @@ export const AREA_FIELDS: Readonly<
   Health: { fields: ['psych'], substitutedFrom: 'health' },
   Engineering: { fields: ['it'], substitutedFrom: 'engineering' },
   Design: { fields: ['it'], substitutedFrom: 'design' },
+  Psychology: { fields: ['psych'] },
 }
 
 // ── Lookups ─────────────────────────────────────────────────────────────────────────────────

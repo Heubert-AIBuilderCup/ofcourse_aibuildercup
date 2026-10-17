@@ -325,7 +325,7 @@ it('offers up to three areas as checkboxes, and clears them when she removes the
   studyAt('areas', know("A few areas I'm drawn to"))
   expect(screen.getByText("A few areas I'm drawn to")).toBeInTheDocument()
   const areas = screen.getByRole('group', { name: 'Pick up to three' })
-  expect(within(areas).getAllByRole('checkbox')).toHaveLength(6)
+  expect(within(areas).getAllByRole('checkbox')).toHaveLength(7)
   expect(screen.getByText(AREAS_IDLE)).toBeInTheDocument()
   expect(screen.getByText('Pick up to three areas.')).toBeInTheDocument()
 

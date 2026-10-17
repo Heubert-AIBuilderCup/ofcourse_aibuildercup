@@ -11,7 +11,15 @@ afterEach(cleanup)
 const onAnswer = mock((_raw: AnswerValue | null) => {})
 afterEach(() => onAnswer.mockClear())
 
-const AREAS = ['IT and computing', 'Business', 'Data', 'Health', 'Engineering', 'Design']
+const AREAS = [
+  'IT and computing',
+  'Business',
+  'Data',
+  'Health',
+  'Engineering',
+  'Design',
+  'Psychology',
+]
 const REFUSAL = "Three is the most for now. Tap one you've chosen to make room."
 const NOTE = 'Nearest field used for now'
 
@@ -35,12 +43,12 @@ function renderChecks(answer?: StoredAnswer) {
 const box = (area: string) =>
   screen.getAllByRole('checkbox').find((b) => b.textContent?.startsWith(area)) as HTMLElement
 
-it('is a group named by its question, with the six areas as checkboxes in model order', () => {
+it('is a group named by its question, with the seven areas as checkboxes in model order', () => {
   renderChecks()
   expect(screen.getByRole('group', { name: 'Pick up to three' })).toBeInTheDocument()
   const boxes = screen.getAllByRole('checkbox')
   expect(boxes.map((b) => b.textContent?.replace(NOTE, ''))).toEqual(AREAS)
-  expect(boxes.map((b) => b.tabIndex)).toEqual([0, 0, 0, 0, 0, 0])
+  expect(boxes.map((b) => b.tabIndex)).toEqual([0, 0, 0, 0, 0, 0, 0])
   expect(screen.queryByText('Not sure')).toBeNull()
 })
 
@@ -120,7 +128,7 @@ it('refuses a fourth area calmly, marks the rest full, and lets go when she make
 it('notes the areas that borrow the nearest field, and only those', () => {
   renderChecks()
   for (const area of ['Health', 'Engineering', 'Design']) expect(box(area)).toHaveTextContent(NOTE)
-  for (const area of ['IT and computing', 'Business', 'Data']) {
+  for (const area of ['IT and computing', 'Business', 'Data', 'Psychology']) {
     expect(box(area)).not.toHaveTextContent(NOTE)
   }
 })
