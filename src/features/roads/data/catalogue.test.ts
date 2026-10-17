@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { COURSES, campusOf, cityById, cityOf } from '@/features/engine/catalogue'
+import { coursesAround } from '../model/course-words'
 import { asksFor, TILE_ASKS } from './asks'
+import { roadCoursesIn } from './candidates'
 import { courseById, EXTRA_COURSES } from './courses'
 import { entryOf } from './entry'
 import { FIELD_EDGES, FIELDS, relatedFields } from './fields'
@@ -208,7 +210,7 @@ describe('the courses added for the roads', () => {
     }
   })
 
-  test('nursing is graduate entry in two cities, public health in one, civil engineering in two, interaction design in one', () => {
+  test('nursing is graduate entry in two cities, public health in three, civil engineering in two, interaction design in one', () => {
     const nursing = named('Master of Nursing')
     expect(cityIds(nursing).size).toBe(2)
     for (const c of nursing) {
@@ -216,8 +218,9 @@ describe('the courses added for the roads', () => {
       expect(c.name).toContain('graduate entry')
     }
     const health = named('Master of Public Health')
-    expect(cityIds(health).size).toBe(1)
-    expect(health[0].field).toBe('health')
+    // Adelaide and Hobart got one each, so nursing there has a health course beside it.
+    expect(cityIds(health).size).toBe(3)
+    for (const c of health) expect(c.field).toBe('health')
     const civil = named('Master of Engineering (civil)')
     expect(cityIds(civil).size).toBe(2)
     for (const c of civil) expect([c.field, c.level]).toEqual(['engineering', "Master's"])
@@ -245,6 +248,29 @@ describe('the courses added for the roads', () => {
   test('no course or campus is at UWA', () => {
     for (const c of ALL_COURSES) {
       expect(`${c.name} ${c.university} ${campusOf(c).name}`).not.toMatch(/UWA/i)
+    }
+  })
+})
+
+describe('the courses beside a course in its city', () => {
+  /** Her course's field, or one next to it on the field graph. */
+  const near = (field: string, id: string) => {
+    const other = courseById(id)?.field ?? ''
+    return other === field || relatedFields(field).includes(other)
+  }
+
+  test('every course on a road has two others in its city, in its field or a related one, at its level or the nearest', () => {
+    // The alternative and the stack course are the first two the road takes beside it: its
+    // level first, then the nearest (coursesAround), so both must be in a near field.
+    for (const cityId of new Set(ROADS.map((r) => r.cityId))) {
+      const pool = roadCoursesIn(cityId)
+      for (const id of pool) {
+        const field = courseById(id)?.field ?? ''
+        const { altCourseId: alt, stackCourseId: stack } = coursesAround(id, pool)
+        expect(
+          `${id}: ${alt} ${near(field, alt)} · ${stack} ${near(field, stack)} · ${alt !== stack}`,
+        ).toBe(`${id}: ${alt} true · ${stack} true · true`)
+      }
     }
   })
 })

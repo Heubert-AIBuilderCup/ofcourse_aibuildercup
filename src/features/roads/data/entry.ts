@@ -46,12 +46,38 @@ const IELTS: Readonly<Record<string, number>> = {
   'utas-data': 6.5,
   'utas-nursing': 7,
   'uow-cyber': 6.5,
+  'ecu-bus-analytics': 6.5,
+  'unisa-software': 6.5,
+  'unisa-mph': 6.5,
+  'unisa-health-admin': 6.5,
+  'uts-infosec': 7,
+  'uts-forensics': 6.5,
+  'uts-structural': 6.5,
+  'uts-eng-management': 6.5,
+  'uts-accounting': 7,
+  'monash-design': 6.5,
+  'swin-design-strategy': 6.5,
+  'monash-org-psych': 7,
+  'monash-health-informatics': 6.5,
+  'deakin-commerce': 6.5,
+  'deakin-supply-chain': 6.5,
+  'deakin-cyber-governance': 6.5,
+  'deakin-network-security': 6.5,
+  'deakin-mechanical': 6.5,
+  'deakin-electrical': 6.5,
+  'utas-infosys': 6.5,
+  'utas-computing': 6.5,
+  'utas-mph': 6.5,
 }
 
 /** The courses that need a degree in one field; Nursing is graduate entry, open to any bachelor's. */
 const NEEDS_DEGREE_IN: Readonly<Record<string, string>> = {
   'uts-civil': 'engineering',
   'deakin-civil': 'engineering',
+  'uts-structural': 'engineering',
+  'uts-eng-management': 'engineering',
+  'deakin-mechanical': 'engineering',
+  'deakin-electrical': 'engineering',
 }
 
 /** A course's entry rule; undefined for a course the catalogue has none for. */

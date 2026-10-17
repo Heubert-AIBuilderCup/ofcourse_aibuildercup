@@ -15,8 +15,40 @@ const DRAWN = "A few areas I'm drawn to"
 /** The stay difference of a staying road whose course has no clear road to PR. */
 const NO_CLEAR_PR_CHIP: Difference = { key: 'stay', yours: 'Yes', road: 'No clear PR' }
 const drawn = (areas: string[], more: Values = {}) => a({ know: DRAWN, areas, ...more })
+/**
+ * The courses added beside others: each shares its city, level, field and entry with an earlier
+ * candidate, so no answer reaches its picks.
+ */
+const BESIDE = [
+  'ecu-bus-analytics',
+  'unisa-software',
+  'unisa-mph',
+  'unisa-health-admin',
+  'uts-infosec',
+  'uts-forensics',
+  'uts-structural',
+  'uts-eng-management',
+  'uts-accounting',
+  'monash-design',
+  'swin-design-strategy',
+  'monash-org-psych',
+  'monash-health-informatics',
+  'deakin-commerce',
+  'deakin-supply-chain',
+  'deakin-cyber-governance',
+  'deakin-network-security',
+  'deakin-mechanical',
+  'deakin-electrical',
+  'utas-infosys',
+  'utas-computing',
+  'utas-mph',
+]
 /** The picks no answer can reach, so matching leaves them out. */
-const UNREACHABLE = ['perth-curtin-infosys-stay', 'perth-curtin-infosys-home']
+const UNREACHABLE = [
+  'perth-curtin-infosys-stay',
+  'perth-curtin-infosys-home',
+  ...ALL_PICKS.filter((p) => BESIDE.includes(p.courseId)).map(pickId),
+]
 const candidate = (id: string) => {
   const c = ROAD_CANDIDATES.find((r) => r.id === id)
   if (!c) throw new Error(`No candidate ${id}`)

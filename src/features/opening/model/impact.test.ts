@@ -322,18 +322,19 @@ describe('dep', () => {
 
 describe('quals', () => {
   it('says how many courses her IELTS meets, from each course’s own entry score (criterion 62)', () => {
-    // Six courses ask for 7.0 (UTS cyber, data and business analytics, Swinburne, both Nursing),
-    // five for 6.0 (the four Diplomas and ECU's Bachelor), the rest 6.5.
+    // Nine courses ask for 7.0 (UTS cyber, data, business analytics, information security and
+    // accounting, Swinburne, Monash organisational psychology, both Nursing), five for 6.0 (the
+    // four Diplomas and ECU's Bachelor), the rest 6.5: 51 since 22 were added beside others.
     for (const eng of ['IELTS 7.0', 'IELTS 7.5 or more', 'IELTS 7.5']) {
       expect(impactLine('quals', { eng: s(eng) }, null)).toBe(
         `${eng}: meets the English score of every course in this preview · mock`,
       )
     }
     expect(impactLine('quals', { eng: s('IELTS 6.5') }, null)).toBe(
-      'IELTS 6.5: meets the English score of 23 of the 29 courses in this preview · mock',
+      'IELTS 6.5: meets the English score of 42 of the 51 courses in this preview · mock',
     )
     expect(impactLine('quals', { eng: s('IELTS 6.0') }, null)).toBe(
-      'IELTS 6.0: meets the English score of 5 of the 29 courses in this preview · mock',
+      'IELTS 6.0: meets the English score of 5 of the 51 courses in this preview · mock',
     )
     expect(impactLine('quals', { eng: s('IELTS 5.5') }, null)).toBe(
       'IELTS 5.5: below the English score of every course in this preview · mock',
@@ -342,10 +343,10 @@ describe('quals', () => {
 
   it('reads PTE and TOEFL through their mock IELTS equivalent', () => {
     expect(impactLine('quals', { eng: s('PTE 58') }, null)).toBe(
-      'PTE 58: about IELTS 6.5, which meets the English score of 23 of the 29 courses in this preview · mock',
+      'PTE 58: about IELTS 6.5, which meets the English score of 42 of the 51 courses in this preview · mock',
     )
     expect(impactLine('quals', { eng: s('TOEFL 85') }, null)).toBe(
-      'TOEFL 85: about IELTS 6.5, which meets the English score of 23 of the 29 courses in this preview · mock',
+      'TOEFL 85: about IELTS 6.5, which meets the English score of 42 of the 51 courses in this preview · mock',
     )
     expect(impactLine('quals', { eng: s('TOEFL 40') }, null)).toBe(
       'TOEFL 40: about IELTS 5.0, which is below the English score of every course in this preview · mock',
@@ -366,7 +367,7 @@ describe('quals', () => {
 
   it('speaks of the English test first when both are answered', () => {
     expect(impactLine('quals', { qual: s("Bachelor's"), eng: s('IELTS 6.0') }, null)).toBe(
-      'IELTS 6.0: meets the English score of 5 of the 29 courses in this preview · mock',
+      'IELTS 6.0: meets the English score of 5 of the 51 courses in this preview · mock',
     )
   })
 })
