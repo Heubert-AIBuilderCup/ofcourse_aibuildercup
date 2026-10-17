@@ -164,6 +164,12 @@ export function settingsFor(config: AiConfig): Settings {
 export const SETTINGS_READ_TIMEOUT_MS = 300
 
 const JSON_TIMEOUT_MS = 30_000
+// Pro is the slow rung, and its drafts run after the response (18 Oct: a Pro draft timed out at
+// 30 s), so it waits a minute.
+const PRO_JSON_TIMEOUT_MS = 60_000
+/** How long one JSON attempt on this tier waits for the model, unless the caller sets its own. */
+export const jsonTimeoutMs = (tier: PromptSpec<z.ZodType>['tier']): number =>
+  tier === 'pro' ? PRO_JSON_TIMEOUT_MS : JSON_TIMEOUT_MS
 // A search runs queries before it answers, so it gets longer than a plain JSON call.
 const SEARCH_TIMEOUT_MS = 45_000
 // A picture takes the image model about 23 s on Cloud Run (16 Oct): a minute leaves it room, so a
@@ -611,7 +617,7 @@ export function makeAi(deps: {
           reserved: string | null,
           fallback: 'env-default' | 'busy-lite' | null,
         ) => {
-          const timeout = AbortSignal.timeout(req.timeoutMs ?? JSON_TIMEOUT_MS)
+          const timeout = AbortSignal.timeout(req.timeoutMs ?? jsonTimeoutMs(tier))
           const signal = req.signal ? AbortSignal.any([timeout, req.signal]) : timeout
           const started = Date.now()
           const info = {

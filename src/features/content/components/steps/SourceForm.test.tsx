@@ -394,7 +394,7 @@ describe('"Start from an idea" (BR12, BR13)', () => {
     expect(makePostAction).toHaveBeenCalledTimes(2)
   })
 
-  it('keeps both makes disabled with no page ticked, or more than five (GD18)', async () => {
+  it('keeps both makes disabled with no idea, or more than five pages ticked (GD18)', async () => {
     suggested = {
       ok: true,
       sources: [1, 2, 3, 4, 5, 6].map((n) => source(n, n <= 3)),
@@ -402,17 +402,96 @@ describe('"Start from an idea" (BR12, BR13)', () => {
     }
     view()
     startFromIdea()
+    for (const name of [BLOG_FIRST, STRAIGHT]) {
+      expect(screen.getByRole('button', { name })).toBeDisabled()
+    }
     await find('Working while you study')
     for (const n of [4, 5, 6]) tick(`Page ${n}`)
     for (const name of [BLOG_FIRST, STRAIGHT]) {
       expect(screen.getByRole('button', { name })).toBeDisabled()
     }
     expect(screen.getByText('Up to five links.')).toBeInTheDocument()
-    for (const n of [1, 2, 3, 4, 5, 6]) tick(`Page ${n}`)
-    for (const name of [BLOG_FIRST, STRAIGHT]) {
-      expect(screen.getByRole('button', { name })).toBeDisabled()
-    }
     expect(makePostAction).not.toHaveBeenCalled()
+  })
+
+  const IDEA_ONLY =
+    'No sources ticked: the post is built from your idea alone, and its source check compares against your idea.'
+
+  it('with no search run, makes from the idea alone as the source (framing and notes stay their own fields, never facts), the idea its title, kind "Your idea", no links', async () => {
+    view()
+    startFromIdea()
+    fireEvent.change(screen.getByLabelText(IDEA), {
+      target: { value: '  Working while you study ' },
+    })
+    fireEvent.change(screen.getByLabelText(FRAMING), { target: { value: 'Why 20 hours' } })
+    fireEvent.change(screen.getByLabelText(NOTES), { target: { value: 'I worked 25.' } })
+    await press(BLOG_FIRST)
+    const fromIdea = {
+      text: 'Working while you study',
+      framing: 'Why 20 hours',
+      notes: 'I worked 25.',
+      title: 'Working while you study',
+      kind: 'Your idea',
+      links: [],
+    }
+    expect(makePostAction.mock.calls[0][0]).toMatchObject({ ...fromIdea, postKind: 'blog' })
+    await press(STRAIGHT)
+    expect(makePostAction.mock.calls[1][0]).toMatchObject({ ...fromIdea, postKind: 'feed' })
+    expect(suggestSourcesAction).not.toHaveBeenCalled()
+  })
+
+  it('cuts the title to 200 characters, the whole idea kept as the source', async () => {
+    const long = `${'a'.repeat(200)}b`
+    render(
+      <SourceForm
+        actions={{ makePostAction, suggestSourcesAction }}
+        idea={{ text: long, ideaId: null }}
+      />,
+    )
+    await press(STRAIGHT)
+    expect(makePostAction.mock.calls[0][0]).toMatchObject({
+      text: long,
+      title: 'a'.repeat(200),
+      kind: 'Your idea',
+      links: [],
+      postKind: 'feed',
+    })
+  })
+
+  it('makes from the idea when the search finds nothing, fails, or none is ticked', async () => {
+    suggested = { ok: false, error: 'Try a more specific idea.' }
+    view()
+    startFromIdea()
+    await find('Study')
+    await press(STRAIGHT)
+    expect(makePostAction.mock.calls[0][0]).toMatchObject({ text: 'Study', links: [] })
+
+    suggested = { ok: true, sources: [], entryPoint: null }
+    await find('Study abroad')
+    await press(STRAIGHT)
+    expect(makePostAction.mock.calls[1][0]).toMatchObject({ text: 'Study abroad', links: [] })
+
+    suggested = { ok: true, sources: [source(1, false)], entryPoint: null }
+    await find('Study in Perth')
+    await press(BLOG_FIRST)
+    expect(makePostAction.mock.calls[2][0]).toMatchObject({
+      text: 'Study in Perth',
+      kind: 'Your idea',
+      links: [],
+    })
+  })
+
+  it('says the post is built from the idea alone only while no source is ticked', async () => {
+    suggested = { ok: true, sources: [source(1, true), source(2, false)], entryPoint: null }
+    view()
+    startFromIdea()
+    expect(screen.queryByText(IDEA_ONLY)).toBeInTheDocument()
+    await find('Working while you study')
+    expect(screen.queryByText(IDEA_ONLY)).toBeNull()
+    tick('Page 1')
+    expect(screen.queryByText(IDEA_ONLY)).toBeInTheDocument()
+    tick('Page 2')
+    expect(screen.queryByText(IDEA_ONLY)).toBeNull()
   })
 
   it("renders Google's search entry point in a sandboxed iframe, never in the page", async () => {
