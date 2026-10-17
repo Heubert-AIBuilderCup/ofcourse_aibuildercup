@@ -1,10 +1,11 @@
 // The roads' client-safe API: what the board may load in the browser. The re-match preview reads
 // the roads' keys only (data/road-keys.ts), never their copy, which the server builds into the
 // road it sends (client.test.ts pins it). Ask's card gets its words and the question's bound from
-// a module with no imports, and its types; a card's details and a tile's posts are types only.
+// a module with no imports, and its types; a card's details (with a job, its market and a field
+// near), and a tile's posts are types only.
 // Everything else is in ./index, for the server.
 
-export type { TileAsk } from './data/types'
+export type { CourseJob, FieldNear, JobMarketRow, TileAsk } from './data/types'
 export {
   ASK_CAPPED,
   ASK_FAILED,

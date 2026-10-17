@@ -4,7 +4,7 @@
 // before and after. Other rows in the table (a seeded catalogue embedded by the real model) score
 // as noise against a fake query vector, so the assertions read this test's own rows.
 
-import { afterAll, beforeAll, describe, expect, mock, test } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, type Mock, mock, test } from 'bun:test'
 
 mock.module('server-only', () => ({}))
 process.env.AI_PROVIDER = 'fake'
@@ -45,6 +45,8 @@ describe.skipIf(!enabled)('searchCourses against the database', () => {
   let schema: typeof import('@/shared/lib/db/schema')
   let orm: typeof import('drizzle-orm')
   let searchCourses: typeof import('./search').searchCourses
+  let realDetail: typeof import('./detail')
+  let courseDetail: Mock<typeof import('./detail').courseDetail>
 
   const own = <T extends { courseId: string }>(hits: T[]) =>
     hits.filter((h) => h.courseId.startsWith(P)).map((h) => h.courseId.slice(P.length))
@@ -57,6 +59,10 @@ describe.skipIf(!enabled)('searchCourses against the database', () => {
     ;({ db } = await import('@/shared/lib/db'))
     schema = await import('@/shared/lib/db/schema')
     orm = await import('drizzle-orm')
+    // A spy over the real course detail, so a case can read what the search asked it for.
+    realDetail = { ...(await import('./detail')) }
+    courseDetail = mock(realDetail.courseDetail)
+    mock.module('./detail', () => ({ ...realDetail, courseDetail }))
     ;({ searchCourses } = await import('./search'))
     const { embedTexts } = await import('./embed')
     await cleanUp()
@@ -86,6 +92,46 @@ describe.skipIf(!enabled)('searchCourses against the database', () => {
 
   afterAll(async () => {
     await cleanUp()
+  })
+
+  /** A search with the course detail switch set to `value` (unset if undefined), then restored. */
+  async function searchWithDetail(value: string | undefined) {
+    const before = process.env.COURSE_DETAIL_ON
+    if (value === undefined) delete process.env.COURSE_DETAIL_ON
+    else process.env.COURSE_DETAIL_ON = value
+    courseDetail.mockClear()
+    try {
+      const result = await searchCourses(ME, BOTH, {})
+      if (result.kind !== 'results') throw new Error(`Expected results, got ${result.kind}`)
+      return result
+    } finally {
+      if (before === undefined) delete process.env.COURSE_DETAIL_ON
+      else process.env.COURSE_DETAIL_ON = before
+    }
+  }
+
+  test('with the course detail on, a hit carries its detail, asked for in its own city', async () => {
+    // The test's rows are not in the finder's catalogue: each stands for a Perth business diploma.
+    courseDetail.mockImplementation((id, cityId) =>
+      realDetail.courseDetail(id.startsWith(P) ? 'f-diploma-of-business-tafe-perth' : id, cityId),
+    )
+    try {
+      const result = await searchWithDetail('1')
+      expect(result.hits[0]?.courseId).toBe(`${P}both`)
+      expect((result.hits[0]?.detail?.jobGroups[0]?.jobs.length ?? 0) > 0).toBe(true)
+      expect(
+        courseDetail.mock.calls.some(([id, city]) => `${id} ${city}` === `${P}both sydney`),
+      ).toBe(true)
+    } finally {
+      courseDetail.mockImplementation(realDetail.courseDetail)
+    }
+  })
+
+  test('with the course detail unset, no hit has a detail key and none is worked out', async () => {
+    const result = await searchWithDetail(undefined)
+    expect('detail' in (result.hits[0] ?? {})).toBe(false)
+    expect(result.hits.some((h) => 'detail' in h)).toBe(false)
+    expect(courseDetail).not.toHaveBeenCalled()
   })
 
   test('the row with both words comes first, and scores descend', async () => {

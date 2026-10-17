@@ -1,6 +1,12 @@
 import { notFound, redirect } from 'next/navigation'
 import { after } from 'next/server'
-import { findCoursesAction, finderOn, finderSeedText, finderWhyAction } from '@/features/finder'
+import {
+  courseDetailOn,
+  findCoursesAction,
+  finderOn,
+  finderSeedText,
+  finderWhyAction,
+} from '@/features/finder'
 import { getProfile } from '@/features/opening/server/profile'
 import { matchLine, RoadBoard, roadRedirect } from '@/features/road'
 import { roadmapName, roadNames } from '@/features/roadmaps'
@@ -40,7 +46,8 @@ const asksOn = (spec: RoadSpec): Record<string, TileAsk[]> =>
  * its tile is on her road only when the road is built from her answers (matched or the closest),
  * and only then does a city or course card take questions, with its suggested ones. On those
  * roads a card also shows the catalogue's facts for its tile (subjects, work, jobs, the state list,
- * and on the stack and the alternative the field next to the one her answers picked), worked out
+ * on the stack and the alternative the field next to the one her answers picked, and with the course
+ * detail on (COURSE_DETAIL_ON=1) the fields near the course and its job market), worked out
  * here so the catalogue stays out of the browser, and lists the posts and updates about its tile
  * (read beside the roadmap, unless the roads are off; an update for one country only when she
  * stated hers). With the student AI off (STUDENT_AI_OFF=1) no card calls a model: the why keeps its
@@ -66,7 +73,10 @@ export default async function RoadmapLayout({ children, params }: LayoutProps<'/
   const name = roadmapName(roadmap, roadNames(road))
   const built = result.kind === 'matched' || result.kind === 'nearest'
   const aiOff = studentAiOff(process.env)
-  const details = built && result.spec ? detailsByTile(result.spec, roadmap.answers) : undefined
+  const details =
+    built && result.spec
+      ? detailsByTile(result.spec, roadmap.answers, { detail: courseDetailOn(process.env) })
+      : undefined
   const posts =
     built && result.spec && feed
       ? tilePosts(result.spec, feed, herCountry(roadmap.answers))

@@ -11,6 +11,7 @@ import { Card } from '@/shared/components/ui/card'
 import { Textarea } from '@/shared/components/ui/textarea'
 import { cn } from '@/shared/lib/utils'
 import type { FinderHit, FinderWhy } from '../model/types'
+import { CourseDetail } from './CourseDetail'
 import { type FinderRoom, type FinderSearch, type FinderWhyCall, useFinder } from './useFinder'
 
 /** What the board needs to offer the finder: the box's first words and the two actions. */
@@ -124,7 +125,10 @@ export function FinderPanel({
   )
 }
 
-/** A course she might take: what and where, its fee and match, a wildcard's field, its why. */
+/**
+ * A course she might take: what and where, its fee and match, a wildcard's field, its why, and,
+ * with the course detail on, its jobs and the fields close to it, folded under the rest.
+ */
 function FoundCard({ hit, why }: { hit: FinderHit; why: FinderWhy | 'loading' | undefined }) {
   return (
     <Card className="flex flex-col gap-2 p-4">
@@ -164,6 +168,7 @@ function FoundCard({ hit, why }: { hit: FinderHit; why: FinderWhy | 'loading' | 
           ) : null}
         </p>
       ) : null}
+      {hit.detail ? <CourseDetail detail={hit.detail} /> : null}
     </Card>
   )
 }
