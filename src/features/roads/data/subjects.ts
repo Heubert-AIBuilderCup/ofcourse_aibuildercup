@@ -1,3 +1,4 @@
+import { courseFallback } from './course-fallback'
 import type { CourseSubjects, Source } from './types'
 
 const handbook = (university: string): Source => ({
@@ -474,7 +475,7 @@ export const SUBJECTS: readonly CourseSubjects[] = [
 
 const SUBJECTS_BY_COURSE = new Map(SUBJECTS.map((s) => [s.courseId, s]))
 
-/** The majors, units and entry conditions of a course; undefined for one the catalogue has none for. */
+/** The majors, units and entry conditions of a course, else any the server registered; undefined for one neither has. */
 export function subjectsOf(courseId: string): CourseSubjects | undefined {
-  return SUBJECTS_BY_COURSE.get(courseId)
+  return SUBJECTS_BY_COURSE.get(courseId) ?? courseFallback().subjectsOf(courseId)
 }

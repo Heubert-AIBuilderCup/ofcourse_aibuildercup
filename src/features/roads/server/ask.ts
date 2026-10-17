@@ -8,6 +8,8 @@ import 'server-only'
 
 import { ai } from '@/features/content/ai/client'
 import { STUDENT_ASK } from '@/features/content/ai/prompts'
+// For its side effect: a roadmap pinned to a finder course draws its road.
+import '@/features/finder/server/road-courses'
 import { getRoadmap } from '@/features/roadmaps/server/roadmaps'
 import { askCap, askFacts, askProblems, isAskSlot } from '../model/ask'
 import {
@@ -46,7 +48,10 @@ export async function askTile(
   if (asked === '' || asked.length > ASK_QUESTION_MAX) return null
   const roadmap = await getRoadmap(userId, roadmapId)
   if (!roadmap) return null
-  const { spec } = roadFor({ answers: roadmap.answers, relative: roadmap.relative }, env)
+  const { spec } = roadFor(
+    { answers: roadmap.answers, relative: roadmap.relative, pinned: roadmap.choices.pinned },
+    env,
+  )
   if (!spec) return null
   const slot = slotOf(spec, tileId)
   if (!isAskSlot(slot)) return null

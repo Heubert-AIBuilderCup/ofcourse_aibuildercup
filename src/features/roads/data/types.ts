@@ -53,6 +53,20 @@ export type CourseJob = { code: string; name: string; market?: JobMarketRow | nu
  * visa, work rights and PR the course follows.
  */
 export type CourseJobGroup = { field: FieldId; name: string; primary: boolean; jobs: CourseJob[] }
+/** One line of "What changes": her road's words beside the alternative's, for one subject. */
+export type CompareRow = {
+  key: 'money' | 'time' | 'pr' | 'career' | 'subjects' | 'city'
+  label: string
+  current: string
+  alternative: string
+  /** False when both sides read the same. */
+  changed: boolean
+}
+/**
+ * "What changes" for one alternative: its rows, and the course a new roadmap can be pinned to
+ * (null when it has none that can be).
+ */
+export type Comparison = { rows: CompareRow[]; pin: string | null }
 export type CourseSubjects = {
   courseId: string
   majors: string[]

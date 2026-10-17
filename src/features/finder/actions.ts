@@ -2,21 +2,26 @@
 
 import { z } from 'zod'
 import { getRoadmap } from '@/features/roadmaps/server/roadmaps'
+import type { CompareRow } from '@/features/roads/data/types'
+import { roadmapRoad } from '@/features/roads/server/roadmap-road'
 import { whyAllowed } from '@/features/roads/server/why-limit'
 import { asStudent, fail } from '@/shared/lib/auth/as-student'
 import type { ActionResult } from '@/shared/types/action-result'
 import { FINDER_EXTRAS } from './data/catalogue'
+import { alternativeForCourse, compareRows, pinnable } from './model/compare'
 import type { FinderResult, FinderWhy } from './model/types'
 import { finderWhyTemplate } from './model/why'
 import { finderAllowed } from './server/limit'
 import { searchWithRetry, TIMED_OUT } from './server/retry'
+// For its side effect: a finder course resolves as a road course, so it can be compared.
+import './server/road-courses'
 import { searchCourses } from './server/search'
 import { writeFinderWhy } from './server/why'
-import { finderOn } from './switch'
+import { compareOn, finderOn } from './switch'
 
 // The finder's calls from her board. Each reads the student from the session (never from the
 // request) and refuses anyone who is not a student (asStudent); the roadmap id is a claim the
-// repository checks against her own rows. With the switch off both are not found. Her words are
+// repository checks against her own rows. With its switch off each is not found. Her words are
 // trimmed and capped before they reach the model, and never logged (criterion 11).
 
 const NOT_FOUND = 'Not found'
@@ -111,5 +116,32 @@ export async function finderWhyAction(
     }
     const why = await writeFinderWhy(said.data, course.data)
     return why ? { ok: true, why } : fail(NOT_FOUND)
+  })
+}
+
+/**
+ * "What changes" if she took a found course (criterion 27): her roadmap's road beside a road around
+ * that course, in its own city, ending as hers does, and whether a new roadmap can be pinned to
+ * it. Refused for a roadmap not hers, a road not drawn from her answers and an unknown course;
+ * with the compare switch off, not found.
+ */
+export async function compareCourseAction(
+  roadmapId: string,
+  courseId: string,
+): Promise<ActionResult<{ rows: CompareRow[]; pinnable: boolean }>> {
+  return asStudent('finder.compare', async (userId) => {
+    if (!compareOn(process.env)) return fail(NOT_FOUND)
+    const id = idSchema.safeParse(roadmapId)
+    const course = courseIdSchema.safeParse(courseId)
+    if (!id.success || !course.success) return fail(NOT_FOUND)
+    const found = await roadmapRoad(userId, id.data)
+    const spec = found?.road.spec
+    const alternative = spec ? alternativeForCourse(spec, course.data) : null
+    if (!found || !spec || !alternative) return fail(NOT_FOUND)
+    return {
+      ok: true,
+      rows: compareRows(spec, alternative, found.roadmap.answers, alternative.cityId),
+      pinnable: pinnable(course.data),
+    }
   })
 }

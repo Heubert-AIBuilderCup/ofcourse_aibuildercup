@@ -14,6 +14,7 @@ import { CITY_STATE, occupationsFor } from '../data/occupations'
 import { opportunitiesIn } from '../data/opportunities'
 import { subjectsOf } from '../data/subjects'
 import {
+  type Comparison,
   type CourseJob,
   type FieldNear,
   type Occupation,
@@ -43,6 +44,11 @@ export type CardDetails = {
   related?: RelatedMark
   /** With the course detail on: the fields one step from its course's, on every course tile. */
   fieldsNear?: FieldNear[]
+  /**
+   * With compare on (COMPARE_ON), on the other-city and other-course tiles: "What changes" (the
+   * finder's compareByTile), with the roadmap a new one would start from.
+   */
+  compare?: Comparison & { roadmapId: string }
 }
 
 const courseOf = (spec: RoadSpec, slot: 'course' | 'alt-course' | 'stack-course'): string =>

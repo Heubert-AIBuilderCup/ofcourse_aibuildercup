@@ -73,8 +73,16 @@ export type WhyFacts = {
   tags: string[]
 }
 
-/** Her road's match as the why reads it: where the road differs from her, and her person. */
-export type WhyMatch = { differences: readonly Difference[]; relative: Relative | null }
+/**
+ * Her road's match as the why reads it: where the road differs from her, and her person; `pinned`
+ * when she chose the road's course herself (from Find courses or a tile beside her roadmap), rather
+ * than her answers choosing it.
+ */
+export type WhyMatch = {
+  differences: readonly Difference[]
+  relative: Relative | null
+  pinned?: boolean
+}
 
 export const WHY_MAX = 600
 
@@ -343,7 +351,8 @@ function hintReason(
 
 /**
  * The rules of her match that put a tile on her road: city tiles stay and hint, a course field and
- * level, PR stay. None for a tile beside it: the skeleton or the catalogue chose those.
+ * level, PR stay. None for a tile beside it: the skeleton or the catalogue chose those. On a
+ * pinned road she chose the city and course herself, and that is the one reason they are on it.
  */
 function chosenByOf(
   spec: RoadSpec,
@@ -352,11 +361,16 @@ function chosenByOf(
   match: WhyMatch,
 ): string[] {
   const differs = new Set(match.differences.map((d) => d.key))
+  const chosen = `you chose this course in ${cityById(spec.cityId).name}`
   switch (slot) {
     case 'city':
-      return [...stayReason(answers, differs), ...hintReason(spec, answers, match)]
+      return match.pinned
+        ? [chosen]
+        : [...stayReason(answers, differs), ...hintReason(spec, answers, match)]
     case 'course':
-      return [...fieldReason(spec, answers, differs), ...levelReasons(spec, answers, differs)]
+      return match.pinned
+        ? [chosen]
+        : [...fieldReason(spec, answers, differs), ...levelReasons(spec, answers, differs)]
     case 'alt-city':
     case 'alt-course':
     case 'stack-course':
@@ -371,6 +385,15 @@ function chosenByOf(
 const ownMatch = (spec: RoadSpec, answers: StoredAnswers): WhyMatch => ({
   differences: differencesFrom(answers, null, spec),
   relative: null,
+})
+
+/**
+ * A pinned road's match as the why reads it: her answers against this road alone (never the rules
+ * of the road her answers matched, which can name another city), and her own choice of its course.
+ */
+export const pinnedMatch = (spec: RoadSpec, answers: StoredAnswers): WhyMatch => ({
+  ...ownMatch(spec, answers),
+  pinned: true,
 })
 
 // ── How a course beside her roadmap relates to hers (65) ─────────────────────────────────────

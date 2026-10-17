@@ -232,6 +232,36 @@ describe('writeWhy (15, 17, 18, 20)', () => {
     ])
   })
 
+  it('on a roadmap pinned to a course, writes the why of a tile on the pinned road (criterion 30)', async () => {
+    const { composeRoad } = await import('../model/compose')
+    const pinned = { courseId: 'uts-cyber', cityId: 'sydney' }
+    const spec = composeRoad({ ...pinned, stays: true })
+    found = roadmap({ choices: { pinned } })
+    const res = await writeWhy('student-1', 'rm-1', spec.slots.course.id, ENV)
+    expect(res?.source).toBe('model')
+    const data = seen[0].data as ReturnType<typeof whyFacts>
+    expect(data.facts).toEqual(whyFacts(spec, 'course', PROFILE_1.answers, []).facts)
+  })
+
+  it('on a pinned roadmap, says she chose the course, never the rules of the road she matched', async () => {
+    const { composeRoad } = await import('../model/compose')
+    const pinned = { courseId: 'uts-cyber', cityId: 'sydney' }
+    const spec = composeRoad({ ...pinned, stays: true })
+    // Her person lives in Perth, which chose her matched road's city.
+    found = roadmap({ choices: { pinned } })
+    for (const slot of ['city', 'course'] as const) {
+      seen = []
+      await writeWhy('student-1', 'rm-1', spec.slots[slot].id, ENV)
+      const data = seen[0].data as ReturnType<typeof whyFacts>
+      expect(data.chosenBy).toEqual(['you chose this course in Sydney'])
+      expect(JSON.stringify(data).includes('the person you know')).toBe(false)
+    }
+    const template = await writeWhy('student-1', 'rm-1', spec.slots.city.id, ENV, false)
+    expect(template?.text.startsWith('On your roadmap: you chose this course in Sydney. ')).toBe(
+      true,
+    )
+  })
+
   it('falls back to the template when the model fails', async () => {
     found = roadmap({
       tags: [{ text: '[fake:fail-student_why]', quote: 'x', step: 'facts', wellbeing: false }],

@@ -88,13 +88,19 @@ export type FutureId = (typeof FUTURE_IDS)[number]
 export type Reminder = { futureId: FutureId; courseId: string; text: string; at: string }
 
 /** What she did on a roadmap's board, kept with it. A key that is absent is false. */
-export type RoadmapChoices = {
+export type BoardChoices = {
   swapped?: boolean
   added?: boolean
   read?: boolean
   city?: boolean
   country?: boolean
 }
+
+/** The course a roadmap was made around, in its own city: its road is drawn around it. */
+export type Pinned = { courseId: string; cityId: string }
+
+/** A roadmap's choices: her board's, and the course it is pinned to (set only when it is made). */
+export type RoadmapChoices = BoardChoices & { pinned?: Pinned }
 
 /** The question screens where she may write in her own words, and the most she may write on one. */
 export const OWN_WORDS_STEPS = ['facts', 'study', 'living', 'after'] as const
@@ -210,12 +216,19 @@ export const reminderSchema = z.object({
 })
 
 /** A board's choices; a key it does not know is dropped. */
-export const roadmapChoicesSchema = z.object({
+export const boardChoicesSchema = z.object({
   swapped: z.optional(z.boolean()),
   added: z.optional(z.boolean()),
   read: z.optional(z.boolean()),
   city: z.optional(z.boolean()),
   country: z.optional(z.boolean()),
+})
+
+const pinId = z.string().check(z.minLength(1), z.maxLength(80))
+
+/** A roadmap's choices: the board's, and its pin; a malformed pin is dropped, the rest kept. */
+export const roadmapChoicesSchema = z.extend(boardChoicesSchema, {
+  pinned: z.catch(z.optional(z.object({ courseId: pinId, cityId: pinId })), undefined),
 })
 
 /** Her own words on a question screen (a key outside the four steps is refused, not dropped). */

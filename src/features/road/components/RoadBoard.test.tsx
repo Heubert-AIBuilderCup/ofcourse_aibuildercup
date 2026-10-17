@@ -1371,13 +1371,13 @@ describe('a new roadmap’s draft', () => {
   )
   beforeEach(() => createRoadmapAction.mockClear())
 
-  const draftBoard = () =>
+  const draftBoard = (pinned?: { courseId: string; cityId: string }) =>
     render(
       <Providers initialChoice="light" systemTheme={null}>
         <RoadBoard
           road={road}
           roadmap={ROADMAP}
-          draft={{ from: SOURCE, answers: ROADMAP.answers }}
+          draft={{ from: SOURCE, answers: ROADMAP.answers, ...(pinned && { pinned }) }}
           createRoadmapAction={createRoadmapAction}
         >
           {null}
@@ -1447,6 +1447,20 @@ describe('a new roadmap’s draft', () => {
         jest.advanceTimersByTime(700)
       })
     expect(router.replace).toHaveBeenCalledWith('/roadmaps/rm-new')
+  })
+
+  it('Create on a draft pinned to a course makes the roadmap with its pin', () => {
+    jest.useFakeTimers()
+    reduceMotion()
+    const pinned = { courseId: 'uts-cyber', cityId: 'sydney' }
+    draftBoard(pinned)
+    pickAmount()
+    press(button('Create roadmap'))
+    expect(createRoadmapAction).toHaveBeenCalledWith({
+      fromId: 'rm-1',
+      answers: { amount: { value: 30, state: 'stated' } },
+      pinned,
+    })
   })
 
   it('a refused Create stops the loader and lands nowhere', async () => {

@@ -22,7 +22,13 @@ import { Sheet, SheetContent, SheetTitle } from '@/shared/components/ui/sheet'
 import { ROADMAPS_PATH, roadmapPath } from '@/shared/lib/student-paths'
 import { cn } from '@/shared/lib/utils'
 import type { ActionResult } from '@/shared/types/action-result'
-import type { Relative, RoadmapChoices, RoadmapTag, StoredAnswers } from '@/shared/types/student'
+import type {
+  Pinned,
+  Relative,
+  RoadmapChoices,
+  RoadmapTag,
+  StoredAnswers,
+} from '@/shared/types/student'
 import { BoardPath, useBoardPath } from '../hooks/useBoardPath'
 import { type BoardActions, useRoadSession } from '../hooks/useRoadSession'
 import type { WhyAction } from '../hooks/useTileWhy'
@@ -88,15 +94,20 @@ export type BoardRoadmap = {
 }
 
 /**
- * A new roadmap's draft: the roadmap it copies (null from scratch), and the answers it starts with
- * (the source's, or none).
+ * A new roadmap's draft: the roadmap it copies (null from scratch), the answers it starts with
+ * (the source's, or none), and the course it is pinned to, if any.
  */
-export type BoardDraft = { from: { id: string; name: string } | null; answers: StoredAnswers }
+export type BoardDraft = {
+  from: { id: string; name: string } | null
+  answers: StoredAnswers
+  pinned?: Pinned
+}
 
 /** Makes the new roadmap (createRoadmapAction), giving its id; without `fromId`, from scratch. */
 export type CreateRoadmap = (input: {
   fromId?: string
   answers: StoredAnswers
+  pinned?: Pinned
 }) => Promise<ActionResult<{ id: string }>>
 
 /** A board's writes; a draft's only the new roadmap. */
@@ -335,9 +346,11 @@ function Board({
   const work = [
     async () => {
       if (!draft || !creating) return
-      const result = await draft.create(
-        draft.from ? { fromId: draft.from.id, answers: creating } : { answers: creating },
-      )
+      const result = await draft.create({
+        ...(draft.from && { fromId: draft.from.id }),
+        answers: creating,
+        ...(draft.pinned && { pinned: draft.pinned }),
+      })
       if (!result.ok) throw new Error(result.error)
       madeId.current = result.id
     },

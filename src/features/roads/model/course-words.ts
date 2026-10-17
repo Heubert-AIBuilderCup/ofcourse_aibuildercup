@@ -76,9 +76,12 @@ const slug = (s: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
 
-/** "data-science-ecu-perth": the course's own tile id, readable, unique in the catalogue. */
+/**
+ * "data-science-ecu-perth": the course's own tile id, readable, unique in the catalogue. A finder
+ * course's is its own "f-…" id, so a near-copy of a road course never takes the road course's.
+ */
 const tileIdOf = (c: Course): string =>
-  `${slug(shortName(c))}-${slug(c.university)}-${cityOf(c).id}`
+  c.id.startsWith('f-') ? c.id : `${slug(shortName(c))}-${slug(c.university)}-${cityOf(c).id}`
 
 /** "Machine learning" → "machine learning"; an acronym ("IT project") keeps its capitals. */
 const lowerFirst = (s: string): string =>
@@ -97,8 +100,11 @@ function subjects(c: Course) {
 /** The units the course-years card and the lesson name: its first three. */
 const unitsOf = (c: Course): string => andList(subjects(c).units.slice(0, 3).map(lowerFirst))
 
-/** A course's trade-offs, from its fees and its four lines: what it gives, what it costs. */
-function tradeOffs(c: Course): { gains: string; costs: string } {
+/**
+ * A course's trade-offs, from its fees and its four lines: what it gives, what it costs. A side
+ * with no words is left out, as compose.ts's `weighPr` leaves it out of the city cards.
+ */
+function tradeOffs(c: Course): { gains?: string; costs?: string } {
   const dims: [string, 'gives' | 'neutral' | 'costs'][] = [
     ['cost', c.feeK <= 30 ? 'gives' : 'costs'],
     ['PR', c.lines.pr.effect],
@@ -106,11 +112,13 @@ function tradeOffs(c: Course): { gains: string; costs: string } {
     ['career', c.lines.career.effect],
     ['time', c.lines.time.effect],
   ]
-  const of = (effect: string) => dims.filter(([, e]) => e === effect).map(([d]) => d)
-  return {
-    gains: `Good for: ${of('gives').join(', ')}`,
-    costs: `Less good for: ${of('costs').join(', ')}`,
+  const say = (prefix: string, effect: string) => {
+    const list = dims.filter(([, e]) => e === effect).map(([d]) => d)
+    return list.length ? `${prefix}${list.join(', ')}` : undefined
   }
+  const gains = say('Good for: ', 'gives')
+  const costs = say('Less good for: ', 'costs')
+  return { ...(gains && { gains }), ...(costs && { costs }) }
 }
 
 /** Its intakes, as the catalogue's time line names them ("intakes in February and July"). */

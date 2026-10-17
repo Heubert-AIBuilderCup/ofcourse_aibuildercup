@@ -6,10 +6,12 @@ import 'server-only'
 
 import { ai } from '@/features/content/ai/client'
 import { STUDENT_WHY } from '@/features/content/ai/prompts'
+// For its side effect: a roadmap pinned to a finder course draws its road.
+import '@/features/finder/server/road-courses'
 import { getRoadmap } from '@/features/roadmaps/server/roadmaps'
 import { slotOf } from '../model/build'
 import { roadFor } from '../model/road-for'
-import { isWhySlot, whyFacts, whyProblems, whyTemplate } from '../model/why'
+import { isWhySlot, pinnedMatch, whyFacts, whyProblems, whyTemplate } from '../model/why'
 import { studentAiOff } from '../switch'
 
 /** One model attempt; the client may try again, on a higher tier. */
@@ -34,12 +36,19 @@ export async function writeWhy(
 ): Promise<Why | null> {
   const roadmap = await getRoadmap(userId, roadmapId)
   if (!roadmap) return null
-  const { spec, match } = roadFor({ answers: roadmap.answers, relative: roadmap.relative }, env)
+  const { spec, match, kind } = roadFor(
+    { answers: roadmap.answers, relative: roadmap.relative, pinned: roadmap.choices.pinned },
+    env,
+  )
   if (!spec || !match) return null
   const slot = slotOf(spec, tileId)
   if (!isWhySlot(slot)) return null
-  // The rules that chose her road, so the why names them (criterion 64).
-  const chosen = { differences: match.differences, relative: roadmap.relative }
+  // The rules that chose her road, so the why names them (criterion 64); on a pinned road, that she
+  // chose its course, and never the rules of the road her answers matched.
+  const chosen =
+    kind === 'pinned'
+      ? pinnedMatch(spec, roadmap.answers)
+      : { differences: match.differences, relative: roadmap.relative }
   const template = (): Why => ({
     text: whyTemplate(spec, slot, roadmap.answers, chosen),
     source: 'template',

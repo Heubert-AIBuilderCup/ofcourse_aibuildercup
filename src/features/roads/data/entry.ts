@@ -6,7 +6,13 @@ import type { Level } from '@/features/engine/types'
 import { courseById } from './courses'
 
 export type EntryQual = 'High school' | 'Diploma' | "Bachelor's"
-export type Entry = { minQual: EntryQual; needsDegreeIn: string | null; ielts: number }
+export type Entry = {
+  minQual: EntryQual
+  needsDegreeIn: string | null
+  ielts: number
+  /** A finder course's typical figure for its level, labelled sample like the rest of its catalogue. */
+  sample?: true
+}
 
 /** The lowest qualification a level asks for: a Master's a bachelor's, the rest a school certificate. */
 const MIN_QUAL: Record<Level, EntryQual> = {
@@ -70,6 +76,9 @@ const IELTS: Readonly<Record<string, number>> = {
   'utas-mph': 6.5,
 }
 
+/** A finder course's ("f-…") typical overall IELTS by level, for a course with no score of its own. */
+const SAMPLE_IELTS: Partial<Record<Level, number>> = { Diploma: 5.5, "Master's": 6.5 }
+
 /** The courses that need a degree in one field; Nursing is graduate entry, open to any bachelor's. */
 const NEEDS_DEGREE_IN: Readonly<Record<string, string>> = {
   'uts-civil': 'engineering',
@@ -83,13 +92,14 @@ const NEEDS_DEGREE_IN: Readonly<Record<string, string>> = {
 /** A course's entry rule; undefined for a course the catalogue has none for. */
 export function entryOf(courseId: string): Entry | undefined {
   const course = courseById(courseId)
+  if (!course) return undefined
+  const minQual = MIN_QUAL[course.level]
   const ielts = IELTS[courseId]
-  if (!course || ielts === undefined) return undefined
-  return {
-    minQual: MIN_QUAL[course.level],
-    needsDegreeIn: NEEDS_DEGREE_IN[courseId] ?? null,
-    ielts,
-  }
+  if (ielts !== undefined)
+    return { minQual, needsDegreeIn: NEEDS_DEGREE_IN[courseId] ?? null, ielts }
+  const sample = courseId.startsWith('f-') ? SAMPLE_IELTS[course.level] : undefined
+  if (sample === undefined) return undefined
+  return { minQual, needsDegreeIn: null, ielts: sample, sample: true }
 }
 
 /** A course open to any graduate of its entry level: it asks no degree in its own field. */

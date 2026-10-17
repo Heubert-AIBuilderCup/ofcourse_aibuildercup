@@ -57,6 +57,7 @@ describe.skipIf(!enabled)('the roadmaps against the database', () => {
         base('k'),
         base('l'),
         base('m'),
+        base('n'),
       ])
   })
 
@@ -71,11 +72,17 @@ describe.skipIf(!enabled)('the roadmaps against the database', () => {
     expect(draft).toMatchObject({ finishedAt: null, name: null, answers: {}, lastStep: 'picture' })
     expect((await server.ensureDraft(uid)).id).toBe(draft.id)
     expect((await server.getDraft(uid))?.id).toBe(draft.id)
-    await expect(db.insert(schema.roadmap).values({ userId: uid }).execute()).rejects.toMatchObject(
-      {
-        cause: { constraint_name: 'roadmap_one_unfinished' },
-      },
-    )
+    // Awaited here, not through `expect(…).rejects`: Bun's `rejects` waits on the pending query
+    // without letting the socket answer, so the insert hangs mid-statement and the run never ends.
+    const refused = await db
+      .insert(schema.roadmap)
+      .values({ userId: uid })
+      .execute()
+      .then(
+        () => null,
+        (err: unknown) => err,
+      )
+    expect(refused).toMatchObject({ cause: { constraint_name: 'roadmap_one_unfinished' } })
   })
 
   test('finishing sets the time once; a second press changes nothing', async () => {
@@ -190,6 +197,28 @@ describe.skipIf(!enabled)('the roadmaps against the database', () => {
     const choices = { swapped: true, read: false, sneaky: 'x' } as { swapped: boolean }
     expect(await server.saveChoices(uid, r.id, choices)).toBe(true)
     expect((await rowOf(r.id))?.choices).toEqual({ swapped: true, read: false })
+  })
+
+  test('a copy pinned to a course keeps its pin, the board never drops it, its source is unchanged', async () => {
+    const uid = `${P}n`
+    const src = await finished(uid)
+    const before = await rowOf(src.id)
+    const pinned = { courseId: 'uts-cyber', cityId: 'sydney' }
+    const copy = await server.createRoadmap(uid, {
+      fromId: src.id,
+      answers: {},
+      choices: { pinned },
+    })
+    if (typeof copy === 'string') throw new Error(copy)
+    expect(copy.choices).toEqual({ pinned })
+    expect(await rowOf(src.id)).toEqual(before)
+    // The board saves its own choices: the stored pin stays, and none it sends is taken.
+    const sent = { swapped: true, pinned: { courseId: 'ecu-cyber', cityId: 'perth' } }
+    expect(await server.saveChoices(uid, copy.id, sent)).toBe(true)
+    expect((await rowOf(copy.id))?.choices).toEqual({ swapped: true, pinned })
+    // A roadmap with no pin gets none.
+    expect(await server.saveChoices(uid, src.id, sent)).toBe(true)
+    expect((await rowOf(src.id))?.choices).toEqual({ swapped: true })
   })
 
   test('her own words and tags read back empty when null, and tags empty when malformed', async () => {
