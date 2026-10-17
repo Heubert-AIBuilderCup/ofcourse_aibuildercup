@@ -70,3 +70,7 @@ Tokens are the subagents' own; this session's context is not in them.
 **Carried concerns**
 - Plan gap fixed in task 1: a required `topic` broke files of later tasks, and the mock updates' audience was not covered; task 1 added the minimal glue.
 - Review fixes (17 Oct, `e3ae9d2`): board tiles now respect the topic; the preview why matches the feed; see review.md "Applied".
+
+## Result
+
+17 Oct 2026, local, branch `test/finder-intersections-all` (all four branches combined). Nikhil reported the smoke test passed. Which steps were run by hand was not itemised; every criterion is also covered by the tests named in "No need to click" and the criteria tables, and by the branch reviews.
