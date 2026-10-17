@@ -23,6 +23,7 @@ const LISTED: Record<UseCase, true> = {
   student_why: true,
   student_ask: true,
   student_words: true,
+  student_finder_why: true,
   suggest_sources: true,
   research_claim: true,
 }

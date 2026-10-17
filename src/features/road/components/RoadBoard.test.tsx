@@ -638,6 +638,178 @@ describe('Feed', () => {
   })
 })
 
+describe('Find courses', () => {
+  const SEED = 'I like puzzles. I’m drawn to data science.'
+  const finder = {
+    seed: SEED,
+    search: mock(async () => ({ ok: false as const, error: 'unused' })),
+    why: mock(async () => ({ ok: false as const, error: 'unused' })),
+  }
+  const withFinder = () =>
+    render(
+      <Providers initialChoice="light" systemTheme={null}>
+        <RoadBoard road={road} roadmap={ROADMAP} {...actions} finder={finder}>
+          {null}
+        </RoadBoard>
+      </Providers>,
+    )
+  const controls = () => screen.getByRole('navigation', { name: 'Controls' })
+  const findIn = (place: HTMLElement) => within(place).getByRole('button', { name: 'Find' })
+  const box = () =>
+    screen.queryByRole('textbox', { name: 'What you enjoy and what you’re good at' })
+  const answers = () => screen.queryByRole('complementary', { name: 'Your answers' })
+
+  // The board loads the panel with next/dynamic: load it once here, so in every test below it is
+  // drawn as soon as Find opens, as it is in the browser once its chunk has arrived.
+  beforeAll(async () => {
+    withFinder()
+    press(findIn(controls()))
+    await screen.findByRole('textbox', { name: 'What you enjoy and what you’re good at' })
+    cleanup()
+  })
+
+  it('offers nothing to find without the finder (criterion 1)', () => {
+    board()
+    for (const name of ['Find courses', 'Find', 'Find courses by what you enjoy'])
+      expect(screen.queryAllByRole('button', { name }).length).toBe(0)
+    expect(controlNames()).toEqual(['Feed', 'Your answers', 'Weights'])
+  })
+
+  it('opens from the controls bar with her words in the box (criterion 2)', () => {
+    withFinder()
+    expect(controlNames()).toEqual(['Feed', 'Your answers', 'Find', 'Weights'])
+    press(findIn(controls()))
+    expect((box() as HTMLTextAreaElement | null)?.value).toBe(SEED)
+    expect(finder.search).not.toHaveBeenCalled()
+  })
+
+  it('opens from the top of the card column', () => {
+    withFinder()
+    press(button('Find courses'))
+    expect(box() === null).toBe(false)
+    expect(screen.queryByRole('complementary', { name: 'Find courses' }) === null).toBe(false)
+  })
+
+  it('opens from the stack’s list', () => {
+    query = 'tile=more-courses-perth&open=list'
+    withFinder()
+    press(button('Find courses by what you enjoy'))
+    expect(box() === null).toBe(false)
+  })
+
+  it('closes when Your answers opens', () => {
+    withFinder()
+    press(findIn(controls()))
+    press(within(controls()).getByRole('button', { name: 'Your answers' }))
+    expect(box() === null).toBe(true)
+    expect(answers() === null).toBe(false)
+  })
+
+  it('closes Your answers when it opens', () => {
+    query = 'open=answers'
+    withFinder()
+    expect(answers() === null).toBe(false)
+    press(findIn(controls()))
+    expect(answers() === null).toBe(true)
+    expect(box() === null).toBe(false)
+  })
+
+  it('closed, gives the column back to the card it showed', () => {
+    query = 'tile=data-science-uwa-perth'
+    withFinder()
+    expect(screen.queryByText('Not visited · Course') === null).toBe(false)
+    press(findIn(controls()))
+    expect(screen.queryByText('Not visited · Course') === null).toBe(true)
+    const panel = screen.getByRole('complementary', { name: 'Find courses' })
+    press(within(panel).getByRole('button', { name: 'Close' }))
+    expect(box() === null).toBe(true)
+    expect(screen.queryByText('Not visited · Course') === null).toBe(false)
+  })
+
+  it('moves focus to the box when it opens, from any of its three entry points', () => {
+    const opens: [string, () => HTMLElement][] = [
+      ['', () => button('Find courses')],
+      ['', () => findIn(controls())],
+      ['tile=more-courses-perth&open=list', () => button('Find courses by what you enjoy')],
+    ]
+    for (const [at, opener] of opens) {
+      query = at
+      withFinder()
+      press(opener())
+      expect(document.activeElement === box()).toBe(true)
+      cleanup()
+    }
+  })
+
+  it('closed, gives focus back to the control that opened it', () => {
+    withFinder()
+    const find = findIn(controls())
+    find.focus()
+    press(find)
+    const panel = screen.getByRole('complementary', { name: 'Find courses' })
+    press(within(panel).getByRole('button', { name: 'Close' }))
+    expect(document.activeElement === findIn(controls())).toBe(true)
+  })
+
+  it('closed, gives focus to Find courses when the control that opened it is gone', () => {
+    query = 'tile=more-courses-perth&open=list'
+    withFinder()
+    const fromList = button('Find courses by what you enjoy')
+    fromList.focus()
+    press(fromList)
+    const panel = screen.getByRole('complementary', { name: 'Find courses' })
+    press(within(panel).getByRole('button', { name: 'Close' }))
+    expect(fromList.isConnected).toBe(false)
+    expect(document.activeElement === button('Find courses')).toBe(true)
+  })
+
+  it('closes when a tile on the map is pressed, the column showing that tile’s card', () => {
+    withFinder()
+    press(button('Find courses'))
+    press(tile('Data Science, not visited. Open in the card'))
+    expect(box() === null).toBe(true)
+    expect(screen.queryByText('Not visited · Course') === null).toBe(false)
+  })
+
+  describe('over unsaved answers', () => {
+    const AMOUNT = 'Your budget per year · Amount'
+    const ASK = 'Discard 1 change?'
+    const pickBudget = () => {
+      press(button(new RegExp(`^${AMOUNT}`)))
+      press(
+        within(screen.getByRole('radiogroup', { name: AMOUNT })).getByRole('radio', {
+          name: /^AUD 30k/,
+        }),
+      )
+    }
+    const ask = () => screen.queryByRole('alertdialog', { name: ASK })
+
+    it('asks first; Keep editing keeps the pick and Find stays closed', () => {
+      query = 'open=answers'
+      withFinder()
+      pickBudget()
+      press(findIn(controls()))
+      expect(ask() === null).toBe(false)
+      expect(box() === null).toBe(true)
+
+      press(within(ask()!).getByRole('button', { name: 'Keep editing' }))
+      expect(box() === null).toBe(true)
+      expect(answers() === null).toBe(false)
+      expect(screen.queryByText('1 change not saved') === null).toBe(false)
+    })
+
+    it('opens Find once she discards them', () => {
+      query = 'open=answers'
+      withFinder()
+      pickBudget()
+      press(findIn(controls()))
+      press(within(ask()!).getByRole('button', { name: 'Discard' }))
+      expect(answers() === null).toBe(true)
+      expect(box() === null).toBe(false)
+    })
+  })
+})
+
 const tradeLines = (gains: string, costs: string, within_: HTMLElement = document.body) => {
   const g = within(within_).getByText(gains, { exact: true })
   const c = within(within_).getByText(costs, { exact: true })

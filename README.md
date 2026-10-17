@@ -18,6 +18,7 @@ OfCourse helps international students decide where and what to study abroad, sta
 - [What code decides](#what-code-decides)
 - [Live results](#live-results)
 - [The student side](#the-student-side)
+- [How it scales](#how-it-scales)
 - [Run it locally](#run-it-locally)
 - [Deploy](#deploy)
 - [Tests](#tests)
@@ -111,6 +112,25 @@ The student slice (product truth in [PRODUCT.md](PRODUCT.md), intent in [docs/st
 - **Three futures** (`/futures`): one route built around cost, one around staying, one around career, side by side, with what each gives and costs her. The chips under each future show the answers it rests on; changing one redraws all three. Figures come from a mock Australia catalogue and say so.
 - **Her attention** (`/attention`): ten coins to spend across her life values, or to put off.
 - **The feed** (`/feed`): every live post, with chips for destination, home country, theme and age band, and a search box. Each post page lists related posts from shared sources and tags, computed in code.
+
+## How it scales
+
+The course finder lets a student describe what she enjoys in her own words and finds courses by meaning.
+
+- **Rules decide, the model explains, and code checks the model.**
+  - Rules in code decide which courses she can take (the levels her qualification opens, her destination, her budget), each course's visa and PR lines, and every figure.
+  - The model turns her words into a vector and writes a short "why" for each of the top three courses.
+  - Code checks every "why": it must quote the course description word for word, add no figure and rank nothing. A "why" that fails is replaced by a template.
+- **One meaning query and one keyword query, in the Postgres the app already uses** (pgvector on Cloud SQL).
+  - The meaning query finds the nearest courses by cosine distance.
+  - The keyword query, Postgres full-text search on the same words, runs beside it for comparison.
+  - Below a thousand rows an exact scan is fast enough. Beyond that, an index on the same column takes over, and no new service is needed.
+- **A production catalogue loads through a sync job.** `bun run finder:seed`, run as a Cloud Run job, upserts the catalogue and removes the courses it dropped. It re-embeds only the courses whose name or description changed, or that another model embedded.
+- **The catalogue is generated sample data**, because the business's own catalogue is not public. `scripts/finder-build.ts` generated the 479 courses from the brief in `src/features/finder/data/GENERATE.md`, and every card says "sample data".
+- **Measured on queries the catalogue never saw.** An agent that read only the list of fields wrote 20 queries.
+  - **19 of 20** put an expected course in the top three, against a bar of 16. The eval gives each search the same 2 seconds and one 5-second retry that a student gets.
+  - Text with fewer than three content words is "nothing close", with no search. Longer text needs a similarity of at least 0.5, a round floor that was not fitted on these 20 queries.
+  - The run is in [docs/course-finder/eval.md](docs/course-finder/eval.md) (`bun run finder:eval`).
 
 ## Run it locally
 

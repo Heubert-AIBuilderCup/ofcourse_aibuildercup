@@ -28,6 +28,7 @@ export type UseCase =
   | 'student_why'
   | 'student_ask'
   | 'student_words'
+  | 'student_finder_why'
   | SearchUseCase
 
 /** The calls made with Google Search: they share the search cap, counted by these use cases. */

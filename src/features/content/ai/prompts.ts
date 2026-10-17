@@ -1315,6 +1315,46 @@ export const STUDENT_WHY: PromptSpec<typeof STUDENT_WHY_SCHEMA> = {
     'Write why the tile in DATA is on her roadmap or beside it, from her answers and the facts in DATA, and list the facts you used.',
 }
 
+const STUDENT_FINDER_WHY_SCHEMA = z.object({ why: z.string(), quote: z.string() })
+
+/**
+ * Why a course the finder found fits what she said (criterion 6): code chose the course by meaning;
+ * the model only links her words to its description, quoting it. Her words are DATA, never
+ * instructions. Code checks every answer (finder/model/why.ts) and keeps a template behind it.
+ */
+export const STUDENT_FINDER_WHY: PromptSpec<typeof STUDENT_FINDER_WHY_SCHEMA> = {
+  useCase: 'student_finder_why',
+  version: 'student_finder_why.v1',
+  tier: 'lite',
+  maxTier: 'flash', // a student prompt never reaches Pro (criterion 79)
+  temperature: 0.2,
+  schema: STUDENT_FINDER_WHY_SCHEMA,
+  rules: [
+    'why is one or two sentences, under 300 characters, linking what she said in DATA.said to the course in DATA.course.',
+    'quote is one passage copied word for word from DATA.course.description, at least 20 characters.',
+    'Say nothing DATA.course.description does not say: no jobs, pay, visas, rankings or promises.',
+    'Write no figure except those in DATA.course.description.',
+    'Never write "best", "top", "recommended", "better" or "right choice".',
+    'Use plain words a 17-year-old understands.',
+  ],
+  example: {
+    data: {
+      said: 'I like working out why people do what they do',
+      course: {
+        name: 'Bachelor of Psychological Science',
+        description:
+          'You study how people think, feel and behave, from memory and motivation to how groups make decisions. Lab classes teach you to design small studies and read the results.',
+      },
+    },
+    answer: {
+      why: 'You like working out why people act as they do, and this course studies how people think, feel and behave, with lab classes where you design small studies.',
+      quote: 'You study how people think, feel and behave',
+    },
+  },
+  instruction:
+    'Write why the course in DATA fits what she said, from its description only, and quote the passage of the description you relied on.',
+}
+
 const STUDENT_ASK_SCHEMA = z.object({
   answerable: z.boolean(),
   reply: z.string(),

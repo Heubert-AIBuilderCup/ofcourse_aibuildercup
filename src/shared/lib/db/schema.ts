@@ -14,6 +14,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  vector,
 } from 'drizzle-orm/pg-core'
 import {
   type Coins,
@@ -609,4 +610,27 @@ export const aiSettingChange = pgTable('ai_setting_change', {
   newValue: text('new_value'),
   userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
   at: tz('at').notNull().defaultNow(),
+})
+
+/**
+ * The finder's copy of the course catalogue, one row per course with its embedding (pgvector),
+ * rebuilt from catalogue.ts by `bun run finder:seed`. No HNSW index: under a thousand rows an exact
+ * scan is right (ADR-117).
+ */
+export const courseDoc = pgTable('course_doc', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  university: text('university').notNull(),
+  cityId: text('city_id').notNull(),
+  level: text('level').notNull(),
+  field: text('field').notNull(),
+  graphField: text('graph_field').notNull(),
+  years: integer('years').notNull(),
+  feeK: integer('fee_k').notNull(),
+  niche: boolean('niche').notNull(),
+  description: text('description').notNull(),
+  textHash: text('text_hash').notNull(),
+  embeddingModel: text('embedding_model').notNull(),
+  embedding: vector('embedding', { dimensions: 768 }).notNull(),
+  updatedAt: tz('updated_at').notNull().defaultNow(),
 })

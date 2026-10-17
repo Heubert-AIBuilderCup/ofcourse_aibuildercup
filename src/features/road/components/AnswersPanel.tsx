@@ -1,7 +1,7 @@
 'use client'
 
 import { Check } from 'lucide-react'
-import { type KeyboardEvent, useState } from 'react'
+import { type KeyboardEvent, type Ref, useImperativeHandle, useRef, useState } from 'react'
 import {
   type AnswerGroup,
   type AnswerRow,
@@ -97,6 +97,12 @@ type Ends =
     }
 
 /**
+ * Closing the panel from outside it: as its own Close does, asking first when picks wait; `then`
+ * follows once it has closed, and never if she keeps editing.
+ */
+export type AnswersCloser = { close: (then: () => void) => void }
+
+/**
  * "Your answers" over the board: every onboarding answer of this roadmap, by the step that asked
  * it, each row opening its options in place (one at a time). A pick that differs from her answer
  * waits, marked "Not saved", says what it would change ("If you save, on your roadmap") and
@@ -119,6 +125,7 @@ export function AnswersPanel({
   tags = [],
   rematch,
   onPreview,
+  closer,
   ...ends
 }: {
   /** Its rows for a set of answers: the questions those answers ask (answerGroups). */
@@ -132,6 +139,8 @@ export function AnswersPanel({
   /** The board draws the road her answers match: its rule, so a pick says when it would change it. */
   rematch?: RoadChangeOf
   onPreview: (prev: Record<string, string>) => void
+  /** The board's way to close it from outside, through the same ask (Find opening over it). */
+  closer?: Ref<AnswersCloser>
 } & Ends) {
   const [openKey, setOpenKey] = useState<RowKey | null>(null)
   const [pending, setPending] = useState<Pending>({})
@@ -150,6 +159,13 @@ export function AnswersPanel({
   const asShown = (row: AnswerRow): AnswerRow =>
     scratch && row.editable && !(row.key in answers) ? { ...row, shown: '', open: UNANSWERED } : row
   const leave = ends.mode === 'draft' ? ends.onCancel : ends.onClose
+  // What follows the close she is being asked about (Find opening); dropped if she keeps editing.
+  const then = useRef<(() => void) | null>(null)
+
+  function keepEditing() {
+    setAsking(false)
+    then.current = null
+  }
 
   function change(picks: Pending) {
     // A pick on a question the others no longer ask goes with it.
@@ -158,7 +174,7 @@ export function AnswersPanel({
       Object.entries(picks).filter(([key]) => isVisible(key as QuestionKey, asked)),
     ) as Pending
     setPending(next)
-    setAsking(false)
+    keepEditing()
     onPreview(
       Object.assign(
         {},
@@ -199,14 +215,24 @@ export function AnswersPanel({
   }
 
   function discard() {
+    const next = then.current
     change({})
     leave()
+    next?.()
   }
 
-  function close() {
-    if (count) setAsking(true)
-    else leave()
+  /** Close, asking first when picks wait; `next` follows once it has closed. */
+  function close(next: (() => void) | null = null) {
+    if (count) {
+      setAsking(true)
+      then.current = next
+    } else {
+      leave()
+      next?.()
+    }
   }
+
+  useImperativeHandle(closer, () => ({ close }))
 
   const question = draft
     ? 'Discard this new roadmap?'
@@ -238,7 +264,7 @@ export function AnswersPanel({
             {scratch ? 'Answer the questions' : draft ? 'Change any answers' : 'Your answers'}
           </h2>
         </div>
-        <Button type="button" variant="text" onClick={close}>
+        <Button type="button" variant="text" onClick={() => close()}>
           Close
         </Button>
       </div>
@@ -272,7 +298,7 @@ export function AnswersPanel({
                 lines={(value) => effectOf(road, row.key, value, answers, rematch).lines}
                 onToggle={() => {
                   setOpenKey(openKey === row.key ? null : row.key)
-                  setAsking(false)
+                  keepEditing()
                 }}
                 onPick={(value) => (isMulti(row) ? toggle(row, value as string) : pick(row, value))}
               />
@@ -314,12 +340,7 @@ export function AnswersPanel({
             <Button type="button" variant="outline" className="h-11" onClick={discard}>
               Discard
             </Button>
-            <Button
-              type="button"
-              variant="strong"
-              className="h-11"
-              onClick={() => setAsking(false)}
-            >
+            <Button type="button" variant="strong" className="h-11" onClick={keepEditing}>
               Keep editing
             </Button>
           </div>
@@ -347,7 +368,7 @@ export function AnswersPanel({
             type="button"
             variant="outline"
             className="h-11"
-            onClick={draft ? close : discard}
+            onClick={draft ? () => close() : discard}
           >
             {draft ? 'Cancel' : 'Discard'}
           </Button>
