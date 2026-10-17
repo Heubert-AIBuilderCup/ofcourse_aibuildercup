@@ -1,4 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
+import { aiConfig } from '@/features/content/ai/config'
+import { DailyLimits } from '@/features/content/components/parts'
 import { SocialWorkbench } from '@/features/content/components/SocialWorkbench'
 import { exportName } from '@/features/content/layout/zip'
 import { boardFrom } from '@/features/content/lib/board'
@@ -46,25 +48,29 @@ export default async function AdminPostPage({
   const link = linkRecord?.kind === 'social_link' ? (linkRecord.body as Body<'social_link'>) : null
   const socialLink =
     link && link.exportId === post.current.export?.id ? { url: link.url, by: link.by } : null
+  // The image cap and who to email, so a "Limit" line says why and when (lib/limits.ts).
+  const { caps, supportEmail } = aiConfig(process.env)
   return (
-    <SocialWorkbench
-      key={post.version}
-      view={{
-        id: post.id,
-        title: post.title,
-        stage: post.stage,
-        version: post.version,
-        pointers: post.pointers,
-        current: post.current,
-        running,
-        failed,
-        parentTitle,
-        fileName: exportName(brand, parentTitle, platform),
-        socialLink,
-      }}
-      viewer={viewer}
-      from={boardFrom(query.from)}
-      actions={actions}
-    />
+    <DailyLimits imageCap={caps.image} support={supportEmail}>
+      <SocialWorkbench
+        key={post.version}
+        view={{
+          id: post.id,
+          title: post.title,
+          stage: post.stage,
+          version: post.version,
+          pointers: post.pointers,
+          current: post.current,
+          running,
+          failed,
+          parentTitle,
+          fileName: exportName(brand, parentTitle, platform),
+          socialLink,
+        }}
+        viewer={viewer}
+        from={boardFrom(query.from)}
+        actions={actions}
+      />
+    </DailyLimits>
   )
 }

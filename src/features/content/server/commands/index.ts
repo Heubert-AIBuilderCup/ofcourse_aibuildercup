@@ -75,6 +75,5 @@ export {
   redraftSlide,
   reopenStructures,
   tickTemplates,
-  useSlide,
 } from './structures'
 export { type Researched, researchClaim, type Suggested, suggestSources } from './suggest'

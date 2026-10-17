@@ -7,8 +7,10 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { NativeSelect } from '@/shared/components/ui/native-select'
+import { Textarea } from '@/shared/components/ui/textarea'
 import { Spin, Working } from '@/shared/components/Working'
 import type { Staff } from '@/shared/lib/auth/access'
+import { cn } from '@/shared/lib/utils'
 import { formatById, rankedFormats } from '../../formats'
 import { LAYOUT_LABELS } from '../../layout/relayout'
 import {
@@ -19,7 +21,14 @@ import {
   editBlogSections,
   HEADING_MAX,
 } from '../../lib/blog-outline'
-import { editOutline, JOB_LABELS, type OutlineOp, outlineRange } from '../../lib/outline'
+import {
+  editOutline,
+  JOB_LABELS,
+  type OutlineOp,
+  orderRule,
+  outlineParts,
+  outlineRange,
+} from '../../lib/outline'
 import { stepOfStage, stepPath } from '../../lib/steps'
 import { editWaitError, type PostAction, WORKFLOW_ERRORS } from '../../lib/workflow'
 import {
@@ -99,7 +108,7 @@ export function OutlineStep({ view, viewer, actions }: OutlineStepProps) {
   if (!outline || !template) {
     return (
       <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-8">
-        <h2 id={`${ids}-heading`} className="text-h3">
+        <h2 id={`${ids}-heading`} className="sr-only">
           Outline
         </h2>
         <p className={reasonText}>No outline for these facts. Pick an idea to outline it.</p>
@@ -160,12 +169,16 @@ export function OutlineStep({ view, viewer, actions }: OutlineStepProps) {
       }
     })
   }
+  // The groups show the look's order, so its rule is not said; a slide out of it is.
+  reasons.delete(orderRule(template))
+  const { parts, outOfPlace } = outlineParts(template, slides)
+  if (outOfPlace) reasons.add(outOfPlace)
   const { min, max } = outlineRange(template)
   const angles = outline.ideas.map((c) => c.angle).join(' + ')
 
   return (
     <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-8">
-      <h2 id={`${ids}-heading`} className="text-h3">
+      <h2 id={`${ids}-heading`} className="sr-only">
         Outline
       </h2>
 
@@ -173,21 +186,36 @@ export function OutlineStep({ view, viewer, actions }: OutlineStepProps) {
         slides={
           <>
             {error && <p className={reasonText}>{error}</p>}
-            <ol className="flex flex-col gap-4">
-              {slides.map((slide, i) => (
-                <OutlineRow
-                  // biome-ignore lint/suspicious/noArrayIndexKey: a row is its place; every change saves a new outline and keys the screen again.
-                  key={i}
-                  slide={slide}
-                  n={i + 1}
-                  total={slides.length}
-                  editable={editGate.shown}
-                  disabled={blocked || editGate.reason !== null}
-                  check={check}
-                  onEdit={edit}
-                />
+            <div className="flex flex-col gap-6">
+              {parts.map((part) => (
+                <div key={part.slides[0].n} className="flex flex-col gap-1">
+                  <h3
+                    id={`${ids}-part-${part.slides[0].n}`}
+                    className="text-overline text-muted-foreground"
+                  >
+                    {part.heading}
+                  </h3>
+                  <ol
+                    aria-labelledby={`${ids}-part-${part.slides[0].n}`}
+                    className="flex flex-col divide-y divide-border"
+                  >
+                    {part.slides.map(({ n, slide }) => (
+                      <OutlineRow
+                        // A row is its place; every change saves a new outline and keys the screen again.
+                        key={n}
+                        slide={slide}
+                        n={n}
+                        total={slides.length}
+                        editable={editGate.shown}
+                        disabled={blocked || editGate.reason !== null}
+                        check={check}
+                        onEdit={edit}
+                      />
+                    ))}
+                  </ol>
+                </div>
               ))}
-            </ol>
+            </div>
             {reasons.size > 0 && (
               <ul className="flex flex-col gap-1">
                 {[...reasons].map((reason) => (
@@ -196,32 +224,6 @@ export function OutlineStep({ view, viewer, actions }: OutlineStepProps) {
                   </li>
                 ))}
               </ul>
-            )}
-            {editGate.shown && (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor={`${ids}-new`}>New slide's point</Label>
-                <Control reason={addReason}>
-                  <Input
-                    id={`${ids}-new`}
-                    className="min-w-0 flex-1"
-                    value={newPoint}
-                    disabled={blocked || editGate.reason !== null}
-                    onChange={(e) => setNewPoint(firstChars(e.target.value, POINT_MAX))}
-                  />
-                  <Button
-                    variant="outline"
-                    disabled={
-                      blocked ||
-                      editGate.reason !== null ||
-                      addReason !== null ||
-                      newPoint.trim() === ''
-                    }
-                    onClick={() => edit(add)}
-                  >
-                    Add a slide
-                  </Button>
-                </Control>
-              </div>
             )}
           </>
         }
@@ -260,6 +262,33 @@ export function OutlineStep({ view, viewer, actions }: OutlineStepProps) {
                   </NativeSelect>
                 </Control>
                 {chosen && <p className={reasonText}>{chosen.description}</p>}
+              </div>
+            )}
+            {/* Beside the rows, not under them, so the rows alone fill the slides area. */}
+            {editGate.shown && (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor={`${ids}-new`}>New slide's point</Label>
+                <Control reason={addReason}>
+                  <Input
+                    id={`${ids}-new`}
+                    className="min-w-0 flex-1"
+                    value={newPoint}
+                    disabled={blocked || editGate.reason !== null}
+                    onChange={(e) => setNewPoint(firstChars(e.target.value, POINT_MAX))}
+                  />
+                  <Button
+                    variant="outline"
+                    disabled={
+                      blocked ||
+                      editGate.reason !== null ||
+                      addReason !== null ||
+                      newPoint.trim() === ''
+                    }
+                    onClick={() => edit(add)}
+                  >
+                    Add a slide
+                  </Button>
+                </Control>
               </div>
             )}
             {working && <Working words={working} />}
@@ -302,9 +331,34 @@ export function OutlineStep({ view, viewer, actions }: OutlineStepProps) {
 }
 
 /**
- * One slide of the outline: its number, then its job and layout to choose and its point to edit
- * in place (saved when the field is left changed), and the moves and removal; read-only to a
- * viewer who may not edit. A layout the look would not take here is not offered.
+ * One row of an outline, compact so five to eight fill the slides area without it scrolling: its
+ * number, its fields in two short lines, and its moves and removal at the end.
+ */
+const compactRow = 'flex items-center gap-3 px-3 py-1.5'
+const rowNumber = 'w-5 shrink-0 self-start pt-1 text-overline text-muted-foreground'
+/** A field of a compact row: the shared Input, a line shorter. */
+const compactField = 'h-7 py-1'
+
+/** A slide's row: no frame, set apart from the next by spacing and the list's hairline. */
+const slideRow = 'group flex items-start gap-3 py-2'
+/**
+ * The point, the row's main text: a field at body size that reads as text until pointed at or
+ * focused, wraps instead of truncating, and grows as it is typed up to two lines, then scrolls.
+ * The cap is two lines, its 0.5rem of padding and its two 1px hairline borders, top and bottom
+ * (`field-sizing-content` ignores `rows`, so only `max-h` bounds it).
+ */
+const pointField =
+  '-mx-2 field-sizing-content max-h-[calc(2lh+0.5rem+2px)] min-h-0 resize-none border-transparent px-2 py-1 text-base hover:border-input focus-visible:border-input'
+/** Job and layout: small selects on one quiet line under the point, a hairline only when pointed at. */
+const quietSelect = 'h-6 w-auto border-transparent px-1 py-0 hover:border-input'
+/** The moves and removal, muted until the row is pointed at or holds the focus. */
+const quietMoves =
+  'text-muted-foreground group-focus-within:text-foreground group-hover:text-foreground'
+
+/**
+ * One slide of the outline: its number, then its point to edit in place (saved when the field is
+ * left changed) and under it its job and layout to choose, and the moves and removal; read-only
+ * to a viewer who may not edit. A layout the look would not take here is not offered.
  */
 function OutlineRow(props: {
   slide: OutlineSlide
@@ -325,16 +379,42 @@ function OutlineRow(props: {
   const remove: OutlineOp = { op: 'remove', slide: n }
 
   return (
-    <li aria-label={`Slide ${n}`}>
-      <Blueprint className="flex flex-col gap-3 p-4">
-        <p className="text-overline uppercase text-muted-foreground">{`Slide ${n}`}</p>
-        {props.editable ? (
-          <>
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3">
-              <div className="flex flex-col gap-1">
-                <Label htmlFor={`${ids}-job`}>Job</Label>
+    <li aria-label={`Slide ${n}`} className={slideRow}>
+      <span aria-hidden="true" className={rowNumber}>
+        {n}
+      </span>
+      {props.editable ? (
+        <>
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <Label htmlFor={`${ids}-point`} className="sr-only">
+              Point
+            </Label>
+            <Textarea
+              id={`${ids}-point`}
+              rows={2}
+              className={pointField}
+              value={point}
+              disabled={disabled}
+              onChange={(e) => setPoint(firstChars(e.target.value, POINT_MAX))}
+              onKeyDown={(e) => {
+                // A point is one line that wraps: Enter leaves the field, as it did on one line.
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  e.currentTarget.blur()
+                }
+              }}
+              onBlur={() => {
+                if (point.trim() !== slide.point) onEdit({ op: 'change', slide: n, point })
+              }}
+            />
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <div className="flex items-center gap-1">
+                <Label htmlFor={`${ids}-job`} className={reasonText}>
+                  Job
+                </Label>
                 <NativeSelect
                   id={`${ids}-job`}
+                  className={quietSelect}
                   value={slide.job}
                   disabled={disabled}
                   onChange={(e) =>
@@ -348,10 +428,13 @@ function OutlineRow(props: {
                   ))}
                 </NativeSelect>
               </div>
-              <div className="flex flex-col gap-1">
-                <Label htmlFor={`${ids}-layout`}>Layout</Label>
+              <div className="flex items-center gap-1">
+                <Label htmlFor={`${ids}-layout`} className={reasonText}>
+                  Layout
+                </Label>
                 <NativeSelect
                   id={`${ids}-layout`}
+                  className={quietSelect}
                   value={slide.layout}
                   disabled={disabled}
                   onChange={(e) =>
@@ -366,21 +449,8 @@ function OutlineRow(props: {
                 </NativeSelect>
               </div>
             </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={`${ids}-point`}>Point</Label>
-              <Input
-                id={`${ids}-point`}
-                value={point}
-                disabled={disabled}
-                onChange={(e) => setPoint(firstChars(e.target.value, POINT_MAX))}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.currentTarget.blur()
-                }}
-                onBlur={() => {
-                  if (point.trim() !== slide.point) onEdit({ op: 'change', slide: n, point })
-                }}
-              />
-            </div>
+          </div>
+          <div className={quietMoves}>
             <ReorderButtons
               name={`slide ${n}`}
               up={
@@ -404,16 +474,16 @@ function OutlineRow(props: {
                 onClick: () => onEdit(remove),
               }}
             />
-          </>
-        ) : (
-          <>
-            <p className={reasonText}>
-              {`${JOB_LABELS[slide.job]} · ${LAYOUT_LABELS[slide.layout]}`}
-            </p>
-            <p>{slide.point}</p>
-          </>
-        )}
-      </Blueprint>
+          </div>
+        </>
+      ) : (
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <p>{slide.point}</p>
+          <p className={reasonText}>
+            {`${JOB_LABELS[slide.job]} · ${LAYOUT_LABELS[slide.layout]}`}
+          </p>
+        </div>
+      )}
     </li>
   )
 }
@@ -434,10 +504,10 @@ type SectionCheck = (op: BlogOutlineOp) => string | null
 /**
  * A blog's outline (BR2): its sections as a list, each a question-style heading and the one point
  * it makes, reworded in place (saved when the field is left changed; a heading that is not a
- * question is refused beside it), moved up or down, or removed, and a section added at the end;
- * then the key takeaways and the FAQ it ends with, and beside them the angle and "Write the
- * blog", which writes the text in the background (the step shows it in words, and a failed
- * writing offers "Try again"). A change the outline would not take is disabled, with why said once
+ * question is refused beside it), moved up or down, or removed; beside them the angle, the fields
+ * that add a section at the end, "Write the blog", which writes the text in the background (the
+ * step shows it in words, and a failed writing offers "Try again"), then the key takeaways and the
+ * FAQ the blog ends with. A change the outline would not take is disabled, with why said once
  * below the list. Each control asks editWaitError, so at a passed step it waits while any step
  * runs (criterion 122), and a change there moves the blog back to its outline (GD28); a viewer who
  * may not edit sees the outline only.
@@ -464,7 +534,7 @@ export function BlogOutlineStep({ view, viewer, actions }: BlogOutlineStepProps)
   if (!outline) {
     return (
       <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-8">
-        <h2 id={`${ids}-heading`} className="text-h3">
+        <h2 id={`${ids}-heading`} className="sr-only">
           Outline
         </h2>
         <p className={reasonText}>No outline for these facts. Pick an angle to outline it.</p>
@@ -503,7 +573,7 @@ export function BlogOutlineStep({ view, viewer, actions }: BlogOutlineStepProps)
 
   return (
     <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-8">
-      <h2 id={`${ids}-heading`} className="text-h3">
+      <h2 id={`${ids}-heading`} className="sr-only">
         Outline
       </h2>
 
@@ -511,7 +581,7 @@ export function BlogOutlineStep({ view, viewer, actions }: BlogOutlineStepProps)
         slides={
           <>
             {error && <p className={reasonText}>{error}</p>}
-            <ol className="flex flex-col gap-4">
+            <ol className="flex flex-col gap-1.5">
               {sections.map((section, i) => (
                 <SectionRow
                   // biome-ignore lint/suspicious/noArrayIndexKey: a row is its place; every change saves a new outline and keys the screen again.
@@ -535,6 +605,21 @@ export function BlogOutlineStep({ view, viewer, actions }: BlogOutlineStepProps)
                 ))}
               </ul>
             )}
+          </>
+        }
+        actions={
+          <>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+              {outline.idea && (
+                <>
+                  <dt className={reasonText}>Angle</dt>
+                  <dd>{outline.idea.angle}</dd>
+                </>
+              )}
+              <dt className={reasonText}>Sections</dt>
+              <dd>{`${sections.length} of ${BLOG_SECTIONS.min} to ${BLOG_SECTIONS.max}`}</dd>
+            </dl>
+            {/* Beside the sections, not under them, so the sections alone fill the slides area. */}
             {editGate.shown && (
               <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-1">
@@ -567,7 +652,17 @@ export function BlogOutlineStep({ view, viewer, actions }: BlogOutlineStepProps)
                 </Control>
               </div>
             )}
-
+            {waiting && <Working words={waiting} />}
+            {failed && (
+              <FailedLine words={WRITE_FAILED} reason={view.failedReasons?.[BLOG_TEXT_STEP]} />
+            )}
+            {writeGate.shown && (
+              <Control reason={writeGate.reason}>
+                <Button disabled={blocked || writeGate.reason !== null} onClick={write}>
+                  {failed ? 'Try again' : 'Write the blog'}
+                </Button>
+              </Control>
+            )}
             <div className="flex max-w-prose flex-col gap-2">
               <h3 className="text-h4">Key takeaways</h3>
               <ul className="flex list-disc flex-col gap-1 pl-5">
@@ -589,40 +684,15 @@ export function BlogOutlineStep({ view, viewer, actions }: BlogOutlineStepProps)
             </div>
           </>
         }
-        actions={
-          <>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-              {outline.idea && (
-                <>
-                  <dt className={reasonText}>Angle</dt>
-                  <dd>{outline.idea.angle}</dd>
-                </>
-              )}
-              <dt className={reasonText}>Sections</dt>
-              <dd>{`${sections.length} of ${BLOG_SECTIONS.min} to ${BLOG_SECTIONS.max}`}</dd>
-            </dl>
-            {waiting && <Working words={waiting} />}
-            {failed && (
-              <FailedLine words={WRITE_FAILED} reason={view.failedReasons?.[BLOG_TEXT_STEP]} />
-            )}
-            {writeGate.shown && (
-              <Control reason={writeGate.reason}>
-                <Button disabled={blocked || writeGate.reason !== null} onClick={write}>
-                  {failed ? 'Try again' : 'Write the blog'}
-                </Button>
-              </Control>
-            )}
-          </>
-        }
       />
     </section>
   )
 }
 
 /**
- * One section of a blog's outline: its number, its heading and point to edit in place (saved
- * when the field is left changed, or refused beside it), and its moves and removal; read-only to
- * a viewer who may not edit.
+ * One section of a blog's outline, on one compact card: its number, its heading and under it its
+ * point to edit in place (saved when the field is left changed, or refused under them), and its
+ * moves and removal; read-only to a viewer who may not edit.
  */
 function SectionRow(props: {
   section: BlogSection
@@ -656,33 +726,39 @@ function SectionRow(props: {
 
   return (
     <li aria-label={`Section ${n}`}>
-      <Blueprint className="flex flex-col gap-3 p-4">
-        <p className="text-overline uppercase text-muted-foreground">{`Section ${n}`}</p>
+      <Blueprint className={compactRow}>
+        <span aria-hidden="true" className={rowNumber}>
+          {n}
+        </span>
         {props.editable ? (
           <>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={`${ids}-heading`}>Heading</Label>
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <Label htmlFor={`${ids}-heading`} className="sr-only">
+                Heading
+              </Label>
               <Input
                 id={`${ids}-heading`}
+                className={cn(compactField, 'font-heading')}
                 value={heading}
                 disabled={disabled}
                 onChange={(e) => setHeading(firstChars(e.target.value, HEADING_MAX))}
                 onKeyDown={blurOnEnter}
                 onBlur={() => reword('heading', heading)}
               />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={`${ids}-point`}>Point</Label>
+              <Label htmlFor={`${ids}-point`} className="sr-only">
+                Point
+              </Label>
               <Input
                 id={`${ids}-point`}
+                className={compactField}
                 value={point}
                 disabled={disabled}
                 onChange={(e) => setPoint(firstChars(e.target.value, BLOG_POINT_MAX))}
                 onKeyDown={blurOnEnter}
                 onBlur={() => reword('point', point)}
               />
+              {refusal && <p className={reasonText}>{refusal}</p>}
             </div>
-            {refusal && <p className={reasonText}>{refusal}</p>}
             <ReorderButtons
               name={`section ${n}`}
               up={n > 1 ? { disabled, onClick: () => onEdit(move(n - 1)) } : undefined}
@@ -694,10 +770,10 @@ function SectionRow(props: {
             />
           </>
         ) : (
-          <>
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
             <h3 className="text-h4">{section.heading}</h3>
             <p>{section.point}</p>
-          </>
+          </div>
         )}
       </Blueprint>
     </li>

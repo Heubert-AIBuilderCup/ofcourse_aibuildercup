@@ -22,6 +22,9 @@ mock.module('next/navigation', () => ({
 }))
 
 const { BlogImagesStep, ImagesStep } = await import('./ImagesStep')
+
+/** Where a link sits: in the step bar ("Step actions", 18 Oct) or anywhere else. */
+const place = (el: Element) => (el.closest('[aria-label="Step actions"]') ? 'bar' : 'elsewhere')
 type Props = Parameters<typeof ImagesStep>[0]
 
 const FIELD_NOTES = templateById('field-notes')
@@ -168,19 +171,49 @@ const drawn = (slideArt: SlideArt[], over: Partial<Props['view']> = {}) =>
     ...over,
   })
 
-/** The figure that holds slide n: its picture and what shows under it. */
+/** The filmstrip under the stage: one thumbnail per slide. */
+const strip = () => screen.getByRole('list', { name: 'All slides' })
+
+/** Selects slide n on the stage, by its thumbnail in the filmstrip. */
+const select = (n: number) =>
+  fireEvent.click(within(strip()).getByRole('button', { name: `Slide ${n}` }))
+
+/** Slide n selected: the stage, with the slide and what shows under it (why it has no picture). */
+function stageAt(n: number, name = 'Slides, one at a time'): HTMLElement {
+  select(n)
+  return screen.getByRole('group', { name })
+}
+
+/** Slide n selected: its figure, the picture and the loader over it while it is drawn. */
 function figureOf(n: number): HTMLElement {
+  select(n)
   const figure = screen.getByRole('img', { name: new RegExp(`^Slide ${n}\\b`) }).closest('figure')
   if (!figure) throw new Error(`no figure for slide ${n}`)
   return figure
 }
 
-/** Slide n's chips, scene and takes, in the actions area beside the pictures (GD30). */
+/** Opens the actions area's tab whose name starts with `name`. */
+const openTab = (name: string) =>
+  fireEvent.click(screen.getByRole('tab', { name: new RegExp(`^${name}\\b`) }))
+
+/** The open tab of the actions area, by the words it shows. */
+const openOne = () =>
+  screen
+    .queryAllByRole('tab')
+    .filter((t) => t.getAttribute('aria-selected') === 'true')
+    .map((t) => t.textContent)
+
+/** Slide n selected: its chips, scene and takes, in the "This slide" tab beside the stage (GD30). */
 function controlsOf(n: number): HTMLElement {
+  select(n)
+  if (screen.queryByRole('tab', { name: 'This slide' })) openTab('This slide')
   return within(screen.getByRole('region', { name: 'Actions' })).getByRole('region', {
     name: `Slide ${n}`,
   })
 }
+
+/** The buttons that change something: every one but the filmstrip's thumbnails. */
+const controls = () => screen.queryAllByRole('button').filter((b) => !strip().contains(b))
 
 const press = async (button: HTMLElement) => {
   await act(async () => {
@@ -205,16 +238,75 @@ describe('ImagesStep', () => {
 
   it('previews each art-box slide with its planned scene, from the plan (GD12)', () => {
     view(planned)
-    expect(screen.queryByRole('button', { name: 'Plan images' })).toBeNull()
-    expect(screen.getByRole('img', { name: /^Slide 2\b/ })).toHaveAttribute(
-      'src',
+    expect(screen.queryByRole('button', { name: 'Plan images' }) === null).toBe(true)
+    select(2)
+    expect(screen.getByRole('img', { name: /^Slide 2\b/ }).getAttribute('src')).toBe(
       '/admin/posts/p1/preview?layout=lay1&slide=2&plan=plan1',
     )
-    expect(screen.queryByRole('img', { name: /^Slide 3\b/ })).toBeNull()
+    expect(screen.queryAllByRole('button', { name: 'Edit Slide 2 · Scene' }).length).toBe(1)
+    // A slide with no art box shows as it is laid out, with no scene to plan.
+    select(3)
+    expect(screen.queryAllByRole('button', { name: /^Edit Slide 3/ }).length).toBe(0)
+    expect(screen.queryAllByRole('figure', { name: 'Slide 3 picture' }).length).toBe(0)
+  })
+
+  it("puts the post's slides on the stage one at a time, the first selected, every slide in the filmstrip", () => {
+    view(planned)
+    expect(
+      within(strip())
+        .getAllByRole('button')
+        .map((b) => b.getAttribute('aria-label')),
+    ).toEqual(['Slide 1', 'Slide 2', 'Slide 3', 'Slide 4'])
+    expect(screen.getAllByRole('img').map((img) => img.getAttribute('src'))).toEqual([
+      '/admin/posts/p1/preview?layout=lay1&slide=1&plan=plan1',
+    ])
+    select(4)
+    expect(screen.getAllByRole('img').map((img) => img.getAttribute('src'))).toEqual([
+      '/admin/posts/p1/preview?layout=lay1&slide=4&plan=plan1',
+    ])
+  })
+
+  it('before drawing, shows the plan and the drawing as one group, with no tabs', () => {
+    view(planned)
+    expect(screen.queryAllByRole('tab').length).toBe(0)
+    expect(screen.queryAllByRole('button', { name: 'Draw images (2 images)' }).length).toBe(1)
+  })
+
+  it('once drawn, opens "This slide" first, then Plan and Order; the selected slide’s controls alone', () => {
+    drawn([art(1), art(2)])
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+      'This slide',
+      'Plan',
+      'Order',
+    ])
+    expect(openOne()).toEqual(['This slide'])
+    const actions = within(screen.getByRole('region', { name: 'Actions' }))
+    expect(actions.queryAllByRole('region', { name: /^Slide \d$/ }).length).toBe(1)
+    expect(actions.queryAllByRole('region', { name: 'Slide 1' }).length).toBe(1)
+    select(2)
+    expect(actions.queryAllByRole('region', { name: 'Slide 1' }).length).toBe(0)
+    expect(actions.queryAllByRole('region', { name: 'Slide 2' }).length).toBe(1)
+    // A slide with no picture has nothing to change here.
+    select(3)
+    expect(actions.queryAllByRole('region', { name: /^Slide \d$/ }).length).toBe(0)
+    expect(actions.queryAllByText('Slide 3 has no picture to change.').length).toBe(1)
+  })
+
+  it('counts on the Plan tab the slides a finished run left to draw', () => {
+    drawn([art(1), art(2, { assetId: null, fallback: 'no_art' })])
+    expect(screen.queryAllByRole('tab', { name: 'Plan · 1 left to draw' }).length).toBe(1)
+    cleanup()
+    drawn([art(1), art(2)])
+    expect(screen.queryAllByRole('tab', { name: 'Plan' }).length).toBe(1)
+    cleanup()
+    // While a run goes on, its slides are on their way, not left.
+    drawn([art(1), art(2, { assetId: null, fallback: 'no_art' })], { running: ['images'] })
+    expect(screen.queryAllByRole('tab', { name: 'Plan' }).length).toBe(1)
   })
 
   it('saves a planned scene edited in place (GD12)', async () => {
     view(planned)
+    select(2)
     fireEvent.click(screen.getByRole('button', { name: 'Edit Slide 2 · Scene' }))
     const field = screen.getByRole('textbox', { name: 'Slide 2 · Scene' })
     expect(field).toHaveValue('A timetable pinned above a desk.')
@@ -240,34 +332,39 @@ describe('ImagesStep', () => {
     cleanup()
     // The first picture has landed: it shows, and the rest are still being drawn.
     drawn([art(1)], { running: ['images'] })
-    expect(screen.getByRole('img', { name: /^Slide 1\b/ })).toHaveAttribute(
-      'src',
+    expect(screen.getByRole('img', { name: /^Slide 1\b/ }).getAttribute('src')).toBe(
       '/admin/assets/png1',
     )
     // Slide 2's picture is on its way, not missing: nothing is left to draw while the run goes on.
-    expect(within(figureOf(2)).queryByText('No art') === null).toBe(true)
+    const slide2 = within(stageAt(2))
+    expect(slide2.queryByText('No art') === null).toBe(true)
+    expect(slide2.queryByText('Not drawn yet') === null).toBe(true)
+    openTab('Plan')
     expect(screen.queryByRole('button', { name: 'Draw remaining' }) === null).toBe(true)
-    expect(screen.getByText('Images are being drawn')).toBeInTheDocument()
+    expect(screen.queryAllByText('Images are being drawn').length).toBe(1)
   })
 
   it('offers "Draw remaining" only once a finished run left a slide without its picture', () => {
     // Two failed calls then a picture: every slide is drawn, nothing is left.
     drawn([art(1), art(2)])
+    openTab('Plan')
     expect(screen.queryByRole('button', { name: 'Draw remaining' }) === null).toBe(true)
-    expect(screen.queryByText('Could not draw')).toBeNull()
+    expect(within(stageAt(2)).queryByText('Could not draw') === null).toBe(true)
     cleanup()
 
     // Every attempt failed: the slide says so, with its own retry and "Draw remaining".
     drawn([art(1), art(2, { assetId: null, fallback: 'no_art' })])
-    expect(within(figureOf(2)).getByText('Could not draw')).toBeInTheDocument()
-    expect(
-      within(figureOf(2)).getByRole('button', { name: 'Try this one again' }),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Draw remaining' })).toBeInTheDocument()
+    expect(within(stageAt(2)).queryAllByText('Could not draw').length).toBe(1)
+    expect(within(stageAt(2)).queryAllByRole('button', { name: 'Try this one again' }).length).toBe(
+      1,
+    )
+    openTab('Plan')
+    expect(screen.queryAllByRole('button', { name: 'Draw remaining' }).length).toBe(1)
     cleanup()
 
     // Not while a run goes on, even over a slide an earlier run could not draw.
     drawn([art(1), art(2, { assetId: null, fallback: 'no_art' })], { running: ['images'] })
+    openTab('Plan')
     expect(screen.queryByRole('button', { name: 'Draw remaining' }) === null).toBe(true)
   })
 
@@ -284,15 +381,18 @@ describe('ImagesStep', () => {
     // The first picture has landed: only slide 2 still waits.
     drawn([art(1)], { running: ['images'], progress: { images: { done: 1, total: 2 } } })
     expect(screen.getByText('Drawing image 2 of 2')).toBeInTheDocument()
-    expect(within(figureOf(1)).queryByRole('status')).toBeNull()
+    expect(within(figureOf(1)).queryByRole('status') === null).toBe(true)
     expect(
-      within(figureOf(2)).getByRole('status', { name: 'Slide 2 · being drawn' }),
-    ).toBeInTheDocument()
+      within(figureOf(2)).queryAllByRole('status', { name: 'Slide 2 · being drawn' }).length,
+    ).toBe(1)
     cleanup()
 
     // Nothing waits once the drawing is over.
     drawn([art(1), art(2)])
-    expect(screen.queryAllByRole('status')).toHaveLength(0)
+    for (const n of [1, 2]) {
+      select(n)
+      expect(screen.queryAllByRole('status').length).toBe(0)
+    }
   })
 
   it('shows a loader with the words while the scenes are planned', () => {
@@ -303,28 +403,32 @@ describe('ImagesStep', () => {
   it('shows the pictures in the slides area, and each drawn picture’s chips and scene in the actions area beside them (GD30)', () => {
     drawn([art(1), art(2)])
     const slides = screen.getByRole('region', { name: 'Slides' })
-    expect(within(slides).getByRole('figure', { name: 'Slide 2 picture' })).toBe(figureOf(2))
-    expect(within(figureOf(2)).queryByRole('button', { name: 'Closer' })).toBeNull()
+    const figure = figureOf(2)
+    expect(within(slides).queryByRole('figure', { name: 'Slide 2 picture' }) === figure).toBe(true)
+    expect(within(figure).queryByRole('button', { name: 'Closer' }) === null).toBe(true)
     for (const n of [1, 2]) {
-      expect(within(controlsOf(n)).getByRole('button', { name: 'Closer' })).toBeInTheDocument()
-      expect(within(controlsOf(n)).getByRole('button', { name: 'Edit scene' })).toBeInTheDocument()
+      expect(within(controlsOf(n)).queryAllByRole('button', { name: 'Closer' }).length).toBe(1)
+      expect(within(controlsOf(n)).queryAllByRole('button', { name: 'Edit scene' }).length).toBe(1)
     }
+    openTab('Order')
     expect(
-      within(screen.getByRole('region', { name: 'Actions' })).getByRole('list', {
+      within(screen.getByRole('region', { name: 'Actions' })).queryAllByRole('list', {
         name: 'Slide order',
-      }),
-    ).toBeInTheDocument()
+      }).length,
+    ).toBe(1)
   })
 
   it('nudges one drawn image with the chip pressed for it (GD13)', async () => {
     drawn([art(1), art(2)])
-    expect(screen.getByRole('img', { name: /^Slide 2\b/ })).toHaveAttribute(
-      'src',
+    select(2)
+    expect(screen.getByRole('img', { name: /^Slide 2\b/ }).getAttribute('src')).toBe(
       '/admin/assets/png2',
     )
-    expect(screen.queryByRole('button', { name: /^Draw/ })).toBeNull()
+    openTab('Plan')
+    expect(screen.queryByRole('button', { name: /^Draw/ }) === null).toBe(true)
     // Each picture's figure has a name the browser specs find it by.
-    expect(screen.getByRole('figure', { name: 'Slide 2 picture' })).toBe(figureOf(2))
+    expect(screen.queryByRole('figure', { name: 'Slide 2 picture' }) === figureOf(2)).toBe(true)
+    expect(within(controlsOf(2)).queryByRole('button', { name: /^Draw/ }) === null).toBe(true)
     await press(within(controlsOf(2)).getByRole('button', { name: 'Closer' }))
     expect(actions.nudgeImageAction).toHaveBeenCalledWith('p1', 7, { slide: 2, nudge: 'closer' })
   })
@@ -387,19 +491,23 @@ describe('ImagesStep', () => {
 
   it('marks a slide the daily limit left undrawn, and draws the rest with "Draw remaining" (GD14)', async () => {
     drawn([art(1), art(2, { assetId: null, fallback: 'daily_limit' })])
-    expect(within(figureOf(2)).getByText('Limit')).toBeInTheDocument()
-    expect(within(figureOf(2)).getByText('Daily image limit reached.')).toBeInTheDocument()
-    expect(screen.queryByRole('region', { name: 'Slide 2' })).toBeNull()
-    expect(within(figureOf(1)).queryByText('Daily image limit reached.')).toBeNull()
+    // The day's limit shows under the selected slide, on the stage.
+    expect(within(stageAt(2)).queryAllByText('Limit').length).toBe(1)
+    expect(within(stageAt(2)).queryAllByText('Daily image limit reached.').length).toBe(1)
+    expect(screen.queryByRole('region', { name: 'Slide 2' }) === null).toBe(true)
+    expect(within(stageAt(1)).queryByText('Daily image limit reached.') === null).toBe(true)
+    openTab('Plan')
     await press(screen.getByRole('button', { name: 'Draw remaining' }))
     expect(actions.drawImagesAction).toHaveBeenCalledWith('p1', 7)
   })
 
   it('says a slide whose image could not be drawn so, with "Try this one again", which draws that slide alone', async () => {
     drawn([art(1), art(2, { assetId: null, fallback: 'no_art' })])
-    const slide = within(figureOf(2))
-    expect(slide.getByText('Could not draw')).toBeInTheDocument()
-    expect(within(figureOf(1)).queryByRole('button', { name: 'Try this one again' })).toBeNull()
+    expect(within(stageAt(1)).queryByRole('button', { name: 'Try this one again' }) === null).toBe(
+      true,
+    )
+    const slide = within(stageAt(2))
+    expect(slide.queryAllByText('Could not draw').length).toBe(1)
     await press(slide.getByRole('button', { name: 'Try this one again' }))
     expect(actions.nudgeImageAction).toHaveBeenCalledWith('p1', 7, { slide: 2, nudge: null })
     expect(actions.drawImagesAction).not.toHaveBeenCalled()
@@ -412,7 +520,7 @@ describe('ImagesStep', () => {
     })
     expect(actions.drawImagesAction).toHaveBeenCalledTimes(1)
     expect(actions.drawImagesAction).toHaveBeenCalledWith('p1', 7)
-    expect(within(figureOf(2)).getByText('Not drawn yet')).toBeInTheDocument()
+    expect(within(stageAt(2)).queryAllByText('Not drawn yet').length).toBe(1)
     cleanup()
     actions.drawImagesAction.mockClear()
 
@@ -433,7 +541,8 @@ describe('ImagesStep', () => {
 
   it('offers "Draw remaining" for a scene changed since its image was drawn', () => {
     drawn([art(1), art(2, { scene: 'An older scene.' })])
-    expect(screen.getByRole('button', { name: 'Draw remaining' })).toBeInTheDocument()
+    openTab('Plan')
+    expect(screen.queryAllByRole('button', { name: 'Draw remaining' }).length).toBe(1)
   })
 
   it('plans again at once over the model’s plan, and asks first over scenes in the editor’s words (GD12)', async () => {
@@ -461,10 +570,11 @@ describe('ImagesStep', () => {
 
     it('moves a body slide down or up with its picture, never past the cover or the takeaway', async () => {
       drawn([art(1), art(2)])
+      openTab('Order')
       const order = screen.getByRole('list', { name: 'Slide order' })
-      expect(within(order).getAllByRole('listitem')).toHaveLength(4)
+      expect(within(order).getAllByRole('listitem').length).toBe(4)
       // Slides 2 and 3 are the body slides; the cover and the takeaway never move.
-      expect(screen.queryByRole('button', { name: /^Move slide [14]/ })).toBeNull()
+      expect(screen.queryByRole('button', { name: /^Move slide [14]/ }) === null).toBe(true)
       expect(move(2, 'up')).toBeDisabled()
       expect(move(3, 'down')).toBeDisabled()
       await press(move(2, 'down'))
@@ -489,28 +599,37 @@ describe('ImagesStep', () => {
 
     it('holds the moves while the images are drawn, and offers none before drawing or in review', () => {
       drawn([art(1)], { running: ['images'] })
-      expect(move(2, 'down')).toBeDisabled()
+      openTab('Order')
+      expect((move(2, 'down') as HTMLButtonElement).disabled).toBe(true)
       cleanup()
       view(planned)
-      expect(screen.queryByRole('list', { name: 'Slide order' })).toBeNull()
+      expect(screen.queryByRole('tab', { name: 'Order' }) === null).toBe(true)
+      expect(screen.queryByRole('list', { name: 'Slide order' }) === null).toBe(true)
       cleanup()
       drawn([art(1), art(2)], { stage: 'in_review' })
-      expect(screen.queryByRole('list', { name: 'Slide order' })).toBeNull()
+      expect(screen.queryByRole('tab', { name: 'Order' }) === null).toBe(true)
+      expect(screen.queryByRole('list', { name: 'Slide order' }) === null).toBe(true)
     })
   })
 
   it('in review, keeps every scene edit disabled with the running step in words while one runs (122)', () => {
     drawn([art(1), art(2)], { stage: 'in_review', running: ['market'] })
-    expect(screen.getByText('The market version is being made')).toBeInTheDocument()
-    for (const edit of screen.getAllByRole('button')) expect(edit).toBeDisabled()
+    expect(screen.queryAllByText('The market version is being made').length).toBe(1)
+    for (const n of [1, 2, 3, 4]) {
+      select(n)
+      expect(controls().filter((b) => !(b as HTMLButtonElement).disabled).length).toBe(0)
+    }
   })
 
   it('in review, offers only each scene to edit, which moves the post back by itself (111, GD28)', async () => {
     drawn([art(1), art(2, { assetId: null, fallback: 'no_art' })], { stage: 'in_review' })
-    expect(within(figureOf(2)).getByText('Could not draw')).toBeInTheDocument()
-    const names = screen
-      .getAllByRole('button')
-      .map((b) => b.getAttribute('aria-label') ?? b.textContent)
+    expect(within(stageAt(2)).queryAllByText('Could not draw').length).toBe(1)
+    // In review the one group shows without tabs.
+    expect(screen.queryAllByRole('tab').length).toBe(0)
+    const names = [1, 2, 3, 4].flatMap((n) => {
+      select(n)
+      return controls().map((b) => b.getAttribute('aria-label') ?? b.textContent)
+    })
     expect(new Set(names)).toEqual(
       new Set(['Edit scene', 'Edit Slide 1 · Scene', 'Edit Slide 2 · Scene']),
     )
@@ -626,27 +745,29 @@ describe('Skip pictures', () => {
 
   it('is still offered after some pictures were drawn, while a slide has none', async () => {
     drawn([art(1), art(2, { assetId: null, fallback: 'no_art' })])
+    openTab('Plan')
     await press(screen.getByRole('button', { name: SKIP }))
     expect(actions.skipPicturesAction).toHaveBeenCalledWith('p1', 7)
   })
 
   it('afterwards a skipped slide reads "Text only", never "Could not draw", with nothing to retry and nothing left to skip', () => {
     drawn([art(1), art(2, { assetId: null, fallback: 'skipped' })])
-    const slide = within(figureOf(2))
+    const slide = within(stageAt(2))
     expect(slide.queryByText('Text only') !== null).toBe(true)
-    expect(screen.queryByText('Could not draw')).toBeNull()
-    expect(slide.queryByRole('button', { name: 'Try this one again' })).toBeNull()
-    expect(screen.queryByRole('button', { name: SKIP })).toBeNull()
+    expect(slide.queryByText('Could not draw') === null).toBe(true)
+    expect(slide.queryByRole('button', { name: 'Try this one again' }) === null).toBe(true)
+    openTab('Plan')
+    expect(screen.queryByRole('button', { name: SKIP }) === null).toBe(true)
   })
 
   it('a slide whose drawing failed says why beside "Could not draw"', () => {
     drawn([art(1), art(2, { assetId: null, fallback: 'no_art', reason: 'busy' })])
-    const slide = within(figureOf(2))
+    const slide = within(stageAt(2))
     expect(slide.queryByText('Could not draw') !== null).toBe(true)
     expect(slide.queryByText("Google's model is busy. Try again in a minute.") !== null).toBe(true)
     cleanup()
     drawn([art(1), art(2, { assetId: null, fallback: 'no_art', reason: 'timeout' })])
-    expect(within(figureOf(2)).queryByText('It took too long. Try again.') !== null).toBe(true)
+    expect(within(stageAt(2)).queryByText('It took too long. Try again.') !== null).toBe(true)
   })
 
   it('is not offered for a comic, whose panels are its pictures', () => {
@@ -676,6 +797,7 @@ describe("a comic's panels (RC10)", () => {
     cleanup()
 
     drawn([art(1)], { courseId: 'c1', characterApproved: true })
+    openTab('Plan')
     await press(screen.getByRole('button', { name: 'Draw remaining panels' }))
     expect(actions.drawImagesAction).toHaveBeenCalledTimes(2)
   })
@@ -734,6 +856,13 @@ describe("a blog's pictures (BR4)", () => {
       />,
     )
 
+  /** The blog's places, as the filmstrip names their thumbnails. */
+  const COVER = 'Cover picture'
+  const AFTER_2 = 'Picture after section 2'
+  /** Selects a place on the stage, by its thumbnail in the filmstrip. */
+  const pick = (place: string) =>
+    fireEvent.click(within(strip()).getByRole('button', { name: place }))
+
   afterEach(() => {
     blogActions.embedPostSlidesAction.mockClear()
     blogActions.drawImagesAction.mockClear()
@@ -741,10 +870,22 @@ describe("a blog's pictures (BR4)", () => {
 
   it('shows each planned scene at its place and draws them', async () => {
     blog()
-    expect(screen.getByRole('figure', { name: 'Cover picture' })).toHaveTextContent(
+    // The pictures on the stage one at a time, the cover first, each place in the filmstrip.
+    pick(COVER)
+    expect(
+      within(screen.getByRole('group', { name: 'Pictures, one at a time' })).getAllByRole('figure')
+        .length,
+    ).toBe(1)
+    expect(
+      within(strip())
+        .getAllByRole('button')
+        .map((b) => b.getAttribute('aria-label')),
+    ).toEqual([COVER, AFTER_2])
+    expect(screen.getByRole('figure', { name: 'Cover picture' }).textContent).toContain(
       'A desk at dusk.',
     )
-    expect(screen.getByRole('figure', { name: 'Picture after section 2' })).toBeInTheDocument()
+    pick(AFTER_2)
+    expect(screen.queryAllByRole('figure', { name: 'Picture after section 2' }).length).toBe(1)
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Draw images (2 images)' }))
     })
@@ -792,16 +933,34 @@ describe("a blog's pictures (BR4)", () => {
 
   it('says a picture that could not be drawn so, with "Try this one again", which draws that picture alone', async () => {
     blogDrawn([picture(1), picture(2, { assetId: null, tintedAssetId: null, fallback: 'no_art' })])
-    const place = within(screen.getByRole('figure', { name: 'Picture after section 2' }))
-    expect(place.getByText('Could not draw')).toBeInTheDocument()
     expect(
       within(screen.getByRole('figure', { name: 'Cover picture' })).queryByRole('button', {
         name: 'Try this one again',
-      }),
-    ).toBeNull()
+      }) === null,
+    ).toBe(true)
+    pick(AFTER_2)
+    const place = within(screen.getByRole('figure', { name: 'Picture after section 2' }))
+    expect(place.queryAllByText('Could not draw').length).toBe(1)
     await press(place.getByRole('button', { name: 'Try this one again' }))
     expect(actions.nudgeImageAction).toHaveBeenCalledWith('p1', 7, { slide: 2, nudge: null })
     expect(actions.drawImagesAction).not.toHaveBeenCalled()
+  })
+
+  it('once drawn, opens "This picture" first, with the selected picture’s chips alone', async () => {
+    blogDrawn([picture(1), picture(2)])
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+      'This picture',
+      'Plan',
+      'Embed',
+    ])
+    expect(openOne()).toEqual(['This picture'])
+    const actionsArea = within(screen.getByRole('region', { name: 'Actions' }))
+    expect(actionsArea.queryAllByRole('region').length).toBe(1)
+    expect(actionsArea.queryAllByRole('region', { name: 'Cover picture' }).length).toBe(1)
+    pick(AFTER_2)
+    expect(actionsArea.queryAllByRole('region', { name: 'Cover picture' }).length).toBe(0)
+    await press(actionsArea.getByRole('button', { name: 'Closer' }))
+    expect(actions.nudgeImageAction).toHaveBeenCalledWith('p1', 7, { slide: 2, nudge: 'closer' })
   })
 
   it('says why a picture could not be drawn when its last call said', () => {
@@ -809,6 +968,7 @@ describe("a blog's pictures (BR4)", () => {
       picture(1),
       picture(2, { assetId: null, tintedAssetId: null, fallback: 'no_art', reason: 'timeout' }),
     ])
+    pick(AFTER_2)
     const place = within(screen.getByRole('figure', { name: 'Picture after section 2' }))
     expect(place.queryByText('Could not draw') !== null).toBe(true)
     expect(place.queryByText('It took too long. Try again.') !== null).toBe(true)
@@ -816,14 +976,18 @@ describe("a blog's pictures (BR4)", () => {
 
   it('offers "Draw remaining" only once a finished run left a picture undrawn, never while one runs', () => {
     blogDrawn([picture(1), picture(2)])
+    openTab('Plan')
     expect(screen.queryByRole('button', { name: 'Draw remaining' }) === null).toBe(true)
     cleanup()
     const failed = picture(2, { assetId: null, tintedAssetId: null, fallback: 'no_art' })
     blogDrawn([picture(1), failed])
-    expect(screen.getByRole('button', { name: 'Draw remaining' })).toBeInTheDocument()
+    expect(screen.queryAllByRole('tab', { name: 'Plan · 1 left to draw' }).length).toBe(1)
+    openTab('Plan')
+    expect(screen.queryAllByRole('button', { name: 'Draw remaining' }).length).toBe(1)
     cleanup()
     for (const images of [[picture(1)], [picture(1), failed]]) {
       blogDrawn(images, { running: ['images'] })
+      openTab('Plan')
       expect(screen.queryByRole('button', { name: 'Draw remaining' }) === null).toBe(true)
       cleanup()
     }
@@ -836,11 +1000,12 @@ describe("a blog's pictures (BR4)", () => {
     })
     expect(actions.drawImagesAction).toHaveBeenCalledTimes(1)
     expect(actions.drawImagesAction).toHaveBeenCalledWith('p1', 7)
+    pick(AFTER_2)
     expect(
-      within(screen.getByRole('figure', { name: 'Picture after section 2' })).getByText(
+      within(screen.getByRole('figure', { name: 'Picture after section 2' })).queryAllByText(
         'Not drawn yet',
-      ),
-    ).toBeInTheDocument()
+      ).length,
+    ).toBe(1)
     cleanup()
     actions.drawImagesAction.mockClear()
 
@@ -863,6 +1028,7 @@ describe("a blog's pictures (BR4)", () => {
 
   it("embeds a live linked post's slides after the section chosen, offering only live posts", async () => {
     blog()
+    openTab('Embed')
     const post = screen.getByRole('combobox', { name: 'Post' })
     expect(within(post).queryByRole('option', { name: 'Not live yet' })).toBeNull()
     fireEvent.change(post, { target: { value: POST_ID } })
@@ -880,8 +1046,74 @@ describe("a blog's pictures (BR4)", () => {
 
   it('shows a viewer who may not edit the pictures with no control', () => {
     blog({}, { role: 'user', reviewer: true })
-    expect(screen.getByRole('figure', { name: 'Cover picture' })).toBeInTheDocument()
-    expect(screen.queryAllByRole('button')).toHaveLength(0)
-    expect(screen.queryAllByRole('combobox')).toHaveLength(0)
+    expect(screen.queryAllByRole('figure', { name: 'Cover picture' }).length).toBe(1)
+    expect(screen.queryAllByRole('tab').length).toBe(0)
+    for (const place of [COVER, AFTER_2]) {
+      pick(place)
+      expect(controls().length).toBe(0)
+      expect(screen.queryAllByRole('combobox').length).toBe(0)
+    }
+  })
+})
+
+describe('Download slides (Images on)', () => {
+  /** Each "Download slides" link: its address, and whether it downloads. */
+  const downloads = () =>
+    screen
+      .queryAllByRole('link', { name: 'Download slides' })
+      .map((a) => `${a.getAttribute('href')} ${a.hasAttribute('download')} ${place(a)}`)
+
+  it('is offered once the slides are saved text only, in the step bar and not under the stage (18 Oct)', () => {
+    drawn([
+      art(1, { assetId: null, fallback: 'skipped' }),
+      art(2, { assetId: null, fallback: 'skipped' }),
+    ])
+    expect(downloads()).toEqual(['/admin/posts/p1/slides true bar'])
+    expect(
+      within(screen.getByRole('group', { name: 'Slides, one at a time' })).queryAllByRole('link')
+        .length,
+    ).toBe(0)
+  })
+
+  it('is offered once the pictures are drawn into the slides', () => {
+    drawn([art(1), art(2)])
+    expect(downloads()).toEqual(['/admin/posts/p1/slides true bar'])
+  })
+
+  it('is not offered before the slides are rendered, nor while the pictures are drawn', () => {
+    view(planned)
+    expect(downloads()).toEqual([])
+    cleanup()
+    drawn([art(1), art(2, { assetId: null, fallback: 'no_art' })], { running: ['images'] })
+    expect(downloads()).toEqual([])
+  })
+})
+
+describe('a fit check failing at Images (18 Oct)', () => {
+  it('names each failing check by slide, slot and what, with the way to the Text step’s Checks', () => {
+    const over = {
+      check: 'length' as const,
+      slide: 2,
+      slot: 'heading',
+      value: 90,
+      limit: '1–40 chars',
+      pass: false,
+      label: 'Slide 2 · 90 chars (1–40) · Over',
+    }
+    const layout = BASE.layout
+    if (!layout) throw new Error('no layout')
+    view({
+      current: { ...BASE, layout: { ...layout, body: { ...layout.body, fitChecks: [over] } } },
+    })
+    expect(screen.getByRole('button', { name: /^Draw images/ })).toBeDisabled()
+    const failing = screen.getByRole('list', { name: 'Failing fit checks' })
+    expect(
+      within(failing)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Slide 2 · Heading · Too long · 90 characters · limit 1–40'])
+    expect(screen.getByRole('link', { name: 'Fix it on Text · Checks' }).getAttribute('href')).toBe(
+      '/admin/posts/p1/text?tab=Checks',
+    )
   })
 })

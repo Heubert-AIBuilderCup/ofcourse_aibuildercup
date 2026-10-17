@@ -4,8 +4,9 @@
 /** Why a step failed: the day's cap, the model refusing calls for a while, too slow, or anything else. */
 export type FailureReason = 'daily_limit' | 'busy' | 'timeout' | 'other'
 
-// ai/client.ts AI_ERRORS.dailyLimit, "The daily limit for this step is reached."
-const DAILY_LIMIT = /\bdaily limit\b/i
+// ai/client.ts AI_ERRORS.dailyLimit, "The daily limit for this step is reached.", and the client's
+// refusal at a cap, lib/limits.ts "Today's limit of 600 images is used up. …".
+const DAILY_LIMIT = /\bdaily limit\b|\blimit of \d+ .+ is used up\b/i
 // The image and text models' per-minute limit: @google/genai's ApiError, status 429.
 const BUSY = /\b429\b|RESOURCE_EXHAUSTED/
 // AbortSignal.timeout's TimeoutError ("aborted due to timeout") and a plain abort.

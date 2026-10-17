@@ -10,6 +10,8 @@ import { occupationsFor, routeWord } from '@/features/roads/data/occupations'
 import { subjectsOf } from '@/features/roads/data/subjects'
 import type { CompareRow, Comparison, RoadSpec } from '@/features/roads/data/types'
 import { composeRoad, workRightsLine } from '@/features/roads/model/compose'
+import { nextRoad } from '@/features/roads/model/next-road'
+import { otherCourses, otherCourseTileId } from '@/features/roads/model/options'
 import type { Pinned, StoredAnswers } from '@/shared/types/student'
 import { failedFilters } from './filters'
 
@@ -139,22 +141,28 @@ export function draftPin(
   return stored && pinOf(stored.courseId, stored.cityId) ? stored : undefined
 }
 
-const comparison = (
+/** With a course to pin, the road a new roadmap around it would draw, for the board to turn into. */
+function comparison(
   spec: RoadSpec,
   alternative: RoadSpec | null,
   answers: StoredAnswers,
   cityId: string,
-): Comparison => ({
-  rows: compareRows(spec, alternative, answers, cityId),
-  pin: alternative && pinnable(alternative.courseId) ? alternative.courseId : null,
-})
+): Comparison {
+  const rows = compareRows(spec, alternative, answers, cityId)
+  if (!alternative || !pinnable(alternative.courseId)) return { rows, pin: null }
+  return { rows, pin: alternative.courseId, next: nextRoad(spec, alternative, answers) }
+}
 
 /**
  * "What changes" on her board, by tile id: the other-city tile beside her road in that city, the
- * other-course tile beside her road around that course. No other tile has one.
+ * other-course tile, the course she puts on her board from the stack and each other course beside
+ * the study step, each beside her road around that course. No other tile has one.
  */
 export function compareByTile(spec: RoadSpec, answers: StoredAnswers): Record<string, Comparison> {
-  const course = alternativeForCourse(spec, spec.altCourseId)
+  const byCourse = (slot: 'alt-course' | 'stack-course', courseId: string) => {
+    const course = alternativeForCourse(spec, courseId)
+    return course ? { [spec.slots[slot].id]: comparison(spec, course, answers, course.cityId) } : {}
+  }
   return {
     [spec.slots['alt-city'].id]: comparison(
       spec,
@@ -162,8 +170,15 @@ export function compareByTile(spec: RoadSpec, answers: StoredAnswers): Record<st
       answers,
       spec.altCityId,
     ),
-    ...(course
-      ? { [spec.slots['alt-course'].id]: comparison(spec, course, answers, course.cityId) }
-      : {}),
+    ...byCourse('alt-course', spec.altCourseId),
+    ...byCourse('stack-course', spec.stackCourseId),
+    ...Object.fromEntries(
+      otherCourses(spec).flatMap((courseId) => {
+        const course = alternativeForCourse(spec, courseId)
+        return course
+          ? [[otherCourseTileId(courseId), comparison(spec, course, answers, course.cityId)]]
+          : []
+      }),
+    ),
   }
 }

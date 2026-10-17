@@ -6,6 +6,7 @@ import { ART_PROMPT_ERROR, artPromptError } from '../../ai/draft'
 import { LIBRARY } from '../../assets/library'
 import { fitPasses } from '../../layout/fit'
 import { replaceSentence } from '../../lib/claims'
+import { claimFitError } from '../../lib/version-status'
 import { coverIdeaError, renderError, WORKFLOW_ERRORS } from '../../lib/workflow'
 import { BODIES, type Body } from '../../model/artifacts'
 import type { ClaimResult, Structure } from '../../model/types'
@@ -166,8 +167,10 @@ export async function retryArt(actor: Actor, id: string, version: number): Promi
 /**
  * One sentence the source check read in the post's revision, replaced by what `change` gives (''
  * takes it out; null refuses it as moved on), as a new revision and layout (criteria 43, 104).
- * Fits: redrawn with the art it already has, no model call; else back to approved, unrendered.
- * The source check runs again after, reading only what changed.
+ * A change whose layout fails a fit check that passed before is refused, naming the slot, with
+ * nothing saved (18 Oct: it dropped the post back to Images with nothing it could render). Fits:
+ * redrawn with the art it already has, no model call; else back to approved, unrendered. The
+ * source check runs again after, reading only what changed.
  */
 export async function reviseClaim(
   post: LoadedPost,
@@ -176,6 +179,7 @@ export async function reviseClaim(
   claim: number,
   change: (claim: ClaimResult) => string | null,
   note: string,
+  kind: 'remove' | 'wording',
 ): Promise<Saved> {
   const { id } = post
   const { source, facts, revision, render, sourceCheck } = post.current
@@ -204,6 +208,9 @@ export async function reviseClaim(
   }
   const revisionId = artifactId('revision', id, BODIES.revision.parse(next))
   const layout = layoutOf(revisionId, next, source.body, facts.body, sourcesAtOf(post), post)
+  const before = post.current.layout?.body.fitChecks ?? []
+  const refusal = claimFitError(kind, next, before, layout.fitChecks)
+  if (refusal) return fail(refusal)
 
   let drawn: Drawn | null = null
   let artBytes: Uint8Array | null = null
@@ -250,7 +257,7 @@ export async function removeClaim(
   claim: number,
 ): Promise<Saved> {
   return command('removeClaim', 'removeClaim', actor, id, version, (post) =>
-    reviseClaim(post, version, actor, claim, () => '', 'remove claim'),
+    reviseClaim(post, version, actor, claim, () => '', 'remove claim', 'remove'),
   )
 }
 

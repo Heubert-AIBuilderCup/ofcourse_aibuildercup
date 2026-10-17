@@ -360,7 +360,14 @@ export const contentStep = pgTable(
     finishedAt: tz('finished_at'),
     error: text('error'),
     // How far a run is, as it records it (the images drawn of those planned), or null.
-    progress: jsonb('progress').$type<{ done: number; total: number }>(),
+    // How far a run is, and what its model waits for (features/content/lib/running.ts StepProgress).
+    progress: jsonb('progress').$type<{
+      done: number
+      total: number
+      note?:
+        | { kind: 'busy'; model: string; attempt: number; waitS: number }
+        | { kind: 'fallback'; model: string }
+    }>(),
     // When the run last said it is alive: a lock is stale counted from this, else from started_at.
     beatAt: tz('beat_at'),
   },
@@ -371,8 +378,9 @@ export const contentStep = pgTable(
 )
 
 /**
- * The log of model calls, one row per call: the daily caps count it by (day, tier). No foreign
- * key on the post: the log outlives posts.
+ * The log of model calls, one row per call: the daily caps count it by (day, tier), all but the
+ * cache hits and the calls a busy model refused (429), which cost nothing. No foreign key on the
+ * post: the log outlives posts.
  */
 export const aiCall = pgTable(
   'ai_call',
@@ -389,6 +397,8 @@ export const aiCall = pgTable(
     ms: integer('ms').notNull(),
     fallback: text('fallback'),
     postId: text('post_id'),
+    // Refused by a busy model (429): logged, never counted against a cap.
+    refused: boolean('refused').notNull().default(false),
     createdAt: tz('created_at').notNull().defaultNow(),
   },
   (t) => [

@@ -80,12 +80,60 @@ export function outlineShape(template: Template, layouts: readonly string[]): st
   }
   const order = template.slides.map((s) => s.spec.kind)
   const places = kinds.map((k) => order.indexOf(k))
-  if (places.some((place, i) => i > 0 && place < places[i - 1])) {
-    problems.push(
-      `Keep the slides in the look's order: ${order.map((k) => KIND_WORDS[k]).join(', then ')}.`,
-    )
-  }
+  if (places.some((place, i) => i > 0 && place < places[i - 1])) problems.push(orderRule(template))
   return problems
+}
+
+/** The order the look keeps its slides in, as the rule outlineShape refuses a change with. */
+export function orderRule(template: Template): string {
+  const order = template.slides.map((s) => KIND_WORDS[s.spec.kind])
+  return `Keep the slides in the look's order: ${order.join(', then ')}.`
+}
+
+/** A run of an outline's slides of one kind, under the kind's name: the middle's counted. */
+export type OutlinePart = { heading: string; slides: { n: number; slide: OutlineSlide }[] }
+
+/** A slide's kind: its layout's in the look, or, a layout the look lacks, the one its job plays. */
+function kindOf(template: Template, slide: OutlineSlide): SlideSpec['kind'] {
+  const spec = template.layouts?.[slide.layout]
+  if (spec) return spec.kind
+  if (slide.job === 'hook') return 'cover'
+  return slide.job === 'takeaway' || slide.job === 'sources' ? 'take' : 'body'
+}
+
+/**
+ * An outline's slides grouped as the look reads them, in their own order, so the groups show the
+ * look's order (cover, middle, takeaway) where it is kept and break it where it is not; and the
+ * first slide that comes after a kind the look puts later, said in words, or null.
+ */
+export function outlineParts(
+  template: Template,
+  slides: readonly OutlineSlide[],
+): { parts: OutlinePart[]; outOfPlace: string | null } {
+  const order = template.slides.map((s) => s.spec.kind)
+  const runs: { kind: SlideSpec['kind']; slides: OutlinePart['slides'] }[] = []
+  let outOfPlace: string | null = null
+  let latest: SlideSpec['kind'] | null = null
+  slides.forEach((slide, i) => {
+    const kind = kindOf(template, slide)
+    const last = runs.at(-1)
+    if (last?.kind === kind) last.slides.push({ n: i + 1, slide })
+    else runs.push({ kind, slides: [{ n: i + 1, slide }] })
+    const place = order.indexOf(kind)
+    if (place < 0) return
+    if (latest !== null && place < order.indexOf(latest)) {
+      outOfPlace ??= `Slide ${i + 1} is out of place: a ${KIND_WORDS[kind]} slide after the ${KIND_WORDS[latest]}.`
+    } else latest = kind
+  })
+  return {
+    parts: runs.map(({ kind, slides: run }) => {
+      const word = KIND_WORDS[kind]
+      const name = word.charAt(0).toUpperCase() + word.slice(1)
+      const count = `${run.length} ${run.length === 1 ? 'slide' : 'slides'}`
+      return { heading: kind === 'body' ? `${name} · ${count}` : name, slides: run }
+    }),
+    outOfPlace,
+  }
 }
 
 type Edited = { ok: true; slides: OutlineSlide[] } | { ok: false; error: string }

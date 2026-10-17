@@ -1,5 +1,6 @@
 'use client'
 
+import { Search } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
@@ -15,12 +16,16 @@ const shows = (filter: Filter, row: StackRow) => filter === 'All' || row.tag ===
 
 const ROW_ACTION = 'h-10 px-3.5 font-sans font-medium'
 
+/** The list's way into the course finder, the only one on the board. */
+export const FIND = 'Find more courses by your interests'
+
 /**
  * A stack's list (`open=list`): its title and Close, the filters as a button group, then a row per
  * course with its actions. "Put on my board" places a row's course beside her road; a row whose
  * course has no tile this round, and More, do nothing yet. A course already on the board is left
  * out. A row whose course is in a field next to the one she picked says so, with that field defined.
- * With `onFind` (the course finder is on), the list starts with a way to find courses by her words.
+ * With `onFind` (the course finder is on), the list ends with a way to find more courses by her
+ * interests, saying that her level, budget and destination stay as her roadmap has them.
  */
 export function StackList({
   stack,
@@ -59,11 +64,6 @@ export function StackList({
           </Button>
         ))}
       </fieldset>
-      {onFind ? (
-        <Button type="button" variant="text" className="self-start" onClick={onFind}>
-          Find courses by what you enjoy
-        </Button>
-      ) : null}
       <ul className="m-0 flex list-none flex-col p-0">
         {listed.map(({ tileId, ...row }) => (
           <li
@@ -115,6 +115,18 @@ export function StackList({
           </li>
         ))}
       </ul>
+      {onFind ? (
+        <div className="flex flex-col gap-1 border-t pt-4">
+          <Button type="button" variant="outline" className="self-start" onClick={onFind}>
+            <Search aria-hidden="true" strokeWidth={1.5} className="size-icon-sm" />
+            {FIND}
+          </Button>
+          <p className="m-0 text-caption text-muted-foreground">
+            You change only your interests. Your level, budget and destination stay as your roadmap
+            has them.
+          </p>
+        </div>
+      ) : null}
       <p className="m-0 flex items-center gap-1 text-caption text-muted-foreground">
         Source: OfCourse preview data ·
         <MockTag />

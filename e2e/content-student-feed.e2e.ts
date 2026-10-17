@@ -2,14 +2,16 @@ import { type BrowserContext, expect, type Locator, type Page, test } from '@pla
 import { freshEmail } from './helpers/accounts'
 import {
   approvePublish,
-  feedSettings,
+  lastSettingsPanel,
   markNotFoundAsOpinion,
   onStep,
   openStep,
+  openTab,
   PAID_WORK,
   requireFakeProvider,
   type Source,
   sendToReview,
+  settingsPanel,
   settingsPost,
 } from './helpers/content'
 import { deletePostsBy, deleteUsers, setCapabilities, setRole, sql } from './helpers/db'
@@ -135,14 +137,14 @@ const slideAlts = (scope: Locator) =>
 const live = (page: Page) => page.getByRole('region', { name: 'Live in feed', exact: true })
 
 /**
- * Make a market version from a post's Images step (criterion 85): its "For market" select and
- * "Make market version".
+ * Make a market version from a post's Settings step (criterion 85): its "Market versions" panel's
+ * "For market" select and "Make market version".
  */
 async function makeMarketVersion(page: Page, id: string, market: string) {
-  await openStep(page, id, 'images')
-  const images = page.getByRole('region', { name: 'Images', exact: true })
-  await images.getByRole('combobox', { name: 'For market' }).selectOption({ label: market })
-  await images.getByRole('button', { name: 'Make market version' }).click()
+  await openStep(page, id, 'settings')
+  const panel = await settingsPanel(page, 'Market versions')
+  await panel.getByRole('combobox', { name: 'For market' }).selectOption({ label: market })
+  await panel.getByRole('button', { name: 'Make market version' }).click()
 }
 
 /** How many slides a post's current render has. */
@@ -209,10 +211,12 @@ test('er publishes the General post: paid work, Everyone, no expiry, for Austral
   const { page } = er
   posts.general = await settingsPost(page, GENERAL)
   await markNotFoundAsOpinion(page)
-  const settings = feedSettings(page)
+  let settings = await settingsPanel(page, 'Who sees it')
   await settings.getByRole('radio', { name: 'General' }).check()
   await settings.getByRole('radio', { name: /^Everyone/ }).check()
+  settings = await settingsPanel(page, 'Expiry')
   await settings.getByRole('radio', { name: 'No expiry' }).check()
+  settings = await settingsPanel(page, 'Tags')
   await tick(settings, 'Australia')
   await tick(settings, 'Work and study life')
   await sendToReview(page)
@@ -227,12 +231,15 @@ test('er publishes the Personal post with its why line and a Nepal version, for 
   const { page } = er
   posts.money = await settingsPost(page, MONEY)
   await markNotFoundAsOpinion(page)
-  const settings = feedSettings(page)
+  let settings = await settingsPanel(page, 'Who sees it')
   await settings.getByRole('radio', { name: 'Personal' }).check()
   await settings.getByLabel('Why line').fill(WHY)
+  settings = await settingsPanel(page, 'Expiry')
   await settings.getByRole('radio', { name: '90 days' }).check()
+  settings = await settingsPanel(page, 'Tags')
   await tick(settings, 'United Kingdom')
   await tick(settings, 'Books and movies')
+  settings = await lastSettingsPanel(page)
   await press(page, 'Save settings', 'Settings saved', settings)
 
   await makeMarketVersion(page, posts.money, 'Nepal')
@@ -369,7 +376,7 @@ test("the image route serves a live post's slide as a PNG and refuses a draft re
 test('a post in review is not in the feed and its page answers not found (73)', async () => {
   await openStep(er.page, posts.pending, 'settings')
   await markNotFoundAsOpinion(er.page)
-  await feedSettings(er.page).getByRole('radio', { name: '90 days' }).check()
+  await (await settingsPanel(er.page, 'Expiry')).getByRole('radio', { name: '90 days' }).check()
   await sendToReview(er.page)
 
   const { page } = st
@@ -494,10 +501,12 @@ test('er publishes a third post for Australia and Books and movies with an India
   const { page } = er
   posts.rupees = await settingsPost(page, RUPEES)
   await markNotFoundAsOpinion(page)
-  const settings = feedSettings(page)
+  let settings = await settingsPanel(page, 'Expiry')
   await settings.getByRole('radio', { name: 'No expiry' }).check()
+  settings = await settingsPanel(page, 'Tags')
   await tick(settings, 'Australia')
   await tick(settings, 'Books and movies')
+  settings = await lastSettingsPanel(page)
   await press(page, 'Save settings', 'Settings saved', settings)
 
   await makeMarketVersion(page, posts.rupees, 'India')
@@ -624,6 +633,7 @@ test('er adapts the General post for Instagram under the page the theme rule pic
   await post(page, posts.general)
   await onStep(page, 'live')
   const adapt = live(page)
+  await openTab(adapt, 'Social versions')
   // Work and study life → Main (src/features/content/pages/pages.json); the editor keeps it.
   await expect(adapt.getByLabel('Page brand')).toHaveValue('main')
   await adapt.getByLabel('Platform').selectOption({ label: 'Instagram carousel' })

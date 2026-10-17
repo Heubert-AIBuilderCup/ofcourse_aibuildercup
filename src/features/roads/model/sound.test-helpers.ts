@@ -103,8 +103,12 @@ export function expectCatalogueFigures(spec: RoadSpec): void {
 export function expectSound(road: Road, spec: RoadSpec): void {
   const ids = road.tiles.map((t) => t.id)
 
-  // Priya's shape: every tile's kind, state, place and label.
-  expect(road.tiles.map(geometry)).toEqual(PRIYA.tiles.map(geometry))
+  // Priya's shape: every tile's kind, state, place and label; the options beside its steps follow
+  // them, each beside a tile of that shape.
+  const shaped = road.tiles.filter((t) => !t.beside)
+  expect(shaped.map(geometry)).toEqual(PRIYA.tiles.map(geometry))
+  for (const t of road.tiles.slice(shaped.length))
+    expect(shaped.map((s) => s.id)).toContain(t.beside as string)
 
   // Every tile its own id, and no reference to any other.
   expect(new Set(ids).size).toBe(ids.length)

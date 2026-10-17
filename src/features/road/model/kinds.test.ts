@@ -81,3 +81,19 @@ describe('ICONS', () => {
     expect(ICONS.more).toEqual(['M5 12h14', 'M12 5v14'])
   })
 })
+
+describe('kindOf: a job beside the 485', () => {
+  it('is a job, with the work icon', () => {
+    const sc = scene()
+    const job = {
+      id: 'job-261313',
+      kind: 'job',
+      state: 'alt',
+      gx: 14,
+      gy: -2,
+      name: 'Software Engineer',
+      lab: { whole: 'none', level: 'right', tile: 'right' },
+    } as const
+    expect(kindOf(job, sc)).toEqual({ word: 'Job', icon: 'work' })
+  })
+})

@@ -443,6 +443,39 @@ describe.skipIf(!enabled)('the post store and step lock against the database', (
     await Promise.all([first, third])
   })
 
+  test('a busy model said inside a run reaches its progress; a run finished on Flash-Lite says so after it ends', async () => {
+    const { callNotes, noteLite } = await import('../ai/wait-notes')
+    const post = `${P}notes`
+    await newPost(post)
+    const busy = { kind: 'busy', model: 'flash-model', attempt: 2, waitS: 8 } as const
+    // Outside a run a note goes nowhere.
+    callNotes()(busy)
+    const seen: Awaited<ReturnType<typeof steps.runningNow>>[] = []
+    const result = await steps.runStep(post, 'blog_text', 1, async (run) => {
+      await run.progress(0, 5)
+      const noteWait = callNotes()
+      noteWait(busy)
+      await run.progress(0, 5)
+      seen.push(await steps.runningNow(post))
+      noteWait({ kind: 'fallback', model: 'lite-model' })
+      noteWait(null)
+      noteLite('lite-model')
+      await run.progress(5, 5)
+      seen.push(await steps.runningNow(post))
+      return { ok: true, n: 1 }
+    })
+    expect(result).toEqual({ ok: true, n: 1 })
+    expect(seen).toEqual([
+      { running: ['blog_text'], progress: { blog_text: { done: 0, total: 5, note: busy } } },
+      { running: ['blog_text'], progress: { blog_text: { done: 5, total: 5 } } },
+    ])
+    expect((await steps.failedNow(post)).lite).toEqual(['blog_text'])
+
+    // Run again on Flash, the fact is gone; a run that never fell back says nothing.
+    await steps.runStep(post, 'blog_text', 1, async () => ({ ok: true, n: 2 }))
+    expect(await steps.failedNow(post)).toEqual({ failed: [], reasons: {}, lite: [] })
+  })
+
   test('a step whose work throws is marked failed and returns the save error', async () => {
     const post = `${P}throws`
     await newPost(post)

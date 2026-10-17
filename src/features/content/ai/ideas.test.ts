@@ -124,10 +124,16 @@ describe('the ideas spec', () => {
     expect(() => toModelSchema(IDEAS.schema)).not.toThrow()
     expect(IDEAS).toMatchObject({
       useCase: 'ideas',
-      version: 'ideas.v6',
+      version: 'ideas.v7',
       tier: 'lite',
       temperature: 0.8,
     })
+  })
+
+  it('makes the idea ranked 1 the post a framing describes, its slides one per item, the others alternatives', () => {
+    expect(IDEAS.rules).toContain(
+      'When DATA.editor_intent says what the whole post or each slide holds (a list, a roundup, "one X per slide"), the idea ranked 1 is that post exactly as described: its angle names the whole set (like "Courses that lead to PR, one per slide"), and its slides follow the number of items, between 4 and 8. The other ideas are alternatives to it. Otherwise this rule does not apply.',
+    )
   })
 
   it('names the three looks', () => {

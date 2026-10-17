@@ -22,7 +22,11 @@ const buttonVariants = cva(
         strong:
           'border border-brand bg-brand text-brand-foreground hover:border-brand-hover hover:bg-brand-hover active:bg-brand-active',
         destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-        outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
+        // Inside the content workbench (`workbench`, globals.css) a secondary action must read as
+        // a button beside its fields (18 Oct): a primary hairline, a surface fill, a hover and a
+        // pressed shade. The student screens keep the faint frame.
+        outline:
+          'border border-input bg-background hover:bg-accent hover:text-accent-foreground workbench:border-primary workbench:bg-secondary workbench:text-foreground workbench:hover:border-primary-strong workbench:hover:bg-accent workbench:active:bg-accent-200',
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline',

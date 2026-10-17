@@ -19,6 +19,9 @@ mock.module('next/navigation', () => ({
 }))
 
 const { ReviewPanel } = await import('./ReviewPanel')
+
+/** Where a link sits: in the step bar ("Step actions", 18 Oct) or anywhere else. */
+const place = (el: Element) => (el.closest('[aria-label="Step actions"]') ? 'bar' : 'elsewhere')
 type Props = Parameters<typeof ReviewPanel>[0]
 
 const THE_LINE = templateById('the-line')
@@ -164,6 +167,20 @@ const ADMIN: Staff = { role: 'admin' }
 const view = (viewer: Staff, current: CurrentPost = CURRENT) =>
   render(<ReviewPanel view={{ ...VIEW, current }} viewer={viewer} actions={actions} />)
 
+/** The filmstrips under the stages, one per version shown. */
+const strips = () => screen.queryAllByRole('list', { name: 'All slides' })
+/** Selects slide n on the (first) stage, by its thumbnail in the filmstrip. */
+const select = (n: number) =>
+  fireEvent.click(within(strips()[0]).getByRole('button', { name: `Slide ${n}` }))
+/** The slides shown big, by their stored PNG (the filmstrip's are hidden from a reader). */
+const shownSrc = (scope: Pick<typeof screen, 'getAllByRole'> = screen) =>
+  scope.getAllByRole('img').map((img) => img.getAttribute('src') ?? '')
+/** The buttons that do something: every one but the filmstrips' thumbnails. */
+const controls = () =>
+  screen.queryAllByRole('button').filter((b) => !strips().some((s) => s.contains(b)))
+/** Opens the actions area's tab called `name`. */
+const openTab = (name: string) => fireEvent.click(screen.getByRole('tab', { name }))
+
 /** A Nepal version beside the render, which no slide vision check reads any more (103). */
 const MARKET: CurrentPost['market'] = {
   id: 'mk1',
@@ -193,24 +210,43 @@ afterEach(() => {
 describe('ReviewPanel', () => {
   it('shows the stored slides, the fact chips, the source check and the settings', () => {
     view(REVIEWER)
-    expect(screen.getByRole('img', { name: /^Slide 2\b/ })).toHaveAttribute(
-      'src',
-      '/admin/assets/png2',
-    )
+    expect(shownSrc()).toEqual(['/admin/assets/png1'])
+    select(2)
+    expect(shownSrc()).toEqual(['/admin/assets/png2'])
     expect(
-      screen.getByText(
+      screen.queryAllByText(
         'Above 20 hrs/week: pass rates −11 points · ¶3 · Hours of paid work and first-year results · checked 5 Oct 2026',
-      ),
-    ).toBeInTheDocument()
-    expect(screen.getByText('Editorial opinion')).toBeInTheDocument()
-    expect(screen.getByText('General · Everyone · Leaves the feed in 90 days')).toBeInTheDocument()
-    expect(screen.getByText('India · Books and movies')).toBeInTheDocument()
+      ).length,
+    ).toBe(1)
+    openTab('Source check')
+    expect(screen.queryAllByText('Editorial opinion').length).toBe(1)
+    openTab('Feed settings')
+    expect(screen.queryAllByText('General · Everyone · Leaves the feed in 90 days').length).toBe(1)
+    expect(screen.queryAllByText('India · Books and movies').length).toBe(1)
+  })
+
+  it('puts the facts, the source check and the feed settings one tab each, the facts open first', () => {
+    view(REVIEWER)
+    const tabs = within(screen.getByRole('tablist', { name: 'Review panels' })).getAllByRole('tab')
+    expect(tabs.map((t) => t.textContent)).toEqual(['Facts', 'Source check', 'Feed settings'])
+    expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false'])
+    // Only the open tab's panel is drawn.
+    expect(screen.queryByText('Editorial opinion') === null).toBe(true)
+  })
+
+  it('has no Facts tab on a post with no facts', () => {
+    view(REVIEWER, { ...CURRENT, facts: null })
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+      'Source check',
+      'Feed settings',
+    ])
   })
 
   it('says the post is for everyone when no tag is ticked (80)', () => {
     const settings = CURRENT.settings as NonNullable<CurrentPost['settings']>
     view(REVIEWER, { ...CURRENT, settings: { ...settings, body: { ...settings.body, tags: [] } } })
-    expect(screen.getByText('For everyone')).toBeInTheDocument()
+    openTab('Feed settings')
+    expect(screen.queryAllByText('For everyone').length).toBe(1)
   })
 
   it('gives each stored slide its laid-out words as its alt, for a reviewer who cannot see it', () => {
@@ -250,7 +286,8 @@ describe('ReviewPanel', () => {
         },
       },
     })
-    const alt = screen.getAllByRole('img')[1]?.getAttribute('alt') ?? ''
+    select(2)
+    const alt = screen.getAllByRole('img')[0]?.getAttribute('alt') ?? ''
     expect(alt.startsWith('Slide 2: ')).toBe(true)
     expect(alt).toContain('Above 20')
     expect(alt).toContain('Above 20 hours a week, pass rates fell by 11 points.')
@@ -265,11 +302,11 @@ describe('ReviewPanel', () => {
 
   it('lets a reviewer approve and publish, from the step actions bar', async () => {
     view(REVIEWER)
-    expect(
-      within(screen.getByRole('region', { name: 'Step actions' })).getByRole('button', {
-        name: 'Approve and publish',
-      }),
-    ).toBeInTheDocument()
+    // Outside a workbench each step action has a bar of its own: "Download slides" has one too.
+    const holding = screen
+      .getAllByRole('region', { name: 'Step actions' })
+      .filter((bar) => within(bar).queryAllByRole('button', { name: 'Approve and publish' }).length)
+    expect(holding.length).toBe(1)
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Approve and publish' }))
     })
@@ -381,34 +418,41 @@ describe('ReviewPanel', () => {
     const viewers: Staff[] = [EDITOR, REVIEWER, { role: 'user', editor: true, reviewer: true }]
     for (const viewer of viewers) {
       render(<ReviewPanel view={{ ...VIEW, stage: 'live' }} viewer={viewer} actions={actions} />)
-      expect(
-        screen.getByText('General · Everyone · Leaves the feed in 90 days'),
-      ).toBeInTheDocument()
-      expect(screen.queryAllByRole('button')).toHaveLength(0)
+      openTab('Feed settings')
+      expect(screen.queryAllByText('General · Everyone · Leaves the feed in 90 days').length).toBe(
+        1,
+      )
+      expect(controls().length).toBe(0)
       cleanup()
     }
   })
 
   it('offers an admin no button', () => {
     view(ADMIN)
-    expect(screen.queryAllByRole('button')).toHaveLength(0)
+    expect(controls().length).toBe(0)
   })
 
-  it('shows the Default and Nepal versions side by side when there is one (60)', () => {
+  it('shows the Default and Nepal versions side by side when there is one, on the same slide (60)', () => {
     view(REVIEWER, { ...CURRENT, market: MARKET })
     const defaults = within(screen.getByRole('region', { name: 'Default' }))
     const nepal = within(screen.getByRole('region', { name: 'Nepal' }))
-    expect(defaults.getByRole('img', { name: /^Slide 2\b/ })).toHaveAttribute(
-      'src',
-      '/admin/assets/png2',
+    expect([shownSrc(defaults), shownSrc(nepal)]).toEqual([
+      ['/admin/assets/png1'],
+      ['/admin/assets/npng1'],
+    ])
+    // A slide picked in either version shows in both, so the reviewer compares like with like.
+    fireEvent.click(
+      within(nepal.getByRole('list', { name: 'All slides' })).getByRole('button', {
+        name: 'Slide 2',
+      }),
     )
-    expect(nepal.getByRole('img', { name: /^Slide 2\b/ })).toHaveAttribute(
-      'src',
-      '/admin/assets/npng2',
-    )
+    expect([shownSrc(defaults), shownSrc(nepal)]).toEqual([
+      ['/admin/assets/png2'],
+      ['/admin/assets/npng2'],
+    ])
     expect(
-      nepal.getByText("Deciding with your family how many hours you'll work?"),
-    ).toBeInTheDocument()
+      nepal.queryAllByText("Deciding with your family how many hours you'll work?").length,
+    ).toBe(1)
   })
 
   it('says whether the market version was reworded, so the reviewer knows what the model touched (110)', () => {
@@ -422,23 +466,40 @@ describe('ReviewPanel', () => {
     expect(nepal().queryByText('Approved wording, money converted')).toBeNull()
   })
 
-  it('shows the post large, one slide at a time in a strip that swipes, for each version', () => {
+  it('shows the post on a stage, the selected slide over a filmstrip, for each version', () => {
     view(REVIEWER)
-    expect(screen.getAllByRole('group', { name: 'Slides, one at a time' })).toHaveLength(1)
+    expect(screen.getAllByRole('group', { name: 'Slides, one at a time' }).length).toBe(1)
     cleanup()
     view(REVIEWER, { ...CURRENT, market: MARKET })
     for (const version of ['Default', 'Nepal']) {
+      const region = within(screen.getByRole('region', { name: version }))
       expect(
-        within(screen.getByRole('region', { name: version })).getByRole('group', {
-          name: 'Slides, one at a time',
-        }),
-      ).toHaveAttribute('aria-roledescription', 'carousel')
+        region
+          .getByRole('group', { name: 'Slides, one at a time' })
+          .getAttribute('aria-roledescription'),
+      ).toBe('carousel')
+      expect(region.queryAllByRole('list', { name: 'All slides' }).length).toBe(1)
     }
   })
 
   it('shows one version when there is no Nepal version', () => {
     view(REVIEWER)
-    expect(screen.queryByRole('region', { name: 'Nepal' })).toBeNull()
-    expect(screen.getAllByRole('img')).toHaveLength(2)
+    expect(screen.queryByRole('region', { name: 'Nepal' }) === null).toBe(true)
+    expect(strips().length).toBe(1)
+    expect(within(strips()[0]).getAllByRole('button').length).toBe(2)
+  })
+})
+
+describe('ReviewPanel: Download slides', () => {
+  it('offers the rendered slides to download, once, in the step bar, beside a market version too (18 Oct)', () => {
+    const links = () =>
+      screen
+        .queryAllByRole('link', { name: 'Download slides' })
+        .map((a) => `${a.getAttribute('href')} ${a.hasAttribute('download')} ${place(a)}`)
+    view(REVIEWER)
+    expect(links()).toEqual(['/admin/posts/p1/slides true bar'])
+    cleanup()
+    view(REVIEWER, { ...CURRENT, market: MARKET })
+    expect(links()).toEqual(['/admin/posts/p1/slides true bar'])
   })
 })

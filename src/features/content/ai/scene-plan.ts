@@ -68,7 +68,7 @@ export function scenePlanProblems(
 export async function planScenes(input: {
   template: Template
   structure: Structure
-  /** The idea card the version was drafted for, or two combined; null for none. */
+  /** The idea card the version was drafted for, or up to four combined; null for none. */
   idea: IdeaCard[] | null
   emotion: string | null
   postId: string

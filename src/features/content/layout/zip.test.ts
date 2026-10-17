@@ -41,3 +41,16 @@ describe('exportZip', () => {
     expect(strFromU8(files['caption.txt'])).toBe('Working up to 20 hours.\n\n#studyabroad')
   })
 })
+
+describe('the slides download (Images on)', () => {
+  it('is named <page>_<post>_slides.zip', () => {
+    expect(exportName('Cerebral', 'Paid work & grades', 'slides')).toBe(
+      'cerebral_paid-work-grades_slides.zip',
+    )
+  })
+
+  it('holds only the slides when there is no caption', () => {
+    const zip = exportZip({ svgs: ['<svg/>'], pngs: [new Uint8Array([137, 80])] })
+    expect(Object.keys(unzipSync(zip)).sort()).toEqual(['slide-1.png', 'slide-1.svg'])
+  })
+})

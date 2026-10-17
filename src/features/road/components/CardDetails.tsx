@@ -6,6 +6,7 @@ import type {
   FieldNear,
   JobMarketRow,
 } from '@/features/roads/client'
+import { cn } from '@/shared/lib/utils'
 import { MockTag } from './MockTag'
 import { WhatChanges } from './WhatChanges'
 
@@ -123,17 +124,71 @@ export function FieldsNearSection({
  * (entry and course ones alike, so not called "to get in"); the work beside it; the graduate jobs
  * and occupations after it; whether its occupation is on the state's list; on the stack and the
  * alternative, the field next to hers its course is in, defined; and, with the course detail on,
- * each course card's job market per occupation and the fields close to its own (sample data). With
+ * each course card's job market per occupation and the fields close to its own (sample data). On a
+ * step that is a visa, the visa's facts, conditions and where it leads. On a job beside the 485,
+ * its code, its sample starting pay and openings in her city, its state lists and its way to PR. With
  * compare on, the other-city and other-course cards open on "What changes". A section with
  * nothing in it is not drawn. Nothing is ranked: the catalogue's order.
  */
 export function CardDetails({ details }: { details: Details }) {
-  const { subjects, work, graduate, occupations, listStatus, related, fieldsNear, compare } =
-    details
+  const {
+    subjects,
+    work,
+    graduate,
+    occupations,
+    listStatus,
+    related,
+    fieldsNear,
+    compare,
+    visa,
+    job,
+  } = details
   const markets = occupations?.filter((o) => o.market) ?? []
   return (
     <div className="flex flex-col gap-4">
-      {compare ? <WhatChanges {...compare} /> : null}
+      {/* A board card offers the new roadmap as its own primary. */}
+      {compare ? <WhatChanges {...compare} pin={null} /> : null}
+
+      {visa ? (
+        <Section title="About this visa" source={visa.source}>
+          <p className="m-0 font-medium">
+            Subclass {visa.id} · {visa.name}
+          </p>
+          <p className="m-0">
+            <span className="text-muted-foreground">How long:</span> {visa.years}
+          </p>
+          <ul className={cn(LIST, 'list-disc pl-5')}>
+            {visa.conditions.map((c) => (
+              <li key={c}>{c}</li>
+            ))}
+          </ul>
+          <Line label="Leads to" items={visa.leadsTo} />
+        </Section>
+      ) : null}
+
+      {job ? (
+        <>
+          <Section title="Job market (sample data)" source={SAMPLE}>
+            <p className="m-0">
+              <span className="font-medium">{job.name}</span>{' '}
+              <span className="text-caption text-muted-foreground">ANZSCO {job.code}</span>
+            </p>
+            <p className="m-0">
+              {job.market
+                ? `AUD ${job.market.payLowK}–${job.market.payHighK}k starting · ${job.market.openings.toLocaleString('en-AU')} openings in ${job.city}`
+                : `No sample figures for ${job.city}`}
+            </p>
+          </Section>
+          <Section title="On the state's list?">
+            <ul className={LIST}>
+              {job.lists.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+            <p className="m-0 font-medium">{job.prWay}</p>
+          </Section>
+        </>
+      ) : null}
 
       {subjects ? (
         <Section title="What you would study">

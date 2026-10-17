@@ -139,7 +139,7 @@ describe('cardDetails: the list status (32)', () => {
   it('has none on the road home', () => {
     const spec = road('melbourne-home')
     for (const slot of ['pr-straight', 'pr-lane', 'pr-lane-end'] as const)
-      expect(cardDetails(spec, slot, NONE)).toBeNull()
+      expect(cardDetails(spec, slot, NONE)?.listStatus).toBeUndefined()
   })
 })
 
@@ -203,7 +203,6 @@ describe('cardDetails: other slots', () => {
       'city',
       'alt-city',
       'more-cities',
-      'visa-500',
       'fork',
       'pr-point',
     ] as const)
@@ -301,5 +300,32 @@ describe('cardDetails on a composed road (criterion 56)', () => {
     const lines = cardDetails(renamed, 'pr-straight', NONE)?.listStatus
     expect(lines).toEqual(cardDetails(NURSING, 'pr-straight', NONE)?.listStatus)
     expect(lines?.[0]).toBe(`Registered Nurse is on SA's ${slot.visa} list`)
+  })
+})
+
+describe('cardDetails: the visa on a step of the route', () => {
+  it('gives the student visa its facts and where it leads', () => {
+    expect(cardDetails(road('adelaide-it'), 'visa-500', NONE)?.visa).toEqual({
+      id: '500',
+      name: 'Student visa',
+      years: 'For the length of the course',
+      conditions: [
+        'You must be enrolled in a registered course',
+        'You can work up to the weekly cap while the course is running',
+        'You must show you can pay fees and living costs',
+      ],
+      leadsTo: ['485 · Graduate visa'],
+      source: 'Home Affairs, subclass 500 · mock · Sep 2026',
+    })
+  })
+
+  it('adds the visa to what a step already shows, on every step that is a visa', () => {
+    const spec = road('adelaide-it')
+    const graduate = cardDetails(spec, 'visa-485', NONE)
+    expect(graduate?.visa?.id).toBe('485')
+    expect(graduate?.graduate).toBeDefined()
+    expect(cardDetails(spec, 'pr-lane', NONE)?.visa?.id).toBe('491')
+    expect(cardDetails(spec, 'pr-lane-end', NONE)?.visa?.leadsTo).toEqual([])
+    expect(cardDetails(spec, 'course-years', NONE)?.visa).toBeUndefined()
   })
 })

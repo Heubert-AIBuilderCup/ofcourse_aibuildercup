@@ -2,7 +2,7 @@ import { Button } from '@/shared/components/ui/button'
 import type { Overview as OverviewData } from '../model/road-data'
 import { PanelHead } from './PanelHead'
 
-/** Whole road's card: how much of the road she has looked at, and "Back to the walk" (Level). */
+/** Whole road's card: how much of the road she has looked at, and "Close overview" (back to Level). */
 export function Overview({ overview, onBack }: { overview: OverviewData; onBack: () => void }) {
   const { looked, total } = overview
   return (
@@ -27,7 +27,7 @@ export function Overview({ overview, onBack }: { overview: OverviewData; onBack:
       </ul>
       <p className="m-0 text-sm text-muted-foreground">{overview.note}</p>
       <Button type="button" variant="outline" className="h-12 w-full" onClick={onBack}>
-        Back to the walk
+        Close overview
       </Button>
     </section>
   )

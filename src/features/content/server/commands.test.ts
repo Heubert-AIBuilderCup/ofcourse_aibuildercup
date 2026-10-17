@@ -171,6 +171,30 @@ describe.skipIf(!enabled)('the post commands against the database', () => {
     return { id, version }
   }
 
+  /**
+   * A post at structures with nothing picked: every version the drafting made kept a banned
+   * phrase, and such a version is never picked (criterion 97), not even for the editor.
+   */
+  async function nonePicked() {
+    // A source of its own, so no clean cached answer stands in for the tweaked one.
+    let { id, version } = await start(ED, {
+      ...paidWork,
+      text: `${paidWork.text}\n\nCc none picked ${randomUUID()}.`,
+    })
+    ;({ version } = ok(await commands.tickTemplates(ED, id, version, ['the-line'])))
+    draftTweak = (answer) => {
+      for (const v of answer.versions) v.slides[0].slots[0].text = 'The best research'
+      return answer
+    }
+    try {
+      ;({ version } = ok(await commands.draftPost(ED, id, version, false)))
+    } finally {
+      draftTweak = null
+    }
+    expect((await load(id)).pointers.picked).toBeNull()
+    return { id, version }
+  }
+
   async function approved(actor: typeof ED, templateId: string, source = paidWork) {
     const { id, version } = await picked(actor, templateId, source)
     return ok(await commands.approveStructure(actor, id, version))
@@ -543,7 +567,8 @@ Run ${requestId}`,
         expect(item.problems).toEqual([])
       }
       expect(drafts?.idea).toEqual({ cards: [cards[1]] })
-      expect(after.pointers.picked).toBeNull()
+      // Version A and Pop are chosen for the editor, so nothing waits on a choice nobody made.
+      expect(after.pointers).toMatchObject({ picked: 0, themeId: 'pop' })
       const sent = draftData.slice(before)
       expect(sent).toHaveLength(1)
       expect(sent[0]).toMatchObject({
@@ -824,6 +849,20 @@ Cc drafting count paragraph.`,
   )
 
   test(
+    'combining four cards outlines all four in the first card’s look (GD2)',
+    async () => {
+      const post = await atIdeas()
+      const { cards } = await ideasOf(post.id)
+      const outlines = outlineData.length
+      await outlined(post.id, [2, 0, 1, 3])
+      const after = await load(post.id)
+      expect(after.current.outline?.body.ideas).toEqual([cards[2], cards[0], cards[1], cards[3]])
+      expect(outlineData.slice(outlines)).toMatchObject([{ idea: { combine: true } }])
+    },
+    SLOW,
+  )
+
+  test(
     'a failed draft after "Write the slides" saves nothing and shows the draft step failed; Try again drafts for the same idea (93, GD32)',
     async () => {
       const post = await outlined((await atIdeas()).id, [2])
@@ -884,9 +923,9 @@ Cc drafting count paragraph.`,
     SLOW,
   )
 
-  test('picking no card, three cards, the same card twice or one that is not there is refused, and nothing moves (GD2)', async () => {
+  test('picking no card, five cards, the same card twice or one that is not there is refused, and nothing moves (GD2)', async () => {
     const post = await atIdeas()
-    for (const cards of [[], [0, 1, 2], [1, 1], [4], [-1], [0.5]]) {
+    for (const cards of [[], [0, 1, 2, 3, 0], [1, 1], [4], [-1], [0.5]]) {
       expect(await commands.pickIdeas(ED, post.id, post.version, { cards })).toEqual({
         ok: false,
         error: errors.ideas,
@@ -1586,6 +1625,26 @@ Cc drafting count paragraph.`,
   )
 
   test(
+    'approves a post drafted before draftChoices, with no theme stored, in the default theme (17 Oct)',
+    async () => {
+      const { id, version } = await picked(ED, 'the-line')
+      await db
+        .update(schema.contentPost)
+        .set({
+          pointers: orm.sql`jsonb_set(${schema.contentPost.pointers}, '{themeId}', 'null'::jsonb)`,
+        })
+        .where(orm.eq(schema.contentPost.id, id))
+      expect((await load(id)).pointers.themeId).toBeNull()
+
+      ok(await commands.approveStructure(ED, id, version))
+      const post = await load(id)
+      expect(post.stage).toBe('approved')
+      expect(post.current.revision?.body.themeId).toBe('paper')
+    },
+    SLOW,
+  )
+
+  test(
     'reopenStructures goes back to structures and keeps the old revision record (32)',
     async () => {
       const { id } = await approved(ED, 'the-line')
@@ -1627,6 +1686,21 @@ Cc drafting count paragraph.`,
       ;({ version } = ok(await commands.chooseTheme(ED, id, version, 'paper')))
       ;({ version } = ok(await commands.approveStructure(ED, id, version)))
       expect((await load(id)).current.revision?.body.emotion).toBe('hopeful')
+    },
+    SLOW,
+  )
+
+  test(
+    'drafting picks version A and the brand’s first theme for the editor, and drafting again keeps what she chose',
+    async () => {
+      let { id, version } = await start(ED)
+      ;({ version } = ok(await commands.tickTemplates(ED, id, version, ['the-line'])))
+      ;({ version } = ok(await commands.draftPost(ED, id, version, false)))
+      expect((await load(id)).pointers).toMatchObject({ picked: 0, themeId: 'paper' })
+      ;({ version } = ok(await commands.pickStructure(ED, id, version, 2)))
+      ;({ version } = ok(await commands.chooseTheme(ED, id, version, 'ink')))
+      ;({ version } = ok(await commands.draftPost(ED, id, version, true)))
+      expect((await load(id)).pointers).toMatchObject({ picked: 2, themeId: 'ink' })
     },
     SLOW,
   )
@@ -1882,6 +1956,52 @@ Cc versions marker paragraph.`,
       expect(after.current.render?.body.art).toEqual(before.current.render?.body.art as never)
       expect(after.pointers.renderId).not.toBe(before.pointers.renderId)
       ok(await commands.sendToReview(ED, id, version))
+    },
+    SLOW,
+  )
+
+  test(
+    'a removal that would leave a slot too short is refused, naming it: nothing saved, the post stays rendered (18 Oct)',
+    async () => {
+      // A source of its own, so no cached draft stands in for the tweaked one: the planted
+      // sentence's slot keeps only 20 words before it, so it passes (32 of 30–70) and its removal
+      // would leave 20.
+      const source = { ...paidWork, text: `${paidWork.text}\n\nCc short slot ${randomUUID()}.` }
+      draftTweak = (answer) => {
+        for (const v of answer.versions) {
+          for (const s of v.slides) {
+            for (const slot of s.slots) {
+              const at = slot.text.indexOf(PLANTED)
+              if (at < 0) continue
+              const kept = slot.text.slice(0, at).split(/\s+/).filter(Boolean).slice(0, 20)
+              slot.text = `${kept.join(' ').replace(/[.!?,;:]?$/, '.')} ${PLANTED}`
+            }
+          }
+        }
+        return answer
+      }
+      let id: string
+      let version: number
+      try {
+        ;({ id, version } = await rendered(ED, source))
+      } finally {
+        draftTweak = null
+      }
+      const before = await load(id)
+      const claims = before.current.sourceCheck?.body.claims ?? []
+      const index = claims.findIndex((c) => c.text === PLANTED && c.result === 'not_found')
+      expect(index).toBeGreaterThanOrEqual(0)
+      const { slide } = claims[index]
+
+      expect(await commands.removeClaim(ED, id, version, index)).toEqual({
+        ok: false,
+        error: `Removing it would leave Slide ${slide} · Body too short. Use the source's wording, or edit it on Text.`,
+      })
+      await settled()
+      const after = await load(id)
+      expect(after.version).toBe(version)
+      expect(after.stage).toBe('rendered')
+      expect(after.pointers).toEqual(before.pointers)
     },
     SLOW,
   )
@@ -2271,9 +2391,7 @@ Cc versions marker paragraph.`,
       })
       expect((await load(id)).version).toBe(version)
 
-      let unpicked = await start(ED)
-      unpicked = ok(await commands.tickTemplates(ED, unpicked.id, unpicked.version, ['the-line']))
-      unpicked = ok(await commands.draftPost(ED, unpicked.id, unpicked.version, false))
+      const unpicked = await nonePicked()
       expect(await commands.redraftSlide(ED, unpicked.id, unpicked.version, 1)).toEqual({
         ok: false,
         error: errors.noPick,
@@ -4129,6 +4247,8 @@ Cc overflow marker paragraph.`,
   async function ideasAtSource() {
     const made = await atIdeas({ ...paidWork, text: changedText() })
     await drafted(made.id)
+    // Drafting starts the source check on the version chosen for her: let it finish first.
+    await settled()
     ok(await commands.goBack(ED, made.id, (await load(made.id)).version, 'source'))
     await settled()
     return load(made.id)
@@ -4573,21 +4693,9 @@ Cc overflow marker paragraph.`,
     SLOW,
   )
 
-  // ── Text chips and a slide from another version (GD10, GD11) ─────────────────────────────────
+  // ── Text chips (GD10) ──────────────────────────────────────────────────────────────────────────
 
   const words = (text: string) => text.split(/\s+/).filter(Boolean).length
-  /** The post's draft and slide calls, whether or not they reached the model. */
-  async function draftCalls(postId: string) {
-    return db
-      .select({ id: schema.aiCall.id })
-      .from(schema.aiCall)
-      .where(
-        orm.and(
-          orm.eq(schema.aiCall.postId, postId),
-          orm.inArray(schema.aiCall.useCase, ['draft', 'draft_slide']),
-        ),
-      )
-  }
 
   test(
     "nudgeSlide rewords only that slide of the picked version in the chip's direction, as a new drafts record noted in the history (GD10)",
@@ -4706,62 +4814,7 @@ Cc overflow marker paragraph.`,
   )
 
   test(
-    'useSlide puts a slide of another version in the picked version at the same place, with its layout and fact ids, and calls no model (GD11)',
-    async () => {
-      let { id, version } = await pickedLook()
-      const facts = (await load(id)).current.facts?.body.facts ?? []
-      const second = (await load(id)).current.drafts?.body.items[1]
-      if (!second) throw new Error('no drafts')
-      // A body slide whose bound fact holds a number, laid out as a big number in version B.
-      const n =
-        second.structure.slides.findIndex(
-          (s) =>
-            s.kind === 'body' &&
-            Object.values(s.slots).some((slot) =>
-              slot.factIds.some((f) => facts.find((fact) => fact.id === f)?.value),
-            ),
-        ) + 1
-      expect(n).toBeGreaterThan(0)
-      ok(await commands.setSlideLayout(ED, id, version, { index: 1, slide: n, layout: 'number' }))
-      await settled()
-      const before = await load(id)
-      version = before.version
-      const items = before.current.drafts?.body.items ?? []
-      const calls = (await draftCalls(id)).length
-
-      ok(await commands.useSlide(ED, id, version, { from: 1, slide: n }))
-      await settled()
-      const after = await load(id)
-      const now = after.current.drafts?.body.items ?? []
-      expect(now[0].structure.slides[n - 1]).toEqual(items[1].structure.slides[n - 1])
-      expect(now[0].structure.slides[n - 1].layout).toBe('number')
-      expect(now[0].structure.slides.toSpliced(n - 1, 1)).toEqual(
-        items[0].structure.slides.toSpliced(n - 1, 1),
-      )
-      expect(now.slice(1)).toEqual(items.slice(1))
-      expect(after.current.drafts?.body.note).toBe(`Slide ${n} taken from version B`)
-      expect((await store.listHistory(id)).map((h) => h.id)).toContain(
-        before.pointers.draftsId as string,
-      )
-      expect((await draftCalls(id)).length).toBe(calls)
-
-      // The picked version has no slide 99; there is no version 99. Nothing is saved.
-      version = after.version
-      expect(await commands.useSlide(ED, id, version, { from: 1, slide: 99 })).toEqual({
-        ok: false,
-        error: 'That version has no slide 99.',
-      })
-      expect(await commands.useSlide(ED, id, version, { from: 99, slide: 1 })).toEqual({
-        ok: false,
-        error: errors.movedOn,
-      })
-      expect((await load(id)).version).toBe(version)
-    },
-    SLOW,
-  )
-
-  test(
-    "a reviewer's or an admin's chip or slide take is refused, as are an unknown chip and a post with no pick, and nothing moves (GD10, GD11)",
+    "a reviewer's or an admin's chip is refused, as are an unknown chip and a post with no pick, and nothing moves (GD10)",
     async () => {
       const { id } = await picked(ED, 'the-line')
       await settled()
@@ -4770,7 +4823,6 @@ Cc overflow marker paragraph.`,
         for (const run of [
           () => commands.nudgeSlide(actor, id, version, { slide: 2, nudge: 'shorter' }),
           () => commands.nudgeVersion(actor, id, version, { index: 0, nudge: 'shorter' }),
-          () => commands.useSlide(actor, id, version, { from: 1, slide: 2 }),
         ]) {
           expect(await run()).toEqual({ ok: false, error: errors.notAuthorised })
         }
@@ -4786,16 +4838,11 @@ Cc overflow marker paragraph.`,
       })
       expect((await load(id)).version).toBe(version)
 
-      let unpicked = await start(ED)
-      unpicked = ok(await commands.tickTemplates(ED, unpicked.id, unpicked.version, ['the-line']))
-      unpicked = ok(await commands.draftPost(ED, unpicked.id, unpicked.version, false))
-      const { id: other, version: at } = unpicked
-      for (const run of [
-        () => commands.nudgeSlide(ED, other, at, { slide: 2, nudge: 'shorter' }),
-        () => commands.useSlide(ED, other, at, { from: 1, slide: 2 }),
-      ]) {
-        expect(await run()).toEqual({ ok: false, error: errors.noPick })
-      }
+      const { id: other, version: at } = await nonePicked()
+      expect(await commands.nudgeSlide(ED, other, at, { slide: 2, nudge: 'shorter' })).toEqual({
+        ok: false,
+        error: errors.noPick,
+      })
     },
     SLOW,
   )

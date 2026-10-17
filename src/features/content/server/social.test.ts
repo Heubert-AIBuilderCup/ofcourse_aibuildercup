@@ -594,6 +594,61 @@ describe.skipIf(!enabled)('social versions against the database', () => {
   )
 
   test(
+    'sharePost records a share of the live feed post to the accounts ticked, the stage and pointers kept; unknown accounts, none, a post not live and anyone but an editor are refused (9–11)',
+    async () => {
+      const { SHARE_ERRORS } = await import('../model/share')
+      const accounts = { instagram: ['cerebral', 'main'], linkedin: ['main'] }
+      // Not live yet: nothing to share.
+      const drafted = await rendered()
+      expect(await social.sharePost(ED, drafted.id, drafted.version, accounts)).toEqual({
+        ok: false,
+        error: errors.movedOn,
+      })
+
+      let { id, version } = await live()
+      for (const [ticked, error] of [
+        [{ instagram: [], linkedin: [] }, SHARE_ERRORS.none],
+        [{ instagram: ['main', 'feed'], linkedin: [] }, SHARE_ERRORS.unknown],
+        [{ instagram: [], linkedin: ['cerebral'] }, SHARE_ERRORS.unknown],
+      ] as const) {
+        expect(
+          await social.sharePost(ED, id, version, {
+            instagram: [...ticked.instagram],
+            linkedin: [...ticked.linkedin],
+          }),
+        ).toEqual({ ok: false, error })
+      }
+      for (const actor of [REV, ADMIN, STUDENT]) {
+        expect(await social.sharePost(actor, id, version, accounts)).toEqual({
+          ok: false,
+          error: errors.notAuthorised,
+        })
+      }
+      expect(await store.listShares(id)).toEqual([])
+
+      const before = await load(id)
+      ;({ version } = ok(await social.sharePost(ED, id, version, accounts)))
+      const after = await load(id)
+      expect(after.stage).toBe('live')
+      expect(after.pointers).toEqual(before.pointers)
+      const [first] = await store.listShares(id)
+      expect(first.id).toMatch(/^share_/)
+      expect(first.body).toMatchObject({
+        instagram: ['main', 'cerebral'],
+        linkedin: ['main'],
+        by: { userId: ED.id, name: ED.name },
+      })
+
+      // Sharing again is another record, listed first; the first stays as it was written.
+      ok(await social.sharePost(ED, id, version, { instagram: ['main'], linkedin: [] }))
+      const shares = await store.listShares(id)
+      expect(shares.map((s) => s.body.instagram)).toEqual([['main'], ['main', 'cerebral']])
+      expect(shares[1]).toEqual(first)
+    },
+    SLOW,
+  )
+
+  test(
     'makeSet: an Instagram version per page with a design language, none for the rest, and the quote card, each rendered with its caption, once; exports as today (108)',
     async () => {
       const { id: parentId, version } = await liveParent()

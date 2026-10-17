@@ -51,7 +51,6 @@ mock.module('./server/commands', () => ({
   redraftSlide: record('redraftSlide'),
   nudgeSlide: record('nudgeSlide'),
   nudgeVersion: record('nudgeVersion'),
-  useSlide: record('useSlide'),
   setSlideLayout: record('setSlideLayout'),
   setLook: record('setLook'),
   setPreset: record('setPreset'),
@@ -113,6 +112,7 @@ mock.module('./server/social', () => ({
   adaptPost: record('adaptPost'),
   makeSet: record('makeSet'),
   recordPostUrl: record('recordPostUrl'),
+  sharePost: record('sharePost'),
   approveLayout: record('approveLayout'),
   renderSocial: record('renderSocial'),
   editCaption: record('editCaption'),
@@ -163,7 +163,6 @@ const CASES: [string, Run, string, unknown[]][] = [
     'nudgeVersion',
     [{ index: 1, nudge: 'warmer' }],
   ],
-  ['useSlide', actions.takeSlideAction as Run, 'useSlide', [{ from: 1, slide: 3 }]],
   [
     'setSlideLayout',
     actions.setSlideLayoutAction as Run,
@@ -286,6 +285,7 @@ const CASES: [string, Run, string, unknown[]][] = [
     'recordPostUrl',
     ['https://www.instagram.com/p/C-abc123/'],
   ],
+  ['share', actions.sharePostAction as Run, 'sharePost', [{ instagram: ['main'], linkedin: [] }]],
 ]
 
 beforeEach(() => {
@@ -463,6 +463,31 @@ describe('input checks', () => {
     ])
   })
 
+  test('accounts to share to that are not two lists of ids are refused before the command runs; the command owns which ids (9)', async () => {
+    for (const input of [
+      null,
+      ['main'],
+      { instagram: 'main', linkedin: [] },
+      { instagram: [42], linkedin: [] },
+      { instagram: ['x'.repeat(65)], linkedin: [] },
+      { instagram: Array(21).fill('main'), linkedin: [] },
+    ]) {
+      expect(await actions.sharePostAction(ID, 3, input)).toEqual({
+        ok: false,
+        error: 'Choose from the accounts listed.',
+      })
+    }
+    expect(calls).toEqual([])
+    await actions.sharePostAction(ID, 3, {
+      instagram: ['main', 'cerebral'],
+      linkedin: [],
+      extra: 1,
+    })
+    expect(calls.map((c) => [c.name, ...c.args.slice(1)])).toEqual([
+      ['sharePost', ID, 3, { instagram: ['main', 'cerebral'], linkedin: [] }],
+    ])
+  })
+
   test('a sentence id or fact id that is not one is refused before the command runs (95)', async () => {
     for (const sentence of ['¶2', '2.3', '¶2.3; drop', 42, null, `¶${'9'.repeat(20)}.1`]) {
       expect(await actions.addFactAction(ID, 3, sentence)).toEqual({
@@ -582,7 +607,7 @@ describe('input checks', () => {
     expect(calls).toEqual([])
   })
 
-  test('a malformed chip or slide take is refused before the command runs; a good one passes as typed (GD10, GD11)', async () => {
+  test('a malformed chip is refused before the command runs; a good one passes as typed (GD10)', async () => {
     const moved = {
       ok: false as const,
       error: 'This post has moved on. Reload to see where it is.',
@@ -596,17 +621,12 @@ describe('input checks', () => {
     ]) {
       expect(await actions.nudgeVersionAction(ID, 3, at)).toEqual(moved)
     }
-    for (const at of [{ from: 1.5, slide: 2 }, { from: 1, slide: 100 }, { from: 1 }]) {
-      expect(await actions.takeSlideAction(ID, 3, at)).toEqual(moved)
-    }
     expect(calls).toEqual([])
     await actions.nudgeSlideAction(ID, 3, { slide: 2, nudge: 'simpler' })
     await actions.nudgeVersionAction(ID, 3, { index: 2, nudge: 'practical' })
-    await actions.takeSlideAction(ID, 3, { from: 0, slide: 4 })
     expect(calls.map((c) => [c.name, ...c.args.slice(1)])).toEqual([
       ['nudgeSlide', ID, 3, { slide: 2, nudge: 'simpler' }],
       ['nudgeVersion', ID, 3, { index: 2, nudge: 'practical' }],
-      ['useSlide', ID, 3, { from: 0, slide: 4 }],
     ])
   })
 
@@ -680,10 +700,10 @@ describe('input checks', () => {
     ])
   })
 
-  test('a pick that is not one or two card indexes is refused before the command runs; one that is passes as typed (GD2)', async () => {
+  test('a pick that is not one to four card indexes is refused before the command runs; one that is passes as typed (GD2)', async () => {
     for (const pick of [
       { cards: [] },
-      { cards: [0, 1, 2] },
+      { cards: [0, 1, 2, 3, 4] },
       { cards: [-1] },
       { cards: [1.5] },
       { cards: ['1'] },
@@ -692,15 +712,17 @@ describe('input checks', () => {
     ]) {
       expect(await actions.pickIdeasAction(ID, 3, pick)).toEqual({
         ok: false,
-        error: 'Pick one idea, or two to combine.',
+        error: 'Pick one idea, or up to four to combine.',
       })
     }
     expect(calls).toEqual([])
     await actions.pickIdeasAction(ID, 3, { cards: [2] })
     await actions.pickIdeasAction(ID, 3, { cards: [3, 0] })
+    await actions.pickIdeasAction(ID, 3, { cards: [4, 0, 2, 1] })
     expect(calls.map((c) => [c.name, ...c.args.slice(1)])).toEqual([
       ['pickIdeas', ID, 3, { cards: [2] }],
       ['pickIdeas', ID, 3, { cards: [3, 0] }],
+      ['pickIdeas', ID, 3, { cards: [4, 0, 2, 1] }],
     ])
   })
 

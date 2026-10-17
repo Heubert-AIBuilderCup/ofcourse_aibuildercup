@@ -55,7 +55,7 @@ function courseOf(id: string): Course {
 }
 
 /** "Master of Data Science" reads "Data Science" on the map. */
-const shortName = (c: Course): string => c.name.replace(/^Master of /, '')
+export const shortName = (c: Course): string => c.name.replace(/^Master of /, '')
 
 /** What the course is in: "Information Technology", of a Master's or a Diploma alike. */
 const subjectOf = (c: Course): string => c.name.replace(/^(Master|Diploma) of /, '')

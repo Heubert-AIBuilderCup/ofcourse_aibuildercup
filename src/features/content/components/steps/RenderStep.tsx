@@ -21,14 +21,25 @@ import { firstChars } from '../../text/script'
 import {
   ChangesNote,
   Control,
+  DownloadSlides,
+  FitFailures,
   fallbackLine,
   RenderedSlides,
   ReorderButtons,
   reasonText,
   StepAreas,
   tag,
+  useImageLimitLine,
 } from '../parts'
 import { SlidePreview, slideWords } from '../SlidePreview'
+import {
+  type ActionTab,
+  type SlideHold,
+  SlideStage,
+  StepTabs,
+  type TabHold,
+  useHolds,
+} from '../stage'
 import { usePressedAction } from '../usePostAction'
 import type { WorkbenchActions, WorkbenchView } from '../Workbench'
 
@@ -39,10 +50,18 @@ export type RenderStepProps = {
     WorkbenchActions,
     'renderAction' | 'retryArtAction' | 'lightEditAction' | 'makeCoversAction' | 'chooseCoverAction'
   >
+  /** The selected slide, held above the screen's version key (Workbench), so a save keeps it (GD24). */
+  slide?: SlideHold
+  /** The open tab beside the slides, held there too. */
+  tab?: TabHold
 }
 
 /** The step "Make covers" runs as (server/commands/render.ts). */
 const COVERS_STEP = 'covers'
+
+/** The tabs once rendered: the selected slide's light edits, and the covers, open first (criterion 102). */
+const THIS_SLIDE = 'This slide'
+const COVERS_TAB = 'Covers'
 
 /** The slots an editor may reword after render, with their labels. */
 const PHRASE_SLOTS = [
@@ -199,6 +218,7 @@ type CoversProps = {
  */
 function Covers({ note, covers, inUse, busy, making, make, choose }: CoversProps) {
   const ids = useId()
+  const limitLine = useImageLimitLine()
   const [idea, setIdea] = useState('')
   const options = covers?.options ?? []
   return (
@@ -245,7 +265,7 @@ function Covers({ note, covers, inUse, busy, making, make, choose }: CoversProps
                 />
               ) : (
                 <div className="flex aspect-4/5 w-full items-center justify-center border">
-                  <p className={reasonText}>{fallbackLine(o.fallback ?? 'no_art')}</p>
+                  <p className={reasonText}>{fallbackLine(o.fallback ?? 'no_art', limitLine)}</p>
                 </div>
               )}
               {o.assetId === null ? null : o.assetId === inUse ? (
@@ -277,11 +297,15 @@ function Covers({ note, covers, inUse, busy, making, make, choose }: CoversProps
  * request for changes naming the covers shows beside them (criterion 120). Once the post is in
  * review or live it shows read-only (criterion 111). It is the Images screen of a post from before
  * the looks (GD25); an edit on Text moves the post back by itself, with no "Back to text" (GD28).
+ * The slides sit on a stage, the selected one over the filmstrip; once rendered, beside it, the
+ * tabs "This slide" (its light edits) and "Covers", open first.
  */
-export function RenderStep({ view, viewer, actions }: RenderStepProps) {
+export function RenderStep({ view, viewer, actions, slide, tab: heldTab }: RenderStepProps) {
   // Which press is running, so only its control waits as "Running…" with its words beside it.
   const { pending, run, pressed } = usePressedAction<'render' | 'retry' | 'covers'>()
   const ids = useId()
+  // The selected slide and the open tab, the workbench's when it passes them (GD24).
+  const { at: selected, onSelect: setSelected, tab } = useHolds(slide, heldTab)
   const { layout, render, sendBack } = view.current
   // Render and "Try again" both run the render step: running, both wait; pressed, the one pressed.
   const renderRunning = view.running.includes('render')
@@ -310,18 +334,98 @@ export function RenderStep({ view, viewer, actions }: RenderStepProps) {
     actionError('chooseCover', viewer, view.stage) === null
 
   const coversShown = render !== null && offerCovers
+  const retryShown =
+    render !== null &&
+    (render.body.art.fallback === 'no_art' || render.body.art.fallback === 'daily_limit') &&
+    ACTION_STAGES.retryArt.includes(view.stage) &&
+    retryGate !== WORKFLOW_ERRORS.notAuthorised
   // A request for changes naming the covers shows beside them, or under the heading while they
   // are not shown (criterion 120); the other steps' show at their own step.
   const changesNote =
     sendBack?.body.step === 'covers' ? <ChangesNote sendBack={sendBack.body} /> : null
 
+  // The slides on the stage, one at a time: the stored PNGs once rendered (with the cover's
+  // "Replay", "No art" or "Limit" under it, criteria 6, 37), the layout before.
+  const count = render ? render.body.slides.length : (layout?.body.slides.length ?? 0)
+  const at = Math.max(0, Math.min(selected, count - 1))
+
+  const tabs: ActionTab[] = render
+    ? [
+        {
+          name: THIS_SLIDE,
+          body: (
+            // Its own key, so a phrase typed on one slide is not offered on the next.
+            <section key={at} aria-labelledby={`${ids}-slide`} className="flex flex-col gap-3">
+              <h3 id={`${ids}-slide`} className="text-overline uppercase text-muted-foreground">
+                {`Slide ${at + 1}`}
+              </h3>
+              <SlideControls view={view} render={render.body} index={at} edit={edit} />
+            </section>
+          ),
+        },
+        ...(coversShown || retryShown
+          ? [
+              {
+                name: COVERS_TAB,
+                body: (
+                  <>
+                    {coversShown && (
+                      <Covers
+                        note={changesNote}
+                        covers={view.current.covers?.body ?? null}
+                        inUse={render.body.art.assetId}
+                        busy={busy}
+                        making={drawingCovers}
+                        make={(idea) =>
+                          run(
+                            () => actions.makeCoversAction(view.id, view.version, idea),
+                            'Covers made',
+                            { press: 'covers' },
+                          )
+                        }
+                        choose={(option) =>
+                          run(
+                            () => actions.chooseCoverAction(view.id, view.version, option),
+                            'Cover changed',
+                          )
+                        }
+                      />
+                    )}
+                    {retryShown && (
+                      <Control reason={retryGate}>
+                        {renderRunning || pressed('retry') ? (
+                          <Button disabled>
+                            <Spin />
+                            Running…
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            disabled={pending || retryGate !== null}
+                            onClick={() =>
+                              run(() => actions.retryArtAction(view.id, view.version), done, {
+                                press: 'retry',
+                              })
+                            }
+                          >
+                            Try again
+                          </Button>
+                        )}
+                      </Control>
+                    )}
+                  </>
+                ),
+              },
+            ]
+          : []),
+      ]
+    : []
+
   return (
     <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <h2 id={`${ids}-heading`} className="text-h3">
-          Images
-        </h2>
-      </div>
+      <h2 id={`${ids}-heading`} className="sr-only">
+        Images
+      </h2>
 
       {changesNote && !coversShown && changesNote}
 
@@ -331,13 +435,13 @@ export function RenderStep({ view, viewer, actions }: RenderStepProps) {
             <RenderedSlides
               render={render.body}
               layout={layout?.body.slides}
-              below={(i) => (
-                <SlideControls view={view} render={render.body} index={i} edit={edit} />
-              )}
+              stage
+              selected={at}
+              onSelect={setSelected}
             />
-          ) : layout ? (
-            <div className="grid grid-cols-3 gap-2">
-              {layout.body.slides.map((laid, i) => (
+          ) : layout && count > 0 ? (
+            <SlideStage
+              slides={layout.body.slides.map((laid, i) => (
                 <SlidePreview
                   // biome-ignore lint/suspicious/noArrayIndexKey: a slide is its position in the layout.
                   key={i}
@@ -346,59 +450,22 @@ export function RenderStep({ view, viewer, actions }: RenderStepProps) {
                   text={slideWords(laid)}
                 />
               ))}
-            </div>
+              selected={at}
+              onSelect={setSelected}
+            />
           ) : (
             <p className="text-muted-foreground">No approved layout yet.</p>
           )
         }
         actions={
           <>
-            {render && coversShown && (
-              <Covers
-                note={changesNote}
-                covers={view.current.covers?.body ?? null}
-                inUse={render.body.art.assetId}
-                busy={busy}
-                making={drawingCovers}
-                make={(idea) =>
-                  run(() => actions.makeCoversAction(view.id, view.version, idea), 'Covers made', {
-                    press: 'covers',
-                  })
-                }
-                choose={(option) =>
-                  run(
-                    () => actions.chooseCoverAction(view.id, view.version, option),
-                    'Cover changed',
-                  )
-                }
-              />
-            )}
-            {render &&
-              (render.body.art.fallback === 'no_art' ||
-                render.body.art.fallback === 'daily_limit') &&
-              ACTION_STAGES.retryArt.includes(view.stage) &&
-              retryGate !== WORKFLOW_ERRORS.notAuthorised && (
-                <Control reason={retryGate}>
-                  {renderRunning || pressed('retry') ? (
-                    <Button disabled>
-                      <Spin />
-                      Running…
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      disabled={pending || retryGate !== null}
-                      onClick={() =>
-                        run(() => actions.retryArtAction(view.id, view.version), done, {
-                          press: 'retry',
-                        })
-                      }
-                    >
-                      Try again
-                    </Button>
-                  )}
-                </Control>
-              )}
+            <StepTabs
+              label="Image controls"
+              tabs={tabs}
+              open={tab.open}
+              initial={COVERS_TAB}
+              onOpen={tab.onOpen}
+            />
 
             {layout && !render && (
               <div className="flex flex-col gap-2">
@@ -418,6 +485,9 @@ export function RenderStep({ view, viewer, actions }: RenderStepProps) {
                   ))}
                 </ul>
               </div>
+            )}
+            {layout && !render && renderReason === WORKFLOW_ERRORS.fitFailed && (
+              <FitFailures postId={view.id} current={view.current} />
             )}
 
             {ACTION_STAGES.render.includes(view.stage) &&
@@ -443,6 +513,8 @@ export function RenderStep({ view, viewer, actions }: RenderStepProps) {
                 </Control>
               )}
             {drawingCover && <Working words="Drawing the cover…" />}
+            {/* In the step bar, before "Next: Settings →" (18 Oct). */}
+            {render && !renderRunning && <DownloadSlides postId={view.id} />}
           </>
         }
       />

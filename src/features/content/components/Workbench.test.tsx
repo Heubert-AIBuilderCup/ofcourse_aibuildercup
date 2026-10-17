@@ -33,7 +33,6 @@ const actions: Props['actions'] = {
   redraftSlideAction: ok,
   nudgeSlideAction: ok,
   nudgeVersionAction: ok,
-  takeSlideAction: ok,
   setSlideLayoutAction: ok,
   setLookAction: ok,
   setPresetAction: ok,
@@ -92,6 +91,7 @@ const actions: Props['actions'] = {
   resetCaptionAction: ok,
   markExportedAction: ok,
   recordPostUrlAction: ok,
+  sharePostAction: ok,
   editSceneAction: ok,
   editPanelsAction: ok,
   retryStoryAction: ok,
@@ -182,6 +182,16 @@ it('at the text step, shows the title, the step bar and the versions, and no sou
   expect(screen.queryByRole('heading', { name: 'History' })).toBeNull()
 })
 
+it('says a step was written with Flash-Lite on that step’s screen only', () => {
+  const line = 'Written with Flash-Lite because Flash and Pro were busy: the versions.'
+  const lite = { ...VIEW, lite: ['draft'] }
+  render(<Workbench view={lite} viewer={EDITOR} from="all" actions={actions} step="text" />)
+  expect(screen.getByText(line).textContent).toBe(line)
+  cleanup()
+  render(<Workbench view={lite} viewer={EDITOR} from="all" actions={actions} step="source" />)
+  expect(screen.queryByText(line) === null).toBe(true)
+})
+
 it('at the source step, shows the source pane and the history, and no step after it (GD27)', () => {
   render(<Workbench view={VIEW} viewer={EDITOR} from="all" actions={actions} step="source" />)
   expect(screen.getByRole('complementary', { name: 'Source' })).toHaveTextContent('¶1')
@@ -210,10 +220,10 @@ it('at the images step of a rendered post, shows the pictures only: no source ch
   expect(screen.queryByRole('heading', { level: 2, name: 'Text' })).toBeNull()
 })
 
-/** Opens a settings panel from its indicator. */
+/** Opens a settings panel from its tab. */
 const openPanel = (name: string) =>
   fireEvent.click(
-    within(screen.getByRole('navigation', { name: 'Settings panels' })).getByRole('button', {
+    within(screen.getByRole('tablist', { name: 'Settings panels' })).getByRole('tab', {
       name: new RegExp(`^${name}`),
     }),
   )
@@ -228,6 +238,14 @@ it('at the settings step, shows the source check, the feed settings and Send to 
       step="settings"
     />,
   )
+  // No check of this version yet: the Source check opens first, counted, with the check to run
+  // (18 Oct: one tab for the check, no "To fix").
+  const panel = () => screen.getByRole('tabpanel')
+  expect(panel().getAttribute('aria-labelledby')).toBe(
+    screen.getByRole('tab', { name: 'Source check · 1 to fix' }).id,
+  )
+  expect(screen.queryByRole('tab', { name: /^To fix/ }) === null).toBe(true)
+  expect(within(panel()).getByRole('button', { name: 'Run source check' })).toBeEnabled()
   expect(screen.getByRole('heading', { level: 2, name: /Source check/ })).toBeInTheDocument()
   expect(screen.getByRole('heading', { level: 2, name: /Feed settings/ })).toBeInTheDocument()
   openPanel('Expiry')
@@ -241,6 +259,51 @@ it('at the settings step, shows the source check, the feed settings and Send to 
   expect(screen.getAllByRole('button', { name: '← Images' })).toHaveLength(1)
   fireEvent.click(back)
   expect(push).toHaveBeenCalledWith('/admin/posts/p1/images')
+})
+
+it('puts "Download slides" in the step bar just before the step’s action (18 Oct)', () => {
+  const rendered = {
+    id: 'ren1',
+    body: {
+      revisionId: 'rev1',
+      layoutId: 'lay1',
+      art: { assetId: null, prompt: '', version: 1, fallback: null },
+      slides: [{ svgAssetId: 's1', pngAssetId: 'png1' }],
+    },
+  } as unknown as Props['view']['current']['render']
+  render(
+    <Workbench
+      view={{ ...VIEW, stage: 'rendered', current: { ...VIEW.current, render: rendered } }}
+      viewer={EDITOR}
+      from="all"
+      actions={actions}
+      step="settings"
+    />,
+  )
+  const bar = within(screen.getByRole('region', { name: 'Step actions' }))
+  const download = bar.getByRole('link', { name: 'Download slides' })
+  const send = bar.getByRole('button', { name: 'Send to review → Review' })
+  expect(Boolean(download.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(
+    true,
+  )
+  expect(
+    within(screen.getByRole('group', { name: 'Slides, one at a time' })).queryAllByRole('link')
+      .length,
+  ).toBe(0)
+})
+
+it('opens the tab the address names on its step, as "Fix it on Text · Checks" asks (18 Oct)', () => {
+  render(
+    <Workbench
+      view={{ ...VIEW, stage: 'rendered' }}
+      viewer={EDITOR}
+      from="all"
+      actions={actions}
+      step="settings"
+      openTab="Expiry"
+    />,
+  )
+  expect(screen.getByRole('tab', { name: /^Expiry/ }).getAttribute('aria-selected')).toBe('true')
 })
 
 it('reads Source · Ideas · Text · Images · Settings · Review · Live on the step bar of a post with ideas', () => {
@@ -371,12 +434,12 @@ it('keeps the selected slide of the picked version through a save, which opens t
   const { rerender } = render(
     <Workbench view={picked} viewer={EDITOR} from="all" actions={actions} step="text" />,
   )
-  const strip = () => within(screen.getByRole('list', { name: 'Slides' }))
+  const strip = () => within(screen.getByRole('list', { name: 'All slides' }))
   const pressed = (n: number) =>
     strip()
-      .getByRole('button', { name: new RegExp(`^Slide ${n}`) })
-      .getAttribute('aria-pressed')
-  fireEvent.click(strip().getByRole('button', { name: /^Slide 2/ }))
+      .getByRole('button', { name: `Slide ${n}` })
+      .getAttribute('aria-current') ?? 'false'
+  fireEvent.click(strip().getByRole('button', { name: 'Slide 2' }))
   expect(pressed(2)).toBe('true')
   rerender(
     <Workbench
@@ -452,9 +515,14 @@ it('in review, shows a reviewer the passed text step with no control at all (111
     />,
   )
   const text = screen.getByRole('region', { name: /^Text/ })
-  for (const role of ['button', 'checkbox', 'textbox', 'combobox'] as const) {
+  for (const role of ['checkbox', 'textbox', 'combobox'] as const) {
     expect(within(text).queryAllByRole(role)).toHaveLength(0)
   }
+  // Only the buttons that look: a slide of the filmstrip, a version's details.
+  const buttons = within(text)
+    .queryAllByRole('button')
+    .map((b) => b.getAttribute('aria-label') ?? b.textContent ?? '')
+  expect(buttons.filter((name) => !/^(Details|Slide \d+)$/.test(name))).toEqual([])
 })
 
 it('once live, shows the live post at its step, and the review as a summary at its own (111)', () => {
@@ -629,7 +697,7 @@ it('shows the market versions in their panel and "Preview in context" beside the
   expect(within(preview).getByRole('radio', { name: 'Preview in context' })).toBeInTheDocument()
   expect(screen.queryByRole('combobox', { name: 'For market' }) === null).toBe(true)
   openPanel('Market versions')
-  const markets = screen.getByRole('region', { name: 'Market versions' })
+  const markets = screen.getByRole('tabpanel', { name: 'Market versions' })
   expect(within(markets).getByRole('combobox', { name: 'For market' })).toBeInTheDocument()
   expect(within(markets).getByRole('button', { name: 'Make market version' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Send to review → Review' })).toBeInTheDocument()
@@ -643,7 +711,7 @@ it('shows the market versions in their panel and "Preview in context" beside the
       step="settings"
     />,
   )
-  expect(screen.getByRole('region', { name: 'Market versions' })).toBeInTheDocument()
+  expect(screen.getByRole('tabpanel', { name: 'Market versions' })).toBeInTheDocument()
   cleanup()
 
   render(
@@ -814,6 +882,144 @@ it('shows every step as two areas, the slides or the article and their actions (
   }
 })
 
+/** A look post with its three pictures drawn: three slides on the stage, two of them to reorder. */
+function drawnLook(): Props['view'] {
+  const heading = (text: string) => ({ heading: { text, factIds: [], factual: false } })
+  const revision = APPROVED_LOOK.current.revision as NonNullable<
+    Props['view']['current']['revision']
+  >
+  const laid = {
+    kind: 'body' as const,
+    lines: [],
+    artBox: { x: 0, y: 0, w: 1080, h: 540 },
+    sourceLine: null,
+    searchLine: null,
+  }
+  const scenes = [1, 2, 3].map((slide) => ({ slide, scene: `Scene ${slide}` }))
+  return {
+    ...APPROVED_LOOK,
+    stage: 'rendered',
+    pointers: { ...APPROVED_LOOK.pointers, layoutId: 'lay1', artPlanId: 'plan1' },
+    current: {
+      ...APPROVED_LOOK.current,
+      revision: {
+        ...revision,
+        body: {
+          ...revision.body,
+          structure: {
+            ...FIELD_NOTES_STRUCTURE,
+            slides: [
+              { kind: 'cover' as const, layout: 'cover' as const, slots: heading('The line') },
+              { kind: 'body' as const, layout: 'picture' as const, slots: heading('Hours') },
+              { kind: 'body' as const, layout: 'picture' as const, slots: heading('Grades') },
+            ],
+          },
+        },
+      },
+      layout: {
+        id: 'lay1',
+        body: { revisionId: 'r1', slides: [laid, laid, laid], fits: [], fitChecks: [] },
+      },
+      artPlan: { id: 'plan1', body: { revisionId: 'r1', scenes, panorama: false } },
+      render: {
+        id: 'ren1',
+        body: {
+          revisionId: 'r1',
+          layoutId: 'lay1',
+          art: { assetId: null, prompt: '', version: 1, fallback: null },
+          slides: [1, 2, 3].map((n) => ({ svgAssetId: `s${n}`, pngAssetId: `png${n}` })),
+          slideArt: scenes.map(({ slide, scene }) => ({
+            slide,
+            assetId: `art${slide}`,
+            scene,
+            take: 1,
+            nudge: null,
+            fallback: null,
+          })),
+        },
+      },
+    },
+  }
+}
+
+/** The open tab beside the slides, by its words. */
+const openTabs = () =>
+  screen
+    .queryAllByRole('tab')
+    .filter((t) => t.getAttribute('aria-selected') === 'true')
+    .map((t) => t.textContent)
+
+it('keeps the selected slide and the open tab of Images through a save, as a drawn picture lands (GD24)', () => {
+  const { rerender } = render(
+    <Workbench view={drawnLook()} viewer={EDITOR} from="all" actions={actions} step="images" />,
+  )
+  const strip = () => within(screen.getByRole('list', { name: 'All slides' }))
+  const pressed = (n: number) =>
+    strip()
+      .getByRole('button', { name: `Slide ${n}` })
+      .getAttribute('aria-current') ?? 'false'
+  fireEvent.click(strip().getByRole('button', { name: 'Slide 3' }))
+  fireEvent.click(screen.getByRole('tab', { name: 'Order' }))
+  expect([pressed(1), pressed(3)]).toEqual(['false', 'true'])
+  expect(openTabs()).toEqual(['Order'])
+  rerender(
+    <Workbench
+      view={{ ...drawnLook(), version: drawnLook().version + 1 }}
+      viewer={EDITOR}
+      from="all"
+      actions={actions}
+      step="images"
+    />,
+  )
+  expect([pressed(1), pressed(3)]).toEqual(['false', 'true'])
+  expect(openTabs()).toEqual(['Order'])
+})
+
+it('keeps the open tab of a post from before the looks through a save on Images', () => {
+  const { rerender } = render(
+    <Workbench view={drawnLegacy()} viewer={EDITOR} from="all" actions={actions} step="images" />,
+  )
+  // The covers open first (criterion 102).
+  expect(openTabs()).toEqual(['Covers'])
+  fireEvent.click(screen.getByRole('tab', { name: 'This slide' }))
+  rerender(
+    <Workbench
+      view={{ ...drawnLegacy(), version: drawnLegacy().version + 1 }}
+      viewer={EDITOR}
+      from="all"
+      actions={actions}
+      step="images"
+    />,
+  )
+  expect(openTabs()).toEqual(['This slide'])
+})
+
+it('keeps Share open on Live after a share saves, its new share in sight (10)', () => {
+  const { rerender } = render(
+    <Workbench view={LIVE_FEED} viewer={EDITOR} from="all" actions={actions} step="live" />,
+  )
+  expect(openTabs()).toEqual(['Details'])
+  fireEvent.click(screen.getByRole('tab', { name: 'Share' }))
+  const by = { userId: 'u1', name: 'Rae', at: '2026-10-17T09:00:00.000Z' }
+  rerender(
+    <Workbench
+      view={{
+        ...LIVE_FEED,
+        version: LIVE_FEED.version + 1,
+        shares: [{ id: 'share_1', body: { instagram: [], linkedin: ['main'], by } }],
+      }}
+      viewer={EDITOR}
+      from="all"
+      actions={actions}
+      step="live"
+    />,
+  )
+  expect(openTabs()).toEqual(['Share'])
+  expect(within(screen.getByRole('list', { name: 'Shares' })).getAllByRole('listitem').length).toBe(
+    1,
+  )
+})
+
 it('puts the picked version’s film strip in the slides area, and its fields in the actions area (GD30)', () => {
   render(
     <Workbench
@@ -826,8 +1032,8 @@ it('puts the picked version’s film strip in the slides area, and its fields in
   )
   const slides = screen.getByRole('region', { name: 'Slides' })
   const actionsArea = screen.getByRole('region', { name: 'Actions' })
-  expect(within(slides).getByRole('list', { name: 'Slides' })).toBeInTheDocument()
-  expect(within(actionsArea).queryByRole('list', { name: 'Slides' })).toBeNull()
+  expect(within(slides).getByRole('list', { name: 'All slides' })).toBeInTheDocument()
+  expect(within(actionsArea).queryByRole('list', { name: 'All slides' })).toBeNull()
   expect(within(actionsArea).getByRole('region', { name: /^Your version/ })).toBeInTheDocument()
   expect(within(actionsArea).getByRole('group', { name: 'Slide 1 text' })).toBeInTheDocument()
   // The approval is the step's own action: it sits in the step actions bar (A4), not in this area.
@@ -843,6 +1049,7 @@ it('puts the preview in the slides area of Settings, and the check and the feed 
   const slides = screen.getByRole('region', { name: 'Slides' })
   const actionsArea = screen.getByRole('region', { name: 'Actions' })
   expect(within(slides).getByRole('region', { name: 'Preview' })).toBeInTheDocument()
+  openPanel('Source check')
   expect(within(actionsArea).getByRole('heading', { name: /Source check/ })).toBeInTheDocument()
   expect(within(actionsArea).getByRole('region', { name: 'Feed settings' })).toBeInTheDocument()
   // Sending is the step's own action: it sits in the step actions bar (A4), not in this area.
@@ -945,12 +1152,40 @@ it('offers a live feed post "Make a blog" and "Link to an existing blog" on its 
   expect(screen.queryByRole('link', { name: /^Continue at/ }) === null).toBe(true)
 })
 
-it('offers "Next: Blog →" on a live feed post, and no blog controls before its Blog step', () => {
+it('shows a live feed post’s slides on its Blog step as the selected slide over a filmstrip', () => {
+  render(
+    <Workbench
+      view={{ ...drawnLegacy(), kind: 'feed', stage: 'live', blogs: LIVE_FEED.blogs }}
+      viewer={EDITOR}
+      from="all"
+      actions={actions}
+      step="blog"
+    />,
+  )
+  const slides = within(screen.getByRole('region', { name: 'Slides' }))
+  expect(
+    slides
+      .getByRole('group', { name: 'Slides, one at a time' })
+      .getAttribute('aria-roledescription'),
+  ).toBe('carousel')
+  expect(slides.queryAllByRole('list', { name: 'All slides' }).length).toBe(1)
+})
+
+it('finishes a live feed post at Live, the blog offered as optional, and lets its Blog step be skipped', () => {
   render(<Workbench view={LIVE_FEED} viewer={EDITOR} from="all" actions={actions} step="live" />)
-  expect(screen.getByRole('link', { name: 'Next: Blog →' })).toHaveAttribute(
-    'href',
+  expect(screen.getByRole('link', { name: 'Add a blog (optional) →' }).getAttribute('href')).toBe(
     '/admin/posts/p1/blog',
   )
+  expect(screen.getByRole('link', { name: 'Done · back to the board' }).getAttribute('href')).toBe(
+    '/admin/board?all',
+  )
+  cleanup()
+  render(<Workbench view={LIVE_FEED} viewer={EDITOR} from="all" actions={actions} step="blog" />)
+  expect(
+    screen.getByRole('link', { name: 'Skip the blog · back to the board' }).getAttribute('href'),
+  ).toBe('/admin/board?all')
+  cleanup()
+  render(<Workbench view={LIVE_FEED} viewer={EDITOR} from="all" actions={actions} step="live" />)
   expect(screen.queryByRole('button', { name: 'Make a blog' }) === null).toBe(true)
   cleanup()
 
@@ -978,7 +1213,7 @@ it('offers "Next: Blog →" on a live feed post, and no blog controls before its
       step="live"
     />,
   )
-  expect(screen.queryByRole('link', { name: 'Next: Blog →' }) === null).toBe(true)
+  expect(screen.queryByRole('link', { name: 'Add a blog (optional) →' }) === null).toBe(true)
 })
 
 it('puts each step’s primary action in one "Step actions" bar, outside the two areas (A4)', () => {
@@ -1012,5 +1247,5 @@ it('puts each step’s primary action in one "Step actions" bar, outside the two
   cleanup()
 
   render(<Workbench view={LIVE_FEED} viewer={EDITOR} from="all" actions={actions} step="live" />)
-  expect(within(bar()).getByRole('link', { name: 'Next: Blog →' })).toBeInTheDocument()
+  expect(within(bar()).queryAllByRole('link', { name: 'Done · back to the board' }).length).toBe(1)
 })

@@ -8,7 +8,7 @@ import { putArtifact } from '../store'
 import { type Actor, command, fail, type Saved, save } from './shared'
 
 // Idea cards before any draft (GD1–GD3, GD7, GD20): "Make post" stops at them (./source.ts), the
-// editor asks for more, then picks one, or two to combine, and that idea is outlined slide by
+// editor asks for more, then picks one, or up to four to combine, and that idea is outlined slide by
 // slide in the first card's look (GD32) for the versions to follow (./outline.ts). The cards stay
 // pointed at, so the outline and the versions can go back to them.
 
@@ -71,19 +71,19 @@ export async function moreIdeas(actor: Actor, id: string, version: number): Prom
   })
 }
 
-/** One card's index, or two different ones, each a card shown. */
+/** One card's index, or up to four different ones (Combine, GD2), each a card shown. */
 function isPick(cards: unknown, shown: number): cards is number[] {
   return (
     Array.isArray(cards) &&
     cards.length >= 1 &&
-    cards.length <= 2 &&
+    cards.length <= 4 &&
     new Set(cards).size === cards.length &&
     cards.every((i) => Number.isInteger(i) && i >= 0 && i < shown)
   )
 }
 
 /**
- * "Use this idea", or two ticked and "Combine" (GD2): the idea outlined slide by slide in the
+ * "Use this idea", or two to four ticked and "Combine" (GD2): the idea outlined slide by slide in the
  * first card's look (GD32), each slide's job, layout and point, with the card, or both to
  * combine, kept on the outline, in the first card's format (GD33). Nothing is drafted: the editor
  * shapes the outline, then "Write the slides" drafts to it (./outline.ts). Versions drafted for

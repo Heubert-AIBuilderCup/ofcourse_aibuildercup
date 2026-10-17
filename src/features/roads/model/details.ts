@@ -3,28 +3,58 @@
 // state's list, and, on the stack and the alternative, the field next to hers its course is in.
 // With the course detail on (COURSE_DETAIL_ON), every course card (the road's, the alternative
 // and the stack) also has the fields near its course's and its occupations' sample job market in
-// that course's city. Nothing is ranked: catalogue order. Pure.
+// that course's city. The options beside the road's steps (options.ts) add their own: another
+// course its jobs, a job its market, lists and way to PR. Nothing is ranked: catalogue order. Pure.
 
-import { cityOf } from '@/features/engine/catalogue'
+import { cityById, cityOf } from '@/features/engine/catalogue'
 import type { StoredAnswers } from '@/shared/types/student'
 import { courseById } from '../data/courses'
 import { FIELDS, relatedFields } from '../data/fields'
 import { jobMarketFor } from '../data/job-market'
-import { CITY_STATE, occupationsFor } from '../data/occupations'
+import { CITY_STATE, occupationsFor, routeFor, type StayingRoute } from '../data/occupations'
 import { opportunitiesIn } from '../data/opportunities'
 import { subjectsOf } from '../data/subjects'
 import {
   type Comparison,
   type CourseJob,
   type FieldNear,
+  type JobMarketRow,
   type Occupation,
   type Opportunity,
   type RoadSpec,
   SLOTS,
   type SlotId,
   type StateId,
+  type VisaId,
 } from '../data/types'
+import { VISAS } from '../data/visas'
 import { pickedFields } from './match'
+import { jobsAfter, jobTileId, otherCourses, otherCourseTileId } from './options'
+
+/** A visa on the road as its step's card states it: its facts, and the visas it leads to. */
+export type VisaFacts = {
+  id: VisaId
+  name: string
+  years: string
+  conditions: string[]
+  /** "485 · Graduate visa" */
+  leadsTo: string[]
+  source: string
+}
+
+/**
+ * A job beside the 485: its sample market in the road's city, whether it is on that state's 190
+ * and 491 lists, and the way to PR it supports there.
+ */
+export type JobFacts = {
+  code: string
+  name: string
+  /** The road's city, named. */
+  city: string
+  market: JobMarketRow | null
+  lists: string[]
+  prWay: string
+}
 
 /** The field next to the one she picked that a course is in, and what that field is. */
 export type RelatedMark = { field: string; definition: string }
@@ -45,10 +75,14 @@ export type CardDetails = {
   /** With the course detail on: the fields one step from its course's, on every course tile. */
   fieldsNear?: FieldNear[]
   /**
-   * With compare on (COMPARE_ON), on the other-city and other-course tiles: "What changes" (the
-   * finder's compareByTile), with the roadmap a new one would start from.
+   * With compare on (COMPARE_ON), on the other-city, other-course and stack-course tiles: "What
+   * changes" (the finder's compareByTile), with the roadmap a new one would start from.
    */
   compare?: Comparison & { roadmapId: string }
+  /** On a step of the route that is a visa: its facts. */
+  visa?: VisaFacts
+  /** On a job beside the 485: its facts. */
+  job?: JobFacts
 }
 
 const courseOf = (spec: RoadSpec, slot: 'course' | 'alt-course' | 'stack-course'): string =>
@@ -167,6 +201,35 @@ export function cardDetails(
   answers: StoredAnswers,
   opts?: DetailOptions,
 ): CardDetails | null {
+  const own = slotDetails(spec, slot, answers, opts)
+  const visa = visaFacts(SLOT_VISA[slot] ?? spec.slots[slot].visa)
+  return visa ? { ...own, visa } : own
+}
+
+/** The visa each fixed step of the route is; the ways to stay carry their own (`SlotCopy.visa`). */
+const SLOT_VISA: Partial<Record<SlotId, VisaId>> = { 'visa-500': '500', 'visa-485': '485' }
+
+const visaName = (id: VisaId): string => VISAS.find((v) => v.id === id)?.name ?? ''
+
+function visaFacts(id: VisaId | undefined): VisaFacts | undefined {
+  const visa = VISAS.find((v) => v.id === id)
+  if (!visa) return undefined
+  return {
+    id: visa.id,
+    name: visa.name,
+    years: visa.years,
+    conditions: [...visa.conditions],
+    leadsTo: visa.leadsTo.map((to) => `${to} · ${visaName(to)}`),
+    source: `${visa.source.title} · ${visa.source.date}`,
+  }
+}
+
+function slotDetails(
+  spec: RoadSpec,
+  slot: SlotId,
+  answers: StoredAnswers,
+  opts?: DetailOptions,
+): CardDetails | null {
   switch (slot) {
     case 'course':
       return nonEmpty({
@@ -196,13 +259,51 @@ export function cardDetails(
   }
 }
 
+/** The way to PR a job's route is, in its state. */
+function prWayLine(route: StayingRoute, state: StateId): string {
+  if (route === '190') return `Supports a 190 state nomination in ${state}`
+  if (route === '491') return `Supports a 491 regional visa in ${state}, then the 191`
+  if (route === '186') return 'Supports an employer’s 186: it can be employer-sponsored'
+  return `No clear way to PR from it in ${state}`
+}
+
+/** A job's facts in the road's city, by the rules the PR steps use (listLines, routeFor). */
+function jobFacts(spec: RoadSpec, o: Occupation): JobFacts {
+  const state = CITY_STATE[spec.cityId]
+  return {
+    code: o.code,
+    name: o.name,
+    city: cityById(spec.cityId).name,
+    market: jobMarketFor(o.code, spec.cityId),
+    lists: [...listLines([o], '190', state), ...listLines([o], '491', state)],
+    prWay: prWayLine(routeFor([o], spec.cityId, courseById(spec.courseId)?.prScore), state),
+  }
+}
+
+/**
+ * What the options beside the road's steps add: a course's jobs (with the course detail on, as the
+ * other course cards have them: the fields near and the market in its own city); a job's facts.
+ */
+function optionDetails(spec: RoadSpec, opts?: DetailOptions): Record<string, CardDetails> {
+  const byTile: Record<string, CardDetails> = {}
+  for (const courseId of otherCourses(spec)) {
+    const details = opts?.detail
+      ? otherCourseDetail(courseId)
+      : { occupations: occupationsFor(courseId).map(({ code, name }) => ({ code, name })) }
+    const kept = nonEmpty(details)
+    if (kept) byTile[otherCourseTileId(courseId)] = kept
+  }
+  for (const o of jobsAfter(spec)) byTile[jobTileId(o.code)] = { job: jobFacts(spec, o) }
+  return byTile
+}
+
 /** What each tile of the road adds, by tile id: only the tiles whose card has something to show. */
 export function detailsByTile(
   spec: RoadSpec,
   answers: StoredAnswers,
   opts?: DetailOptions,
 ): Record<string, CardDetails> {
-  const byTile: Record<string, CardDetails> = {}
+  const byTile: Record<string, CardDetails> = optionDetails(spec, opts)
   for (const slot of SLOTS) {
     const details = cardDetails(spec, slot, answers, opts)
     if (details) byTile[spec.slots[slot].id] = details

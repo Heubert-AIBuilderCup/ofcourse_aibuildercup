@@ -6,7 +6,7 @@ import { cn } from '@/shared/lib/utils'
 import { MockTag } from './MockTag'
 
 /** The New roadmap draft from this roadmap, with a course pinned. */
-const pinnedDraftPath = (roadmapId: string, courseId: string): string =>
+export const pinnedDraftPath = (roadmapId: string, courseId: string): string =>
   `${newRoadmapPath(roadmapId)}&pin=${encodeURIComponent(courseId)}`
 
 /**

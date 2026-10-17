@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { cardFor, pressTile, primaryAction } from './press'
+import { type Card, cardFor, pressTile, primaryAction, withStart } from './press'
 import { getRoad } from './road-data'
 import { DEFAULT_ROAD_STATE, type RoadState } from './road-url'
 import { buildScene, NEW_SESSION } from './scene'
@@ -17,9 +17,9 @@ describe('pressTile', () => {
     expect(pressTile(DEFAULT_ROAD_STATE, DS, atCourse)).toEqual(state({ tile: DS }))
   })
 
-  it('at Whole road first brings the camera to Level, centred on the tile', () => {
+  it('keeps the camera at Whole road', () => {
     expect(pressTile(state({ zoom: 'whole' }), DS, atCourse)).toEqual(
-      state({ zoom: 'level', tile: DS }),
+      state({ zoom: 'whole', tile: DS }),
     )
   })
 
@@ -89,15 +89,16 @@ describe('cardFor', () => {
     })
   })
 
-  it('a route step: look ahead, the duck stays, back to where she is', () => {
+  it('a route step: look ahead, and back to where she is, the place said beside it', () => {
     expect(cardFor(road, atCourse, 'student-visa-500')).toMatchObject({
       kind: 'look',
-      kicker: 'Look ahead · the duck stays · Route step',
+      kicker: 'Look ahead · Route step',
       primary: 'Open route detail at this step',
-      secondary: 'Back to Cyber Security',
+      secondary: 'Back to where you are',
+      backTo: 'Cyber Security',
       routeId: 'student-visa-500',
     })
-    expect(cardFor(road, swapped, 'permanent-residency').secondary).toBe('Back to Data Science')
+    expect(cardFor(road, swapped, 'permanent-residency').backTo).toBe('Data Science')
   })
 
   it('offers the lesson on the Master’s years only', () => {
@@ -182,5 +183,39 @@ describe('primaryAction: what the card’s primary does', () => {
   it('does not swap a course put on the board from the stack (this round)', () => {
     const added = buildScene(road, { ...NEW_SESSION, added: true })
     expect(primaryAction(road, added, 'information-systems-curtin-perth')).toBeNull()
+  })
+})
+
+describe('withStart: a card’s primary with what compare can start', () => {
+  const card = (c: Partial<Card>): Card => ({
+    kind: 'course',
+    kicker: '',
+    name: 'X',
+    sub: '',
+    because: '',
+    badges: [],
+    ...c,
+  })
+
+  it('says it starts a new roadmap where one can be started', () => {
+    expect(withStart(card({ primary: 'Swap onto your roadmap' }), true).primary).toBe(
+      'Start a new roadmap from it',
+    )
+  })
+
+  it('keeps the card where she is, or a card with no primary, as it is', () => {
+    expect(withStart(card({ kind: 'here', primary: 'Look ahead' }), true).primary).toBe(
+      'Look ahead',
+    )
+    expect(withStart(card({}), true).primary).toBeUndefined()
+  })
+
+  it('drops a primary that could only start one when none can be', () => {
+    expect(
+      withStart(card({ primary: 'Start a new roadmap from it', starts: true }), false).primary,
+    ).toBeUndefined()
+    expect(withStart(card({ primary: 'Swap onto your roadmap' }), false).primary).toBe(
+      'Swap onto your roadmap',
+    )
   })
 })

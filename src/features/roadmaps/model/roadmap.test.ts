@@ -1,8 +1,10 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, mock, test } from 'bun:test'
 import { newRoadmapPath } from '@/shared/lib/student-paths'
 import type { Roadmap, StoredAnswers } from '@/shared/types/student'
 import {
   answerDiffs,
+  drawerNames,
+  drawerRoadmaps,
   firstMade,
   fromLine,
   isNew,
@@ -240,4 +242,46 @@ describe('answerDiffs', () => {
 test('a new roadmap’s draft: a copy of one, or from scratch', () => {
   expect(newRoadmapPath('abc')).toBe('/roadmaps/new?from=abc')
   expect(newRoadmapPath()).toBe('/roadmaps/new')
+})
+
+describe('drawerRoadmaps', () => {
+  test('lists her roadmaps in the order given, the archived ones left out', () => {
+    const list = [
+      make({ id: 'last' }),
+      make({ id: 'archived', archivedAt: at(3) }),
+      make({ id: 'earlier' }),
+    ]
+    expect(drawerRoadmaps(list, 'last').map((r) => r.id)).toEqual(['last', 'earlier'])
+  })
+
+  test('keeps the one open, archived or not', () => {
+    const list = [make({ id: 'open', archivedAt: at(3) }), make({ id: 'other' })]
+    expect(drawerRoadmaps(list, 'open').map((r) => r.id)).toEqual(['open', 'other'])
+  })
+})
+
+describe('drawerNames', () => {
+  const road = (here: string, city: string) => ({
+    tiles: [
+      { id: 'c', name: here },
+      { id: 't', name: city },
+    ],
+    walk: { here: 'c', cityLine: ['t'] },
+  })
+
+  test('names each as the list does, building a road only for one without her own name', () => {
+    const roadOf = mock((_: Roadmap) => road('Data Science', 'Sydney'))
+    const list = [
+      make({ id: 'open' }),
+      make({ id: 'named', name: 'My plan B' }),
+      make({ id: 'unnamed' }),
+      make({ id: 'archived', archivedAt: at(3) }),
+    ]
+    expect(drawerNames(list, 'open', 'Cyber Security in Perth', roadOf)).toEqual([
+      { id: 'open', name: 'Cyber Security in Perth' },
+      { id: 'named', name: 'My plan B' },
+      { id: 'unnamed', name: 'Data Science in Sydney' },
+    ])
+    expect(roadOf.mock.calls.map(([r]) => r.id)).toEqual(['unnamed'])
+  })
 })
