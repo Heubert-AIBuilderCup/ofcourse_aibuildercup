@@ -16,27 +16,95 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { Blueprint } from '@/shared/components/Blueprint'
-import { Button } from '@/shared/components/ui/button'
+import { Button, buttonVariants } from '@/shared/components/ui/button'
 import { Label } from '@/shared/components/ui/label'
 import { Spin } from '@/shared/components/Working'
 import { cn } from '@/shared/lib/utils'
 import { type FailureReason, failureSentence } from '../lib/failure'
+import { dailyLimitLine, stepLimitLine } from '../lib/limits'
 import { sendBackLine } from '../lib/lines'
 import { runningReason, type StepProgress } from '../lib/running'
+import { postPath } from '../lib/steps'
 import { marketById } from '../markets'
 import type { Body } from '../model/artifacts'
 import type { LaidSlide } from '../model/types'
 import { reasonText, tag } from './classes'
 import { SlidePreview, slideWords } from './SlidePreview'
+import { SlideStage } from './stage'
 
 export { reasonText, tag } from './classes'
 
-/** A button row with its refusal beside it: unavailable controls always say why. */
+/** Inside the step bar's action row, where a control's reason opens from the row's end. */
+const ControlAtEnd = createContext(false)
+
+/**
+ * A button row that says why it is unavailable (criterion 8): with a reason, a red "!" badge beside
+ * the control, and the reason in a tooltip shown while the row is hovered or holds focus and
+ * announced as the badge's description. Escape hides it until the pointer or focus leaves the row
+ * (WCAG 1.4.13). The reason opens above the row, from its start, or from its end in the step bar
+ * where the action sits at the right edge, so the panel never cuts it off, it never covers the
+ * fields below, and it stays on screen in the step bar at the viewport's bottom. The reason stays
+ * in the DOM, so a step bar's action stays right-most.
+ */
 export function Control({ reason, children }: { reason: string | null; children: ReactNode }) {
+  const tip = useId()
+  // In the step bar the action sits at the right edge: the reason opens from the row's end there.
+  const align = useContext(ControlAtEnd) ? 'end' : 'start'
+  const [hovered, setHovered] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
+  // Keys go to the focused element, not the hovered one: while hovered, listen on the document.
+  useEffect(() => {
+    if (!hovered) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setDismissed(true)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [hovered])
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    // biome-ignore lint/a11y/noStaticElementInteractions: the row's handlers only dismiss its tooltip; the controls inside it are the interactive ones.
+    <div
+      className="group/control relative flex flex-wrap items-center gap-3"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') setDismissed(true)
+      }}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => {
+        setHovered(false)
+        setDismissed(false)
+      }}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setDismissed(false)
+      }}
+    >
       {children}
-      {reason && <p className={reasonText}>{reason}</p>}
+      {reason && (
+        // Beside the control, in the row's flow; the reason opens above the whole row.
+        <>
+          <button
+            type="button"
+            aria-label="Why this is unavailable"
+            aria-describedby={tip}
+            className="flex size-5 cursor-help items-center justify-center border border-destructive bg-destructive text-caption font-semibold leading-none text-destructive-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            !
+          </button>
+          <span
+            id={tip}
+            role="tooltip"
+            data-align={align}
+            data-dismissed={dismissed || undefined}
+            className={cn(
+              reasonText,
+              'invisible absolute bottom-full z-10 mb-1 w-max max-w-xs border bg-popover px-3 py-2 text-popover-foreground',
+              align === 'end' ? 'right-0' : 'left-0',
+              !dismissed && 'group-focus-within/control:visible group-hover/control:visible',
+            )}
+          >
+            {reason}
+          </span>
+        </>
+      )}
     </div>
   )
 }
@@ -55,7 +123,10 @@ export const movesWait = (
  * failed after it when its recorded error names a reason (lib/failure.ts).
  */
 export function FailedLine({ words, reason }: { words: string; reason?: FailureReason }) {
-  const why = failureSentence(reason)
+  const limits = useContext(DailyLimitsContext)
+  // A day's cap says why there is one, when it resets and who to email (lib/limits.ts).
+  const why =
+    reason === 'daily_limit' && limits ? stepLimitLine(limits.support) : failureSentence(reason)
   return <p className={reasonText}>{why ? `${words} ${why}` : words}</p>
 }
 
@@ -161,7 +232,11 @@ export function StepBack({ children }: { children: ReactNode }) {
  */
 export function StepAction({ children }: { children: ReactNode }) {
   const slots = useContext(StepBarTarget)
-  const row = <div className="flex flex-1 flex-wrap items-center justify-end gap-4">{children}</div>
+  const row = (
+    <ControlAtEnd value>
+      <div className="flex flex-1 flex-wrap items-center justify-end gap-4">{children}</div>
+    </ControlAtEnd>
+  )
   if (slots === undefined) {
     return (
       <section aria-label="Step actions" className={stepBar}>
@@ -311,88 +386,167 @@ export const FALLBACK_LABELS = {
   daily_limit: 'Limit',
 } as const
 
-/** The sentence beside the "Limit" tag, and in its place where no tag shows. */
+/** The sentence beside the "Limit" tag, and in its place where no tag shows, when no cap is known. */
 export const LIMIT_LINE = 'Daily image limit reached.'
 
-/** A fallback in words where it shows as text, not a tag: the sentence for the day's limit. */
-export const fallbackLine = (fallback: keyof typeof FALLBACK_LABELS) =>
-  fallback === 'daily_limit' ? LIMIT_LINE : FALLBACK_LABELS[fallback]
+/** The day's image cap and the support address, read on the server (ai/config.ts) for the screens. */
+const DailyLimitsContext = createContext<{ imageCap: number; support: string | null } | null>(null)
 
-/** Slides three to a row, or with `swipe` one at a time in a snapping row, the next one peeking. */
-const slideRow = (swipe: boolean) =>
-  swipe ? 'flex snap-x snap-mandatory gap-2 overflow-x-auto' : 'grid grid-cols-3 gap-2'
-const slideItem = (swipe: boolean) => (swipe ? 'w-4/5 shrink-0 snap-start' : undefined)
-/** A row that swipes says what it is: the post's slides, one at a time. */
-const slideRowRole = (swipe: boolean) =>
-  swipe
-    ? ({
-        role: 'group',
-        'aria-roledescription': 'carousel',
-        'aria-label': 'Slides, one at a time',
-      } as const)
-    : {}
+/** Gives the workbench the image cap and who to email, so the "Limit" line says both. */
+export function DailyLimits({
+  imageCap,
+  support,
+  children,
+}: {
+  imageCap: number
+  support: string | null
+  children: ReactNode
+}) {
+  return <DailyLimitsContext value={{ imageCap, support }}>{children}</DailyLimitsContext>
+}
+
+/** The sentence beside the "Limit" tag: the full daily-limit line (lib/limits.ts), or LIMIT_LINE. */
+export function useImageLimitLine(): string {
+  const limits = useContext(DailyLimitsContext)
+  return limits
+    ? dailyLimitLine({ what: 'images', cap: limits.imageCap, support: limits.support })
+    : LIMIT_LINE
+}
+
+/** A fallback in words where it shows as text, not a tag: the sentence for the day's limit. */
+export const fallbackLine = (fallback: keyof typeof FALLBACK_LABELS, limitLine = LIMIT_LINE) =>
+  fallback === 'daily_limit' ? limitLine : FALLBACK_LABELS[fallback]
+
+/** Which slide a stage shows, when the caller holds it (both versions of a review show the same one). */
+type Selection = { selected?: number; onSelect?: (index: number) => void }
+
+/**
+ * A SlideStage of a post's slides (criterion 5): the selection the caller holds, or its own from
+ * the first slide; switching versions then starts again from the first.
+ */
+function HeldStage({
+  slides,
+  below,
+  selected,
+  onSelect,
+}: Selection & { slides: ReactNode[]; below?: (at: number) => ReactNode }) {
+  const [own, setOwn] = useState(0)
+  const at = Math.max(0, Math.min(selected ?? own, slides.length - 1))
+  return (
+    <SlideStage slides={slides} selected={at} onSelect={onSelect ?? setOwn} below={below?.(at)} />
+  )
+}
 
 /** The stored PNGs of a render, with "Replay", "No art" or "Limit" on the cover (criteria 6, 37), and anything the caller shows under a slide. */
 export function RenderedSlides({
   render,
   layout,
   below,
-  swipe = false,
-}: {
+  stage = false,
+  selected,
+  onSelect,
+}: Selection & {
   render: Body<'render'>
   /** The render's laid-out slides, whose words each image carries as its alt. */
   layout?: LaidSlide[]
   below?: (index: number) => ReactNode
-  /** One slide at a time in a row that swipes, as the post goes out. */
-  swipe?: boolean
+  /** The selected slide over a filmstrip (SlideStage); three to a row without it. */
+  stage?: boolean
 }) {
   const fallback = render.art.fallback
+  const limitLine = useImageLimitLine()
+  const pictures = render.slides.map((s, i) => (
+    // biome-ignore lint/suspicious/noArrayIndexKey: a slide is its position; two may share bytes.
+    <SlidePreview key={i} slide={i + 1} assetId={s.pngAssetId} text={slideWords(layout?.[i])} />
+  ))
+  const fallbackTag = fallback && (
+    <>
+      <span className={tag}>{FALLBACK_LABELS[fallback]}</span>
+      {fallback === 'daily_limit' && <span className={reasonText}>{limitLine}</span>}
+    </>
+  )
+  if (stage) {
+    // The cover's fallback goes under the cover while it is the one shown, not into its thumbnail.
+    return (
+      <HeldStage
+        slides={pictures}
+        selected={selected}
+        onSelect={onSelect}
+        below={(at) =>
+          (at === 0 && fallbackTag) || below ? (
+            <div className="flex flex-col items-center gap-1">
+              {at === 0 && fallbackTag && (
+                <p className="flex flex-wrap items-center gap-2">{fallbackTag}</p>
+              )}
+              {below?.(at)}
+            </div>
+          ) : null
+        }
+      />
+    )
+  }
+  const slides = pictures.map((picture, i) => (
+    // biome-ignore lint/suspicious/noArrayIndexKey: a slide is its position; two may share bytes.
+    <figure key={i} className="flex flex-col gap-1">
+      {picture}
+      {i === 0 && fallbackTag && (
+        <figcaption className="flex flex-wrap items-center gap-2">{fallbackTag}</figcaption>
+      )}
+      {below?.(i)}
+    </figure>
+  ))
+  return <div className="grid grid-cols-3 gap-2">{slides}</div>
+}
+
+/**
+ * "Download slides" (Images on): the zip of a feed post's rendered slides, PNG and SVG, text only
+ * or with their pictures, from src/app/admin/(console)/posts/[id]/slides. Shown under the selected
+ * slide, above the filmstrip, wherever the post's rendered slides are on the stage.
+ */
+export function DownloadSlides({ postId }: { postId: string }) {
   return (
-    <div className={slideRow(swipe)} {...slideRowRole(swipe)}>
-      {render.slides.map((s, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: a slide is its position; two may share bytes.
-        <figure key={i} className={cn('flex flex-col gap-1', slideItem(swipe))}>
-          <SlidePreview slide={i + 1} assetId={s.pngAssetId} text={slideWords(layout?.[i])} />
-          {i === 0 && fallback && (
-            <figcaption className="flex flex-wrap items-center gap-2">
-              <span className={tag}>{FALLBACK_LABELS[fallback]}</span>
-              {fallback === 'daily_limit' && <span className={reasonText}>{LIMIT_LINE}</span>}
-            </figcaption>
-          )}
-          {below?.(i)}
-        </figure>
-      ))}
-    </div>
+    <a
+      href={`${postPath(postId)}/slides`}
+      download
+      className={buttonVariants({ variant: 'outline', size: 'sm' })}
+    >
+      Download slides
+    </a>
   )
 }
 
 /** The stored PNGs of a market version, with the feed excerpt it goes out with and whether the model reworded it (criterion 110). */
 export function MarketSlides({
   market,
-  swipe = false,
-}: {
+  stage = false,
+  selected,
+  onSelect,
+}: Selection & {
   market: Body<'market'>
-  /** One slide at a time in a row that swipes, as the post goes out. */
-  swipe?: boolean
+  /** The selected slide over a filmstrip (SlideStage); three to a row without it. */
+  stage?: boolean
 }) {
   const wording =
     (market.reworded ?? false)
       ? `Reworded for ${marketName(market.market)}`
       : 'Approved wording, money converted'
+  const pictures = market.slides.map((s, i) => (
+    <SlidePreview
+      // biome-ignore lint/suspicious/noArrayIndexKey: a slide is its position; two may share bytes.
+      key={i}
+      slide={i + 1}
+      assetId={s.pngAssetId}
+      text={slideWords(market.layout[i])}
+    />
+  ))
   return (
-    <div className="flex flex-col gap-4">
-      <div className={slideRow(swipe)} {...slideRowRole(swipe)}>
-        {market.slides.map((s, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: a slide is its position; two may share bytes.
-          <div key={i} className={slideItem(swipe)}>
-            <SlidePreview
-              slide={i + 1}
-              assetId={s.pngAssetId}
-              text={slideWords(market.layout[i])}
-            />
-          </div>
-        ))}
-      </div>
+    // On a stage, it takes the height its area leaves, so the slide fits the step's frame.
+    <div className={cn('flex flex-col gap-4', stage && '@5xl:min-h-0 @5xl:flex-1')}>
+      {stage ? (
+        <HeldStage slides={pictures} selected={selected} onSelect={onSelect} />
+      ) : (
+        <div className="grid grid-cols-3 gap-2">{pictures}</div>
+      )}
       <div className="flex flex-col gap-1">
         <p className="text-overline uppercase text-muted-foreground">Feed excerpt</p>
         <p className="text-caption">{market.feedExcerpt}</p>

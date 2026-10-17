@@ -7,7 +7,6 @@ import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { NativeSelect } from '@/shared/components/ui/native-select'
 import type { Staff } from '@/shared/lib/auth/access'
-import { cn } from '@/shared/lib/utils'
 import {
   AUDIENCE_COUNTS,
   formatCount,
@@ -31,7 +30,8 @@ import { type FeedSettings, LAYERS, SOURCES_AT, type SourcesAt } from '../../mod
 import { TAG_GROUP_LABELS, TAG_GROUPS, TAGS, tagsIn } from '../../tags'
 import { COMIC_TEMPLATE_ID, isLook } from '../../templates'
 import { firstChars } from '../../text/script'
-import { ChangesNote, Control, StepAction, tag } from '../parts'
+import { ChangesNote, Control, StepAction } from '../parts'
+import { holdOnWork, StepTabs, shownTab, type TabBadge, type TabHold } from '../stage'
 import { usePostAction } from '../usePostAction'
 import type { WorkbenchActions, WorkbenchView } from '../Workbench'
 
@@ -39,16 +39,21 @@ export type SettingsFormProps = {
   view: WorkbenchView
   viewer: Staff
   actions: Pick<WorkbenchActions, 'saveSettingsAction' | 'sendToReviewAction'>
-  /** The panel shown, held by the workbench so that a save does not send the editor back to the first. */
-  panel: { at: number; onGo: (at: number) => void }
+  /** The panel shown, by its name, held by the workbench so that a save does not send the editor back to the first. */
+  tab: TabHold
   /** The source check (SourceCheckPanel), the first panel. */
   check?: ReactNode
+  /**
+   * What of the source check keeps the post from review (SourceCheckPanel `fixesOnly`): the check
+   * to run, or each sentence not found with its fixes. Shown in the "To fix" tab.
+   */
+  fixes?: ReactNode
   /** The market versions (PostPreview's MarketControls), the last panel; none for a blog. */
   market?: ReactNode
 }
 
-/** One of the settings' panels, shown one at a time, and whether it holds something to fix. */
-type Panel = { name: string; problem: boolean; body: ReactNode }
+/** One of the settings' panels, shown one at a time, and its tab's badge when it holds something to fix. */
+type Panel = { name: string; problem: boolean | TabBadge; body: ReactNode }
 
 type Layer = FeedSettings['layer']
 type Expiry = 'none' | '30' | '90' | 'date'
@@ -90,6 +95,13 @@ const SOURCES_CHOICES: Record<SourcesAt, { label: string; note: string }> = {
 
 const note = 'text-caption text-muted-foreground'
 const radio = 'size-4 accent-primary'
+/** Every group in a panel: a fieldset under its heading, its options evenly spaced. */
+const fieldset = 'flex flex-col gap-3'
+const legend = 'mb-3 text-h4'
+/** An option with its note beside it, the note going under it on a narrow screen. */
+const optionRow = 'flex flex-wrap items-center gap-x-3 gap-y-1'
+/** Ticks in columns that size themselves to the panel's width. */
+const optionGrid = 'grid grid-cols-[repeat(auto-fill,minmax(min(10rem,100%),1fr))] gap-x-6 gap-y-3'
 
 function draftOf(s: FeedSettings): Draft {
   const e = s.expiry
@@ -181,78 +193,55 @@ function Choice(props: {
 }
 
 /**
- * Whether the source check keeps the post from review (lib/workflow.ts sendToReviewError): not
- * landed yet, or a sentence not found. A comic's panels are not checked.
+ * How many things of the source check keep the post from review (lib/workflow.ts
+ * sendToReviewError): the check, not landed yet, or each sentence not found. A comic's panels are
+ * not checked.
  */
-function checkProblem(current: WorkbenchView['current']): boolean {
-  if (current.revision?.body.template.id === COMIC_TEMPLATE_ID) return false
+function checkProblems(current: WorkbenchView['current']): number {
+  if (current.revision?.body.template.id === COMIC_TEMPLATE_ID) return 0
   const check = current.sourceCheck
-  return !check || check.body.claims.some((c) => c.result === 'not_found')
+  return check ? check.body.claims.filter((c) => c.result === 'not_found').length : 1
 }
 
+/** A panel's tag when it holds something to fix: one word, read as "needs attention". */
+const FIX: TabBadge = { text: 'Fix', label: 'needs attention', problem: true }
+
 /**
- * The panels one at a time (as a post editor's settings are): "2 of 6" over the panels' names,
- * each opening its panel, the one shown marked current and one with something to fix marked, then
- * the panel, which scrolls inside its area, then "Back" and "Next", or the last panel's own actions.
+ * The panels one at a time (as a post editor's settings are): "2 of 6" over the panels as tabs
+ * (StepTabs), one with something to fix marked "Fix", then "Back" and "Next", or the last
+ * panel's own actions. The held panel opens, else the first ("To fix" while anything is left);
+ * the one shown is held once she works in it, so a "To fix" her own change brings does not take
+ * her there.
  */
-function Panels({
-  panels,
-  at,
-  onGo,
-  last,
-}: {
-  panels: Panel[]
-  at: number
-  onGo: (at: number) => void
-  last: ReactNode
-}) {
-  const here = Math.min(Math.max(at, 0), panels.length - 1)
-  const shown = panels[here]
+function Panels({ panels, tab, last }: { panels: Panel[]; tab: TabHold; last: ReactNode }) {
+  const first = panels[0]?.name
+  const here = shownTab(panels, tab.open, first)
+  const go = (i: number) => tab.onOpen(panels[i].name)
   return (
-    <div className="flex flex-col gap-6">
-      <nav aria-label="Settings panels" className="flex flex-col gap-2">
+    <div className="flex flex-col gap-6" {...holdOnWork(tab, panels[here]?.name)}>
+      <div className="flex flex-col gap-2">
         <p className={note}>{`${here + 1} of ${panels.length}`}</p>
-        <ol className="flex flex-wrap gap-x-4 gap-y-1">
-          {panels.map((p, i) => (
-            <li key={p.name}>
-              <button
-                type="button"
-                aria-current={i === here ? 'step' : undefined}
-                className={cn(
-                  'text-caption underline-offset-4 hover:underline',
-                  i === here ? 'font-semibold text-foreground' : 'text-muted-foreground',
-                )}
-                onClick={() => onGo(i)}
-              >
-                {p.name}
-                {p.problem && (
-                  <>
-                    <span
-                      aria-hidden
-                      className={cn(tag, 'ml-2 border-destructive text-destructive')}
-                    >
-                      Fix
-                    </span>
-                    <span className="sr-only"> · needs attention</span>
-                  </>
-                )}
-              </button>
-            </li>
-          ))}
-        </ol>
-      </nav>
-      <section aria-label={shown.name} className="flex flex-col gap-6">
-        {shown.body}
-      </section>
+        <StepTabs
+          label="Settings panels"
+          tabs={panels.map((p) => ({
+            name: p.name,
+            badge: p.problem === true ? FIX : p.problem || undefined,
+            body: p.body,
+          }))}
+          open={tab.open}
+          initial={first}
+          onOpen={tab.onOpen}
+        />
+      </div>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <Button variant="outline" disabled={here === 0} onClick={() => onGo(here - 1)}>
+        <Button variant="outline" disabled={here === 0} onClick={() => go(here - 1)}>
           Back
         </Button>
         {here === panels.length - 1 ? (
           last
         ) : (
           // The step bar holds the screen's one filled button ("Send to review").
-          <Button variant="outline" onClick={() => onGo(here + 1)}>
+          <Button variant="outline" onClick={() => go(here + 1)}>
             Next
           </Button>
         )}
@@ -270,7 +259,15 @@ function Panels({
  * from the defaults its facts suggest (GD29). "Send to review" asks the same rule the command
  * does, about what the form shows, and saves changed settings first.
  */
-export function SettingsForm({ view, viewer, actions, panel, check, market }: SettingsFormProps) {
+export function SettingsForm({
+  view,
+  viewer,
+  actions,
+  tab,
+  check,
+  fixes,
+  market,
+}: SettingsFormProps) {
   const { pending, run } = usePostAction()
   const router = useRouter()
   const ids = useId()
@@ -298,14 +295,15 @@ export function SettingsForm({ view, viewer, actions, panel, check, market }: Se
   // A reviewer's request for changes naming the settings shows under the heading (criterion 120).
   const heading = (
     <>
-      <h2 id={`${ids}-heading`} className="text-h3">
+      <h2 id={`${ids}-heading`} className="text-h4">
         Feed settings
       </h2>
       {sendBack?.body.step === 'settings' && <ChangesNote sendBack={sendBack.body} />}
     </>
   )
+  const checkCount = checkProblems(view.current)
   const first: Panel[] = check
-    ? [{ name: 'Source check', problem: checkProblem(view.current), body: check }]
+    ? [{ name: 'Source check', problem: checkCount > 0, body: check }]
     : []
   const end: Panel[] = market ? [{ name: 'Market versions', problem: false, body: market }] : []
   if (settingsGate === WORKFLOW_ERRORS.notAuthorised) {
@@ -315,8 +313,7 @@ export function SettingsForm({ view, viewer, actions, panel, check, market }: Se
         {heading}
         <Panels
           panels={[...first, { name: 'Settings', problem: false, body: summary }, ...end]}
-          at={panel.at}
-          onGo={panel.onGo}
+          tab={tab}
           last={null}
         />
       </section>
@@ -363,17 +360,56 @@ export function SettingsForm({ view, viewer, actions, panel, check, market }: Se
 
   // Who sees it holds a problem when its choices alone would be refused (a why line it needs).
   const who = settingsOf({ ...draft, expiry: 'none' })
+  const whoError = who ? settingsError(who) : null
+  // What keeps the post from review, each with the way to its fix: the check's, then the settings'.
+  const unchosen = [
+    ...(whoError ? [{ text: whoError, panel: 'Who sees it' }] : []),
+    ...(missing ? [{ text: missing, panel: 'Expiry' }] : []),
+  ]
+  const fixCount = (fixes ? checkCount : 0) + unchosen.length
+  const toFix: Panel[] =
+    fixCount > 0
+      ? [
+          {
+            name: 'To fix',
+            problem: { text: String(fixCount), label: `${fixCount} to fix`, problem: true },
+            body: (
+              <div className="flex flex-col gap-6">
+                {checkCount > 0 && fixes}
+                {unchosen.length > 0 && (
+                  <ul className="flex flex-col gap-4">
+                    {unchosen.map((u) => (
+                      <li key={u.text} className="flex flex-col gap-2">
+                        <span className="text-caption text-destructive">{u.text}</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="self-start"
+                          onClick={() => tab.onOpen(u.panel)}
+                        >
+                          {`Open ${u.panel}`}
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ),
+          },
+        ]
+      : []
   const panels: Panel[] = [
+    ...toFix,
     ...first,
     {
       name: 'Who sees it',
-      problem: who !== null && settingsError(who) !== null,
+      problem: whoError !== null,
       body: (
         <>
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-2 text-h4">Layer</legend>
+          <fieldset className={fieldset}>
+            <legend className={legend}>Layer</legend>
             {LAYERS.map((layer) => (
-              <div key={layer} className="flex items-center gap-3">
+              <div key={layer} className={optionRow}>
                 <Choice
                   name={`${ids}-layer`}
                   checked={draft.layer === layer}
@@ -389,8 +425,8 @@ export function SettingsForm({ view, viewer, actions, panel, check, market }: Se
             ))}
           </fieldset>
 
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-2 text-h4">Audience</legend>
+          <fieldset className={fieldset}>
+            <legend className={legend}>Audience</legend>
             <Choice
               name={`${ids}-audience`}
               checked={!matched}
@@ -403,7 +439,7 @@ export function SettingsForm({ view, viewer, actions, panel, check, market }: Se
                 </>
               }
             />
-            <div className="flex items-center gap-3">
+            <div className={optionRow}>
               <Choice
                 name={`${ids}-audience`}
                 checked={matched}
@@ -433,8 +469,10 @@ export function SettingsForm({ view, viewer, actions, panel, check, market }: Se
           </fieldset>
 
           {whyShown && (
-            <div className="flex flex-col gap-2">
-              <Label htmlFor={`${ids}-why`}>Why line</Label>
+            <div className={fieldset}>
+              <Label htmlFor={`${ids}-why`} className="text-h4">
+                Why line
+              </Label>
               <Input
                 id={`${ids}-why`}
                 value={draft.whyLine}
@@ -444,8 +482,10 @@ export function SettingsForm({ view, viewer, actions, panel, check, market }: Se
             </div>
           )}
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`${ids}-studio`}>Studio link</Label>
+          <div className={fieldset}>
+            <Label htmlFor={`${ids}-studio`} className="text-h4">
+              Studio link
+            </Label>
             <NativeSelect
               id={`${ids}-studio`}
               value={draft.studioLink}
@@ -469,9 +509,9 @@ export function SettingsForm({ view, viewer, actions, panel, check, market }: Se
       body: (
         <>
           {TAG_GROUPS.map((group) => (
-            <fieldset key={group} className="flex flex-col gap-2">
-              <legend className="mb-2 text-h4">{TAG_GROUP_LABELS[group]}</legend>
-              <div className="flex flex-wrap gap-x-6 gap-y-2">
+            <fieldset key={group} className={fieldset}>
+              <legend className={legend}>{TAG_GROUP_LABELS[group]}</legend>
+              <div className={optionGrid}>
                 {tagsIn(group).map((t) => (
                   <Choice
                     key={t.id}
@@ -492,10 +532,10 @@ export function SettingsForm({ view, viewer, actions, panel, check, market }: Se
       name: 'Where sources go',
       problem: false,
       body: (
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-h4">Where sources go</legend>
+        <fieldset className={fieldset}>
+          <legend className={legend}>Where sources go</legend>
           {sourceChoices.map((at) => (
-            <div key={at} className="flex items-center gap-3">
+            <div key={at} className={optionRow}>
               <Choice
                 name={`${ids}-sources`}
                 checked={draft.sourcesAt === at}
@@ -517,8 +557,8 @@ export function SettingsForm({ view, viewer, actions, panel, check, market }: Se
       name: 'Expiry',
       problem: missingOf(draft).length > 0,
       body: (
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-h4">Expiry</legend>
+        <fieldset className={fieldset}>
+          <legend className={legend}>Expiry</legend>
           {EXPIRIES.map((e) => (
             <Choice
               key={e.value}
@@ -546,12 +586,11 @@ export function SettingsForm({ view, viewer, actions, panel, check, market }: Se
   ]
 
   return (
-    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-6">
+    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-4">
       {heading}
       <Panels
         panels={panels}
-        at={panel.at}
-        onGo={panel.onGo}
+        tab={tab}
         last={
           // Where "Send to review" is offered, the bar says why it or a save waits: one reason line.
           <Control reason={sendOffered ? null : saveReason}>

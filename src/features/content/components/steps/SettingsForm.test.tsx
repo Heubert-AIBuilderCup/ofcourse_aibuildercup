@@ -79,21 +79,21 @@ const actions = {
 
 const EDITOR: Staff = { role: 'user', editor: true }
 
-/** The form with its panel held above it, as the workbench holds it across saves. */
-function Held(props: Omit<Props, 'panel'>) {
-  const [at, onGo] = useState(0)
-  return <SettingsForm {...props} panel={{ at, onGo }} />
+/** The form with its panel held above it by name, as the workbench holds it across saves. */
+function Held(props: Omit<Props, 'tab'>) {
+  const [open, onOpen] = useState<string | null>(null)
+  return <SettingsForm {...props} tab={{ open, onOpen }} />
 }
 
 const view = (
   over: Partial<Props['view']> = {},
-  slots: { check?: ReactNode; market?: ReactNode } = {},
+  slots: { check?: ReactNode; fixes?: ReactNode; market?: ReactNode } = {},
 ) => render(<Held view={{ ...VIEW, ...over }} viewer={EDITOR} actions={actions} {...slots} />)
 
-const indicator = () => screen.getByRole('navigation', { name: 'Settings panels' })
-/** Opens a panel from the indicator, by its name. */
+const indicator = () => screen.getByRole('tablist', { name: 'Settings panels' })
+/** Opens a panel from its tab, by its name. */
 const openPanel = (name: string) =>
-  fireEvent.click(within(indicator()).getByRole('button', { name: new RegExp(`^${name}`) }))
+  fireEvent.click(within(indicator()).getByRole('tab', { name: new RegExp(`^${name}`) }))
 
 afterEach(() => {
   cleanup()
@@ -353,13 +353,17 @@ describe('SettingsForm: one panel at a time, the post beside it', () => {
     body: { revisionId: 'rev1', claims: [claim(result)], replays: [] },
   })
   const slots = { check: <p>The source check</p>, market: <p>The market versions</p> }
-  const progress = () => within(indicator()).getByText(/^\d of \d$/)
+  const progress = () => screen.getByText(/^\d of \d$/)
 
   it('opens on the source check, and Next and Back move one panel, in order', () => {
     view({ current: withSettings(GENERAL_90) }, slots)
     expect(progress()).toHaveTextContent('1 of 6')
-    expect(screen.getByRole('region', { name: 'Source check' })).toHaveTextContent(
+    expect(screen.getByRole('tabpanel', { name: 'Source check' })).toHaveTextContent(
       'The source check',
+    )
+    // Tab from the tablist lands in the panel, even one that opens on text (APG tabs).
+    expect(screen.getByRole('tabpanel', { name: 'Source check' }).getAttribute('tabindex')).toBe(
+      '0',
     )
     expect(screen.queryByRole('group', { name: 'Layer' }) === null).toBe(true)
     expect(screen.getByRole('button', { name: 'Back' })).toBeDisabled()
@@ -368,17 +372,17 @@ describe('SettingsForm: one panel at a time, the post beside it', () => {
     for (const [i, name] of names.entries()) {
       fireEvent.click(screen.getByRole('button', { name: 'Next' }))
       expect(progress()).toHaveTextContent(`${i + 2} of 6`)
-      expect(screen.getByRole('region', { name })).toBeInTheDocument()
+      expect(screen.getByRole('tabpanel', { name })).toBeInTheDocument()
     }
     expect(screen.queryByText('The source check') === null).toBe(true)
     expect(screen.getByText('The market versions')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(progress()).toHaveTextContent('5 of 6')
-    expect(screen.getByRole('region', { name: 'Expiry' })).toBeInTheDocument()
+    expect(screen.getByRole('tabpanel', { name: 'Expiry' })).toBeInTheDocument()
   })
 
-  it('marks the current panel in the indicator, and each panel with a problem', () => {
+  it('shows the panels as tabs, the open one selected and each with a problem marked "Fix" (6)', () => {
     view(
       {
         current: {
@@ -388,40 +392,65 @@ describe('SettingsForm: one panel at a time, the post beside it', () => {
       },
       slots,
     )
-    const marks = within(indicator())
-    expect(marks.getByRole('button', { name: 'Source check · needs attention' })).toHaveAttribute(
-      'aria-current',
-      'step',
-    )
+    const tab = (name: string) => within(indicator()).getByRole('tab', { name })
+    // "To fix" opens first (below); its own panels keep their marks.
+    openPanel('Source check')
+    expect(tab('Source check · needs attention').getAttribute('aria-selected')).toBe('true')
     // One word in a tag, never an exclamation mark.
-    expect(
-      marks.getByRole('button', { name: 'Source check · needs attention' }).textContent,
-    ).toMatch(/^Source checkFix/)
+    expect(tab('Source check · needs attention').textContent).toContain('Fix')
     expect(indicator().textContent).not.toContain('!')
-    expect(
-      marks
-        .getByRole('button', { name: 'Who sees it · needs attention' })
-        .hasAttribute('aria-current'),
-    ).toBe(false)
+    expect(tab('Who sees it · needs attention').getAttribute('aria-selected')).toBe('false')
+    expect(tab('Who sees it · needs attention').textContent).toContain('Fix')
     for (const name of ['Tags', 'Where sources go', 'Expiry', 'Market versions']) {
-      expect(marks.getByRole('button', { name })).toBeInTheDocument()
+      expect(tab(name).textContent).not.toContain('Fix')
+      expect(tab(name).getAttribute('aria-selected')).toBe('false')
     }
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    expect(marks.getByRole('button', { name: 'Who sees it · needs attention' })).toHaveAttribute(
-      'aria-current',
-      'step',
+    // The open panel is its tab's, and named by it.
+    expect(screen.getByRole('tabpanel', { name: 'Source check · needs attention' }).id).toBe(
+      tab('Source check · needs attention').getAttribute('aria-controls') ?? 'none',
     )
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(tab('Who sees it · needs attention').getAttribute('aria-selected')).toBe('true')
+    expect(tab('Source check · needs attention').getAttribute('aria-selected')).toBe('false')
     cleanup()
 
     // The check found every sentence and the why line is not needed; an expiry date is still to choose.
     view({ current: { ...withSettings(GENERAL_90), sourceCheck: checked('found') } }, slots)
     openPanel('Expiry')
     fireEvent.click(screen.getByRole('radio', { name: 'On a date' }))
-    expect(within(indicator()).getByRole('button', { name: 'Source check' })).toBeInTheDocument()
-    expect(within(indicator()).getByRole('button', { name: 'Who sees it' })).toBeInTheDocument()
-    expect(
-      within(indicator()).getByRole('button', { name: 'Expiry · needs attention' }),
-    ).toBeInTheDocument()
+    expect(tab('Source check').textContent).not.toContain('Fix')
+    expect(tab('Who sees it').textContent).not.toContain('Fix')
+    expect(tab('Expiry · needs attention').textContent).toContain('Fix')
+  })
+
+  it('moves between the tabs with the arrow keys, Home and End, only the open tab in the tab order', () => {
+    view({ current: { ...withSettings(GENERAL_90), sourceCheck: checked('found') } }, slots)
+    const tabs = () => within(indicator()).getAllByRole('tab')
+    const selected = () =>
+      tabs()
+        .filter((t) => t.getAttribute('aria-selected') === 'true')
+        .map((t) => t.textContent)
+    expect(tabs().map((t) => t.getAttribute('tabindex'))).toEqual([
+      '0',
+      '-1',
+      '-1',
+      '-1',
+      '-1',
+      '-1',
+    ])
+    fireEvent.keyDown(tabs()[0], { key: 'ArrowRight' })
+    expect(selected()).toEqual(['Who sees it'])
+    expect(document.activeElement === tabs()[1]).toBe(true)
+    fireEvent.keyDown(tabs()[1], { key: 'End' })
+    expect(selected()).toEqual(['Market versions'])
+    fireEvent.keyDown(tabs()[5], { key: 'ArrowRight' })
+    expect(selected()).toEqual(['Source check'])
+    fireEvent.keyDown(tabs()[0], { key: 'ArrowLeft' })
+    expect(selected()).toEqual(['Market versions'])
+    fireEvent.keyDown(tabs()[5], { key: 'Home' })
+    expect(selected()).toEqual(['Source check'])
+    expect(document.activeElement === tabs()[0]).toBe(true)
+    expect(progress()).toHaveTextContent('1 of 6')
   })
 
   it('keeps "Send to review" in the step actions bar on every panel, which sends the post (A4)', async () => {
@@ -449,5 +478,103 @@ describe('SettingsForm: one panel at a time, the post beside it', () => {
     openPanel('Source check')
     expect(progress()).toHaveTextContent('1 of 6')
     expect(screen.getByText('The source check')).toBeInTheDocument()
+  })
+})
+
+describe('SettingsForm: defaults that send, and a "To fix" tab for what keeps the post from review (17 Oct)', () => {
+  const notFound = (n: number): CurrentPost['sourceCheck'] => ({
+    id: 'sc1',
+    body: {
+      revisionId: 'rev1',
+      claims: Array.from({ length: n }, (_, i) => ({
+        text: `Sentence ${i + 1}.`,
+        slide: 2,
+        slot: 'body',
+        result: 'not_found' as const,
+        ref: null,
+      })),
+      replays: [],
+    },
+  })
+  const slots = {
+    check: <p>The source check</p>,
+    fixes: <p>The check's fixes</p>,
+    market: <p>The market versions</p>,
+  }
+  const tabs = () => within(indicator()).getAllByRole('tab')
+  const toFix = (count: number) =>
+    within(indicator()).getByRole('tab', { name: `To fix · ${count} to fix` })
+  const panel = () => screen.getByRole('tabpanel')
+
+  it('offers "Send to review" on untouched defaults, and sending saves them first, as Save does', async () => {
+    view()
+    const send = screen.getByRole('button', { name: 'Send to review → Review' })
+    expect(send).toBeEnabled()
+    await act(async () => {
+      fireEvent.click(send)
+    })
+    expect(actions.saveSettingsAction).toHaveBeenCalledWith('p1', 11, GENERAL_90)
+    expect(actions.sendToReviewAction).toHaveBeenCalledWith('p1', 12)
+  })
+
+  it('opens on "To fix", first, counted as a problem: the sentences not found and a why line still to write, with the way to it', () => {
+    view(
+      {
+        current: {
+          ...withSettings({ ...GENERAL_90, layer: 'personal' }),
+          sourceCheck: notFound(2),
+        },
+      },
+      slots,
+    )
+    expect(tabs()[0].textContent).toContain('To fix')
+    expect(toFix(3).getAttribute('aria-selected')).toBe('true')
+    expect(panel().textContent).toContain("The check's fixes")
+    expect(panel().textContent).toContain('Personal and matched posts always say why')
+    // The full list stays in the Source check tab.
+    expect(tabs()[1].textContent).toContain('Source check')
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Open Who sees it' }))
+    expect(
+      within(indicator())
+        .getByRole('tab', { name: 'Who sees it · needs attention' })
+        .getAttribute('aria-selected'),
+    ).toBe('true')
+  })
+
+  it('asks for the source check when none of this version has landed', () => {
+    view({ current: { ...withSettings(GENERAL_90), sourceCheck: null } }, slots)
+    expect(toFix(1).getAttribute('aria-selected')).toBe('true')
+    expect(panel().textContent).toContain("The check's fixes")
+  })
+
+  it('names an expiry still to choose, keeping the panel the editor is on', () => {
+    view({ current: withSettings(GENERAL_90) }, slots)
+    openPanel('Expiry')
+    fireEvent.click(screen.getByRole('radio', { name: 'On a date' }))
+    expect(toFix(1).getAttribute('aria-selected')).toBe('false')
+    expect(panel().getAttribute('aria-labelledby')).toBe(
+      within(indicator()).getByRole('tab', { name: 'Expiry · needs attention' }).id,
+    )
+    openPanel('To fix')
+    expect(panel().textContent).toContain('Choose the expiry before sending to review.')
+    expect(panel().textContent).not.toContain("The check's fixes")
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Open Expiry' }))
+    expect(
+      within(indicator())
+        .getByRole('tab', { name: 'Expiry · needs attention' })
+        .getAttribute('aria-selected'),
+    ).toBe('true')
+  })
+
+  it('leaves "To fix" out when nothing keeps the post from review', () => {
+    view({ current: withSettings(GENERAL_90) }, slots)
+    expect(tabs().map((t) => t.textContent)).toEqual([
+      'Source check',
+      'Who sees it',
+      'Tags',
+      'Where sources go',
+      'Expiry',
+      'Market versions',
+    ])
   })
 })

@@ -1,8 +1,7 @@
 'use client'
 
-import { List, Map as MapIcon, Search } from 'lucide-react'
+import { List, Map as MapIcon } from 'lucide-react'
 import dynamic from 'next/dynamic'
-import Link from 'next/link'
 import { useRouter, useSelectedLayoutSegments } from 'next/navigation'
 import { type ReactNode, type RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FinderProps } from '@/features/finder/client'
@@ -17,7 +16,7 @@ import {
 import motion from '@/shared/components/motion.module.css'
 import { Note } from '@/shared/components/Note'
 import { Toast } from '@/shared/components/Toast'
-import { Button, buttonVariants } from '@/shared/components/ui/button'
+import { Button } from '@/shared/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/shared/components/ui/sheet'
 import { ROADMAPS_PATH, roadmapPath } from '@/shared/lib/student-paths'
 import { cn } from '@/shared/lib/utils'
@@ -29,16 +28,16 @@ import type {
   RoadmapTag,
   StoredAnswers,
 } from '@/shared/types/student'
-import { BoardPath, useBoardPath } from '../hooks/useBoardPath'
+import { BoardPath } from '../hooks/useBoardPath'
 import { type BoardActions, useRoadSession } from '../hooks/useRoadSession'
 import type { WhyAction } from '../hooks/useTileWhy'
 import { type Layout, layoutOf } from '../model/camera'
 import type { MatchLine } from '../model/match-line'
-import { cardFor, primaryAction } from '../model/press'
-import type { Road, Tile } from '../model/road-data'
+import { cardFor, primaryAction, withStart } from '../model/press'
+import type { Road } from '../model/road-data'
 import type { View } from '../model/road-url'
 import { panelAt } from '../model/routes'
-import { type AnswersCloser, AnswersPanel } from './AnswersPanel'
+import { AnswersPanel } from './AnswersPanel'
 import answersStyles from './answers.module.css'
 import { BottomSheet } from './BottomSheet'
 import { ControlsBar } from './ControlsBar'
@@ -49,8 +48,11 @@ import { PhoneRoad } from './PhoneRoad'
 import { type CardAsk, type CardWhy, RoadCard } from './RoadCard'
 import { RoadHeader } from './RoadHeader'
 import { RoadMap } from './RoadMap'
-import { StackList } from './StackList'
+import type { RoadmapLink } from './RoadmapDrawer'
+import { RouteDetail } from './RouteDetail'
+import { FIND, StackList } from './StackList'
 import type { AskAction } from './TileAsk'
+import { pinnedDraftPath } from './WhatChanges'
 
 /**
  * The Find panel, in its own chunk: next/dynamic (React.lazy with Suspense) loads it "on demand,
@@ -95,12 +97,14 @@ export type BoardRoadmap = {
 
 /**
  * A new roadmap's draft: the roadmap it copies (null from scratch), the answers it starts with
- * (the source's, or none), and the course it is pinned to, if any.
+ * (the source's, or none), and the course it is pinned to, if any; `around` names that course when
+ * she chose it to switch to (Start a new roadmap from it), so Create needs no answer changed.
  */
 export type BoardDraft = {
   from: { id: string; name: string } | null
   answers: StoredAnswers
   pinned?: Pinned
+  around?: string
 }
 
 /** Makes the new roadmap (createRoadmapAction), giving its id; without `fromId`, from scratch. */
@@ -136,7 +140,8 @@ const nothingSaved = async (): Promise<ActionResult> => ({ ok: true })
  * action while the student AI is off). `details`: each tile's catalogue facts, by tile id.
  * `tilePosts`: the posts and updates about each tile, by tile id, that its card lists.
  * `finder`: Find courses (the box's first words and its two actions) when the finder is on; none
- * on a draft. Without it nothing on the board offers to find courses.
+ * on a draft. Without it nothing on the board offers to find courses. `roadmaps`: her roadmaps, to
+ * switch to from the header's drawer; none on a draft.
  */
 export function RoadBoard({
   road,
@@ -150,6 +155,7 @@ export function RoadBoard({
   details,
   tilePosts,
   finder,
+  roadmaps,
   children,
   ...writes
 }: Writes & {
@@ -164,6 +170,7 @@ export function RoadBoard({
   details?: Record<string, CardDetails>
   tilePosts?: Record<string, TilePost[]>
   finder?: FinderProps
+  roadmaps?: RoadmapLink[]
   children: ReactNode
 }) {
   const actions: BoardActions = writes.draft
@@ -185,6 +192,7 @@ export function RoadBoard({
         details={details ?? {}}
         tilePosts={tilePosts}
         finder={writes.draft ? undefined : finder}
+        roadmaps={writes.draft ? undefined : roadmaps}
       >
         {children}
       </Board>
@@ -201,13 +209,14 @@ export function RoadBoard({
  * map with its peek, and what the card column shows rises as a bottom sheet. What she does on the
  * board, and the URL it leaves, are useRoadSession's. Until it has measured its width the board is
  * drawn but not shown, so a phone never paints the wide layout first (the map cannot draw before
- * it measures either). Her answers open over it: in the card column, widened; on a phone, in a
- * sheet over the map's lower part with no scrim, the map above it the preview. On a draft they are
+ * it measures either). Her answers open over it: in the card column, whose size never changes, so
+ * neither does the map's; on a phone, in a sheet over the map's lower part with no scrim, the map
+ * above it the preview. On a draft they are
  * open from the start, in draft mode: Create runs the loader, whose first step makes the roadmap,
- * and lands on the new roadmap's board; Cancel goes back to her roadmaps. Find courses (`finder`)
- * opens where her answers open, from the top of the card column, the controls bar or the stack's
- * list; opening one of the two closes the other, and closing Find gives the column back to what
- * it showed.
+ * and lands on the new roadmap's board; Cancel and Close only close them, leaving her on the
+ * draft's board, and Your answers opens them again. Find courses (`finder`)
+ * opens where her answers open, from the course stack's list only; her answers opening closes it,
+ * and closing Find gives the column back to what it showed.
  */
 function Board({
   road,
@@ -223,6 +232,7 @@ function Board({
   details,
   tilePosts,
   finder,
+  roadmaps,
   children,
 }: {
   road: Road
@@ -238,6 +248,7 @@ function Board({
   details: Record<string, CardDetails>
   tilePosts: Record<string, TilePost[]> | undefined
   finder: FinderProps | undefined
+  roadmaps: RoadmapLink[] | undefined
   children: ReactNode
 }) {
   const router = useRouter()
@@ -266,6 +277,9 @@ function Board({
     close,
     view,
     primary,
+    startNew,
+    morph,
+    traded,
     closeList,
     put,
     leaveLesson,
@@ -287,33 +301,18 @@ function Board({
   // On a phone, a draft's answers are over the map, as Your answers opens them.
   const phoneView = draft ? 'map' : state.view
 
-  // Find courses, open over the column (or in a sheet on a phone). Her answers opening, however
-  // they open (a button, Point A, Forward), close it; a tile pressed on the map or the road closes
-  // it for that tile's card. Over her answers it opens once they have closed, through their own
-  // ask when picks wait: kept editing, it does not open.
+  // Find courses, opened from the course stack's list only, over the column (or in a sheet on a
+  // phone). Her answers opening, however they open (a button, Point A, Forward), close it; a tile
+  // pressed on the map or the road closes it for that tile's card.
   const [finding, setFinding] = useState(false)
   const [wasAnswering, setWasAnswering] = useState(answering)
   if (answering !== wasAnswering) {
     setWasAnswering(answering)
     if (answering) setFinding(false)
   }
-  const answersCloser = useRef<AnswersCloser>(null)
-  // Focus: the panel takes it into its box; Close gives it back to the control that opened Find,
-  // or, when that control is gone, to Find courses at the top of the column (wide) or the controls
-  // bar's Find.
-  const findOpener = useRef<HTMLElement | null>(null)
-  const findButton = useRef<HTMLButtonElement>(null)
+  // Focus: the panel takes it into its box; Close gives it back to the list's Find, drawn afresh.
   const refocus = useRef(false)
-  const openFind = finder
-    ? () => {
-        const active = document.activeElement
-        findOpener.current =
-          active instanceof HTMLElement && active !== document.body ? active : null
-        const find = () => setFinding(true)
-        if (answering && answersCloser.current) answersCloser.current.close(find)
-        else find()
-      }
-    : undefined
+  const openFind = finder ? () => setFinding(true) : undefined
   const closeFind = () => {
     refocus.current = true
     setFinding(false)
@@ -321,20 +320,11 @@ function Board({
   useEffect(() => {
     if (finding || !refocus.current) return
     refocus.current = false
-    const opener = findOpener.current
-    findOpener.current = null
-    const controlsFind = () =>
-      [
-        ...(rootRef.current?.querySelectorAll<HTMLElement>('nav[aria-label="Controls"] button') ??
-          []),
-      ].find((b) => b.textContent?.trim() === 'Find')
-    const to = opener?.isConnected
-      ? opener
-      : layout === 'wide'
-        ? findButton.current
-        : controlsFind()
-    to?.focus()
-  }, [finding, layout])
+    const find = [...(rootRef.current?.querySelectorAll<HTMLElement>('button') ?? [])].find(
+      (b) => b.textContent?.trim() === FIND,
+    )
+    find?.focus()
+  }, [finding])
   const pressTile = (tileId: string) => {
     setFinding(false)
     press(tileId)
@@ -363,7 +353,12 @@ function Board({
   // still marks it New until then.
   const arrive = () => router.replace(madeId.current ? roadmapPath(madeId.current) : ROADMAPS_PATH)
 
-  const card = cardFor(road, scene, state.tile)
+  // With compare on, a course or city she could switch to starts a new roadmap around it in place
+  // of a swap: the new road redraws its visa, work rights and jobs, which a swap cannot. A course
+  // beside the study step can only start one: without compare's pin it has no primary.
+  const compared = state.tile ? details[state.tile]?.compare : undefined
+  const startHref = compared?.pin ? pinnedDraftPath(compared.roadmapId, compared.pin) : null
+  const card = withStart(cardFor(road, scene, state.tile), startHref !== null)
   const why: CardWhy = {
     roadmapId: roadmap.id,
     answers: roadmap.answers,
@@ -383,6 +378,8 @@ function Board({
   const stack = scene.tiles.find((t) => t.id === state.tile && t.kind === 'stack')
   const list = !!stack && state.open === 'list'
   const lesson = panel?.kind === 'lesson' ? panel.lesson : null
+  // At Whole road the column is the overview until she presses a tile: then that tile's card.
+  const overviewShown = state.zoom === 'whole' && !state.tile
   const columnLabel = finding
     ? 'Find courses'
     : answering
@@ -393,13 +390,17 @@ function Board({
           ? 'Route detail'
           : list
             ? 'Stack'
-            : state.zoom === 'whole'
+            : overviewShown
               ? 'Overview'
               : card.kind === 'here'
                 ? 'Where you are'
                 : 'The tile you pressed'
 
-  const onPrimary = primaryAction(road, scene, state.tile) ? primary : undefined
+  const onPrimary = startHref
+    ? () => startNew(startHref, compared?.next)
+    : primaryAction(road, scene, state.tile)
+      ? primary
+      : undefined
   const stackList = stack ? (
     <StackList
       stack={stack}
@@ -420,13 +421,14 @@ function Board({
       <AnswersPanel
         mode="draft"
         copyOf={draft.from?.name ?? null}
+        around={draft.around}
         groupsFor={groupsFor}
         answers={answers}
         road={road}
         place={place}
         onPreview={preview}
         onCreate={setCreating}
-        onCancel={() => router.replace(ROADMAPS_PATH)}
+        onCancel={closeAnswers}
       />
     ) : (
       <AnswersPanel
@@ -439,7 +441,6 @@ function Board({
         rematch={roadChangeOf}
         onSave={saveAnswers}
         onClose={closeAnswers}
-        closer={answersCloser}
       />
     )
 
@@ -451,9 +452,12 @@ function Board({
     if (finding) return finderPanel
     if (answering) return answersPanel('column')
     if (lessonPanel) return lessonPanel
-    if (panel?.kind === 'route') return <RouteCard step={panel.step} />
+    if (panel?.kind === 'route')
+      return (
+        <RouteDetail step={panel.step} road={road} scene={scene} details={details[panel.step.id]} />
+      )
     if (list) return stackList
-    if (state.zoom === 'whole') return overview
+    if (overviewShown) return overview
     return (
       <RoadCard
         stickyActions
@@ -484,10 +488,17 @@ function Board({
       return {
         label: panel.step.name,
         onClose: leaveRoute,
-        body: <RouteCard step={panel.step} />,
+        body: (
+          <RouteDetail
+            step={panel.step}
+            road={road}
+            scene={scene}
+            details={details[panel.step.id]}
+          />
+        ),
       }
     if (stack && list) return { label: stack.name, onClose: closeList, body: stackList }
-    if (state.view === 'map' && state.zoom === 'whole')
+    if (state.view === 'map' && overviewShown)
       return { label: 'Overview', onClose: () => zoom('level'), body: overview }
     if (state.view === 'road' && card.kind !== 'here')
       return {
@@ -550,6 +561,8 @@ function Board({
     onKeyShown: setKeyShown,
     answering,
     match,
+    morph,
+    traded,
   }
 
   const phoneSheet = sheet()
@@ -564,7 +577,8 @@ function Board({
       >
         <RoadHeader
           roadmapName={draft ? 'New roadmap' : roadmap.name}
-          onAnswers={draft ? undefined : openAnswers}
+          onAnswers={openAnswers}
+          switchTo={roadmaps && { openId: roadmap.id, roadmaps }}
         />
         {phone ? (
           <>
@@ -597,34 +611,17 @@ function Board({
         ) : (
           <div className="flex min-h-0 flex-1 @max-5xl:flex-col">
             <RoadMap {...mapProps}>{toastEl()}</RoadMap>
+            {/* One width (stacked, one height) in every state, the one her answers need: the map
+                never resizes. */}
             <aside
               aria-label={columnLabel}
-              className={cn(
-                'relative z-30 flex min-h-0 shrink-0 flex-col gap-4 overflow-auto border-l bg-background p-6 @max-5xl:w-auto @max-5xl:border-t @max-5xl:border-l-0 @max-5xl:py-5',
-                answering || finding ? 'w-md @max-5xl:h-1/2' : 'w-95 @max-5xl:h-88',
-              )}
+              className="relative z-30 flex min-h-0 w-md shrink-0 flex-col gap-4 overflow-auto border-l bg-background p-6 @max-5xl:h-1/2 @max-5xl:w-auto @max-5xl:border-t @max-5xl:border-l-0 @max-5xl:py-5"
             >
-              {openFind && !answering && !finding ? (
-                <Button
-                  ref={findButton}
-                  type="button"
-                  variant="outline"
-                  className="self-start @max-5xl:hidden"
-                  onClick={openFind}
-                >
-                  <Search aria-hidden="true" strokeWidth={1.5} className="size-icon-sm" />
-                  Find courses
-                </Button>
-              ) : null}
               {column()}
             </aside>
           </div>
         )}
-        <ControlsBar
-          weights={road.weights}
-          onAnswers={draft ? undefined : openAnswers}
-          onFind={openFind}
-        />
+        <ControlsBar weights={road.weights} onAnswers={openAnswers} />
       </div>
       <BottomSheet
         open={phoneSheet !== null}
@@ -710,19 +707,5 @@ function ViewSwitch({ view, onView }: { view: View; onView: (view: View) => void
         </Button>
       </fieldset>
     </div>
-  )
-}
-
-/** A route step's detail: its screen comes next round, a placeholder until then. */
-function RouteCard({ step }: { step: Tile }) {
-  const board = useBoardPath()
-  return (
-    <section aria-label={step.name} className="flex max-w-prose flex-col gap-2">
-      <h2 className="m-0 text-h3">{step.name}</h2>
-      <p className="m-0 text-muted-foreground">Route detail comes in the next round.</p>
-      <Link href={board} className={cn(buttonVariants({ variant: 'text' }), 'self-start')}>
-        Back to your roadmap
-      </Link>
-    </section>
   )
 }

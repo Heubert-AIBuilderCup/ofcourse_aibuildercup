@@ -1,6 +1,6 @@
 import 'server-only'
 // A post's outline before any text (GD32): one lite call over the supported facts, the idea or
-// two to combine, the format and the brand's voice, in the first card's look. Code checks the
+// up to four to combine, the format and the brand's voice, in the first card's look. Code checks the
 // count and order against the look, that each layout is the look's, and each point: written, at
 // most 120 characters, and no number a supported fact does not hold. Still failing is a failed step.
 
@@ -72,7 +72,7 @@ export function outlineProblems(
 
 /**
  * The outline for an idea in its look: the model sees the look's slides and layouts, the idea or
- * two to combine, the format with its description and slide jobs (GD33), the brand's voice and
+ * up to four to combine, the format with its description and slide jobs (GD33), the brand's voice and
  * the supported facts. `attempt` keeps each outline its own call: a new one is never the cache's.
  */
 export async function outlinePost(input: {

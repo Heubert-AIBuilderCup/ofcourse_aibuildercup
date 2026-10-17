@@ -7,6 +7,8 @@ import { roadById } from '@/features/roads/data/roads'
 import type { RoadSpec } from '@/features/roads/data/types'
 import { composeRoad, workRightsLine } from '@/features/roads/model/compose'
 import { stated } from '@/features/roads/model/demo-profiles'
+import { nextRoad } from '@/features/roads/model/next-road'
+import { otherCourses, otherCourseTileId } from '@/features/roads/model/options'
 import type { StoredAnswers } from '@/shared/types/student'
 import { FINDER_COURSES } from '../data/catalogue'
 import {
@@ -181,9 +183,29 @@ describe('compareByTile (criterion 26)', () => {
   const byTile = compareByTile(perth, noBudget)
   const cityTile = perth.slots['alt-city'].id
   const courseTile = perth.slots['alt-course'].id
+  const stackTile = perth.slots['stack-course'].id
 
-  test('the other-city and other-course tiles, and no other', () => {
-    expect(Object.keys(byTile).sort()).toEqual([cityTile, courseTile].sort())
+  const optionTiles = otherCourses(perth).map(otherCourseTileId)
+
+  test('the other-city, other-course, stack-course and other-course-beside-the-study tiles, no other', () => {
+    expect(Object.keys(byTile).sort()).toEqual(
+      [cityTile, courseTile, stackTile, ...optionTiles].sort(),
+    )
+  })
+
+  test('each course beside the study step: her road beside it, it to pin', () => {
+    for (const courseId of otherCourses(perth)) {
+      const alt = alternativeForCourse(perth, courseId) as RoadSpec
+      const compared = byTile[otherCourseTileId(courseId)]
+      expect(compared?.rows).toEqual(compareRows(perth, alt, noBudget, alt.cityId))
+      expect(compared?.pin).toBe(courseId)
+    }
+  })
+
+  test('the course she puts on her board from the stack: her road beside it, it to pin', () => {
+    const alt = alternativeForCourse(perth, perth.stackCourseId) as RoadSpec
+    expect(byTile[stackTile]?.rows).toEqual(compareRows(perth, alt, noBudget, alt.cityId))
+    expect(byTile[stackTile]?.pin).toBe(perth.stackCourseId)
   })
 
   test('the other city: her road beside the same field there, its course to pin', () => {
@@ -204,6 +226,14 @@ describe('compareByTile (criterion 26)', () => {
     const city = compareByTile(elsewhere, noBudget)[psych.slots['alt-city'].id]
     expect(city?.rows).toEqual(compareRows(elsewhere, null, noBudget, 'perth'))
     expect(city?.pin).toBeNull()
+    expect(city?.next).toBeUndefined()
+  })
+
+  test('each tile with a course to pin carries the road a new roadmap around it would draw', () => {
+    const alt = alternativeForCourse(perth, perth.altCourseId) as RoadSpec
+    expect(byTile[courseTile]?.next).toEqual(nextRoad(perth, alt, noBudget))
+    for (const [tileId, compared] of Object.entries(byTile))
+      expect([tileId, compared.next !== undefined]).toEqual([tileId, compared.pin !== null])
   })
 })
 

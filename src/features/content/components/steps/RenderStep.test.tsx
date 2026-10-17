@@ -124,12 +124,31 @@ const actions = {
 const EDITOR: Staff = { role: 'user', editor: true }
 const ADMIN: Staff = { role: 'admin' }
 
-/** The figure that holds slide n: its picture and what shows under it. */
-function figureOf(n: number): HTMLElement {
-  const figure = screen.getByRole('img', { name: new RegExp(`^Slide ${n}\\b`) }).closest('figure')
-  if (!figure) throw new Error(`no figure for slide ${n}`)
-  return figure
+/** The filmstrip under the stage: one thumbnail per slide. */
+const strip = () => screen.getByRole('list', { name: 'All slides' })
+
+/** Selects slide n on the stage, by its thumbnail in the filmstrip. */
+const select = (n: number) =>
+  fireEvent.click(within(strip()).getByRole('button', { name: `Slide ${n}` }))
+
+/** Slide n selected: the stage, with the slide and what shows under it (the cover's fallback). */
+function stageAt(n: number): HTMLElement {
+  select(n)
+  return screen.getByRole('group', { name: 'Slides, one at a time' })
 }
+
+/** Slide n selected: its version, phrases, image swap and moves, in the "This slide" tab. */
+function controlsOf(n: number): HTMLElement {
+  select(n)
+  const tab = screen.queryByRole('tab', { name: 'This slide' })
+  if (tab) fireEvent.click(tab)
+  return within(screen.getByRole('region', { name: 'Actions' })).getByRole('region', {
+    name: `Slide ${n}`,
+  })
+}
+
+/** The buttons that change something: every one but the filmstrip's thumbnails. */
+const controls = () => screen.queryAllByRole('button').filter((b) => !strip().contains(b))
 
 const view = (over: Partial<Props['view']> = {}, viewer: Staff = EDITOR) =>
   render(<RenderStep view={{ ...VIEW, ...over }} viewer={viewer} actions={actions} />)
@@ -143,11 +162,15 @@ afterEach(() => {
 describe('RenderStep', () => {
   it("draws the approved layout's slides from the preview route", () => {
     view()
-    expect(screen.getByRole('img', { name: /^Slide 1\b/ })).toHaveAttribute(
-      'src',
+    // One slide at a time on the stage, every one in the filmstrip.
+    expect(within(strip()).getAllByRole('button').length).toBe(3)
+    expect(screen.getAllByRole('img').map((img) => img.getAttribute('src'))).toEqual([
       '/admin/posts/p1/preview?layout=lay1&slide=1',
-    )
-    expect(screen.getAllByRole('img')).toHaveLength(3)
+    ])
+    select(3)
+    expect(screen.getAllByRole('img').map((img) => img.getAttribute('src'))).toEqual([
+      '/admin/posts/p1/preview?layout=lay1&slide=3',
+    ])
   })
 
   it('shows a failing fit row and keeps Render disabled with the fit message', () => {
@@ -179,12 +202,32 @@ describe('RenderStep', () => {
       stage: 'rendered',
       current: { ...EMPTY, layout: layout([PASS]), render: renderRecord(null) },
     })
-    expect(screen.getByRole('img', { name: /^Slide 2\b/ })).toHaveAttribute(
-      'src',
+    select(2)
+    expect(screen.getByRole('img', { name: /^Slide 2\b/ }).getAttribute('src')).toBe(
       '/admin/assets/png2',
     )
-    expect(screen.queryByRole('button', { name: 'Render' })).toBeNull()
-    expect(within(figureOf(1)).queryByText('No art')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Render' }) === null).toBe(true)
+    expect(within(stageAt(1)).queryByText('No art') === null).toBe(true)
+  })
+
+  it('after render, opens the covers first, the selected slide’s controls under "This slide"', () => {
+    view({
+      stage: 'rendered',
+      current: { ...EMPTY, layout: layout([PASS]), render: renderRecord(null) },
+    })
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['This slide', 'Covers'])
+    expect(
+      screen
+        .getAllByRole('tab')
+        .filter((t) => t.getAttribute('aria-selected') === 'true')
+        .map((t) => t.textContent),
+    ).toEqual(['Covers'])
+    expect(screen.queryAllByRole('button', { name: 'Make covers' }).length).toBe(1)
+    const actionsArea = within(screen.getByRole('region', { name: 'Actions' }))
+    // Only the open tab's panel is there.
+    expect(actionsArea.queryAllByRole('region', { name: /^Slide \d$/ }).length).toBe(0)
+    expect(controlsOf(2).textContent).toContain('No art')
+    expect(actionsArea.queryAllByRole('region', { name: /^Slide \d$/ }).length).toBe(1)
   })
 
   it('marks a replayed cover', () => {
@@ -200,7 +243,7 @@ describe('RenderStep', () => {
       stage: 'rendered',
       current: { ...EMPTY, layout: layout([PASS]), render: renderRecord('no_art') },
     })
-    expect(within(figureOf(1)).getByText('No art')).toBeInTheDocument()
+    expect(within(stageAt(1)).queryAllByText('No art').length).toBe(1)
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
     })
@@ -210,8 +253,11 @@ describe('RenderStep', () => {
   it('shows the render read-only once in review or live: no "Try again" and no edit (111)', () => {
     for (const stage of ['in_review', 'live'] as const) {
       view({ stage, current: { ...EMPTY, layout: layout([PASS]), render: renderRecord('no_art') } })
-      expect(within(figureOf(1)).getByText('No art')).toBeInTheDocument()
-      expect(screen.queryAllByRole('button').map((b) => b.textContent)).toEqual([])
+      expect(within(stageAt(1)).queryAllByText('No art').length).toBe(1)
+      for (const n of [1, 2, 3]) {
+        select(n)
+        expect(controls().map((b) => b.textContent)).toEqual([])
+      }
       cleanup()
     }
   })
@@ -221,9 +267,11 @@ describe('RenderStep', () => {
       stage: 'rendered',
       current: { ...EMPTY, layout: layout([PASS]), render: renderRecord('daily_limit') },
     })
-    expect(within(figureOf(1)).getByText('Limit')).toBeInTheDocument()
-    expect(within(figureOf(1)).getByText('Daily image limit reached.')).toBeInTheDocument()
-    expect(within(figureOf(1)).queryByText('No art')).toBeNull()
+    // The day's limit shows under the cover, on the stage.
+    expect(within(stageAt(1)).queryAllByText('Limit').length).toBe(1)
+    expect(within(stageAt(1)).queryAllByText('Daily image limit reached.').length).toBe(1)
+    expect(within(stageAt(1)).queryByText('No art') === null).toBe(true)
+    expect(within(stageAt(2)).queryByText('Daily image limit reached.') === null).toBe(true)
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
     })
@@ -344,14 +392,16 @@ describe('RenderStep', () => {
 
     it('shows Version 1 under the cover with no art prompt to write, and No art under text slides (102)', () => {
       edited()
-      const cover = within(figureOf(1))
-      expect(cover.getByText('Version 1')).toBeInTheDocument()
-      expect(cover.queryByText('No art')).toBeNull()
-      expect(screen.queryByLabelText('Art prompt')).toBeNull()
-      expect(screen.queryByRole('button', { name: 'Regenerate this slide only' })).toBeNull()
+      const cover = within(controlsOf(1))
+      expect(cover.queryAllByText('Version 1').length).toBe(1)
+      expect(cover.queryByText('No art') === null).toBe(true)
+      expect(screen.queryByLabelText('Art prompt') === null).toBe(true)
+      expect(screen.queryByRole('button', { name: 'Regenerate this slide only' }) === null).toBe(
+        true,
+      )
       for (const n of [2, 3, 4]) {
-        expect(within(figureOf(n)).getByText('No art')).toBeInTheDocument()
-        expect(within(figureOf(n)).queryByText(/^Version/)).toBeNull()
+        expect(within(controlsOf(n)).queryAllByText('No art').length).toBe(1)
+        expect(within(controlsOf(n)).queryByText(/^Version/) === null).toBe(true)
       }
     })
 
@@ -434,9 +484,9 @@ describe('RenderStep', () => {
 
     it('edits the cover phrase inline', async () => {
       edited()
-      const cover = within(figureOf(1))
-      expect(cover.getByLabelText('Phrase')).toHaveValue('Paid work')
-      expect(cover.queryByLabelText('Kicker')).toBeNull()
+      const cover = within(controlsOf(1))
+      expect((cover.getByLabelText('Phrase') as HTMLInputElement).value).toBe('Paid work')
+      expect(cover.queryByLabelText('Kicker') === null).toBe(true)
       fireEvent.change(cover.getByLabelText('Phrase'), { target: { value: 'Side jobs' } })
       await act(async () => {
         fireEvent.click(cover.getByRole('button', { name: 'Update phrase' }))
@@ -451,11 +501,21 @@ describe('RenderStep', () => {
 
     it('moves body slides up and down, never past the cover or the take', async () => {
       edited()
-      expect(screen.getByRole('button', { name: 'Move slide 2 up' })).toBeDisabled()
-      expect(screen.getByRole('button', { name: 'Move slide 3 down' })).toBeDisabled()
-      expect(screen.queryByRole('button', { name: /Move slide [14]/ })).toBeNull()
+      const moves = (n: number) =>
+        within(controlsOf(n))
+          .queryAllByRole('button', { name: /^Move slide/ })
+          .map(
+            (b) =>
+              `${b.getAttribute('aria-label')}${(b as HTMLButtonElement).disabled ? ' (off)' : ''}`,
+          )
+      // The cover and the take never move; each body slide only its own way.
+      expect(moves(1)).toEqual([])
+      expect(moves(2)).toEqual(['Move slide 2 up (off)', 'Move slide 2 down'])
+      expect(moves(3)).toEqual(['Move slide 3 up', 'Move slide 3 down (off)'])
+      expect(moves(4)).toEqual([])
+      const down = within(controlsOf(2)).getByRole('button', { name: 'Move slide 2 down' })
       await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: 'Move slide 2 down' }))
+        fireEvent.click(down)
       })
       expect(actions.lightEditAction).toHaveBeenCalledWith('p1', 7, {
         kind: 'reorder',
@@ -470,7 +530,7 @@ describe('RenderStep', () => {
         { assetId: 'art1', version: 2, prompt: 'A desk.' },
       ]
       edited({ earlierArt }, EDITOR, fourSlides({ assetId: 'art1', version: 2 }))
-      fireEvent.click(screen.getByRole('button', { name: 'Swap image' }))
+      fireEvent.click(within(controlsOf(1)).getByRole('button', { name: 'Swap image' }))
       const choices = within(screen.getByRole('group', { name: 'Swap image' }))
       expect(choices.getByRole('button', { name: 'Version 1' })).toBeInTheDocument()
       expect(choices.queryByRole('button', { name: 'Version 2' })).toBeNull()
@@ -493,15 +553,51 @@ describe('RenderStep', () => {
 
     it('shows an admin the version but no control', () => {
       edited({}, ADMIN)
-      expect(within(figureOf(1)).getByText('Version 1')).toBeInTheDocument()
-      expect(screen.queryAllByRole('button')).toHaveLength(0)
-      expect(screen.queryByLabelText('Cover idea (optional)')).toBeNull()
+      expect(within(controlsOf(1)).queryAllByText('Version 1').length).toBe(1)
+      // The slide's version alone: no tabs.
+      expect(screen.queryAllByRole('tab').length).toBe(0)
+      for (const n of [1, 2, 3, 4]) {
+        select(n)
+        expect(controls().length).toBe(0)
+      }
+      expect(screen.queryByLabelText('Cover idea (optional)') === null).toBe(true)
     })
   })
 
   it('offers an admin no button', () => {
     view({}, ADMIN)
-    expect(screen.queryAllByRole('button')).toHaveLength(0)
-    expect(screen.getAllByRole('img')).toHaveLength(3)
+    expect(controls().length).toBe(0)
+    expect(within(strip()).getAllByRole('button').length).toBe(3)
+  })
+})
+
+describe('Download slides (Images on)', () => {
+  /** Each "Download slides" link: its address, and whether it downloads. */
+  const downloads = () =>
+    screen
+      .queryAllByRole('link', { name: 'Download slides' })
+      .map((a) => `${a.getAttribute('href')} ${a.hasAttribute('download')}`)
+
+  it('is offered once rendered, with or without cover art', () => {
+    for (const fallback of [null, 'no_art'] as const) {
+      view({
+        stage: 'rendered',
+        current: { ...EMPTY, layout: layout([PASS]), render: renderRecord(fallback) },
+      })
+      expect(downloads()).toEqual(['/admin/posts/p1/slides true'])
+      cleanup()
+    }
+  })
+
+  it('is not offered before render, nor while one renders', () => {
+    view()
+    expect(downloads()).toEqual([])
+    cleanup()
+    view({
+      stage: 'rendered',
+      running: ['render'],
+      current: { ...EMPTY, layout: layout([PASS]), render: renderRecord(null) },
+    })
+    expect(downloads()).toEqual([])
   })
 })

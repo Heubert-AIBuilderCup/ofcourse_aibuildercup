@@ -34,8 +34,9 @@ const IDEAS_STEP = 'ideas'
 const OUTLINE_STEP = 'outline'
 const IDEAS_FAILED = 'Finding ideas failed. Your facts are kept.'
 const OUTLINE_FAILED = 'Outlining failed. Your facts are kept.'
-/** "Combine" takes two cards, no more (GD2). */
-const COMBINE = 2
+/** "Combine" takes two to four cards, no more (GD2). */
+const COMBINE = 4
+const COMBINE_FULL = 'Combine takes up to four ideas.'
 
 /**
  * The cards a failed outline's "Try again" outlines again (criterion 93): the ones last picked on
@@ -54,7 +55,7 @@ function retryCards(
 
 /**
  * The idea cards (GD1–GD3, GD20): the editor's framing line above them, then in the slides area
- * each card's angle and hook, pressed to select it, with a tick to combine two; beside the cards
+ * each card's angle and hook, pressed to select it, with a tick to combine up to four; beside the cards
  * (GD30, D1) the selected card's audience, format with its one-line description (GD33), suggested
  * look and length with "Use this idea", then "Combine" and "More ideas". While the cards are found,
  * or a pick is outlined, the step says so in words and its buttons wait. The model's top three come
@@ -134,8 +135,8 @@ export function IdeasStep({ view, viewer, actions, onBack }: IdeasStepProps) {
     )
 
   return (
-    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-8">
-      <h2 id={`${ids}-heading`} className="text-h3">
+    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-6">
+      <h2 id={`${ids}-heading`} className="sr-only">
         Ideas
       </h2>
       {onBack && (
@@ -158,7 +159,8 @@ export function IdeasStep({ view, viewer, actions, onBack }: IdeasStepProps) {
       <StepAreas
         slides={
           cards.length > 0 && (
-            <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(16rem,100%),1fr))] gap-4">
+            // Cards narrow enough that six sit in two or three rows within the step's frame.
+            <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(13rem,100%),1fr))] gap-3">
               {cards.map((card, index) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: a card is its place; "More ideas" only adds after it.
                 <li key={index} className="flex">
@@ -210,7 +212,7 @@ export function IdeasStep({ view, viewer, actions, onBack }: IdeasStepProps) {
               </Control>
             )}
 
-            {pickGate.shown && !blog && ticked.length === COMBINE && (
+            {pickGate.shown && !blog && ticked.length >= 2 && (
               <Control reason={pickGate.reason}>
                 <Button
                   variant="outline"
@@ -249,8 +251,10 @@ export function IdeasStep({ view, viewer, actions, onBack }: IdeasStepProps) {
 }
 
 /**
- * A card in the slides area: "Recommended" when the model ranks it high, its angle, which selects
- * it (the whole card answers the click), and its hook, with a tick to combine two.
+ * A card in the slides area, compact so six fit the step's frame: its angle, which selects it (the
+ * whole card answers the click), its hook cut at three lines (the selected card's panel shows it
+ * whole), then one row with the tick to combine up to four and "Recommended" when the model ranks
+ * it high.
  */
 function IdeaCardView(props: {
   card: IdeaCard
@@ -261,25 +265,25 @@ function IdeaCardView(props: {
   gate: { shown: boolean; reason: string | null }
   disabled: boolean
   ticked: boolean
-  /** Two are ticked already: a third waits. */
+  /** Four are ticked already: a fifth waits, saying why. */
   full: boolean
   onSelect: () => void
   onTick: (on: boolean) => void
 }) {
   const { card, gate } = props
   const ids = useId()
+  const combinable = gate.shown && !props.blog
   return (
     <Blueprint
       as="article"
       aria-label={card.angle}
       aria-current={props.selected || undefined}
       className={cn(
-        'flex w-full flex-col gap-4 p-4 hover:border-primary',
+        'flex w-full flex-col gap-3 p-3 hover:border-primary',
         props.selected && 'border-primary',
       )}
     >
-      <div className="flex flex-col gap-2">
-        {card.recommended && <span className={cn(tag, 'self-start')}>Recommended</span>}
+      <div className="flex flex-col gap-1">
         <h3 className="text-h4">
           <button
             type="button"
@@ -290,17 +294,28 @@ function IdeaCardView(props: {
             {card.angle}
           </button>
         </h3>
-        <p>{card.hook}</p>
+        <p className="line-clamp-3 text-caption">{card.hook}</p>
       </div>
-      {gate.shown && !props.blog && (
-        <div className="relative z-10 mt-auto flex items-center gap-2 self-start">
-          <Checkbox
-            id={`${ids}-combine`}
-            checked={props.ticked}
-            disabled={props.disabled || gate.reason !== null || (props.full && !props.ticked)}
-            onCheckedChange={(on) => props.onTick(on === true)}
-          />
-          <Label htmlFor={`${ids}-combine`}>Combine</Label>
+      {(combinable || card.recommended) && (
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
+          {combinable && (
+            <div className="relative z-10">
+              <Control reason={props.full && !props.ticked ? COMBINE_FULL : null}>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id={`${ids}-combine`}
+                    checked={props.ticked}
+                    disabled={
+                      props.disabled || gate.reason !== null || (props.full && !props.ticked)
+                    }
+                    onCheckedChange={(on) => props.onTick(on === true)}
+                  />
+                  <Label htmlFor={`${ids}-combine`}>Combine</Label>
+                </div>
+              </Control>
+            </div>
+          )}
+          {card.recommended && <span className={cn(tag, 'ml-auto')}>Recommended</span>}
         </div>
       )}
     </Blueprint>

@@ -70,13 +70,17 @@ function kickerOf(t: Tile, scene: Scene, state: RowState): string {
 const lineOf = (road: Road, t: Tile) =>
   (t.kind === 'place' || t.kind === 'point' ? t.sub : (road.cards[t.id]?.guide ?? t.sub)) ?? ''
 
-/** A level opens under the tile that heads it, once she has reached it or it is next. */
+/**
+ * A level opens under the tile that heads it, once she has reached it or it is next; the options
+ * beside a step (other courses, jobs) are under it always.
+ */
 function altsOf(scene: Scene, t: Tile, state: RowState): RowAlt[] {
-  if (state !== 'lit' && state !== 'next') return []
-  const line = [scene.cityLine, scene.courseLine].find((l) => l[0] === t.id) ?? []
-  return line
-    .slice(1)
-    .map((id) => scene.tiles.find((x) => x.id === id))
+  const beside = scene.tiles.filter((x) => x.beside === t.id)
+  const line =
+    state === 'lit' || state === 'next'
+      ? ([scene.cityLine, scene.courseLine].find((l) => l[0] === t.id) ?? [])
+      : []
+  return [...line.slice(1).map((id) => scene.tiles.find((x) => x.id === id)), ...beside]
     .filter((x): x is Tile => !!x)
     .map((x) => ({ id: x.id, name: x.name }))
 }

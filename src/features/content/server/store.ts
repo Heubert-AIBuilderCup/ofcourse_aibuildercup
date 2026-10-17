@@ -349,6 +349,26 @@ export async function listHistory(postId: string): Promise<HistoryEntry[]> {
   }))
 }
 
+/** The most shares one post lists, newest first. */
+const SHARES_LIMIT = 100
+
+/**
+ * A post's shares to the pages' accounts (criterion 10), newest first: no pointer names them, so
+ * they are read by kind. One query; a body that no longer parses is left out.
+ */
+export async function listShares(postId: string): Promise<{ id: string; body: Body<'share'> }[]> {
+  const rows = await db
+    .select({ id: contentArtifact.id, body: contentArtifact.body })
+    .from(contentArtifact)
+    .where(and(eq(contentArtifact.postId, postId), eq(contentArtifact.kind, 'share')))
+    .orderBy(desc(contentArtifact.createdAt), desc(contentArtifact.id))
+    .limit(SHARES_LIMIT)
+  return rows.flatMap((r) => {
+    const body = bodyOf('share', r.body, r.id)
+    return body ? [{ id: r.id, body }] : []
+  })
+}
+
 /** One of the post's own records by id, whichever its pointers name; null for any other post's or none. */
 export async function loadRecord(postId: string, id: string): Promise<Artifact | null> {
   const [row] = await db

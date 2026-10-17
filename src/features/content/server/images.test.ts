@@ -203,6 +203,9 @@ describe.skipIf(!enabled)('a look post’s images against the database', () => {
         config: aiConfig({ ...process.env, AI_DAILY_CAP_IMAGE: imageCap }),
         calls: dbCallLog,
         cache: dbCache,
+        // A busy (429) picture is asked again at once, each wait its ceiling: six calls a picture.
+        sleep: async () => {},
+        random: () => 1,
       })
     active = makeActive(process.env.AI_DAILY_CAP_IMAGE as string)
     const ai = new Proxy({} as typeof active, {
@@ -471,7 +474,8 @@ describe.skipIf(!enabled)('a look post’s images against the database', () => {
     'a picture whose every call is refused as busy (429) keeps why beside its no_art marker; drawn again, the reason goes with the failure',
     async () => {
       const { id, version } = await planned()
-      failAt = new Set([2, 3, 4])
+      // Slide 2 is asked three times, and the client backs each off five times on a 429: calls 2 to 19.
+      failAt = new Set(Array.from({ length: 18 }, (_, i) => i + 2))
       failWith = 'got status: 429 RESOURCE_EXHAUSTED'
       ok(await commands.drawImages(ED, id, version))
       await settled()

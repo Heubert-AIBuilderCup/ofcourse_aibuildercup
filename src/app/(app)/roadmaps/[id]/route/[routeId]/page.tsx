@@ -4,9 +4,9 @@ import { roadmapRoad } from '@/features/roads/server/roadmap-road'
 import { requireStudent } from '@/shared/lib/auth/session'
 
 /**
- * A route step's detail, over the board: the board reads it from the route; its screen comes next
- * round, a placeholder until then. A roadmap that is not hers, or an id that is not a step on its
- * road's route, is a 404.
+ * A route step’s detail, over the board: the board reads it from the route and draws it
+ * (RouteDetail: the step, its visa and the route ahead). A roadmap that is not hers, or an id that
+ * is not a step on its road's route, is a 404.
  */
 export default async function RoadRoutePage({
   params,

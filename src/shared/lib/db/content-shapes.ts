@@ -44,6 +44,7 @@ export const ARTIFACT_KINDS = [
   'blog_text',
   'blog_link',
   'blog_images',
+  'share',
 ] as const
 export type ArtifactKind = (typeof ARTIFACT_KINDS)[number]
 

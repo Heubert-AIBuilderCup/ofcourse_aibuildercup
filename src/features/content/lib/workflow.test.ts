@@ -197,6 +197,16 @@ describe('actionError', () => {
     }
   })
 
+  it("takes the source's wording from a passed step by moving the post back to its text, never 'moved on' (GD28)", () => {
+    for (const stage of ['approved', 'in_review', 'live'] as const) {
+      expect(editHome('sourceWording', stage)).toBe('structures')
+      expect(actionError('sourceWording', editor, stage)).toBeNull()
+    }
+    // Where it runs as it is, it moves nothing.
+    expect(editHome('sourceWording', 'structures')).toBeNull()
+    expect(editHome('sourceWording', 'rendered')).toBeNull()
+  })
+
   it('lets only an editor pick an idea or ask for more, at the text versions, or past them by moving back (GD1–GD3, GD28)', () => {
     const reviewer = { role: 'user', reviewer: true }
     for (const action of ['pickIdeas', 'moreIdeas'] as const) {
@@ -248,9 +258,9 @@ describe('actionError', () => {
     expect(actionError('approveBlogText', editor, 'approved')).toBe(WORKFLOW_ERRORS.movedOn)
   })
 
-  it('lets only an editor nudge a slide or a version, or take a slide from another version, before approval, or past it by moving back (GD10, GD11, GD28)', () => {
+  it('lets only an editor nudge a slide or a version, before approval, or past it by moving back (GD10, GD28)', () => {
     const reviewer = { role: 'user', reviewer: true }
-    for (const action of ['nudgeSlide', 'nudgeVersion', 'useSlide'] as const) {
+    for (const action of ['nudgeSlide', 'nudgeVersion'] as const) {
       expect(ACTION_STAGES[action]).toEqual(['structures'])
       expect(actionError(action, editor, 'structures')).toBeNull()
       expect(actionError(action, reviewer, 'structures')).toBe(NOT_AUTHORISED)
@@ -274,9 +284,6 @@ describe('actionError', () => {
       expect(actionError('sourceWording', reviewer, stage)).toBe(NOT_AUTHORISED)
       expect(actionError('sourceWording', { role: 'admin' }, stage)).toBe(NOT_AUTHORISED)
     }
-    for (const stage of ['approved', 'in_review', 'live'] as const) {
-      expect(actionError('sourceWording', editor, stage)).toBe(WORKFLOW_ERRORS.movedOn)
-    }
   })
 
   it('lets an editor try a failed source check again wherever its results show (98)', () => {
@@ -294,6 +301,17 @@ describe('actionError', () => {
   it('treats market at in_review as moved on (61) and adapt at rendered as moved on (62)', () => {
     expect(actionError('market', editor, 'in_review')).toBe(WORKFLOW_ERRORS.movedOn)
     expect(actionError('adapt', editor, 'rendered')).toBe(WORKFLOW_ERRORS.movedOn)
+  })
+
+  it('lets only an editor share, and only a live or exported post (9)', () => {
+    expect(actionError('share', editor, 'live')).toBeNull()
+    expect(actionError('share', editor, 'exported')).toBeNull()
+    for (const stage of ['source', 'structures', 'approved', 'rendered', 'in_review'] as const) {
+      expect(actionError('share', editor, stage)).toBe(WORKFLOW_ERRORS.movedOn)
+    }
+    for (const viewer of [{ role: 'user', reviewer: true }, { role: 'user' }]) {
+      expect(actionError('share', viewer, 'live')).toBe(NOT_AUTHORISED)
+    }
   })
 
   it('has no slide vision check or override for anyone to run (103)', () => {
@@ -384,7 +402,6 @@ describe('an edit at a passed step moves the post back by itself (GD28)', () => 
     'redraftSlide',
     'nudgeSlide',
     'nudgeVersion',
-    'useSlide',
     'pickIdeas',
     'moreIdeas',
     'editOutline',
@@ -728,13 +745,13 @@ describe('approveStructureError', () => {
     ...p,
   })
 
-  it('asks for a pick, then a theme', () => {
+  it('asks for a pick, and never for a theme: none chosen (drafted before draftChoices) is the default', () => {
     expect(approveStructureError(pointers({ picked: null }), post('Fell by 11 points.'))).toBe(
       WORKFLOW_ERRORS.noPick,
     )
-    expect(approveStructureError(pointers({ themeId: null }), post('Fell by 11 points.'))).toBe(
-      WORKFLOW_ERRORS.noTheme,
-    )
+    expect(
+      approveStructureError(pointers({ themeId: null }), post('Fell by 11 points.')),
+    ).toBeNull()
   })
 
   it('refuses a slot stating a number its fact does not (28)', () => {
@@ -992,7 +1009,6 @@ describe('kindError: a blog runs its own text steps, a feed post its slides (BR1
     'redraftSlide',
     'nudgeSlide',
     'nudgeVersion',
-    'useSlide',
     'pickIdeas',
     'editOutline',
     'writeSlides',

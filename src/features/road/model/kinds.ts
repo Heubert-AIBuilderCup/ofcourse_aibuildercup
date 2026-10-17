@@ -62,6 +62,7 @@ export function kindOf(t: Tile, scene: Scene): Kind {
   if (t.state === 'unknown') return { word: 'Not picked yet', icon: 'globe' }
   if (t.kind === 'junction') return { word: 'Fork', icon: 'fork' }
   if (t.kind === 'stack') return { word: 'Not looked at', icon: 'more' }
+  if (t.kind === 'job') return { word: 'Job', icon: 'work' }
   const other = t.state === 'alt' && !onRoad(scene, t.id)
   if (t.kind === 'place') {
     // A place before her cities is the country she picked.

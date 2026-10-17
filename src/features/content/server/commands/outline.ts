@@ -3,11 +3,13 @@ import { draftStructures, VERSIONS_PER_TEMPLATE } from '../../ai/draft'
 import { outlinePost } from '../../ai/outline'
 import { formatById } from '../../formats'
 import { editOutline, type OutlineOp } from '../../lib/outline'
+import { draftChoices } from '../../lib/version-status'
 import { WORKFLOW_ERRORS } from '../../lib/workflow'
 import { isLook, templateById } from '../../templates'
 import { pageStyleOf } from '../page-style'
 import { runStep } from '../steps'
 import { putArtifact } from '../store'
+import { checkAfter } from './check'
 import { OUTLINE_STEP } from './ideas'
 import { type Actor, command, fail, type Saved, save } from './shared'
 
@@ -145,7 +147,9 @@ export async function writeSlides(actor: Actor, id: string, version: number): Pr
         outline: { format: outline.body.format, slides: outline.body.slides },
       })
       if (!drafted.ok) return fail(drafted.error)
-      return save(post, version, actor, async (tx) => {
+      // Version A and Pop are chosen for her; her own choices stay while they fit.
+      const chosen = draftChoices(post.pointers, drafted.items)
+      const saved = await save(post, version, actor, async (tx) => {
         const draftsId = await putArtifact(tx, {
           kind: 'drafts',
           postId: id,
@@ -161,9 +165,11 @@ export async function writeSlides(actor: Actor, id: string, version: number): Pr
           },
         })
         // "Draft again" drafts the same look.
-        const pointers = { ...post.pointers, draftsId, ticked: [look], picked: null, themeId: null }
+        const pointers = { ...post.pointers, draftsId, ticked: [look], ...chosen }
         return { stage: post.stage, pointers }
       })
+      // The version chosen for her is checked against the source, as a version she picks is.
+      return chosen.picked === null ? saved : checkAfter(id, actor, saved)
     })
   })
 }

@@ -367,8 +367,10 @@ it('wraps a long unbroken address anywhere in the title, paragraphs, key ideas a
     }),
   })
   openArticle()
+  // The article's title over the source, its paragraph, the key idea and the fact.
   const shown = screen.getAllByText(LONG)
   expect(shown).toHaveLength(4)
+  expect(screen.getByRole('heading', { level: 2, name: LONG }).textContent).toBe(LONG)
   for (const el of shown) expect(el.closest('.wrap-anywhere')).not.toBeNull()
 })
 

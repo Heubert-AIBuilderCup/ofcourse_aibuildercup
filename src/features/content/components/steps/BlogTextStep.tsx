@@ -229,7 +229,7 @@ export function BlogTextStep({ view, viewer, actions }: BlogTextStepProps) {
 
   return (
     <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-8">
-      <h2 id={`${ids}-heading`} className="text-h3">
+      <h2 id={`${ids}-heading`} className="sr-only">
         Text
       </h2>
       <StepAreas

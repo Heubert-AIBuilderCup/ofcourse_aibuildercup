@@ -278,7 +278,15 @@ export function RoadCard({
           </Link>
         ) : card.secondary && !here ? (
           <Button type="button" variant="outline" className={ACTION} onClick={onClose}>
-            {card.secondary}
+            {card.backTo ? (
+              // Her place is heard as part of its name: "Back to where you are, Cyber Security".
+              <>
+                <span aria-hidden="true">{card.secondary}</span>
+                <span className="sr-only">{`${card.secondary}, ${card.backTo}`}</span>
+              </>
+            ) : (
+              card.secondary
+            )}
           </Button>
         ) : null}
       </div>

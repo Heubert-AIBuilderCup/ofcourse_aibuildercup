@@ -1,8 +1,9 @@
 /// <reference lib="dom" />
 /// <reference path="../../../../../node_modules/@testing-library/jest-dom/types/bun.d.ts" />
-import { afterEach, describe, expect, it, mock, setSystemTime } from 'bun:test'
+import { afterEach, describe, expect, it, mock, setSystemTime, spyOn } from 'bun:test'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import * as navigation from 'next/navigation'
+import { toast } from 'sonner'
 import { buttonVariants } from '@/shared/components/ui/button'
 import type { Staff } from '@/shared/lib/auth/access'
 import { emptyPointers } from '../../model/artifacts'
@@ -10,6 +11,7 @@ import type { CurrentPost } from '../../model/current'
 import type { Saved } from '../../server/commands'
 import type { MadeSet } from '../../server/social'
 
+const success = spyOn(toast, 'success')
 const refresh = mock(() => {})
 const push = mock((_: string) => {})
 let searchParams = new URLSearchParams()
@@ -103,6 +105,13 @@ const actions = {
       version: 1,
     }),
   ),
+  sharePostAction: mock(
+    async (_id: unknown, _at: unknown, _accounts: unknown): Promise<Saved> => ({
+      ok: true,
+      id: 'p1',
+      version: 17,
+    }),
+  ),
   editLiveAction: mock(
     async (_id: unknown, _at: unknown): Promise<Saved> => ({ ok: true, id: 'p1', version: 17 }),
   ),
@@ -145,7 +154,18 @@ afterEach(() => {
   actions.adaptAction.mockClear()
   actions.makeSetAction.mockClear()
   actions.editLiveAction.mockClear()
+  actions.sharePostAction.mockClear()
+  success.mockClear()
 })
+
+/** The filmstrip under the stage: one thumbnail per slide. */
+const strip = () => screen.getByRole('list', { name: 'All slides' })
+/** The buttons that do something: every one but the filmstrip's thumbnails. */
+const controls = () => screen.queryAllByRole('button').filter((b) => !strip().contains(b))
+/** The actions area's tabs, by name. */
+const tabNames = () => screen.queryAllByRole('tab').map((t) => t.textContent)
+/** Opens the actions area's tab called `name`. */
+const openTab = (name: string) => fireEvent.click(screen.getByRole('tab', { name }))
 
 describe('LivePanel', () => {
   it('shows the live line, the review line and the published slides', () => {
@@ -158,15 +178,42 @@ describe('LivePanel', () => {
       'src',
       '/admin/assets/png1',
     )
-    expect(screen.queryAllByRole('button')).toHaveLength(0)
+    expect(controls().length).toBe(0)
   })
 
-  it('shows the live post large, one slide at a time in a strip that swipes', () => {
+  it('shows the live post on a stage, the selected slide over a filmstrip', () => {
     render(<LivePanel view={VIEW} viewer={REVIEWER} actions={actions} />)
-    expect(screen.getByRole('group', { name: 'Slides, one at a time' })).toHaveAttribute(
-      'aria-roledescription',
-      'carousel',
-    )
+    expect(
+      screen
+        .getByRole('group', { name: 'Slides, one at a time' })
+        .getAttribute('aria-roledescription'),
+    ).toBe('carousel')
+    expect(within(strip()).getAllByRole('button').length).toBe(2)
+    fireEvent.click(within(strip()).getByRole('button', { name: 'Slide 2' }))
+    expect(screen.getAllByRole('img').map((img) => img.getAttribute('src'))).toEqual([
+      '/admin/assets/png2',
+    ])
+  })
+
+  it('puts the details, Share and the social versions one tab each, the details open first', () => {
+    render(<LivePanel view={VIEW} viewer={EDITOR} actions={actions} />)
+    expect(tabNames()).toEqual(['Details', 'Share', 'Social versions'])
+    expect(
+      screen
+        .getAllByRole('tab')
+        .filter((t) => t.getAttribute('aria-selected') === 'true')
+        .map((t) => t.textContent),
+    ).toEqual(['Details'])
+    // Only the open tab's panel is drawn.
+    expect(screen.queryAllByRole('button', { name: 'Make the set' }).length).toBe(0)
+    cleanup()
+    // A comic has no Share; a blog only its details, shown without tabs.
+    render(<LivePanel view={{ ...VIEW, courseId: 'c1' }} viewer={EDITOR} actions={actions} />)
+    expect(tabNames()).toEqual(['Details', 'Social versions'])
+    cleanup()
+    render(<LivePanel view={{ ...VIEW, kind: 'blog' }} viewer={EDITOR} actions={actions} />)
+    expect(tabNames()).toEqual([])
+    expect(screen.queryAllByText('India · Books and movies').length).toBe(1)
   })
 
   it('counts the days left from the approval (54)', () => {
@@ -259,6 +306,7 @@ describe('LivePanel', () => {
 
   it('adapts the live post for a page brand and a platform, the Comics page left out (63, RC7)', async () => {
     render(<LivePanel view={VIEW} viewer={EDITOR} actions={actions} />)
+    openTab('Social versions')
     const brand = screen.getByLabelText('Page brand')
     expect([...(brand as HTMLSelectElement).options].map((o) => o.text)).toEqual([
       'Choose a page brand',
@@ -282,6 +330,7 @@ describe('LivePanel', () => {
   it('pre-selects the page brand the rule file names for the post’s theme, which the editor may change (88)', () => {
     // The settings carry theme:books-movies, which the rule file sends to Cerebral.
     render(<LivePanel view={VIEW} viewer={EDITOR} actions={actions} />)
+    openTab('Social versions')
     expect(screen.getByLabelText('Page brand')).toHaveValue('cerebral')
     expect(screen.getByRole('button', { name: 'Create social version' })).toBeEnabled()
     fireEvent.change(screen.getByLabelText('Page brand'), { target: { value: 'main' } })
@@ -304,6 +353,7 @@ describe('LivePanel', () => {
         }}
       />,
     )
+    openTab('Social versions')
     expect(screen.getByLabelText('Page brand')).toHaveValue('')
     const create = screen.getByRole('button', { name: 'Create social version' })
     await act(async () => {
@@ -347,6 +397,8 @@ describe('LivePanel', () => {
 
   it('offers a reviewer no way to adapt or to make the set', () => {
     render(<LivePanel view={VIEW} viewer={REVIEWER} actions={actions} />)
+    // No tab hides them: a reviewer's one group, the details, shows without tabs.
+    expect(tabNames()).toEqual([])
     expect(screen.queryByRole('button', { name: 'Create social version' })).toBeNull()
     expect(screen.queryByLabelText('Page brand')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Make the set' })).toBeNull()
@@ -361,6 +413,7 @@ describe('LivePanel', () => {
         actions={actions}
       />,
     )
+    openTab('Social versions')
     const items = within(screen.getByRole('list', { name: 'The set' })).getAllByRole('listitem')
     expect(items.map((li) => li.textContent)).toEqual([
       'Main · No design language yet',
@@ -382,6 +435,7 @@ describe('LivePanel', () => {
         actions={actions}
       />,
     )
+    openTab('Social versions')
     expect(
       within(screen.getByRole('list', { name: 'The set' })).getByText('Quote card · Cerebral'),
     ).toBeInTheDocument()
@@ -395,6 +449,7 @@ describe('LivePanel', () => {
         actions={actions}
       />,
     )
+    openTab('Social versions')
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Make the set' }))
     })
@@ -439,6 +494,7 @@ describe('LivePanel', () => {
       ],
     })
     render(<LivePanel view={VIEW} viewer={EDITOR} actions={actions} />)
+    openTab('Social versions')
     const button = screen.getByRole('button', { name: 'Make the set' })
     await act(async () => {
       fireEvent.click(button)
@@ -459,10 +515,10 @@ describe('LivePanel', () => {
     expect(second.quote).not.toBe(first.quote)
   })
 
-  it('leaves the way on ("Next: Blog →") the one filled button; adapting and the set are outlined', () => {
+  it('leaves the way on ("Done · back to the board") the one filled button; adapting and the set are outlined', () => {
     const next = (
       <a href="/admin/posts/p1/blog" className={buttonVariants()}>
-        Next: Blog →
+        Done · back to the board
       </a>
     )
     render(
@@ -473,10 +529,11 @@ describe('LivePanel', () => {
         links={next}
       />,
     )
+    openTab('Social versions')
     expect(screen.getByRole('button', { name: 'Make the set' })).toBeInTheDocument()
     let filled = document.querySelectorAll('.bg-primary-strong')
     expect(filled).toHaveLength(1)
-    expect(filled[0]).toHaveTextContent('Next: Blog →')
+    expect(filled[0]).toHaveTextContent('Done · back to the board')
     cleanup()
     render(
       <LivePanel
@@ -486,9 +543,10 @@ describe('LivePanel', () => {
         links={next}
       />,
     )
+    openTab('Social versions')
     filled = document.querySelectorAll('.bg-primary-strong')
     expect(filled).toHaveLength(1)
-    expect(filled[0]).toHaveTextContent('Next: Blog →')
+    expect(filled[0]).toHaveTextContent('Done · back to the board')
   })
 
   it('offers a comic one "Make Instagram version for Comics", with no page choice and no set (RC7)', async () => {
@@ -499,6 +557,7 @@ describe('LivePanel', () => {
         actions={actions}
       />,
     )
+    openTab('Social versions')
     expect(screen.queryByLabelText('Page brand')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Create social version' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Make the set' })).toBeNull()
@@ -516,5 +575,116 @@ describe('LivePanel', () => {
     // A reviewer is offered none.
     render(<LivePanel view={{ ...VIEW, courseId: 'c1' }} viewer={REVIEWER} actions={actions} />)
     expect(screen.queryByRole('button', { name: 'Make Instagram version for Comics' })).toBeNull()
+  })
+
+  /** The Share section's checkbox for an account, under its network. */
+  const account = (network: 'Instagram' | 'LinkedIn', label: string) =>
+    within(screen.getByRole('group', { name: network })).getByRole('checkbox', { name: label })
+
+  it('shares to several Instagram accounts at once, sending their ids, and says where it went (9, 10)', async () => {
+    render(<LivePanel view={VIEW} viewer={EDITOR} actions={actions} />)
+    openTab('Share')
+    expect(
+      within(screen.getByRole('group', { name: 'Instagram' })).getAllByRole('checkbox').length,
+    ).toBe(4)
+    fireEvent.click(account('Instagram', '@ofcourse_philosophy'))
+    fireEvent.click(account('Instagram', '@ofcourse_ai'))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Share' }))
+    })
+    expect(actions.sharePostAction).toHaveBeenCalledTimes(1)
+    expect(actions.sharePostAction.mock.calls[0]).toEqual([
+      'p1',
+      16,
+      { instagram: ['main', 'cerebral'], linkedin: [] },
+    ])
+    expect(success.mock.calls[0]?.[0]).toBe(
+      'Shared to Instagram: @ofcourse_ai, @ofcourse_philosophy',
+    )
+    expect(refresh).toHaveBeenCalled()
+  })
+
+  it('says "Shared to LinkedIn" for the LinkedIn page alone (10)', async () => {
+    render(<LivePanel view={VIEW} viewer={EDITOR} actions={actions} />)
+    openTab('Share')
+    fireEvent.click(account('LinkedIn', 'OfCourse'))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Share' }))
+    })
+    expect(actions.sharePostAction.mock.calls[0]?.[2]).toEqual({
+      instagram: [],
+      linkedin: ['main'],
+    })
+    expect(success.mock.calls[0]?.[0]).toBe('Shared to LinkedIn')
+  })
+
+  it('keeps Share unavailable, saying why, until an account is ticked (11)', async () => {
+    render(<LivePanel view={VIEW} viewer={EDITOR} actions={actions} />)
+    openTab('Share')
+    const share = screen.getByRole('button', { name: 'Share' })
+    expect(share.hasAttribute('disabled')).toBe(true)
+    const section = screen.getByRole('region', { name: 'Share' })
+    const badge = within(section).getByRole('button', { name: 'Why this is unavailable' })
+    const tip = document.getElementById(badge.getAttribute('aria-describedby') ?? '')
+    expect(tip?.textContent).toBe('Tick at least one account.')
+    await act(async () => {
+      fireEvent.click(share)
+    })
+    expect(actions.sharePostAction).not.toHaveBeenCalled()
+    fireEvent.click(account('Instagram', '@ofcourse_comics'))
+    expect(share.hasAttribute('disabled')).toBe(false)
+    expect(
+      within(section).queryAllByRole('button', { name: 'Why this is unavailable' }).length,
+    ).toBe(0)
+  })
+
+  it('lists the post’s shares, newest first, with who shared each (10)', () => {
+    const by = { userId: 'u1', name: 'Rae', at: '2026-10-17T09:00:00.000Z' }
+    render(
+      <LivePanel
+        view={{
+          ...VIEW,
+          shares: [
+            { id: 'share_2', body: { instagram: [], linkedin: ['main'], by } },
+            { id: 'share_1', body: { instagram: ['main', 'cerebral'], linkedin: [], by } },
+          ],
+        }}
+        viewer={EDITOR}
+        actions={actions}
+      />,
+    )
+    openTab('Share')
+    const items = within(screen.getByRole('list', { name: 'Shares' })).getAllByRole('listitem')
+    expect(items.map((li) => li.textContent)).toEqual([
+      'Shared to LinkedIn: OfCourse · by Rae',
+      'Shared to Instagram: @ofcourse_ai, @ofcourse_philosophy · by Rae',
+    ])
+  })
+
+  it('offers no Share to a viewer who may not edit, nor on a comic or a blog', () => {
+    for (const view of [
+      { ...VIEW, courseId: 'c1' },
+      { ...VIEW, kind: 'blog' as const },
+    ]) {
+      render(<LivePanel view={view} viewer={EDITOR} actions={actions} />)
+      expect(tabNames().includes('Share')).toBe(false)
+      expect(screen.queryAllByRole('button', { name: 'Share' }).length).toBe(0)
+      cleanup()
+    }
+    render(<LivePanel view={VIEW} viewer={REVIEWER} actions={actions} />)
+    expect(tabNames().includes('Share')).toBe(false)
+    expect(screen.queryAllByRole('button', { name: 'Share' }).length).toBe(0)
+    expect(screen.queryAllByRole('checkbox').length).toBe(0)
+  })
+})
+
+describe('LivePanel: Download slides', () => {
+  it('offers the live slides to download under the stage', () => {
+    render(<LivePanel view={VIEW} viewer={REVIEWER} actions={actions} />)
+    expect(
+      screen
+        .queryAllByRole('link', { name: 'Download slides' })
+        .map((a) => `${a.getAttribute('href')} ${a.hasAttribute('download')}`),
+    ).toEqual(['/admin/posts/p1/slides true'])
   })
 })

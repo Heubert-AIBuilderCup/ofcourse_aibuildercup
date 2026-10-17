@@ -26,6 +26,7 @@ export const TILE_SIZE: Readonly<Record<TileKind, number>> = {
   stack: 0.66,
   slab: 0.42,
   junction: 0.22,
+  job: 0.5,
 }
 
 /** A tile's depth in grid units, per kind. */
@@ -37,6 +38,7 @@ export const TILE_DEPTH: Readonly<Record<TileKind, number>> = {
   stack: 0.14,
   slab: 0.16,
   junction: 0.1,
+  job: 0.14,
 }
 
 /** The most px per grid unit each stop allows, at rs 1. */
@@ -90,7 +92,8 @@ function corners(t: Tile, pad: number): [number, number][] {
 /**
  * What a stop frames, in projected units. Whole road: every tile and the year ruler. Level: the
  * open level (and the start of the road ahead), or, for a tile beyond it, that tile with room
- * around it. Tile: the one tile up close.
+ * around it; a step with options beside it (or one of them) frames the step and all of them. Tile:
+ * the one tile up close.
  */
 export function frame(stop: Stop, focusId: string | null, scene: Scene): Box {
   const focus = focusTile(focusId, scene)
@@ -109,7 +112,9 @@ export function frame(stop: Stop, focusId: string | null, scene: Scene): Box {
     const beforeStudy = scene.ahead[scene.ahead.indexOf(scene.courseStep) - 1]
     if (beforeStudy && scene.levelIds.includes(beforeStudy)) add(byId(scene.courseStep), 0)
   } else if (stop === 'level') {
-    add(focus, 3)
+    const step = (focus.beside && byId(focus.beside)) || focus
+    add(step, 3)
+    for (const t of scene.tiles) if (t.beside === step.id) add(t, 0.5)
   } else {
     add(focus, focus.kind === 'slab' ? 0.8 : 1.5)
   }
@@ -164,6 +169,25 @@ export const tween = (from: Camera, to: Camera, k: number): Camera => ({
   ox: from.ox + (to.ox - from.ox) * k,
   oy: from.oy + (to.oy - from.oy) * k,
 })
+
+/** What the camera frames: a stop, where she is, and the tile it centres on. */
+export type Framing = { stop: Stop; here: string; focus: string | null }
+
+/**
+ * The framing after the board changes. A press opens a tile without moving the camera at Whole
+ * road or Level, so she sees the board as she left it; a zoom, a move of hers, or a press at Tile
+ * (where the camera follows the tile she opens) frames the open tile.
+ */
+export function reframe(
+  was: Framing,
+  now: { stop: Stop; here: string; tile: string | null },
+): Framing {
+  const same =
+    was.stop === now.stop &&
+    was.here === now.here &&
+    (now.stop !== 'tile' || was.focus === now.tile)
+  return same ? was : { stop: now.stop, here: now.here, focus: now.tile }
+}
 
 /** One stop in (1) or out (-1), held at either end. */
 export function stepStop(stop: Stop, dir: -1 | 1): Stop {

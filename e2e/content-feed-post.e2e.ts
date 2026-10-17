@@ -2,24 +2,26 @@ import { type BrowserContext, expect, type Locator, type Page, test } from '@pla
 import { REPLAYS } from '../src/features/content/ai/replays/index'
 import { canonicalJson, sha256Hex } from '../src/features/content/server/hash'
 import {
+  allCheckedSentences,
   approveLegacyText,
   approveText,
   CLEAN,
   checked,
-  chosenVersion,
+  checkResults,
   drawImages,
-  feedSettings,
   ideasOffered,
   LEGACY_TEMPLATES,
+  lastSettingsPanel,
   legacyPost,
   makePost,
   markNotFoundAsOpinion,
   nonDemo,
   onStep,
-  openDetails,
   openedPostId,
   openOtherVersions,
+  openSourceCheck,
   openStep,
+  openTab,
   PAID_WORK,
   pasteSource,
   pickIdea,
@@ -27,13 +29,18 @@ import {
   requireFakeProvider,
   selectSlide,
   sendToReview,
+  settingsPanel,
   settingsPost,
-  sourceCheck,
-  strip,
+  slotField,
+  stage,
+  stageSlides,
+  stepActions,
   TWIN,
   toSettings,
+  whyUnavailable,
   withMarker,
   writeSlides,
+  yourVersion,
 } from './helpers/content'
 import {
   cacheArt,
@@ -126,9 +133,9 @@ const source = (page: Page) => page.getByRole('complementary', { name: 'Source' 
 /** The first version of a template's drafts: the fake's three versions share its planted traits. */
 const draftCard = (page: Page, name: string) => page.getByRole('article', { name }).first()
 /**
- * "Use this version" on a template's version. The first Ready one is picked for the editor as
- * the versions arrive (GD29) and the rest wait under "Choose another version"; when the template's
- * versions offer no Use button, one of them is the picked one already.
+ * "Use this version" on a template's version. The drafting picks the first Ready one for the
+ * editor (GD29) and the rest wait in "Versions"; when the template's versions offer no Use button,
+ * one of them is the picked one already.
  */
 async function useVersion(page: Page, name: string) {
   await openOtherVersions(page)
@@ -140,9 +147,11 @@ const section = (page: Page, name: string) =>
   page
     .locator('section')
     .filter({ has: page.getByRole('heading', { level: 2, name, exact: true }) })
-/** The cover's figure in a section of rendered slides: its picture and what shows under it. */
-const cover = (scope: Locator) =>
-  scope.locator('figure').filter({ has: scope.page().getByRole('img', { name: /^Slide 1\b/ }) })
+/**
+ * The cover in a section of rendered slides: the stage, which opens on it, its picture and what
+ * shows under it ("No art", "Replay").
+ */
+const cover = (scope: Locator) => stage(scope)
 const toast = (page: Page, text: string | RegExp) =>
   page.locator('[data-sonner-toast]').filter({ hasText: text })
 const facts = (page: Page) => page.getByRole('region', { name: 'Facts', exact: true })
@@ -155,11 +164,12 @@ async function showArticle(page: Page): Promise<void> {
 }
 
 /**
- * Wait for every image in `scope` to have loaded and drawn something. The slides load lazily, so
- * each look scrolls them into view; it asks again from scratch, since a refresh may redraw them.
+ * Wait for every slide on the stage in `scope` (its filmstrip) to have loaded and drawn something.
+ * The slides load lazily, so each look scrolls them into view; it asks again from scratch, since a
+ * refresh may redraw them.
  */
 async function expectImagesLoaded(scope: Locator, count?: number): Promise<void> {
-  const images = scope.getByRole('img')
+  const images = stageSlides(scope)
   if (count === undefined) await expect(images.first()).toBeVisible()
   else await expect(images).toHaveCount(count)
   await expect
@@ -175,11 +185,11 @@ async function expectImagesLoaded(scope: Locator, count?: number): Promise<void>
     .toBe(true)
 }
 
-/** The bytes of each image in `scope`, fetched with the page's session. */
+/** The bytes of each slide on the stage in `scope`, fetched with the page's session. */
 async function imageBytes(page: Page, scope: Locator): Promise<Buffer[]> {
-  const srcs = await scope
-    .getByRole('img')
-    .evaluateAll((els) => els.map((el) => (el as HTMLImageElement).src))
+  const srcs = await stageSlides(scope).evaluateAll((els) =>
+    els.map((el) => (el as HTMLImageElement).src),
+  )
   expect(srcs.length).toBeGreaterThan(0)
   const out: Buffer[] = []
   for (const src of srcs) {
@@ -205,14 +215,14 @@ async function tick(page: Page, names: string[]) {
   }
 }
 
-/** On the chosen version, type `text` as slide `n`'s body and save it. */
+/** On the chosen version's slide `n`, on the stage, type `text` as its body and save it. */
 async function editBody(page: Page, n: number, text: string): Promise<void> {
-  const card = chosenVersion(page)
-  await selectSlide(card, n)
-  await card.getByRole('button', { name: `Edit Slide ${n} · Body` }).click()
-  await card.getByRole('textbox', { name: `Slide ${n} · Body` }).fill(text)
-  await card.getByRole('button', { name: 'Save', exact: true }).click()
-  await expect(card.getByRole('list', { name: `Slide ${n} text` })).toContainText(text, {
+  await selectSlide(page, n)
+  const slide = stage(page)
+  await slide.getByRole('button', { name: `Edit Slide ${n} · Body` }).click()
+  await slide.getByRole('textbox', { name: `Slide ${n} · Body`, exact: true }).fill(text)
+  await slide.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(slotField(await yourVersion(page), n, 'Body')).toHaveValue(text, {
     timeout: 60_000,
   })
 }
@@ -356,10 +366,19 @@ test('approving opens the render gate; a failing fit keeps Render unavailable; r
   const render = section(page, 'Images')
   await expect(render.getByRole('button', { name: 'Render', exact: true })).toBeDisabled()
   await expect(render.getByText(LONG_READ_FIT)).toBeVisible()
-  await expect(render.getByText('Fix the failing fit checks before rendering.')).toBeVisible()
+  await expect(whyUnavailable(render)).toHaveAccessibleDescription(
+    'Fix the failing fit checks before rendering.',
+  )
 
-  await page.getByRole('button', { name: '← Back to text' }).click()
-  await page.getByRole('button', { name: 'Go back' }).click()
+  // Reopening: the step bar's Text link opens the passed text, edited in place, and using the line
+  // there moves the post back by itself (GD28); Images, not reached again, opens the Text step.
+  await page
+    .getByRole('list', { name: 'Stages', exact: true })
+    .getByRole('link', { name: 'Text', exact: true })
+    .click()
+  await onStep(page, 'text')
+  await useVersion(page, LINE)
+  await openStep(page, posts.legacy, 'images')
   await onStep(page, 'text')
   await expect(page.getByRole('button', { name: 'Render', exact: true })).toHaveCount(0)
 })
@@ -367,9 +386,10 @@ test('approving opens the render gate; a failing fit keeps Render unavailable; r
 test('the approved layout is the previewed draft, and the render lays it out with art', async () => {
   const { page } = er
   await openStep(page, posts.legacy, 'text')
+  // The line, used when the text was reopened, is the picked version already.
   await useVersion(page, LINE)
-  // Picked, the version is in its editor: its strip shows the slides as they will be laid out.
-  const line = strip(chosenVersion(page))
+  // Picked, the version is on the stage: its filmstrip shows the slides as they will be laid out.
+  const line = stage(page)
   await expectImagesLoaded(line)
   const drafted = await imageBytes(page, line)
 
@@ -386,7 +406,7 @@ test('the approved layout is the previewed draft, and the render lays it out wit
   await expectImagesLoaded(render, 5)
   await expect(cover(render).getByText('No art', { exact: true })).toHaveCount(0)
   await expect(render.getByText('Replay', { exact: true })).toHaveCount(0)
-  expect(await renderHasArt(posts.paidWork), 'the cover has art').toBe(true)
+  expect(await renderHasArt(posts.legacy), 'the cover has art').toBe(true)
 })
 
 test('art that fails on another source gives a cover with No art, and Try again gives art', async () => {
@@ -433,28 +453,29 @@ test("the chosen version is edited on its slide and checked as it goes; a flag t
     title: 'Paid work, edited on the slide',
     text: nonDemo(PAID_WORK.text),
   })
-  const card = chosenVersion(page)
   // No button: choosing checks the version.
-  await checked(card, CLEAN)
+  await checked(page, CLEAN)
   await expect(page.getByRole('button', { name: 'Run source check' })).toHaveCount(0)
 
   // Edit slide 2's body in place: the preview is drawn again and the fit row reads the new text.
-  const slide2 = strip(card).getByRole('img', { name: /^Slide 2\b/ })
+  const slide2 = stageSlides(page).nth(1)
   const drawnBefore = await slide2.getAttribute('src')
   // A sentence the source does not hold (the fake's check finds a shortened source sentence).
   const typed = UNSUPPORTED
   await editBody(page, 2, typed)
   await expect(
-    (await openDetails(card)).getByText('Slide 2 · 7 words (15–25) · Under'),
+    (await checkResults(page)).getByText('Slide 2 · 7 words (15–25) · Under'),
   ).toBeVisible()
   await expect.poll(() => slide2.getAttribute('src')).not.toBe(drawnBefore)
 
   // The edited sentence is checked by itself; the flag stays until the source's wording is used.
-  const wording = card.getByRole('button', { name: "Use the source's wording" })
-  await checked(card, '1 not found in the source')
+  const wording = page
+    .getByRole('tabpanel')
+    .getByRole('button', { name: "Use the source's wording" })
+  await checked(page, /· 1 not found ·/)
   await expect(wording).toHaveCount(1)
   await wording.click()
-  await checked(card, CLEAN)
+  await checked(page, CLEAN)
   await expect(wording).toHaveCount(0)
 })
 
@@ -477,34 +498,42 @@ test('the source check, then feed settings, gate Send to review', async () => {
   await drawImages(page)
   await toSettings(page)
 
-  const check = sourceCheck(page)
+  const check = await openSourceCheck(page)
   // No button: the check ran by itself after approval, and the page shows it once it lands (98).
   await expect(check.getByText(/Not found$/)).toHaveCount(1, { timeout: 60_000 })
   await expect(page.getByRole('button', { name: 'Run source check' })).toHaveCount(0)
-  await expect(check.getByText(/Found ¶\d+$/).first()).toBeVisible()
+  // The sentences found wait in the "All checked sentences" drawer.
+  let all = await allCheckedSentences(page)
+  await expect(all.getByText(/Found ¶\d+$/).first()).toBeVisible()
+  await all.getByRole('button', { name: 'Close', exact: true }).click()
 
-  const settings = feedSettings(page)
-  const send = settings.getByRole('button', { name: 'Send to review → Review' })
+  // "Send to review" waits in the step bar, its reason behind its "!".
+  const send = stepActions(page).getByRole('button', { name: 'Send to review → Review' })
+  const why = whyUnavailable(stepActions(page))
   // No expiry chosen: the missing setting is named.
   await expect(send).toBeDisabled()
-  await expect(settings.getByText(/expiry before sending to review/)).toBeVisible()
+  await expect(why).toHaveAccessibleDescription(/expiry before sending to review/)
+  let settings = await settingsPanel(page, 'Expiry')
   await settings.getByRole('radio', { name: '90 days' }).check()
   await expect(send).toBeDisabled()
-  await expect(
-    settings.getByText(
-      'Remove each claim the source check could not find, or mark it as editorial opinion.',
-    ),
-  ).toBeVisible()
+  await expect(why).toHaveAccessibleDescription(
+    'Remove each claim the source check could not find, or mark it as editorial opinion.',
+  )
 
+  await openSourceCheck(page)
   await press(page, 'Mark as editorial opinion', 'Marked as editorial opinion', check)
-  await expect(check.getByText('Editorial opinion', { exact: true })).toBeVisible()
   await expect(check.getByText(/Not found$/)).toHaveCount(0)
+  all = await allCheckedSentences(page)
+  await expect(all.getByText('Editorial opinion', { exact: true })).toBeVisible()
+  await all.getByRole('button', { name: 'Close', exact: true }).click()
 
+  settings = await settingsPanel(page, 'Expiry')
   await settings.getByRole('radio', { name: '90 days' }).check()
+  settings = await settingsPanel(page, 'Who sees it')
   await settings.getByRole('radio', { name: 'Personal' }).check()
   await expect(settings.getByLabel('Why line')).toBeVisible()
   await expect(send).toBeDisabled()
-  await expect(settings.getByText('Personal and matched posts always say why')).toBeVisible()
+  await expect(why).toHaveAccessibleDescription(/Personal and matched posts always say why/)
 
   await settings.getByRole('radio', { name: 'Featured' }).check()
   await expect(settings.getByRole('radio', { name: 'Matched group' })).toBeDisabled()
@@ -514,6 +543,7 @@ test('the source check, then feed settings, gate Send to review', async () => {
   await settings.getByRole('radio', { name: 'General' }).check()
   await settings.getByRole('radio', { name: /^Everyone/ }).check()
   await expect(settings.getByLabel('Why line')).toHaveCount(0)
+  settings = await lastSettingsPanel(page)
   await press(page, 'Save settings', 'Settings saved', settings)
   await expect(send).toBeEnabled()
   await sendToReview(page)
@@ -531,7 +561,9 @@ test('an editor who is not a reviewer is waiting for a reviewer', async () => {
   await post(page, posts.paidWork)
   await onStep(page, 'review')
   await expect(page.getByRole('button', { name: 'Approve and publish' })).toBeDisabled()
-  await expect(page.getByText('Waiting for a reviewer')).toBeVisible()
+  await expect(whyUnavailable(stepActions(page))).toHaveAccessibleDescription(
+    'Waiting for a reviewer',
+  )
 })
 
 test('a reviewer cannot edit, and requests changes with a step and a note', async () => {
@@ -541,13 +573,16 @@ test('a reviewer cannot edit, and requests changes with a step and a note', asyn
   await expect(page.getByRole('heading', { level: 2, name: 'Review' })).toBeVisible()
   await expect(page.getByRole('main').getByRole('textbox')).toHaveCount(0)
   await expect(page.getByRole('main').getByRole('radio')).toHaveCount(0)
-  // The slides, the facts behind them, the source check with the opinion mark, the settings.
+  // The slides, the facts behind them, the source check with the opinion mark, the settings, one
+  // tab each, the facts first.
   const review = page.getByRole('region', { name: 'Review', exact: true })
   await expectImagesLoaded(review, 5)
   await expect(
     review.getByText(new RegExp(` · ¶\\d+ · ${PAID_WORK.title} · checked `)).first(),
   ).toBeVisible()
+  await openTab(review, 'Source check')
   await expect(review.getByText('Editorial opinion')).toBeVisible()
+  await openTab(review, 'Feed settings')
   await expect(review.getByText(LIVE_LINE)).toBeVisible()
 
   await page.getByRole('button', { name: 'Request changes' }).click()
@@ -607,7 +642,7 @@ test('one account makes and approves a post: self-reviewed', async () => {
   const { page } = er
   await settingsPost(page, { title: 'Paid work, self-reviewed', text: nonDemo(PAID_WORK.text) })
   await markNotFoundAsOpinion(page)
-  await feedSettings(page).getByRole('radio', { name: '90 days' }).check()
+  await (await settingsPanel(page, 'Expiry')).getByRole('radio', { name: '90 days' }).check()
   await sendToReview(page)
 
   await press(page, 'Approve and publish', `Published · ${LIVE_LINE}`)
@@ -628,21 +663,38 @@ test('a save on a version someone changed is refused, and the latest loads', asy
   try {
     await openStep(b, posts.twin, 'text')
     await openOtherVersions(b)
-    await expect(b.getByRole('button', { name: 'Use this version' }).first()).toBeVisible()
+    const use = b.getByRole('button', { name: 'Use this version' }).first()
+    await expect(use).toBeVisible()
+    // The version b means to use, by its card's name.
+    const tried = await b
+      .getByRole('article')
+      .filter({ has: b.getByRole('button', { name: 'Use this version' }) })
+      .first()
+      .getAttribute('aria-label')
+    if (!tried) throw new Error('A version card has no name')
+    await openTab(a, 'Style')
     await press(a, 'Subdued', 'Colours · Subdued')
 
-    await b.getByRole('button', { name: 'Use this version' }).first().click()
+    await use.click()
     await expect(toast(b, `Changed by ${er.name} just now`)).toBeVisible()
+    await openTab(b, 'Style')
     await expect(b.getByRole('button', { name: 'Subdued', exact: true })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
     await b.reload()
+    await openTab(b, 'Style')
     await expect(b.getByRole('button', { name: 'Subdued', exact: true })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
-    await expect(chosenVersion(b)).toHaveCount(0)
+    // The refused pick changed nothing: that version still waits in "Versions" to be used.
+    await openOtherVersions(b)
+    await expect(
+      b
+        .getByRole('article', { name: tried, exact: true })
+        .getByRole('button', { name: 'Use this version' }),
+    ).toBeVisible()
   } finally {
     await b.close()
   }

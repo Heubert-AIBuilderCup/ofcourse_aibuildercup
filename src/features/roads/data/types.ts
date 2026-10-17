@@ -11,6 +11,7 @@ import type {
   Overview,
   StackRow,
 } from '@/features/road/model/road-data'
+import type { NextRoad } from '@/features/road/model/start'
 
 export type Source = { title: string; date: string }
 export type StateId = 'WA' | 'SA' | 'NSW' | 'VIC' | 'TAS'
@@ -64,9 +65,9 @@ export type CompareRow = {
 }
 /**
  * "What changes" for one alternative: its rows, and the course a new roadmap can be pinned to
- * (null when it has none that can be).
+ * (null when it has none that can be) and, with one, the road that new roadmap would draw.
  */
-export type Comparison = { rows: CompareRow[]; pin: string | null }
+export type Comparison = { rows: CompareRow[]; pin: string | null; next?: NextRoad }
 export type CourseSubjects = {
   courseId: string
   majors: string[]

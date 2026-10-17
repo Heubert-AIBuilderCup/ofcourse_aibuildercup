@@ -33,14 +33,70 @@ function socialPost(stage: string, exported: boolean) {
     },
   }
 }
+/** A feed post's render: text only (every picture skipped), or with its drawn pictures. */
+function feedRender(pictures: boolean) {
+  return {
+    id: 'r2',
+    body: {
+      art: { assetId: null, prompt: '', version: 1, fallback: null },
+      slides: [
+        { svgAssetId: 'svg1', pngAssetId: 'png1' },
+        { svgAssetId: 'svg2', pngAssetId: 'png2' },
+      ],
+      slideArt: [1, 2].map((slide) => ({
+        slide,
+        assetId: pictures ? `art${slide}` : null,
+        scene: '',
+        take: 1,
+        nudge: null,
+        fallback: pictures ? null : 'skipped',
+      })),
+    },
+  }
+}
+/** A feed post (or a blog's post, kind 'feed' too) on its page, rendered or not, with or without a caption. */
+function feedPost(
+  render: unknown,
+  caption: unknown = null,
+  kind = 'feed',
+  pageBrandId: string | null = 'cerebral',
+) {
+  return {
+    id: 'fp1',
+    kind,
+    title: 'Paid work & grades',
+    stage: 'rendered',
+    pointers: { pageBrandId },
+    current: {
+      render,
+      caption,
+      export: null,
+      revision: { id: 'rev1', body: { brand: { name: 'OfCourse feed' } } },
+    },
+  }
+}
 const POSTS: Record<string, unknown> = {
   sp1: socialPost('exported', true),
   ready: socialPost('ready', false),
   feed: { ...socialPost('exported', true), kind: 'feed' },
+  textOnly: feedPost(feedRender(false)),
+  pictured: feedPost(feedRender(true), {
+    id: 'c2',
+    body: { text: 'Up to 20 hours.', hashtags: ['#study'] },
+  }),
+  noPage: feedPost(feedRender(false), null, 'feed', null),
+  unrendered: feedPost(null),
+  blog: feedPost(feedRender(false), null, 'blog'),
+  missingBytes: feedPost({
+    id: 'r3',
+    body: { ...feedRender(false).body, slides: [{ svgAssetId: 'svg1', pngAssetId: 'gone' }] },
+  }),
 }
 const ASSETS: Record<string, { mime: string; bytes: Uint8Array }> = {
   svg1: { mime: 'image/svg+xml', bytes: new TextEncoder().encode('<svg/>') },
   png1: { mime: 'image/png', bytes: BYTES },
+  svg2: { mime: 'image/svg+xml', bytes: new TextEncoder().encode('<svg>2</svg>') },
+  png2: { mime: 'image/png', bytes: new Uint8Array([4, 5]) },
 }
 
 mock.module('@/shared/lib/auth/session', () => ({ getSession: async () => session }))
@@ -78,6 +134,7 @@ mock.module('@/features/content/server/preview', () => ({
 const asset = await import('../../app/admin/(console)/assets/[id]/route')
 const previewRoute = await import('../../app/admin/(console)/posts/[id]/preview/route')
 const exportRoute = await import('../../app/admin/(console)/posts/[id]/export/route')
+const slidesRoute = await import('../../app/admin/(console)/posts/[id]/slides/route')
 const { unzipSync } = await import('fflate')
 
 const CACHE = 'private, max-age=31536000, immutable'
@@ -251,5 +308,71 @@ describe('GET /admin/posts/[id]/export', () => {
     expect(files['slide-1.png']).toEqual(BYTES)
     expect(new TextDecoder().decode(files['slide-1.svg'])).toBe('<svg/>')
     expect(new TextDecoder().decode(files['caption.txt'])).toBe('Up to 20 hours.\n\n#study')
+  })
+})
+
+describe('GET /admin/posts/[id]/slides', () => {
+  const download = (id: string) =>
+    slidesRoute.GET(new Request(`http://localhost/admin/posts/${id}/slides`) as never, assetCtx(id))
+  const names = async (res: Response) =>
+    Object.keys(unzipSync(new Uint8Array(await res.arrayBuffer()))).sort()
+
+  test('no session and a student get 404 before any post is read', async () => {
+    for (const s of [null, { user: STUDENT }]) {
+      session = s
+      expect((await download('textOnly')).status).toBe(404)
+    }
+    expect(loaded).toEqual([])
+  })
+
+  test('a bad id, an unknown post, one not rendered, a social version and a blog are 404', async () => {
+    session = { user: STAFF }
+    for (const id of ['x'.repeat(129), 'nope', 'unrendered', 'sp1', 'blog', 'missingBytes']) {
+      expect((await download(id)).status).toBe(404)
+    }
+  })
+
+  test('a text-only render: the slides’ PNGs and SVGs, no caption, named for the page and the post', async () => {
+    session = { user: STAFF }
+    const res = await download('textOnly')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('application/zip')
+    expect(res.headers.get('cache-control')).toBe('private, no-store')
+    expect(res.headers.get('content-disposition')).toBe(
+      'attachment; filename="cerebral_paid-work-grades_slides.zip"',
+    )
+    expect(await names(res)).toEqual(['slide-1.png', 'slide-1.svg', 'slide-2.png', 'slide-2.svg'])
+  })
+
+  test('a render with pictures: the stored PNGs as drawn, and the caption when there is one', async () => {
+    session = { user: STAFF }
+    const res = await download('pictured')
+    expect(res.status).toBe(200)
+    const files = unzipSync(new Uint8Array(await res.arrayBuffer()))
+    expect(Object.keys(files).sort()).toEqual([
+      'caption.txt',
+      'slide-1.png',
+      'slide-1.svg',
+      'slide-2.png',
+      'slide-2.svg',
+    ])
+    expect(Array.from(files['slide-2.png']).join()).toBe('4,5')
+    expect(new TextDecoder().decode(files['slide-2.svg'])).toBe('<svg>2</svg>')
+    expect(new TextDecoder().decode(files['caption.txt'])).toBe('Up to 20 hours.\n\n#study')
+  })
+
+  test('a post with no page is named for its brand', async () => {
+    session = { user: STAFF }
+    const res = await download('noPage')
+    expect(res.headers.get('content-disposition')).toBe(
+      'attachment; filename="ofcourse-feed_paid-work-grades_slides.zip"',
+    )
+  })
+
+  test('everyone who may see the board may download: a reviewer and an admin too', async () => {
+    for (const user of [REVIEWER, ADMIN]) {
+      session = { user }
+      expect((await download('textOnly')).status).toBe(200)
+    }
   })
 })

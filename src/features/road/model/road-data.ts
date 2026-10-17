@@ -16,8 +16,8 @@ export const STOP_NAMES: Readonly<Record<Stop, string>> = {
   tile: 'Tile',
 }
 
-/** junction: the small tile where the road forks after the 485. */
-export type TileKind = 'point' | 'place' | 'course' | 'step' | 'stack' | 'slab' | 'junction'
+/** junction: the small tile where the road forks after the 485 · job: a job the course leads to. */
+export type TileKind = 'point' | 'place' | 'course' | 'step' | 'stack' | 'slab' | 'junction' | 'job'
 
 /**
  * lit: visited · here: where she is · alt: not visited · next: the next step · fog: unexplored,
@@ -82,6 +82,11 @@ export type Tile = {
   courseStepName?: string
   /** In the stack until she puts it on her board. */
   inStack?: boolean
+  /**
+   * The step an option sits beside, by tile id: another course beside the study step, a job beside
+   * the 485. Not on her road: pressing it opens its card, and nothing walks.
+   */
+  beside?: string
   /** Where its label sits at each stop. */
   lab: Record<Stop, LabelPlace>
 }

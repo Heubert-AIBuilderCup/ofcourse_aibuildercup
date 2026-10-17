@@ -14,14 +14,15 @@ import {
 import '@/features/finder/server/road-courses'
 import { getProfile } from '@/features/opening/server/profile'
 import { matchLine, RoadBoard, roadRedirect } from '@/features/road'
-import { roadmapName, roadNames } from '@/features/roadmaps'
+import { drawerNames, roadmapName, roadNames } from '@/features/roadmaps'
 import { saveChoicesAction, saveRoadmapAnswersAction } from '@/features/roadmaps/actions'
-import { touchOpened } from '@/features/roadmaps/server/roadmaps'
+import { listRoadmaps, touchOpened } from '@/features/roadmaps/server/roadmaps'
 import {
   ASK_SLOTS,
   detailsByTile,
   herCountry,
   type RoadSpec,
+  roadFor,
   studentAiOff,
   studentRoadsOff,
   suggestedAsks,
@@ -58,16 +59,18 @@ const asksOn = (spec: RoadSpec): Record<string, TileAsk[]> =>
  * (read beside the roadmap, unless the roads are off; an update for one country only when she
  * stated hers). With the student AI off (STUDENT_AI_OFF=1) no card calls a model: the why keeps its
  * template and a city or course card offers its suggested questions only. With the finder on
- * (FINDER_ON=1) and a road built from her answers, the board offers Find courses, its box
- * starting with her study words. With compare on (COMPARE_ON=1) on such a road, the other-city and
- * other-course cards show "What changes", and so does a found course on asking.
+ * (FINDER_ON=1) and a road built from her answers, the course stack's list offers Find courses,
+ * its box starting with her study words. With compare on (COMPARE_ON=1) on such a road, the other-city,
+ * other-course and stack-course cards show "What changes" and start a new roadmap around their
+ * course, and so does a found course on asking. The header's drawer switches to her other roadmaps.
  */
 export default async function RoadmapLayout({ children, params }: LayoutProps<'/roadmaps/[id]'>) {
   const [{ user }, { id }] = await Promise.all([requireStudent(), params])
-  const [profile, found, feed] = await Promise.all([
+  const [profile, found, feed, mine] = await Promise.all([
     getProfile(user.id),
     roadmapRoad(user.id, id),
     studentRoadsOff(process.env) ? null : readTileFeed(),
+    listRoadmaps(user.id),
   ])
   const to = roadRedirect(profile)
   if (to) redirect(to)
@@ -78,6 +81,16 @@ export default async function RoadmapLayout({ children, params }: LayoutProps<'/
 
   const road = result.road
   const name = roadmapName(roadmap, roadNames(road))
+  // The header's drawer: her other roadmaps, each named as her list names it; a road is built
+  // only for one she has not named.
+  const roadmaps = drawerNames(
+    mine,
+    id,
+    name,
+    (r) =>
+      roadFor({ answers: r.answers, relative: r.relative, pinned: r.choices.pinned }, process.env)
+        .road,
+  )
   // A pinned road is built from her answers too, around the course she pinned.
   const built = result.kind === 'matched' || result.kind === 'nearest' || result.kind === 'pinned'
   const aiOff = studentAiOff(process.env)
@@ -118,6 +131,7 @@ export default async function RoadmapLayout({ children, params }: LayoutProps<'/
       asks={built && result.spec ? asksOn(result.spec) : undefined}
       details={details}
       tilePosts={posts}
+      roadmaps={roadmaps}
       finder={
         finderOn(process.env) && built
           ? {

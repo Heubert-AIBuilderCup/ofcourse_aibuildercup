@@ -42,7 +42,7 @@ export const WORKFLOW_ERRORS = {
   changesStep: 'Choose the step that needs changes.',
   look: 'Choose Field Notes, Data Desk or Postcard.',
   preset: 'Choose Pop or Subdued.',
-  ideas: 'Pick one idea, or two to combine.',
+  ideas: 'Pick one idea, or up to four to combine.',
   nudge: 'Choose one of the text chips.',
   plentyIdeas: "That's plenty of ideas. Pick one, or go back to the source to start again.",
   planFirst: 'Plan the images first.',
@@ -75,7 +75,6 @@ export const EDITOR_ACTIONS = [
   'redraftSlide',
   'nudgeSlide',
   'nudgeVersion',
-  'useSlide',
   'editScene',
   'editPanels',
   'pickIdeas',
@@ -122,6 +121,7 @@ export const EDITOR_ACTIONS = [
   'restore',
   'market',
   'adapt',
+  'share',
   'socialApproveLayout',
   'socialRender',
   'socialCaption',
@@ -169,10 +169,9 @@ export const ACTION_STAGES: Record<PostAction, readonly Stage[]> = {
   fixUnbound: ['structures'],
   editSlot: ['structures'],
   redraftSlide: ['structures'],
-  // A text chip on one slide or a whole version, and a slide taken from another version (GD10, GD11).
+  // A text chip on one slide or a whole version (GD10).
   nudgeSlide: ['structures'],
   nudgeVersion: ['structures'],
-  useSlide: ['structures'],
   // A comic's planned scene, and a panel added, removed or moved, on its storyboard (RC3).
   editScene: ['structures'],
   editPanels: ['structures'],
@@ -243,6 +242,8 @@ export const ACTION_STAGES: Record<PostAction, readonly Stage[]> = {
   approvePublish: ['in_review'],
   sendBack: ['in_review'],
   adapt: ['live'],
+  // A live feed post shared to the pages' accounts (criteria 9–11): recorded, the stage kept.
+  share: ['live', 'exported'],
   socialApproveLayout: ['structures'],
   socialRender: ['approved'],
   socialCaption: ['ready'],
@@ -268,10 +269,11 @@ const EDIT_HOMES: Partial<Record<PostAction, Stage>> = {
   theme: 'structures',
   fixUnbound: 'structures',
   editSlot: 'structures',
+  // The source's wording is a text edit: from a passed step it moves back to the text, as editSlot does.
+  sourceWording: 'structures',
   redraftSlide: 'structures',
   nudgeSlide: 'structures',
   nudgeVersion: 'structures',
-  useSlide: 'structures',
   editScene: 'structures',
   editPanels: 'structures',
   pickIdeas: 'structures',
@@ -339,7 +341,6 @@ const SLIDE_ACTIONS: readonly PostAction[] = [
   'redraftSlide',
   'nudgeSlide',
   'nudgeVersion',
-  'useSlide',
   'pickIdeas',
   'editOutline',
   'writeSlides',
@@ -435,7 +436,7 @@ export function settingsError(s: FeedSettings | null): string | null {
 
 export function approveStructureError(p: Pointers, c: CurrentPost): string | null {
   if (p.picked === null) return WORKFLOW_ERRORS.noPick
-  if (p.themeId === null) return WORKFLOW_ERRORS.noTheme
+  // No theme (a post drafted before draftChoices) is the default one (themeOrDefault), never a refusal.
   const draft = c.drafts?.body.items[p.picked]
   if (!draft || !c.facts) return WORKFLOW_ERRORS.movedOn
   if (unboundSlots(draft.structure, draft.template, c.facts.body.facts).length > 0) {

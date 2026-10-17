@@ -159,6 +159,48 @@ it('keeps a change the look does not take disabled with the reason: no removing 
   expect(within(row(1)).queryByRole('button', { name: 'Move slide 1 up' })).toBeNull()
 })
 
+/** The outline's parts as shown: each list's heading with the slides in it. */
+const parts = () =>
+  screen
+    .getAllByRole('list')
+    .filter((list) => list.hasAttribute('aria-labelledby'))
+    .map((list) => [
+      document.getElementById(list.getAttribute('aria-labelledby') ?? '')?.textContent,
+      within(list)
+        .getAllByRole('listitem')
+        .map((li) => li.getAttribute('aria-label')),
+    ])
+/** The lines said under the slides, why a change is off. */
+const notes = () =>
+  screen
+    .getAllByRole('listitem')
+    .filter((li) => !li.hasAttribute('aria-label'))
+    .map((li) => li.textContent)
+
+it("groups the slides under the look's parts in its order, the middle counted, with no order rule to read", () => {
+  step()
+  expect(parts()).toEqual([
+    ['Cover', ['Slide 1']],
+    ['Middle · 3 slides', ['Slide 2', 'Slide 3', 'Slide 4']],
+    ['Takeaway', ['Slide 5']],
+  ])
+  expect(notes()).toEqual(['A Field Notes post has 5 to 7 slides.'])
+})
+
+it('shows an outline out of order as it stands and says which slide is out of place', () => {
+  step({ current: current([SLIDES[0], SLIDES[1], SLIDES[2], SLIDES[4], SLIDES[3]]) })
+  expect(parts()).toEqual([
+    ['Cover', ['Slide 1']],
+    ['Middle · 2 slides', ['Slide 2', 'Slide 3']],
+    ['Takeaway', ['Slide 4']],
+    ['Middle · 1 slide', ['Slide 5']],
+  ])
+  expect(notes()).toEqual([
+    'A Field Notes post has 5 to 7 slides.',
+    'Slide 5 is out of place: a middle slide after the takeaway.',
+  ])
+})
+
 it('adds a slide with its point before the takeaway (GD32)', async () => {
   step()
   fireEvent.change(screen.getByRole('textbox', { name: "New slide's point" }), {

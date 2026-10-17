@@ -1,4 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
+import { aiConfig } from '@/features/content/ai/config'
+import { DailyLimits } from '@/features/content/components/parts'
 import { Workbench } from '@/features/content/components/Workbench'
 import { boardFrom } from '@/features/content/lib/board'
 import { searchTitleOf } from '@/features/content/lib/comic-rules'
@@ -20,6 +22,7 @@ import {
   blogChoices,
   linkedBlogOf,
   listHistory,
+  listShares,
   listSlideArt,
   loadPost,
   postsOfBlog,
@@ -41,17 +44,27 @@ export default async function AdminPostStepPage({
   if (!isStepId(step)) notFound()
   const query = await searchParams
   // Each step's own records only: the history shows at the source, earlier art and a look's
-  // earlier takes ("Swap image", GD13) at the images, the styled pages ("Make the set") at live.
-  const [post, { running, progress }, { failed, reasons }, arts, history, styles, slideArt] =
-    await Promise.all([
-      loadPost(id),
-      runningNow(id),
-      failedNow(id),
-      step === 'images' ? earlierArt(id) : [],
-      step === 'source' ? listHistory(id) : [],
-      step === 'live' ? pageStyles() : null,
-      step === 'images' ? listSlideArt(id) : [],
-    ])
+  // earlier takes ("Swap image", GD13) at the images, the styled pages ("Make the set") and the
+  // post's shares (criterion 10) at live.
+  const [
+    post,
+    { running, progress },
+    { failed, reasons, lite },
+    arts,
+    history,
+    styles,
+    slideArt,
+    shares,
+  ] = await Promise.all([
+    loadPost(id),
+    runningNow(id),
+    failedNow(id),
+    step === 'images' ? earlierArt(id) : [],
+    step === 'source' ? listHistory(id) : [],
+    step === 'live' ? pageStyles() : null,
+    step === 'images' ? listSlideArt(id) : [],
+    step === 'live' ? listShares(id) : [],
+  ])
   if (!post) notFound()
   if (post.kind === 'social') redirect(withQuery(postPath(post.id), query))
 
@@ -88,38 +101,46 @@ export default async function AdminPostStepPage({
         )
       : { checks: [], shifts: [] }
 
+  // The image cap and SUPPORT_EMAIL, read at request time (not NEXT_PUBLIC), so the "Limit" line
+  // says how many, when it resets and who to email (lib/limits.ts).
+  const { caps, supportEmail } = aiConfig(process.env)
+
   return (
-    <Workbench
-      view={{
-        id: post.id,
-        kind: post.kind,
-        courseId: post.courseId,
-        title: post.title,
-        stage: post.stage,
-        version: post.version,
-        pointers,
-        current,
-        createdAt: facts?.createdAt ?? '',
-        running,
-        progress,
-        failed,
-        failedReasons: reasons,
-        draftChecks,
-        draftShifts,
-        earlierArt: arts,
-        slideArt,
-        history,
-        styledPages: styles ? [...styles.keys()] : [],
-        publishedApprovalId: post.publishedApprovalId,
-        linkedBlogId: linkedBlogId ?? null,
-        blogs,
-        blogPosts,
-        characterApproved: Boolean(character?.approvedAssetId),
-      }}
-      viewer={viewer}
-      from={boardFrom(query.from)}
-      actions={actions}
-      step={step}
-    />
+    <DailyLimits imageCap={caps.image} support={supportEmail}>
+      <Workbench
+        view={{
+          id: post.id,
+          kind: post.kind,
+          courseId: post.courseId,
+          title: post.title,
+          stage: post.stage,
+          version: post.version,
+          pointers,
+          current,
+          createdAt: facts?.createdAt ?? '',
+          running,
+          progress,
+          failed,
+          failedReasons: reasons,
+          lite,
+          draftChecks,
+          draftShifts,
+          earlierArt: arts,
+          slideArt,
+          history,
+          styledPages: styles ? [...styles.keys()] : [],
+          publishedApprovalId: post.publishedApprovalId,
+          linkedBlogId: linkedBlogId ?? null,
+          blogs,
+          blogPosts,
+          characterApproved: Boolean(character?.approvedAssetId),
+          shares,
+        }}
+        viewer={viewer}
+        from={boardFrom(query.from)}
+        actions={actions}
+        step={step}
+      />
+    </DailyLimits>
   )
 }

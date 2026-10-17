@@ -265,7 +265,8 @@ export function SourcePane({ view, viewer, actions }: SourcePaneProps) {
       <section aria-labelledby="source-heading" className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <p className="text-overline uppercase text-muted-foreground">{source.kind}</p>
-          <h2 id="source-heading" className="text-h3 wrap-anywhere">
+          {/* The article's own title, not the step's name: shown, small. */}
+          <h2 id="source-heading" className="text-h4 wrap-anywhere">
             {source.title}
           </h2>
         </div>

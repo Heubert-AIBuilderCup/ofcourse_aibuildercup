@@ -163,19 +163,65 @@ it('outlines a card with "Use this idea", by its place, and opens the outline (G
   expect(push).toHaveBeenCalledWith('/admin/posts/p1/outline')
 })
 
-it('shows "Combine" once two cards are ticked, keeps a third tick disabled, and combines the two (GD2)', async () => {
+it('shows "Combine" once two cards are ticked and combines the two (GD2)', async () => {
   step()
   expect(screen.queryByRole('button', { name: 'Combine' })).toBeNull()
   const tick = (angle: string) => within(card(angle)).getByRole('checkbox', { name: /^Combine/ })
   fireEvent.click(tick('Ask before you sign'))
   expect(screen.queryByRole('button', { name: 'Combine' })).toBeNull()
   fireEvent.click(tick('The 20-hour line'))
-  expect(tick('Work that fits study')).toBeDisabled()
-  expect(tick('The 20-hour line')).toBeEnabled()
+  expect(tick('Work that fits study').hasAttribute('disabled')).toBe(false)
   await act(async () => {
     fireEvent.click(within(actionsArea()).getByRole('button', { name: 'Combine' }))
   })
   expect(actions.pickIdeasAction).toHaveBeenCalledWith('p1', 4, { cards: [0, 2] })
+})
+
+/** Five cards, so a fifth tick can be tried. */
+const FIVE: IdeaCard[] = [
+  ...CARDS,
+  { ...CARDS[0], angle: 'Nights and weekends', hook: 'Shifts that leave your days free.' },
+  { ...CARDS[1], angle: 'The campus job', hook: 'Work where you study.' },
+]
+const fiveCards = () =>
+  step({
+    current: current({
+      ideas: { id: 'ideas1', body: { factsId: 'facts1', cards: FIVE, rounds: 1 } },
+    }),
+  })
+const tickOf = (angle: string) => within(card(angle)).getByRole('checkbox', { name: /^Combine/ })
+const combine = async () => {
+  await act(async () => {
+    fireEvent.click(within(actionsArea()).getByRole('button', { name: 'Combine' }))
+  })
+}
+
+it('combines three ticked cards, by their places (GD2)', async () => {
+  fiveCards()
+  for (const angle of ['The campus job', 'The 20-hour line', 'Ask before you sign']) {
+    fireEvent.click(tickOf(angle))
+  }
+  await combine()
+  expect(actions.pickIdeasAction).toHaveBeenCalledWith('p1', 4, { cards: [0, 2, 4] })
+})
+
+it('combines four ticked cards, and keeps a fifth tick unavailable, saying why (GD2)', async () => {
+  fiveCards()
+  for (const angle of [
+    'Work that fits study',
+    'The campus job',
+    'The 20-hour line',
+    'Ask before you sign',
+  ]) {
+    fireEvent.click(tickOf(angle))
+  }
+  expect(tickOf('Nights and weekends').hasAttribute('disabled')).toBe(true)
+  expect(tickOf('The 20-hour line').hasAttribute('disabled')).toBe(false)
+  const why = within(card('Nights and weekends')).getByRole('tooltip', { hidden: true })
+  expect(why.textContent).toBe('Combine takes up to four ideas.')
+  expect(within(card('The 20-hour line')).queryByRole('tooltip', { hidden: true })).toBeNull()
+  await combine()
+  expect(actions.pickIdeasAction).toHaveBeenCalledWith('p1', 4, { cards: [0, 1, 2, 4] })
 })
 
 it('keeps the pre-selected "Use this idea" the one filled button once "Combine" shows', () => {

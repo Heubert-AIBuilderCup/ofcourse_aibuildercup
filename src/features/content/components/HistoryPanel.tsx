@@ -39,7 +39,7 @@ export function HistoryPanel({ view, viewer, actions }: HistoryPanelProps) {
 
   return (
     <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-4">
-      <h2 id={`${ids}-heading`} className="text-h3">
+      <h2 id={`${ids}-heading`} className="text-h4">
         History
       </h2>
       {entries.length === 0 ? (

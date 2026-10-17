@@ -45,7 +45,7 @@ export type DraftItem = {
   problems: string[]
 }
 
-/** The idea the versions are drafted for (GD2): one card, or two to combine. */
+/** The idea the versions are drafted for (GD2): one card, or up to four to combine. */
 export type DraftIdea = { cards: IdeaCard[] }
 
 /** The outline the versions follow (GD32): its slides in order, each with its job, layout and point, and its format. */
@@ -321,7 +321,7 @@ function templateData(template: Template) {
   }
 }
 
-/** The idea(s) the editor chose (GD2) as DATA carries them: nothing when none; two to combine. */
+/** The idea(s) the editor chose (GD2) as DATA carries them: nothing when none; more than one to combine. */
 function ideaData(idea: DraftIdea | null | undefined): { idea?: object } {
   if (!idea || idea.cards.length === 0) return {}
   return {
@@ -350,7 +350,7 @@ export async function draftStructures(input: {
   copyStyle?: string | null
   /** The guideline whose voice the call carries; the brand guideline when absent. Tests pass a changed one. */
   guideline?: Guideline
-  /** The idea card the editor chose, or two to combine (GD2); none for a draft from ticked templates. */
+  /** The idea card the editor chose, or up to four to combine (GD2); none for a draft from ticked templates. */
   idea?: DraftIdea | null
   /** The editor's outline every version follows (GD32); none for a draft without one. */
   outline?: DraftOutline | null

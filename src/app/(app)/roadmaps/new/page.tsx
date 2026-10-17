@@ -9,6 +9,7 @@ import { roadmapName, roadNames } from '@/features/roadmaps'
 import { createRoadmapAction } from '@/features/roadmaps/actions'
 import { getRoadmap } from '@/features/roadmaps/server/roadmaps'
 import { roadFor } from '@/features/roads'
+import { courseById } from '@/features/roads/data/courses'
 import { requireStudent } from '@/shared/lib/auth/session'
 
 /**
@@ -66,6 +67,9 @@ export default async function NewRoadmapPage({ searchParams }: PageProps<'/roadm
     process.env,
   )
   const name = roadmapName(source, roadNames(own.road))
+  // The course she chose to switch to, asked for by `?pin=`: Create needs no answer changed.
+  const around =
+    pinned && pinned !== source.choices.pinned ? courseById(pinned.courseId) : undefined
   const { road } =
     pinned === source.choices.pinned
       ? own
@@ -82,7 +86,12 @@ export default async function NewRoadmapPage({ searchParams }: PageProps<'/roadm
         answers: source.answers,
         relative: source.relative,
       }}
-      draft={{ from: { id: source.id, name }, answers: source.answers, ...(pinned && { pinned }) }}
+      draft={{
+        from: { id: source.id, name },
+        answers: source.answers,
+        ...(pinned && { pinned }),
+        ...(around && { around: `${around.name} · ${around.university}` }),
+      }}
       createRoadmapAction={createRoadmapAction}
     >
       {null}

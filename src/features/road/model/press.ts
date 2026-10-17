@@ -1,5 +1,5 @@
-// One press = one meaning: a press opens the tile in the card, and the card's buttons act. At
-// Whole road a press first brings the camera to Level, centred on the tile.
+// One press = one meaning: a press opens the tile in the card, and the card's buttons act. A press
+// leaves the zoom where she put it.
 
 import type { BadgeId, Road, Tile, TileKind } from './road-data'
 import type { RoadState } from './road-url'
@@ -25,28 +25,27 @@ export type Card = {
   badges: BadgeId[]
   primary?: string
   secondary?: string
+  /** Where "Back to where you are" goes: her place, said beside the button (a look card's). */
+  backTo?: string
   /** The lesson the card offers. */
   lesson?: string
   /** Route detail's id (`/road/route/<id>`): the step looked at, or for where she is the next step. */
   routeId?: string
   /** Where she is: the heading over the alternative and the stack. */
   siblingsTitle?: string
+  /** Its primary only starts a new roadmap (a course beside the study step): drawn when one can. */
+  starts?: boolean
 }
 
-/** A route step's card: the duck stays where she is (spec §7). */
+/** A route step's card: she stays where she is (spec §7). */
 const LOOK = {
-  kicker: 'Look ahead · the duck stays · Route step',
+  kicker: 'Look ahead · Route step',
   primary: 'Open route detail at this step',
 }
 
 /** The state after pressing a tile: it opens in the card; pressing where she is shows her card. */
 export function pressTile(state: RoadState, tileId: string, scene: Scene): RoadState {
-  return {
-    ...state,
-    tile: tileId === scene.here ? null : tileId,
-    zoom: state.zoom === 'whole' ? 'level' : state.zoom,
-    open: null,
-  }
+  return { ...state, tile: tileId === scene.here ? null : tileId, open: null }
 }
 
 /** The card for a tile on the board; with no tile, the card where she is. */
@@ -79,7 +78,8 @@ export function cardFor(road: Road, scene: Scene, tileId: string | null): Card {
       ...card,
       kind: 'look',
       ...LOOK,
-      secondary: `Back to ${here.name}`,
+      secondary: 'Back to where you are',
+      backTo: here.name,
       lesson: copy.lesson,
       routeId: tile.routeId,
     }
@@ -89,8 +89,23 @@ export function cardFor(road: Road, scene: Scene, tileId: string | null): Card {
     kind: tile.kind as Exclude<CardKind, 'here' | 'look'>,
     kicker: copy.kicker ?? '',
     primary: copy.primary,
-    secondary: 'Cancel',
+    // A job is only looked at: its card closes. A course beside the study step can only start one.
+    secondary: tile.kind === 'job' ? 'Close' : 'Cancel',
+    ...(tile.beside && copy.primary && { starts: true }),
   }
+}
+
+/** What compare's pin lets a card start. */
+const START = 'Start a new roadmap from it'
+
+/**
+ * A card as the board shows it, given whether its tile can start a new roadmap (compare's pin):
+ * then its primary says so; else a primary that could only start one is not drawn.
+ */
+export function withStart(card: Card, canStart: boolean): Card {
+  if (canStart && card.primary && card.kind !== 'here') return { ...card, primary: START }
+  if (!canStart && card.starts) return { ...card, primary: undefined }
+  return card
 }
 
 /**

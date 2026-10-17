@@ -104,6 +104,14 @@ const rowOf = (text: string) => {
   return row
 }
 
+/** Opens the drawer that lists every other sentence, and returns it. */
+const openAll = () => {
+  fireEvent.click(screen.getByRole('button', { name: 'All checked sentences' }))
+  return screen.getByRole('dialog', { name: 'All checked sentences' })
+}
+/** The drawer a row sits in, if any. */
+const drawerOf = (row: HTMLElement) => row.closest('[role="dialog"]')
+
 describe('SourceCheckPanel', () => {
   it('has no button to run the check: it runs by itself, and says so while it runs (98)', () => {
     view({ running: ['source_check'] })
@@ -140,6 +148,7 @@ describe('SourceCheckPanel', () => {
 
   it('shows a found claim with its paragraph', () => {
     view({ current: checked([FOUND, NOT_FOUND]) })
+    openAll()
     expect(within(rowOf(FOUND.text)).getByText('Found ¶3')).toBeInTheDocument()
     // Each row has a stable handle for the browser specs: the sentences not found first.
     // Compared as booleans: a failing match of two elements prints a diff the runner hangs on.
@@ -163,24 +172,28 @@ describe('SourceCheckPanel', () => {
     expect(screen.getByText('2 found in the article · 1 not found · 1 opinion')).toBeInTheDocument()
   })
 
-  it('lists only the sentences not found, with their fixes; every other one waits under a closed "All checked sentences"', () => {
+  it('lists only the sentences not found, with their fixes; every other one waits in the "All checked sentences" drawer', () => {
     view({ current: checked([FOUND, NOT_FOUND, ALSO_FOUND, OPINION]) })
     const notFound = rowOf(NOT_FOUND.text)
-    expect(notFound.closest('details')).toBeNull()
+    expect(drawerOf(notFound)).toBeNull()
     expect(within(notFound).getByRole('button', { name: 'Remove' })).toBeInTheDocument()
-    const all = screen.getByText('All checked sentences').closest('details')
-    if (!all) throw new Error('no disclosure')
-    expect(all.open).toBe(false)
+    // Closed, the drawer is not in the page.
     for (const c of [FOUND, ALSO_FOUND, OPINION]) {
-      expect(rowOf(c.text).closest('details') === all).toBe(true)
+      expect(screen.queryByText(c.text) === null).toBe(true)
+    }
+    const all = openAll()
+    for (const c of [FOUND, ALSO_FOUND, OPINION]) {
+      expect(drawerOf(rowOf(c.text)) === all).toBe(true)
     }
     expect(within(all).queryByText(NOT_FOUND.text)).toBeNull()
     cleanup()
 
-    // Every sentence found: the summary, and the list under the disclosure only.
+    // Every sentence found: the summary, and the list in the drawer only.
     view({ current: checked([FOUND, ALSO_FOUND]) })
     expect(screen.getByText('2 found in the article · 0 not found · 0 opinion')).toBeInTheDocument()
-    expect(rowOf(FOUND.text).closest('details')).not.toBeNull()
+    expect(screen.queryByText(FOUND.text) === null).toBe(true)
+    openAll()
+    expect(drawerOf(rowOf(FOUND.text)) !== null).toBe(true)
   })
 
   it('offers "Remove" and "Mark as editorial opinion" on a claim not found', async () => {
@@ -199,6 +212,7 @@ describe('SourceCheckPanel', () => {
 
   it('shows an opinion claim as "Editorial opinion" with neither button', () => {
     view({ current: checked([{ ...NOT_FOUND, result: 'opinion' }]) })
+    openAll()
     const row = rowOf(NOT_FOUND.text)
     expect(within(row).getByText('Editorial opinion')).toBeInTheDocument()
     expect(within(row).queryByRole('button', { name: 'Remove' })).toBeNull()
@@ -321,5 +335,40 @@ describe('"Research this" on a sentence not found (BR14)', () => {
     )
     // It can be pressed again: each press is one search.
     expect(within(row).getByRole('button', { name: 'Research this' })).toBeInTheDocument()
+  })
+})
+
+describe('SourceCheckPanel, only what keeps the post from review (the Settings "To fix" tab)', () => {
+  const fixes = (over: Partial<Props['view']> = {}) =>
+    render(
+      <SourceCheckPanel view={{ ...VIEW, ...over }} viewer={EDITOR} actions={actions} fixesOnly />,
+    )
+
+  it('lists each sentence not found with its fixes, and nothing else: no summary, no other sentence', async () => {
+    fixes({ current: checked([FOUND, NOT_FOUND]) })
+    expect(screen.getAllByTestId('check-row')).toHaveLength(1)
+    expect(screen.queryByText(FOUND.text) === null).toBe(true)
+    expect(screen.queryByText(/found in the article/) === null).toBe(true)
+    expect(screen.queryByRole('button', { name: 'All checked sentences' }) === null).toBe(true)
+    const row = rowOf(NOT_FOUND.text)
+    for (const name of ['Remove', 'Mark as editorial opinion', 'Research this']) {
+      expect(within(row).getByRole('button', { name })).toBeEnabled()
+    }
+    await act(async () => {
+      fireEvent.click(within(row).getByRole('button', { name: 'Remove' }))
+    })
+    expect(actions.removeClaimAction).toHaveBeenCalledWith('p1', 9, 1)
+  })
+
+  it('offers to run the check when none of this version has landed, and says nothing once every sentence is found', async () => {
+    fixes()
+    expect(screen.getByText('Not checked on this version yet.')).toBeInTheDocument()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Run source check' }))
+    })
+    expect(actions.checkSourceAction).toHaveBeenCalledWith('p1', 9)
+    cleanup()
+    const { container } = fixes({ current: checked([FOUND]) })
+    expect(container.textContent).toBe('')
   })
 })

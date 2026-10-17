@@ -58,7 +58,7 @@ test.describe('on a laptop', () => {
       await expect(
         page.getByRole('heading', { name: 'You’ve looked at 3 of 11 routes' }),
       ).toBeVisible()
-      await card(page).getByRole('button', { name: 'Back to the walk' }).click()
+      await card(page).getByRole('button', { name: 'Close overview' }).click()
       await expect(stop(page, 'Level')).toHaveAttribute('aria-pressed', 'true')
 
       // The wheel: one stop per gesture, out for a scroll down, in for a scroll up.

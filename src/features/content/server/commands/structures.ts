@@ -17,12 +17,12 @@ import { emotionError } from '../../emotions'
 import { unboundSlots } from '../../lib/claims'
 import { comicCaptionError, searchTitleOf } from '../../lib/comic-rules'
 import { chipFailed } from '../../lib/failure'
-import { versionLetter } from '../../lib/version-status'
+import { draftChoices, themeOrDefault, versionLetter } from '../../lib/version-status'
 import { approveStructureError, WORKFLOW_ERRORS } from '../../lib/workflow'
 import { BODIES, type Body } from '../../model/artifacts'
 import type { FitCheck, Structure } from '../../model/types'
 import { type Nudge, textNudge } from '../../nudges'
-import { isLook, slideFitsAt, templateById } from '../../templates'
+import { isLook, templateById } from '../../templates'
 import { charCount } from '../../text/script'
 import { artifactId } from '../hash'
 import { pageStyleOf } from '../page-style'
@@ -138,7 +138,9 @@ async function draftVersions(
     outline: outlined,
   })
   if (!drafted.ok) return fail(drafted.error)
-  return save(post, version, actor, async (tx) => {
+  // Version A and the first colours are chosen for her; her own choices stay while they fit.
+  const chosen = draftChoices(post.pointers, drafted.items)
+  const saved = await save(post, version, actor, async (tx) => {
     const draftsId = await putArtifact(tx, {
       kind: 'drafts',
       postId: post.id,
@@ -153,11 +155,10 @@ async function draftVersions(
         ...(idea ? { idea } : {}),
       },
     })
-    return {
-      stage: post.stage,
-      pointers: { ...post.pointers, draftsId, picked: null, themeId: null },
-    }
+    return { stage: post.stage, pointers: { ...post.pointers, draftsId, ...chosen } }
   })
+  // The version chosen for her is checked against the source, as a version she picks is.
+  return chosen.picked === null ? saved : checkAfter(post.id, actor, saved)
 }
 
 export async function draftPost(
@@ -479,46 +480,6 @@ export async function nudgeVersion(
 }
 
 /**
- * "Use this slide in my version" (GD11): slide `slide` of version `from` copied into the picked
- * version at the same place, its layout and bound facts with it, by code alone. Refused when the
- * picked version has no slide there, or when its template cannot take that slide there (another
- * kind, or slots its spec does not list). The fit checks are drawn again from the new record.
- */
-export async function useSlide(
-  actor: Actor,
-  id: string,
-  version: number,
-  at: { from: number; slide: number },
-): Promise<Saved> {
-  return command('useSlide', 'useSlide', actor, id, version, async (post) => {
-    const { drafts } = post.current
-    const picked = post.pointers.picked
-    if (picked === null) return fail(WORKFLOW_ERRORS.noPick)
-    const item = drafts?.body.items[picked]
-    const source = Number.isInteger(at.from) ? drafts?.body.items[at.from] : undefined
-    if (!item || !source) return fail(WORKFLOW_ERRORS.movedOn)
-    const target = item.structure.slides[at.slide - 1]
-    if (!target) return fail(`That version has no slide ${at.slide}.`)
-    const taken = source.structure.slides[at.slide - 1]
-    if (!taken) return fail(WORKFLOW_ERRORS.movedOn)
-    const letter = versionLetter(at.from)
-    if (!slideFitsAt(item.template, taken, target)) {
-      return fail(`Slide ${at.slide} of version ${letter} does not fit this version.`)
-    }
-    if (JSON.stringify(taken) === JSON.stringify(target)) return { ok: true, id, version }
-
-    const slides = item.structure.slides.map((s, i) =>
-      i === at.slide - 1 ? structuredClone(taken) : s,
-    )
-    return saveVersion(post, version, actor, {
-      index: picked,
-      item: { ...item, structure: { ...item.structure, slides } },
-      note: `Slide ${at.slide} taken from version ${letter}`,
-    })
-  })
-}
-
-/**
  * The page the post is made for (criterion 105): a page brand, or none. It steers the drafts and
  * covers made after it; what is already drafted stays as it is. Only before approval.
  */
@@ -648,8 +609,9 @@ export async function approveStructure(actor: Actor, id: string, version: number
     if (error) return fail(error)
     const { source, facts, drafts } = post.current
     const item = drafts?.body.items[post.pointers.picked ?? -1]
-    const themeId = post.pointers.themeId
-    if (!source || !facts || !item || themeId === null) return fail(WORKFLOW_ERRORS.movedOn)
+    if (!source || !facts || !item) return fail(WORKFLOW_ERRORS.movedOn)
+    // No theme stored (drafted before draftChoices): the default the Text step shows as chosen.
+    const themeId = themeOrDefault(post.pointers.themeId, [item])
     // A look takes a preset (GD9, ./look.ts setPreset); any version takes one of the brand's themes.
     const preset = isLook(item.template) && (PRESETS as readonly string[]).includes(themeId)
     if (!preset && !FEED_BRAND.themes.some((t) => t.id === themeId)) {

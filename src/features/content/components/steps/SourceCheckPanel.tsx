@@ -10,6 +10,7 @@ import { actionError, editWaitError, type PostAction, WORKFLOW_ERRORS } from '..
 import type { ClaimResult } from '../../model/types'
 import type { Researched, Saved } from '../../server/commands'
 import { Control, movesWait, reasonText, tag } from '../parts'
+import { SideDrawer } from '../stage'
 import { usePostAction } from '../usePostAction'
 import type { WorkbenchActions, WorkbenchView } from '../Workbench'
 
@@ -25,6 +26,11 @@ export type SourceCheckPanelProps = {
     | 'researchClaimAction'
     | 'addResearchSourceAction'
   >
+  /**
+   * Only what keeps the post from review, for the Settings "To fix" tab: the check to run when none
+   * of this version has landed, or each sentence not found with its fixes; nothing once all pass.
+   */
+  fixesOnly?: boolean
 }
 
 /** The source check's step, as server/commands/check.ts runs it. */
@@ -259,7 +265,7 @@ function checkSummary(claims: ClaimResult[]): string {
 
 const notFound = (c: ClaimResult) => c.result === 'not_found'
 
-/** The summary, the sentences not found with their fixes, and the rest under a closed disclosure. */
+/** The summary, the sentences not found with their fixes, and the rest in a drawer opened on demand. */
 function CheckList({ claims, controls }: { claims: ClaimResult[]; controls: ClaimControls }) {
   const rest = claims.some((c) => !notFound(c))
   return (
@@ -267,14 +273,9 @@ function CheckList({ claims, controls }: { claims: ClaimResult[]; controls: Clai
       <p className="text-caption">{checkSummary(claims)}</p>
       {claims.some(notFound) && <ClaimRows claims={claims} controls={controls} only={notFound} />}
       {rest && (
-        <details>
-          <summary className="cursor-pointer text-caption text-muted-foreground">
-            All checked sentences
-          </summary>
-          <div className="mt-3">
-            <ClaimRows claims={claims} only={(c) => !notFound(c)} />
-          </div>
-        </details>
+        <SideDrawer title="All checked sentences" trigger="All checked sentences">
+          <ClaimRows claims={claims} only={(c) => !notFound(c)} />
+        </SideDrawer>
       )}
     </div>
   )
@@ -283,10 +284,11 @@ function CheckList({ claims, controls }: { claims: ClaimResult[]; controls: Clai
 /**
  * The rendered version's source check, which runs by itself after approval and after each text
  * change (criterion 98): summed up first, then only the sentences not found, each with its fixes,
- * and every other sentence under a closed "All checked sentences"; "Try again" only when no check
- * of this version has landed.
+ * and every other sentence in the "All checked sentences" drawer (never a fold-out that pushes the
+ * panel down); "Try again" only when no check of this version has landed. With `fixesOnly`, only
+ * what keeps the post from review (the Settings "To fix" tab).
  */
-export function SourceCheckPanel({ view, viewer, actions }: SourceCheckPanelProps) {
+export function SourceCheckPanel({ view, viewer, actions, fixesOnly }: SourceCheckPanelProps) {
   const { pending, run } = usePostAction()
   const [busy, setBusy] = useState<PostAction | null>(null)
   const ids = useId()
@@ -311,10 +313,82 @@ export function SourceCheckPanel({ view, viewer, actions }: SourceCheckPanelProp
     run: (claim: number) => act(action, () => work(claim), success),
   })
 
+  const controls: ClaimControls = {
+    pending,
+    wording: control(
+      'sourceWording',
+      (claim) => actions.applySourceWordingAction(view.id, view.version, claim),
+      "Source's wording used",
+    ),
+    remove: control(
+      'removeClaim',
+      (claim) => actions.removeClaimAction(view.id, view.version, claim),
+      'Claim removed',
+    ),
+    opinion: control(
+      'markOpinion',
+      (claim) => actions.markOpinionAction(view.id, view.version, claim),
+      'Marked as editorial opinion',
+    ),
+    research: {
+      ...gate('researchClaim'),
+      find: (claim) => actions.researchClaimAction(view.id, view.version, claim.text),
+      add: (claim, page) =>
+        act(
+          'addResearchSource',
+          () =>
+            actions.addResearchSourceAction(view.id, view.version, {
+              claim: claim.text,
+              url: page.url,
+              sentence: page.sentence,
+            }),
+          'Source added',
+        ),
+      addReason: editWaitError('addResearchSource', viewer, view.stage, movesWait(view.running)),
+    },
+  }
+  const failed = view.failed?.includes(CHECK_STEP) ?? false
+  // "Try again" after a failed run; "Run source check" where the To fix tab asks for one.
+  const retry = (label: string) =>
+    retryGate.shown && (
+      <Control reason={retryGate.reason}>
+        <Button
+          variant="outline"
+          disabled={pending || retryGate.reason !== null}
+          onClick={() =>
+            act(
+              'sourceCheck',
+              () => actions.checkSourceAction(view.id, view.version),
+              'Source check done',
+            )
+          }
+        >
+          {label}
+        </Button>
+      </Control>
+    )
+  const unchecked = (
+    <div className="flex flex-col gap-3">
+      <p className="text-muted-foreground">
+        {failed
+          ? 'The source check failed. Your text is kept.'
+          : 'Not checked on this version yet.'}
+      </p>
+      {retry(fixesOnly && !failed ? 'Run source check' : 'Try again')}
+    </div>
+  )
+
+  if (fixesOnly) {
+    if (checking) return <Working words="Checking against the source…" />
+    if (!check) return unchecked
+    if (!check.body.claims.some(notFound)) return null
+    return <ClaimRows claims={check.body.claims} controls={controls} only={notFound} />
+  }
+
   return (
-    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-6">
+    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
-        <h2 id={`${ids}-heading`} className="text-h3">
+        <h2 id={`${ids}-heading`} className="text-h4">
           Source check
         </h2>
         {check && check.body.replays.length > 0 && <span className={tag}>Replay</span>}
@@ -323,73 +397,9 @@ export function SourceCheckPanel({ view, viewer, actions }: SourceCheckPanelProp
       {checking ? (
         <Working words="Checking against the source…" />
       ) : check ? (
-        <CheckList
-          claims={check.body.claims}
-          controls={{
-            pending,
-            wording: control(
-              'sourceWording',
-              (claim) => actions.applySourceWordingAction(view.id, view.version, claim),
-              "Source's wording used",
-            ),
-            remove: control(
-              'removeClaim',
-              (claim) => actions.removeClaimAction(view.id, view.version, claim),
-              'Claim removed',
-            ),
-            opinion: control(
-              'markOpinion',
-              (claim) => actions.markOpinionAction(view.id, view.version, claim),
-              'Marked as editorial opinion',
-            ),
-            research: {
-              ...gate('researchClaim'),
-              find: (claim) => actions.researchClaimAction(view.id, view.version, claim.text),
-              add: (claim, page) =>
-                act(
-                  'addResearchSource',
-                  () =>
-                    actions.addResearchSourceAction(view.id, view.version, {
-                      claim: claim.text,
-                      url: page.url,
-                      sentence: page.sentence,
-                    }),
-                  'Source added',
-                ),
-              addReason: editWaitError(
-                'addResearchSource',
-                viewer,
-                view.stage,
-                movesWait(view.running),
-              ),
-            },
-          }}
-        />
+        <CheckList claims={check.body.claims} controls={controls} />
       ) : (
-        <div className="flex flex-col gap-3">
-          <p className="text-muted-foreground">
-            {view.failed?.includes(CHECK_STEP)
-              ? 'The source check failed. Your text is kept.'
-              : 'Not checked on this version yet.'}
-          </p>
-          {retryGate.shown && (
-            <Control reason={retryGate.reason}>
-              <Button
-                variant="outline"
-                disabled={pending || retryGate.reason !== null}
-                onClick={() =>
-                  act(
-                    'sourceCheck',
-                    () => actions.checkSourceAction(view.id, view.version),
-                    'Source check done',
-                  )
-                }
-              >
-                Try again
-              </Button>
-            </Control>
-          )}
-        </div>
+        unchecked
       )}
     </section>
   )

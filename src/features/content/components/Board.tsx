@@ -16,6 +16,7 @@ import { CHANGED_LINE } from '../lib/lines'
 import { GATE_AFTER } from '../model/stages'
 import { type AssignInput, AssignPost } from './AssignPost'
 import { BoardFilters } from './BoardFilters'
+import { BoardFrame } from './BoardFrame'
 import { BoardMore } from './BoardMore'
 import { reasonText, tag } from './classes'
 
@@ -34,8 +35,10 @@ const GATE_TEXT = 'Render gate · crossed by approval only'
 /**
  * The board: its title and the segmented tabs, the quiet row of filters, then the whole pipeline
  * in one view, never scrolling sideways. From @5xl the six stages stand side by side, each under a
- * heavy rule, with the render gate a dark vertical band after the first; below it they stack, each
- * stage's cards in a self-sizing grid, the gate a dark horizontal band.
+ * heavy rule, with the render gate a dark vertical band after the first, scrolling inside the
+ * board (BoardFrame) under their sticky headers while the page, its title and filters stay put
+ * (17 Oct); below it they stack, each stage's cards in a self-sizing grid, the gate a dark
+ * horizontal band.
  */
 export function Board({ view, params, viewer, staff, assign }: BoardProps) {
   const editable = canEdit(viewer)
@@ -94,18 +97,20 @@ export function Board({ view, params, viewer, staff, assign }: BoardProps) {
       {view.empty ? (
         <p>Nothing matches these filters</p>
       ) : (
-        <div className="flex flex-col gap-6 @5xl:grid @5xl:grid-cols-[minmax(0,1fr)_auto_repeat(5,minmax(0,1fr))] @5xl:gap-3">
-          {view.columns.map((column) => (
-            <Column
-              key={column.id}
-              column={column}
-              gate={column.id === GATE_AFTER}
-              editable={editable}
-              staff={staff}
-              assign={assign}
-            />
-          ))}
-        </div>
+        <BoardFrame>
+          <div className="flex flex-col gap-6 @5xl:grid @5xl:grid-cols-[minmax(0,1fr)_auto_repeat(5,minmax(0,1fr))] @5xl:gap-3">
+            {view.columns.map((column) => (
+              <Column
+                key={column.id}
+                column={column}
+                gate={column.id === GATE_AFTER}
+                editable={editable}
+                staff={staff}
+                assign={assign}
+              />
+            ))}
+          </div>
+        </BoardFrame>
       )}
     </div>
   )
@@ -131,11 +136,9 @@ function Column({
 }) {
   return (
     <>
-      <section
-        aria-labelledby={`column-${column.id}`}
-        className="flex min-w-0 flex-col gap-3 border-t-2 border-foreground pt-2"
-      >
-        <div className="flex items-baseline justify-between gap-2">
+      <section aria-labelledby={`column-${column.id}`} className="flex min-w-0 flex-col gap-3">
+        {/* Its heavy rule and name stay at the top of the board's scroll area while its cards pass under. */}
+        <div className="flex items-baseline justify-between gap-2 border-t-2 border-foreground bg-background pt-2 @5xl:sticky @5xl:top-0 @5xl:z-10 @5xl:pb-1">
           <h2 id={`column-${column.id}`} className="text-overline uppercase">
             {column.label}
           </h2>
@@ -158,7 +161,7 @@ function Column({
       </section>
       {gate && (
         <div className="flex items-center justify-center bg-foreground px-3 py-2 @5xl:items-end @5xl:px-1.5 @5xl:py-6">
-          <span className="text-overline text-warning uppercase @5xl:rotate-180 @5xl:[writing-mode:vertical-rl]">
+          <span className="text-overline text-warning uppercase @5xl:sticky @5xl:bottom-6 @5xl:rotate-180 @5xl:[writing-mode:vertical-rl]">
             {GATE_TEXT}
           </span>
         </div>

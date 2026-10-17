@@ -163,6 +163,45 @@ describe.skipIf(!enabled)('the model call log and cache against the database', (
     ])
   })
 
+  test('a reservation settled as refused (429) stays in the log but frees its slot under the cap', async () => {
+    const day = new Date().toISOString().slice(0, 10)
+    const used = await calls.countToday('image', day)
+    const slot = {
+      useCase: 'art' as const,
+      tier: 'image' as const,
+      model: 'test-model',
+      promptVersion: 'test.v1',
+      postId: `${P}refused`,
+      day,
+      cap: used + 1,
+    }
+    const busy = await calls.reserve(slot)
+    expect(busy).not.toBeNull()
+    await calls.settle(busy ?? '', { ok: false, ms: 3, refused: true })
+    expect(await calls.countToday('image', day)).toBe(used)
+    const answered = await calls.reserve(slot)
+    expect(answered).not.toBeNull()
+    await calls.settle(answered ?? '', { ok: true, ms: 4, refused: false })
+    // The answered call takes the last slot; the refused one is still logged.
+    expect(await calls.reserve(slot)).toBeNull()
+    const rows = await db
+      .select({ ok: schema.aiCall.ok, refused: schema.aiCall.refused })
+      .from(schema.aiCall)
+      .where(orm.eq(schema.aiCall.postId, `${P}refused`))
+      .orderBy(schema.aiCall.createdAt)
+    expect(rows).toEqual([
+      { ok: false, refused: true },
+      { ok: true, refused: false },
+    ])
+  })
+
+  test('a call recorded as refused is logged but not counted', async () => {
+    const today = new Date().toISOString().slice(0, 10)
+    const before = await calls.countToday('lite', today)
+    await calls.record({ ...row('lite'), ok: false, fallback: 'busy-lite', refused: true })
+    expect(await calls.countToday('lite', today)).toBe(before)
+  })
+
   test('the search cap counts the search use cases only: other Flash calls never fill it', async () => {
     const { SEARCH_USE_CASES } = await import('./config')
     const day = new Date().toISOString().slice(0, 10)

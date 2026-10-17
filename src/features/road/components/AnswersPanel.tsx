@@ -1,7 +1,7 @@
 'use client'
 
 import { Check } from 'lucide-react'
-import { type KeyboardEvent, type Ref, useImperativeHandle, useRef, useState } from 'react'
+import { type KeyboardEvent, useRef, useState } from 'react'
 import {
   type AnswerGroup,
   type AnswerRow,
@@ -85,22 +85,18 @@ const counted = (n: number, one: string, many: string) => `${n} ${n === 1 ? one 
 /**
  * How the panel ends: Your answers saves changes to the roadmap (`onSave`, her answers with them
  * merged in) or closes (`onClose`); a new roadmap's draft, a copy of `copyOf` (null from scratch),
- * is created with them (`onCreate`) or cancelled (`onCancel`).
+ * is created with them (`onCreate`) or cancelled (`onCancel`). A draft `around` a course (named, the
+ * course she chose to switch to) can be created with no answer changed.
  */
 type Ends =
   | { mode?: 'edit'; onSave: (answers: StoredAnswers) => void; onClose: () => void }
   | {
       mode: 'draft'
       copyOf: string | null
+      around?: string
       onCreate: (answers: StoredAnswers) => void
       onCancel: () => void
     }
-
-/**
- * Closing the panel from outside it: as its own Close does, asking first when picks wait; `then`
- * follows once it has closed, and never if she keeps editing.
- */
-export type AnswersCloser = { close: (then: () => void) => void }
 
 /**
  * "Your answers" over the board: every onboarding answer of this roadmap, by the step that asked
@@ -125,7 +121,6 @@ export function AnswersPanel({
   tags = [],
   rematch,
   onPreview,
-  closer,
   ...ends
 }: {
   /** Its rows for a set of answers: the questions those answers ask (answerGroups). */
@@ -139,8 +134,6 @@ export function AnswersPanel({
   /** The board draws the road her answers match: its rule, so a pick says when it would change it. */
   rematch?: RoadChangeOf
   onPreview: (prev: Record<string, string>) => void
-  /** The board's way to close it from outside, through the same ask (Find opening over it). */
-  closer?: Ref<AnswersCloser>
 } & Ends) {
   const [openKey, setOpenKey] = useState<RowKey | null>(null)
   const [pending, setPending] = useState<Pending>({})
@@ -155,6 +148,7 @@ export function AnswersPanel({
   const count = Object.keys(pending).length
   const draft = ends.mode === 'draft'
   const scratch = ends.mode === 'draft' && ends.copyOf === null
+  const around = ends.mode === 'draft' ? ends.around : undefined
   // From scratch every question is open: a default it would count as is not her answer yet.
   const asShown = (row: AnswerRow): AnswerRow =>
     scratch && row.editable && !(row.key in answers) ? { ...row, shown: '', open: UNANSWERED } : row
@@ -204,7 +198,7 @@ export function AnswersPanel({
 
   function save() {
     if (ends.mode === 'draft') {
-      if (count) ends.onCreate(merged())
+      if (count || around) ends.onCreate(merged())
       return
     }
     const next = merged()
@@ -232,11 +226,7 @@ export function AnswersPanel({
     }
   }
 
-  useImperativeHandle(closer, () => ({ close }))
-
-  const question = draft
-    ? 'Discard this new roadmap?'
-    : `Discard ${counted(count, 'change', 'changes')}?`
+  const question = `Discard ${counted(count, 'change', 'changes')}?`
 
   const foot =
     place === 'sheet' ? 'sticky bottom-0 -mx-4 px-4' : 'sticky -bottom-6 -mx-6 -mb-6 px-6'
@@ -258,10 +248,18 @@ export function AnswersPanel({
               ? 'From onboarding · change any of them'
               : scratch
                 ? 'New roadmap · from scratch'
-                : `New roadmap · a copy of ${ends.copyOf}`}
+                : around
+                  ? `New roadmap · around ${around}`
+                  : `New roadmap · a copy of ${ends.copyOf}`}
           </p>
           <h2 className="m-0 text-h2 leading-none">
-            {scratch ? 'Answer the questions' : draft ? 'Change any answers' : 'Your answers'}
+            {scratch
+              ? 'Answer the questions'
+              : around
+                ? 'Create a new roadmap?'
+                : draft
+                  ? 'Change any answers'
+                  : 'Your answers'}
           </h2>
         </div>
         <Button type="button" variant="text" onClick={() => close()}>
@@ -271,9 +269,11 @@ export function AnswersPanel({
       <p className="m-0 text-muted-foreground">
         {scratch
           ? 'Start with no answers. Each one you give draws more of the map.'
-          : draft
-            ? 'It starts with the same answers. Change one or more; the map shows what would be different before you create it.'
-            : 'Pick one to change it. Your roadmap shows what would move before anything moves.'}
+          : around
+            ? 'The map shows the road this course leads to: its visa, work rights and jobs. Your other roadmaps stay as they are.'
+            : draft
+              ? 'It starts with the same answers. Change one or more; the map shows what would be different before you create it.'
+              : 'Pick one to change it. Your roadmap shows what would move before anything moves.'}
       </p>
 
       {/* The rows her answers would ask with the picks waiting: a follow-up shows at once. */}
@@ -362,7 +362,9 @@ export function AnswersPanel({
                   : 'Answer at least one question'
                 : count
                   ? `${counted(count, 'answer', 'answers')} changed`
-                  : 'Change at least one answer'}
+                  : around
+                    ? 'Same answers, around this course'
+                    : 'Change at least one answer'}
           </span>
           <Button
             type="button"
@@ -376,7 +378,7 @@ export function AnswersPanel({
             type="button"
             variant="strong"
             className="h-11 aria-disabled:opacity-60"
-            aria-disabled={draft && !count ? true : undefined}
+            aria-disabled={draft && !count && !around ? true : undefined}
             onClick={save}
           >
             {draft ? 'Create roadmap' : 'Save changes'}

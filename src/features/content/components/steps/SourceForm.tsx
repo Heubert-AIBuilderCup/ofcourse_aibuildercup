@@ -1,7 +1,15 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { type FormEvent, type ReactNode, useId, useState, useTransition } from 'react'
+import {
+  type Dispatch,
+  type FormEvent,
+  type ReactNode,
+  type SetStateAction,
+  useId,
+  useState,
+  useTransition,
+} from 'react'
 import { toast } from 'sonner'
 import { Blueprint } from '@/shared/components/Blueprint'
 import { Button } from '@/shared/components/ui/button'
@@ -22,7 +30,7 @@ import { usePress } from '../usePostAction'
 
 const NETWORK_ERROR = 'Could not reach the server. Please try again.'
 const DEFAULT_KIND = 'research summary'
-/** What "Make post" and "Use these" say while the source is read and its ideas found. */
+/** What "Make post" and the idea's makes say while the source is read and its ideas found. */
 const READING = 'Reading the source and finding ideas · this can take a minute'
 
 /** The links field's lines, trimmed, blank ones dropped. */
@@ -70,7 +78,8 @@ type Failed = { url: string; error: string }
  * its placeholder and help text; "Paste text instead" opens the text box, with `pasteExtra` (the
  * title) above it. More than five links, or
  * links with pasted text, says so under the field and in its description; `failed` lists the
- * links that could not be read.
+ * links that could not be read. `linksLabel` names the links field; without `sources` the links
+ * and the paste box are left out (the idea start finds its own), the failed links still listed.
  */
 export function SourceFields({
   values,
@@ -79,6 +88,8 @@ export function SourceFields({
   onPaste,
   failed,
   pasteExtra,
+  linksLabel = 'Links',
+  sources = true,
 }: {
   values: SourceValues
   onChange: (values: SourceValues) => void
@@ -86,6 +97,8 @@ export function SourceFields({
   onPaste: () => void
   failed: Failed[]
   pasteExtra?: ReactNode
+  linksLabel?: string
+  sources?: boolean
 }) {
   const ids = useId()
   // A field with a limit holds that many characters as a reader sees them (a Devanagari conjunct,
@@ -96,6 +109,15 @@ export function SourceFields({
       [key]: max === undefined ? e.target.value : firstChars(e.target.value, max),
     })
   const error = sourceFieldsError(values, pasting)
+  const unread = failed.length > 0 && (
+    <ul aria-label="Links not read" className="flex flex-col gap-1 text-caption">
+      {failed.map((f) => (
+        <li key={f.url} className="wrap-anywhere text-destructive">
+          {f.url}: {SOURCE_ERRORS.unread}
+        </li>
+      ))}
+    </ul>
+  )
 
   return (
     <>
@@ -117,36 +139,32 @@ export function SourceFields({
           The post is written in this language. Sources stay as they are.
         </p>
       </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor={`${ids}-links`}>Links</Label>
-        <Textarea
-          id={`${ids}-links`}
-          value={values.links}
-          rows={3}
-          maxLength={12_000}
-          placeholder="https://… one link per line, up to five"
-          aria-describedby={`${ids}-links-note${error ? ` ${ids}-links-error` : ''}`}
-          aria-invalid={error !== null || undefined}
-          onChange={set('links')}
-        />
-        <p id={`${ids}-links-note`} className="text-caption text-muted-foreground">
-          We read each article and pull out its points.
-        </p>
-        {error && (
-          <p id={`${ids}-links-error`} className="text-caption text-destructive">
-            {error}
+      {sources ? (
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${ids}-links`}>{linksLabel}</Label>
+          <Textarea
+            id={`${ids}-links`}
+            value={values.links}
+            rows={3}
+            maxLength={12_000}
+            placeholder="https://… one link per line, up to five"
+            aria-describedby={`${ids}-links-note${error ? ` ${ids}-links-error` : ''}`}
+            aria-invalid={error !== null || undefined}
+            onChange={set('links')}
+          />
+          <p id={`${ids}-links-note`} className="text-caption text-muted-foreground">
+            We read each article and pull out its points.
           </p>
-        )}
-        {failed.length > 0 && (
-          <ul aria-label="Links not read" className="flex flex-col gap-1 text-caption">
-            {failed.map((f) => (
-              <li key={f.url} className="wrap-anywhere text-destructive">
-                {f.url}: {SOURCE_ERRORS.unread}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+          {error && (
+            <p id={`${ids}-links-error`} className="text-caption text-destructive">
+              {error}
+            </p>
+          )}
+          {unread}
+        </div>
+      ) : (
+        unread
+      )}
       <div className="flex flex-col gap-2">
         <Label htmlFor={`${ids}-framing`}>What do you want this post to say?</Label>
         <Input
@@ -174,7 +192,7 @@ export function SourceFields({
           Kept as your opinion, never used as a fact. Optional.
         </p>
       </div>
-      {pasting ? (
+      {!sources ? null : pasting ? (
         <>
           {pasteExtra}
           <div className="flex flex-col gap-2">
@@ -201,35 +219,51 @@ export function SourceFields({
 /** How many suggestions are ticked when they arrive: the official ones among them (GD29). */
 const TOP_TICKED = 3
 
+type PostKind = 'feed' | 'blog'
+/** The idea start's two makes: a blog from the pages first, or the feed post straight away. */
+const IDEA_MAKES: { kind: PostKind; label: string }[] = [
+  { kind: 'blog', label: 'Write a blog first' },
+  { kind: 'feed', label: 'Go straight to the post' },
+]
+
+/** The idea start's search: the idea typed, the pages found for it, and which are ticked. */
+type IdeaSearch = {
+  idea: string
+  found: { sources: SuggestedSource[]; entryPoint: string | null } | null
+  ticked: string[]
+}
+
 /**
  * "Start from an idea" (BR12, BR13): the idea, then "Find sources", which lists the pages Google
  * Search suggests with a tick each (the official ones of the top three ticked, GD29), their title,
  * site and why, and Google's search entry point in a sandboxed frame, as its grounding display
- * rules require: the markup is Google's, so it never runs in the page. "Use these" hands the
- * ticked pages on, in the list's order; nothing is used unticked.
+ * rules require: the markup is Google's, so it never runs in the page. "Write a blog first" and
+ * "Go straight to the post" hand the ticked pages on, in the list's order, with the kind to make;
+ * nothing is used unticked. The search is the form's, so a switch to the blog start and back keeps
+ * the pages found (a paid search).
  */
 function IdeaSources({
   find,
   onUse,
   busy,
   using,
-  initial = '',
+  search: kept,
+  onSearch,
 }: {
   find: (input: unknown) => Promise<Suggested>
-  onUse: (links: string[]) => void
+  onUse: (links: string[], kind: PostKind) => void
   busy: boolean
-  /** "Use these" was pressed and its post is being made. */
-  using: boolean
-  /** The idea it opens with, from the Ideas queue or an evidence gap. */
-  initial?: string
+  /** The make pressed, while its post is being made. */
+  using: PostKind | null
+  search: IdeaSearch
+  onSearch: Dispatch<SetStateAction<IdeaSearch>>
 }) {
   const ids = useId()
-  const [idea, setIdea] = useState(initial)
-  const [found, setFound] = useState<{
-    sources: SuggestedSource[]
-    entryPoint: string | null
-  } | null>(null)
-  const [ticked, setTicked] = useState<string[]>([])
+  const { idea, found, ticked } = kept
+  const setIdea = (next: string) => onSearch((was) => ({ ...was, idea: next }))
+  const setFound = (next: IdeaSearch['found']) => onSearch((was) => ({ ...was, found: next }))
+  const setTicked = (next: (was: string[]) => string[]) =>
+    onSearch((was) => ({ ...was, ticked: next(was.ticked) }))
   const [error, setError] = useState<string | null>(null)
   const [finding, startFinding] = useTransition()
   const empty = idea.trim() === ''
@@ -247,13 +281,14 @@ function IdeaSources({
           setFound(null)
           return
         }
-        setFound({ sources: res.sources, entryPoint: res.entryPoint })
-        setTicked(
-          res.sources
+        onSearch((was) => ({
+          ...was,
+          found: { sources: res.sources, entryPoint: res.entryPoint },
+          ticked: res.sources
             .slice(0, TOP_TICKED)
             .filter((s) => s.official)
             .map((s) => s.url),
-        )
+        }))
       } catch {
         setError(NETWORK_ERROR)
       }
@@ -329,15 +364,19 @@ function IdeaSources({
               className="h-20 w-full"
             />
           )}
-          <div className="flex items-center gap-4">
-            <Button
-              type="button"
-              disabled={busy || chosen.length === 0 || tooMany}
-              onClick={() => onUse(chosen)}
-            >
-              {using && <Spin />}
-              {using ? 'Running…' : 'Use these'}
-            </Button>
+          <div className="flex flex-wrap items-center gap-4">
+            {IDEA_MAKES.map(({ kind, label }) => (
+              <Button
+                key={kind}
+                type="button"
+                variant={kind === 'feed' ? 'outline' : 'default'}
+                disabled={busy || chosen.length === 0 || tooMany}
+                onClick={() => onUse(chosen, kind)}
+              >
+                {using === kind && <Spin />}
+                {using === kind ? 'Running…' : label}
+              </Button>
+            ))}
             {using && <Working words={READING} />}
             {tooMany && <p className="text-caption text-destructive">{SOURCE_ERRORS.links}</p>}
           </div>
@@ -347,13 +386,22 @@ function IdeaSources({
   )
 }
 
+/** Where a new post starts: a blog already written, or an idea to find sources for. */
+const STARTS = [
+  { id: 'blog', label: 'From a blog' },
+  { id: 'idea', label: 'From an idea' },
+] as const
+type Start = (typeof STARTS)[number]['id']
+
 /**
- * Links, or pasted text, with a framing line and notes, and "Make post" (criteria 93, 94;
- * GD18–GD21): the server reads each link, extracts the facts, and drafts on its own once the post
- * opens. The request id is made once, when the form mounts, and is the new post's id: a double
- * submit or a "Try again" after a failure is still one post. A failure keeps every field as typed
- * (criterion 5); when no link could be read, each is listed under the field. The blog form
- * (BR1) is the same, and its "Make blog" makes a blog.
+ * "Start from" a blog or an idea, then the source (criteria 1–4; 93, 94; GD18–GD21). From a blog:
+ * its link, or pasted text, with a framing line and notes, and "Make post", which always makes a
+ * feed post. From an idea: the found pages, then "Write a blog first" (a blog) or "Go straight to
+ * the post" (a feed post). The server reads each link, extracts the facts, and drafts on its own
+ * once the post opens. The request ids are made once, when the form mounts, one per kind of post,
+ * and each is the new post's id: a double submit or a "Try again" after a failure is still one
+ * post, and the other kind is always another. A failure keeps every
+ * field as typed (criterion 5); when no link could be read, each is listed.
  */
 export function SourceForm({
   actions,
@@ -365,18 +413,21 @@ export function SourceForm({
     makePostAction: (input: unknown) => Promise<Made>
     suggestSourcesAction: (input: unknown) => Promise<Suggested>
   }
-  /** What "Make" makes: a feed post, or a blog. */
-  postKind?: 'feed' | 'blog'
+  /** The page it is on: New feed post, or New blog (BR1), which opens on the idea start. */
+  postKind?: PostKind
   /**
-   * The idea it was opened with (lib/idea-start.ts): the form starts on "Start from an idea" with
-   * it typed in, and a queue idea's id goes with "Make post", which records the post on it.
+   * The idea it was opened with (lib/idea-start.ts): the form starts from an idea with it typed
+   * in, and a queue idea's id goes with the make, which records the post on it.
    */
   idea?: IdeaStart | null
 }) {
-  const noun = postKind === 'blog' ? 'blog' : 'post'
   const router = useRouter()
   const ids = useId()
-  const [requestId] = useState(() => crypto.randomUUID())
+  // One per kind: a lost response to a blog's make can never answer the feed post's, or back.
+  const [requestIds] = useState<Record<PostKind, string>>(() => ({
+    feed: crypto.randomUUID(),
+    blog: crypto.randomUUID(),
+  }))
   const [values, setValues] = useState<SourceValues>({
     // English unless the editor chooses another (GD36, GD29).
     language: 'en',
@@ -386,7 +437,14 @@ export function SourceForm({
     text: '',
   })
   const [pasting, setPasting] = useState(false)
-  const [fromIdea, setFromIdea] = useState(!!idea)
+  const [start, setStart] = useState<Start>(idea || postKind === 'blog' ? 'idea' : 'blog')
+  const fromIdea = start === 'idea'
+  // It opens with the idea from the Ideas queue or an evidence gap.
+  const [search, setSearch] = useState<IdeaSearch>({
+    idea: idea?.text ?? '',
+    found: null,
+    ticked: [],
+  })
   const [title, setTitle] = useState('')
   const [kind, setKind] = useState(DEFAULT_KIND)
   // The page the post is made for (criterion 105); none until the editor picks one, since a new
@@ -395,33 +453,38 @@ export function SourceForm({
   const [error, setError] = useState<string | null>(null)
   const [failed, setFailed] = useState<Failed[]>([])
   const [pending, startTransition] = useTransition()
-  // Which press is making the post: the form's own button, or "Use these".
-  const { mark, pressed } = usePress<'form' | 'sources'>(pending)
+  // Which press is making the post: the form's own button, or one of the idea's makes.
+  const { mark, pressed } = usePress<'form' | PostKind>(pending)
   const making = pressed('form')
+  const using = pressed('blog') ? 'blog' : pressed('feed') ? 'feed' : null
   const links = linkLines(values.links)
   // Pasted text needs its title; links alone may take the first page's.
   const pasted = pasting && values.text.trim() !== ''
   const empty = pasted ? title.trim() === '' : links.length === 0
   const blocked = empty || sourceFieldsError(values, pasting) !== null
 
-  /** "Make post" with these links, from the form or from "Use these". */
-  const make = (sending: string[], from: 'form' | 'sources') => {
+  /**
+   * Makes a post of `makes` from these links: the blog start's "Make post" (its pasted text
+   * included), or an idea's make with the ticked pages.
+   */
+  const make = (sending: string[], makes: PostKind, from: 'form' | PostKind) => {
+    const withText = from === 'form' && pasting
     mark(from)
     setError(null)
     setFailed([])
     startTransition(async () => {
       try {
         const res = await actions.makePostAction({
-          requestId,
-          title: pasting ? title : '',
+          requestId: requestIds[makes],
+          title: withText ? title : '',
           kind,
-          text: pasting ? values.text : '',
+          text: withText ? values.text : '',
           links: sending,
           framing: values.framing,
           notes: values.notes,
           language: values.language,
           pageBrandId: page === '' ? null : page,
-          postKind,
+          postKind: makes,
           ...(idea?.ideaId ? { ideaId: idea.ideaId } : {}),
         })
         if (!res.ok) {
@@ -439,15 +502,8 @@ export function SourceForm({
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    if (!blocked) make(links, 'form')
-  }
-
-  /** The ticked pages in the Links field, then "Make post" as for links (GD18, GD19, BR13). */
-  const useSources = (urls: string[]) => {
-    const next = { ...values, links: urls.join('\n') }
-    setValues(next)
-    // Pasted text with the links says so under the field, as typed links would.
-    if (sourceFieldsError(next, pasting) === null) make(urls, 'sources')
+    // From an idea only its own makes send; a blog always makes a feed post (criterion 2).
+    if (!fromIdea && !blocked) make(links, 'feed', 'form')
   }
 
   return (
@@ -457,12 +513,42 @@ export function SourceForm({
       onSubmit={submit}
       className="@container flex max-w-3xl flex-col gap-6 p-6"
     >
+      <div className="flex flex-col gap-2">
+        <p id={`${ids}-start`} className="font-medium">
+          Start from
+        </p>
+        <div role="radiogroup" aria-labelledby={`${ids}-start`} className="flex flex-wrap gap-3">
+          {STARTS.map((s) => (
+            <label
+              key={s.id}
+              className="flex cursor-pointer items-center gap-2 border border-border px-4 py-2 has-checked:border-primary"
+            >
+              <input
+                type="radio"
+                name={`${ids}-start`}
+                value={s.id}
+                checked={start === s.id}
+                onChange={() => {
+                  // A refusal belongs to the start that made it.
+                  setStart(s.id)
+                  setError(null)
+                  setFailed([])
+                }}
+                className="accent-primary"
+              />
+              {s.label}
+            </label>
+          ))}
+        </div>
+      </div>
       <SourceFields
         values={values}
         onChange={setValues}
         pasting={pasting}
         onPaste={() => setPasting(true)}
         failed={failed}
+        linksLabel="Blog link"
+        sources={!fromIdea}
         pasteExtra={
           <div className="grid gap-4 @xl:grid-cols-[2fr_1fr]">
             <div className="flex flex-col gap-2">
@@ -485,24 +571,6 @@ export function SourceForm({
           </div>
         }
       />
-      {fromIdea ? (
-        <IdeaSources
-          find={actions.suggestSourcesAction}
-          onUse={useSources}
-          busy={pending}
-          using={pressed('sources')}
-          initial={idea?.text}
-        />
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          className="self-start"
-          onClick={() => setFromIdea(true)}
-        >
-          Start from an idea
-        </Button>
-      )}
       <div className="flex flex-col gap-2">
         <Label htmlFor={`${ids}-page`}>Page</Label>
         <NativeSelect
@@ -522,18 +590,32 @@ export function SourceForm({
           The drafts and covers follow its design language, if it has one.
         </p>
       </div>
-      <div className="flex items-center gap-4">
-        <Button type="submit" disabled={blocked || pending}>
-          {making && <Spin />}
-          {making ? 'Running…' : error ? 'Try again' : `Make ${noun}`}
-        </Button>
-        {making && <Working words={READING} />}
-        {error && (
-          <p role="alert" className="text-caption text-destructive">
-            {error}
-          </p>
-        )}
-      </div>
+      {fromIdea && (
+        <IdeaSources
+          find={actions.suggestSourcesAction}
+          onUse={(urls, makes) => make(urls, makes, makes)}
+          busy={pending}
+          using={using}
+          search={search}
+          onSearch={setSearch}
+        />
+      )}
+      {(!fromIdea || error) && (
+        <div className="flex items-center gap-4">
+          {!fromIdea && (
+            <Button type="submit" disabled={blocked || pending}>
+              {making && <Spin />}
+              {making ? 'Running…' : error ? 'Try again' : 'Make post'}
+            </Button>
+          )}
+          {making && <Working words={READING} />}
+          {error && (
+            <p role="alert" className="text-caption text-destructive">
+              {error}
+            </p>
+          )}
+        </div>
+      )}
     </Blueprint>
   )
 }

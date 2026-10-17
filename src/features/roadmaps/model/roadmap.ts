@@ -62,6 +62,32 @@ export function roadNames(road: NamedRoad): RoadNames {
 export const roadmapName = (r: Pick<Roadmap, 'name'>, road: RoadNames): string =>
   r.name ?? (road.here ? `${road.here} in ${road.city}` : 'New roadmap')
 
+/**
+ * The roadmaps the board's drawer offers to switch to, in the order given (last opened first): the
+ * archived ones left out, except the one open.
+ */
+export const drawerRoadmaps = <T extends Pick<Roadmap, 'id' | 'archivedAt'>>(
+  roadmaps: readonly T[],
+  openId: string,
+): T[] => roadmaps.filter((r) => r.id === openId || r.archivedAt === null)
+
+/**
+ * The drawer's roadmaps (drawerRoadmaps), each named as the list names it: the open one by
+ * `openName`, one with her own name by it, and only one without by where she is on its road,
+ * built by `roadOf` for it alone, so a board load builds no road for a roadmap she has named.
+ */
+export function drawerNames<T extends Pick<Roadmap, 'id' | 'archivedAt' | 'name'>>(
+  roadmaps: readonly T[],
+  openId: string,
+  openName: string,
+  roadOf: (roadmap: T) => NamedRoad,
+): { id: string; name: string }[] {
+  return drawerRoadmaps(roadmaps, openId).map((r) => ({
+    id: r.id,
+    name: r.id === openId ? openName : (r.name ?? roadmapName(r, roadNames(roadOf(r)))),
+  }))
+}
+
 /** A copy's name until she renames it: "Copy of" its source's name, cut to the longest a name is. */
 export const copyName = (source: string): string =>
   [...`Copy of ${source}`].slice(0, ROADMAP_NAME_MAX).join('')

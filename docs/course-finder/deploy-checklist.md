@@ -143,3 +143,16 @@ GOOGLE_CLOUD_PROJECT=applyims GOOGLE_CLOUD_LOCATION=global bun run finder:seed
 ```
 
 Tell Jenish to do the same.
+
+## 10. Daily AI limits for judging
+
+Paid AI calls are capped per UTC day across everyone, to keep costs down. They reset at midnight UTC (05:30 IST). A judge who reaches one is told what is used up, why, when it resets and, with `SUPPORT_EMAIL` set, who to email; without it the message only says when it resets.
+
+Sized for about 30 posts a day (up to about 18 images a post with redraws). These are plain environment variables, not secrets:
+
+```bash
+gcloud run services update ofcourse --project applyims --region asia-southeast1 \
+  --update-env-vars AI_DAILY_CAP_IMAGE=600,AI_DAILY_CAP_PRO=150,AI_DAILY_CAP_SEARCH=100,SUPPORT_EMAIL=nikhil@heubert.com
+```
+
+Unset, `AI_DAILY_CAP_IMAGE` and `AI_DAILY_CAP_PRO` refuse every call (a cap of 0) and `AI_DAILY_CAP_SEARCH` allows 20.

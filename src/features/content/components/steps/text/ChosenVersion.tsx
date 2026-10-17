@@ -8,16 +8,16 @@ import { cn } from '@/shared/lib/utils'
 import { layoutIn, layoutOptions } from '../../../layout/relayout'
 import type { FailureReason } from '../../../lib/failure'
 import { paragraphSite } from '../../../lib/sites'
-import { type VersionStatus, versionLetter } from '../../../lib/version-status'
 import type { Box, ClaimResult, Fact, FitCheck, LayoutId } from '../../../model/types'
 import { TEXT_NUDGES } from '../../../nudges'
-import { findSlideSpec, isLook, slideFitsAt } from '../../../templates'
+import { findSlideSpec, isLook } from '../../../templates'
 import { EditableSlidePreview, type EditableSlot } from '../../EditableSlidePreview'
 import { FactNumber } from '../../FactChip'
 import { LayoutPicker } from '../../LayoutPicker'
-import { Control, FailedLine, movesWait, reasonText, tag } from '../../parts'
+import { Control, FailedLine, movesWait, reasonText } from '../../parts'
 import { CANVAS_HEIGHT, SlidePreview } from '../../SlidePreview'
 import { isLong, SlotField } from '../../SlotField'
+import { SlideStage } from '../../stage'
 import type { WorkbenchView } from '../../Workbench'
 import {
   attentionOf,
@@ -27,7 +27,6 @@ import {
   slideFacts,
   slideName,
   slideStep,
-  statusText,
   wordsOf,
 } from './shared'
 
@@ -59,26 +58,64 @@ export type ChosenSlidesProps = {
   slotsOf?: (n: number) => EditableSlot[]
 }
 
+/** Where the version's slides are drawn from: the preview route, by the drafts and the theme. */
+const draftOf = (props: ChosenSlidesProps) => ({
+  postId: props.view.id,
+  draftsId: props.draftsId,
+  index: props.index,
+  themeId: props.themeId,
+})
+
 /**
- * The picked version's slides, in the slides area (GD30): a film strip of its slides, numbered
- * with their layout, and the selected slide large, edited in place (criterion 98).
+ * Slide `n` large: edited in place where the viewer may edit it (criterion 98), else drawn as it
+ * is. Its hotspots follow its text where the layout moved it down (Postcard's card).
  */
-export function ChosenSlides(props: ChosenSlidesProps) {
-  const { view, draftsId, index, item, themeId, pending } = props
-  const slides = item.structure.slides
-  const n = shownSlide(item, props.selected)
-  const slide = slides[n - 1]
+function LargeSlide({ n, ...props }: ChosenSlidesProps & { n: number }) {
+  const { view, index, item, pending } = props
+  const slide = item.structure.slides[n - 1]
   if (!slide) return null
-  const draft = { postId: view.id, draftsId, index, themeId }
+  const draft = draftOf(props)
   const specs = findSlideSpec(item.template, slide)?.slots ?? []
   const own = props.slotsOf?.(n)
   const editable = own ? own.length > 0 : props.editGate.shown && props.editGate.reason === null
-  // Where the layout moved the slide's text down (Postcard's card), its hotspots move with it.
   const shift = view.draftShifts?.[index]?.[n - 1] ?? 0
   const placed = (box: Box): Box => {
     const y = box.y + shift
     return { ...box, y, h: Math.max(1, Math.min(box.h, CANVAS_HEIGHT - y)) }
   }
+  if (!editable) return <SlidePreview slide={n} draft={draft} text={wordsOf(item, slide)} />
+  return (
+    <EditableSlidePreview
+      key={n}
+      slide={n}
+      draft={draft}
+      text={wordsOf(item, slide)}
+      disabled={pending}
+      slots={
+        own?.map((s) => ({ ...s, box: placed(s.box) })) ??
+        specs.flatMap((spec) => {
+          const slot = slide.slots[spec.key]
+          return slot
+            ? [{ key: spec.key, label: spec.label, box: placed(spec.box), text: slot.text }]
+            : []
+        })
+      }
+      onSave={(slot, value) => props.onEdit(n, slot, value)}
+      measure={(slot, value) => props.onMeasure(n, slot, value)}
+    />
+  )
+}
+
+/**
+ * The picked version's slides, in the slides area (GD30): a film strip of its slides, numbered
+ * with their layout, and the selected slide large, edited in place (criterion 98).
+ */
+export function ChosenSlides(props: ChosenSlidesProps) {
+  const { item } = props
+  const slides = item.structure.slides
+  const n = shownSlide(item, props.selected)
+  if (!slides[n - 1]) return null
+  const draft = draftOf(props)
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -105,30 +142,38 @@ export function ChosenSlides(props: ChosenSlidesProps) {
           </li>
         ))}
       </ol>
-
-      {editable ? (
-        <EditableSlidePreview
-          key={n}
-          slide={n}
-          draft={draft}
-          text={wordsOf(item, slide)}
-          disabled={pending}
-          slots={
-            own?.map((s) => ({ ...s, box: placed(s.box) })) ??
-            specs.flatMap((spec) => {
-              const slot = slide.slots[spec.key]
-              return slot
-                ? [{ key: spec.key, label: spec.label, box: placed(spec.box), text: slot.text }]
-                : []
-            })
-          }
-          onSave={(slot, value) => props.onEdit(n, slot, value)}
-          measure={(slot, value) => props.onMeasure(n, slot, value)}
-        />
-      ) : (
-        <SlidePreview slide={n} draft={draft} text={wordsOf(item, slide)} />
-      )}
+      <LargeSlide {...props} n={n} />
     </div>
+  )
+}
+
+/**
+ * The picked version's slides as the slide steps show them (SlideStage): the selected one large,
+ * edited in place where the viewer may (criterion 98), its number and layout under it, and the
+ * filmstrip of the version's slides below. The selection is counted from 1, as Workbench holds it.
+ */
+export function ChosenStage(props: ChosenSlidesProps) {
+  const { item } = props
+  const slides = item.structure.slides
+  const n = shownSlide(item, props.selected)
+  const slide = slides[n - 1]
+  if (!slide) return null
+  const draft = draftOf(props)
+  const drawn = slides.map((s, i) => (
+    // biome-ignore lint/suspicious/noArrayIndexKey: a slide is its position in the draft.
+    <SlidePreview key={i} slide={i + 1} draft={draft} text={wordsOf(item, s)} />
+  ))
+  return (
+    <SlideStage
+      slides={drawn.map((shown, i) =>
+        // biome-ignore lint/suspicious/noArrayIndexKey: a slide is its position in the draft.
+        i + 1 === n ? <LargeSlide key={i} {...props} n={n} /> : shown,
+      )}
+      thumbs={drawn}
+      selected={n - 1}
+      onSelect={(i) => props.onSelect(i + 1)}
+      below={<p className={reasonText}>{`${n} · ${slideName(item, slide)}`}</p>}
+    />
   )
 }
 
@@ -136,27 +181,18 @@ export type ChosenVersionProps = {
   /** The selected slide, held above the screen's key (Workbench, GD24). */
   selected: number
   view: WorkbenchView
-  draftsId: string
   item: Item
-  /** Every other version, by its place in the drafts, for "Use here" (GD11). */
-  others: { item: Item; index: number }[]
   facts: Fact[]
-  themeId: string
   pending: boolean
-  /** The slide and chip of a slide chip or "Shorten it" pressed and running, and which (`via`), or null. */
+  /** The slide and chip of a slide chip pressed and running, and which (`via`), or null. */
   rewriting?: { slide?: number; nudge?: string; via?: 'shorten' | 'chip' } | null
   /** The slide whose "Another take" was pressed and is running, or null. */
   taking?: number | null
-  /** Its status (lib/version-status.ts): the problems, each with its fix where one exists. */
-  status: VersionStatus
   /** Its source check's results, for the slots that need attention. */
   claims: ClaimResult[]
-  /** Its "Details", which "See checks" opens. */
-  details: ReactNode
   takeGate: Gate
   nudgeGate: Gate
   layoutGate: Gate
-  useGate: Gate
   editGate: Gate
   /** The last edit's refusal and the slot it was for, said under that slot's field, or null. */
   editError: { slide: number; slot: string; error: string } | null
@@ -167,19 +203,17 @@ export type ChosenVersionProps = {
   /** A slide chip, or "Shorten it" (`via` says which was pressed, so only it waits). */
   onNudge: (slide: number, nudge: string, label: string, via: 'shorten' | 'chip') => void
   onLayout: (slide: number, layout: LayoutId) => void
-  onUseSlide: (from: number, slide: number) => void
 }
 
 /**
- * The picked version, before the gate (GD24), in the actions area beside its slides (GD30): its
- * status and problems, "Shorten it" on a slot whose words do not fit (GD22), then the selected
- * slide's text in fields with live counts, saved when left changed (C1), and its fact chips, a
- * look slide's text chips (GD10) and layouts (GD5), or an old template's "Another take" (criterion 99), and the same slide of the other
- * versions with "Use here" (GD11), disabled with the reason when it cannot go in this version.
- * Then its "Details".
+ * The picked version, before the gate (GD24), in the actions area's "Your version" tab beside its
+ * slides (GD30): its look switch, then the selected slide's text in fields with live counts, saved
+ * when left changed (C1), and its fact chips, a look slide's text chips (GD10) and layouts (GD5), or
+ * an old template's "Another take" (criterion 99). Its checks and their fixes are in the "Checks"
+ * tab, and the other versions in "Versions" (17 Oct).
  */
 export function ChosenVersion(props: ChosenVersionProps) {
-  const { view, draftsId, item, facts, themeId, pending } = props
+  const { view, item, facts, pending } = props
   const ids = useId()
   const rewriting = props.rewriting ?? null
   const slides = item.structure.slides
@@ -196,14 +230,6 @@ export function ChosenVersion(props: ChosenVersionProps) {
   const attention = attentionOf(item, facts, props.claims)
   const chips = slideFacts(slide, facts)
   const source = view.current.source?.body
-  const others = props.others.flatMap(({ item: other, index: from }) => {
-    const taken = other.structure.slides[n - 1]
-    if (!taken) return []
-    const reason = slideFitsAt(item.template, taken, slide)
-      ? null
-      : `Slide ${n} of version ${versionLetter(from)} does not fit this version.`
-    return [{ other, from, taken, reason }]
-  })
 
   return (
     <Blueprint
@@ -216,50 +242,6 @@ export function ChosenVersion(props: ChosenVersionProps) {
           Your version
         </h3>
         <p className={reasonText}>{item.angle || item.template.name}</p>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <span
-          className={cn(
-            tag,
-            'self-start',
-            !props.status.ready && 'border-destructive text-destructive',
-          )}
-        >
-          {statusText(props.status)}
-        </span>
-        {props.status.problems.length > 0 && (
-          <ul className="flex flex-col gap-2">
-            {props.status.problems.map((problem) => {
-              const fix = problem.fix
-              const busy = fix ? view.running.includes(slideStep(fix.slide)) : false
-              const shortening =
-                fix !== undefined &&
-                rewriting?.via === 'shorten' &&
-                rewriting.slide === fix.slide &&
-                rewriting.nudge === fix.nudge
-              return (
-                <li key={problem.text} className="flex flex-wrap items-center gap-3">
-                  <span className="text-caption text-destructive wrap-anywhere">
-                    {problem.text}
-                  </span>
-                  {fix && props.nudgeGate.shown && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={pending || busy || props.nudgeGate.reason !== null}
-                      onClick={() => props.onNudge(fix.slide, fix.nudge, 'Shorter', 'shorten')}
-                    >
-                      {shortening && <Spin />}
-                      {shortening ? 'Running…' : 'Shorten it'}
-                    </Button>
-                  )}
-                  {shortening && <Working words="Rewriting this slide…" />}
-                </li>
-              )
-            })}
-          </ul>
-        )}
       </div>
 
       {props.controls}
@@ -349,39 +331,6 @@ export function ChosenVersion(props: ChosenVersionProps) {
           onTake={props.onTake}
         />
       )}
-
-      {props.useGate.shown && others.length > 0 && (
-        <section aria-labelledby={`${ids}-others`} className="flex flex-col gap-2">
-          <h4 id={`${ids}-others`} className="text-overline uppercase text-muted-foreground">
-            From the other versions
-          </h4>
-          <ul className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-4">
-            {others.map(({ other, from, taken, reason }) => (
-              <li key={from} className="flex flex-col gap-2">
-                <SlidePreview
-                  slide={n}
-                  draft={{ postId: view.id, draftsId, index: from, themeId }}
-                  text={wordsOf(other, taken)}
-                />
-                <span className={reasonText}>{`Version ${versionLetter(from)}`}</span>
-                <Control reason={props.useGate.reason ?? reason}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    aria-label={`Use slide ${n} of version ${versionLetter(from)} in my version`}
-                    disabled={pending || (props.useGate.reason ?? reason) !== null}
-                    onClick={() => props.onUseSlide(from, n)}
-                  >
-                    Use here
-                  </Button>
-                </Control>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {props.details}
     </Blueprint>
   )
 }

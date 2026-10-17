@@ -5,7 +5,7 @@ import { LAYOUT_LABELS, layoutIn } from '../../../layout/relayout'
 import { unboundSlots } from '../../../lib/claims'
 import type { VersionStatus } from '../../../lib/version-status'
 import type { Body } from '../../../model/artifacts'
-import type { ClaimResult, Fact, Slide } from '../../../model/types'
+import type { ClaimResult, Fact, FitCheck, Slide } from '../../../model/types'
 import { findSlideSpec, isLook } from '../../../templates'
 import { charCount, wordCount } from '../../../text/script'
 
@@ -93,4 +93,65 @@ export function countOf(
         : charCount(text)
   const unit = limit.unit === 'chars' ? 'characters' : limit.unit
   return { text: `${value} of ${limit.min}–${limit.max} ${unit}`, over: value > limit.max }
+}
+
+/** One fit row in the Checks tab's table: slot · length · limit · status, and whether it passes. */
+export type FitRow = { slot: string; length: string; limit: string; status: string; pass: boolean }
+/** The fit rows of one slide ("Slide 2"), or of the whole post (contrast, legibility), last. */
+export type FitGroup = { title: string; rows: FitRow[] }
+
+/** The group of the rows that belong to no slide. */
+export const WHOLE_POST = 'Whole post'
+
+/**
+ * A version's fit rows as the Checks tab's table (17 Oct): grouped by slide in slide order, each
+ * row its slot by its label, its length in its limit's unit, its limit and its verdict (the
+ * label's last word: "OK", "Over", "Too low"); the rows that belong to no slide last.
+ */
+export function fitTable(item: Item, checks: readonly FitCheck[]): FitGroup[] {
+  const slides = new Map<number, FitRow[]>()
+  const post: FitRow[] = []
+  for (const c of checks) {
+    const status = c.label.split(' · ').at(-1) ?? ''
+    if (c.slide === null || c.slot === null) {
+      // "Contrast · Pop block 3.1:1 · Too low" names the colour pair it measured.
+      const pair = (c.label.split(' · ')[1] ?? '').replace(/ [\d.]+:1$/, '')
+      post.push(
+        c.check === 'contrast'
+          ? {
+              slot: `Contrast · ${pair}`,
+              length: `${c.value}:1`,
+              limit: c.limit,
+              status,
+              pass: c.pass,
+            }
+          : { slot: 'Smallest text', length: `${c.value}px`, limit: c.limit, status, pass: c.pass },
+      )
+      continue
+    }
+    const at = item.structure.slides[c.slide - 1]
+    const spec = at ? findSlideSpec(item.template, at)?.slots.find((s) => s.key === c.slot) : null
+    // The limit's unit ("15–25 words", "4 lines", "0 missing") is the length's.
+    const unit = c.limit.split(' ').slice(1).join(' ')
+    const row = {
+      slot: spec?.label ?? c.slot,
+      length: `${c.value} ${unit}`,
+      limit: c.limit,
+      status,
+      pass: c.pass,
+    }
+    slides.set(c.slide, [...(slides.get(c.slide) ?? []), row])
+  }
+  return [
+    ...[...slides.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([slide, rows]) => ({ title: `Slide ${slide}`, rows })),
+    ...(post.length > 0 ? [{ title: WHOLE_POST, rows: post }] : []),
+  ]
+}
+
+/** The source check in one line: "12 found · 1 not found · 0 opinion". */
+export function claimSummary(claims: readonly ClaimResult[]): string {
+  const count = (result: ClaimResult['result']) => claims.filter((c) => c.result === result).length
+  return `${count('found')} found · ${count('not_found')} not found · ${count('opinion')} opinion`
 }

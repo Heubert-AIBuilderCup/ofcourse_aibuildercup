@@ -8,6 +8,7 @@ export { RoadmapsPage } from './components/RoadmapsPage'
 export type { LoaderKind } from './model/loader'
 export {
   answerDiffs,
+  drawerNames,
   firstMade,
   fromLine,
   isNew,

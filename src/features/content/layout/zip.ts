@@ -14,26 +14,29 @@ function slug(text: string, fallback: string): string {
   return out || fallback
 }
 
-/** `<page>_<post>_<platform>.zip`, safe to put in a Content-Disposition header as it is. */
+/**
+ * `<page>_<post>_<platform>.zip`, or `<page>_<post>_slides.zip` for a feed post's slides (Images
+ * on), safe to put in a Content-Disposition header as it is.
+ */
 export function exportName(
   page: string,
   postTitle: string,
-  platform: 'instagram' | 'linkedin',
+  platform: 'instagram' | 'linkedin' | 'slides',
 ): string {
   return `${slug(page, 'page')}_${slug(postTitle, 'post')}_${platform}.zip`
 }
 
-/** slide-1.svg, slide-1.png, …, then caption.txt. */
+/** slide-1.svg, slide-1.png, …, then caption.txt when there is a caption. */
 export function exportZip(files: {
   svgs: string[]
   pngs: Uint8Array[]
-  caption: string
+  caption?: string
 }): Uint8Array {
   const entries: Record<string, Uint8Array> = {}
   files.svgs.forEach((svg, i) => {
     entries[`slide-${i + 1}.svg`] = strToU8(svg)
     entries[`slide-${i + 1}.png`] = files.pngs[i]
   })
-  entries['caption.txt'] = strToU8(files.caption)
+  if (files.caption !== undefined) entries['caption.txt'] = strToU8(files.caption)
   return zipSync(entries)
 }

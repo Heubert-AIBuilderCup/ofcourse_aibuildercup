@@ -14,6 +14,7 @@ import { MARKETS, type MarketId } from '../../markets'
 import type { Body } from '../../model/artifacts'
 import { PhoneFeedCard } from '../PhoneFeedCard'
 import {
+  DownloadSlides,
   MarketSlides,
   marketName,
   movesWait,
@@ -185,9 +186,9 @@ export function MarketControls({ view, viewer, actions, shown, onShow }: MarketC
 
 /**
  * A rendered post as it goes out, on the Settings step beside its panels (criteria 55, 85): the
- * version the market versions' panel chose, the stored slides one per swipe or the market
- * version's, and "Preview in context", the post as a feed card. Nothing here changes a slide: the
- * pictures are on Images.
+ * version the market versions' panel chose, the stored slides or the market version's, the
+ * selected one over a filmstrip (SlideStage), and "Preview in context", the post as a feed card.
+ * Nothing here changes a slide: the pictures are on Images.
  */
 export function PostPreview({ view, shown }: { view: WorkbenchView; shown: Shown }) {
   const ids = useId()
@@ -197,19 +198,28 @@ export function PostPreview({ view, shown }: { view: WorkbenchView; shown: Shown
   const shownVersion = shown === 'market' ? market : null
 
   return (
-    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-4">
-      <h2 id={`${ids}-heading`} className="text-h3">
+    <section
+      aria-labelledby={`${ids}-heading`}
+      // From @5xl it takes the height of its area, so the slide on the stage fits the step frame.
+      className="flex flex-col gap-4 @5xl:min-h-0 @5xl:flex-1"
+    >
+      <h2 id={`${ids}-heading`} className="text-h4">
         Preview
       </h2>
       {!shownVersion && (
         <Toggle legend="View" options={PREVIEW_VIEWS} value={seen} onChange={setSeen} />
       )}
       {shownVersion ? (
-        <MarketSlides market={shownVersion.body} swipe />
+        <MarketSlides market={shownVersion.body} stage />
       ) : seen === 'context' ? (
         <ContextPreview view={view} render={render.body} />
       ) : (
-        <RenderedSlides render={render.body} layout={layout?.body.slides} swipe />
+        <RenderedSlides
+          render={render.body}
+          layout={layout?.body.slides}
+          stage
+          below={() => <DownloadSlides postId={view.id} />}
+        />
       )}
     </section>
   )
