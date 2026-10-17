@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { type Artifact, type ArtifactKind, emptyPointers, type Pointers } from './artifacts'
-import { current } from './current'
+import { current, wordingCheck } from './current'
 
 const stamp = { userId: 'u1', name: 'Ed', at: '2026-10-05T10:00:00.000Z' }
 
@@ -434,5 +434,68 @@ describe('current', () => {
     expect(c.source).toBeNull()
     expect(c.facts).toBeNull()
     expect(c.drafts).toBeNull()
+  })
+})
+
+describe('wordingCheck: the check "Use the source’s wording" reads a claim from (criterion 104)', () => {
+  const drafts = rec('drafts_2', 'drafts', { factsId: 'facts_1', items: [] })
+  const notFound = rec('source_check_2', 'source_check', {
+    revisionId: 'revision_2',
+    claims: [{ slide: 2, slot: 'body', text: 'x', result: 'not_found' }],
+    replays: [],
+  })
+  // An approved post as the Text step's Checks tab shows it: the revision's check counts.
+  const approved: Pointers = {
+    ...linked,
+    draftsId: 'drafts_2',
+    picked: 0,
+    sourceCheckId: 'source_check_2',
+  }
+  // The same post as the edit sees it once moved back to the text (server/commands/shared.ts
+  // movedBack): everything from the revision cleared, the check still named.
+  const movedBack: Pointers = {
+    ...emptyPointers(),
+    sourceId: 'source_1',
+    factsId: 'facts_1',
+    draftsId: 'drafts_2',
+    picked: 0,
+    sourceCheckId: 'source_check_2',
+  }
+  const read = (pointers: Pointers, ...list: Artifact[]) => {
+    const all = records(source, facts, drafts, ...list)
+    return wordingCheck(pointers, current(pointers, all), all)?.id ?? null
+  }
+
+  it('reads the check that counts', () => {
+    expect(read(approved, ...base, notFound)).toBe('source_check_2')
+  })
+
+  it('reads the revision’s check the Checks tab showed on a post moved back from Images, where none counts (18 Oct: stuck)', () => {
+    const all = records(source, facts, drafts, revision, notFound)
+    expect(current(movedBack, all).sourceCheck).toBeNull()
+    expect(read(movedBack, revision, notFound)).toBe('source_check_2')
+  })
+
+  it('reads none for a revision on other facts, a check that is not one, or none named', () => {
+    const otherFacts = rec('revision_2', 'revision', { factsId: 'facts_0', themeId: 't' })
+    expect(read(movedBack, otherFacts, notFound)).toBeNull()
+    expect(read(movedBack, revision)).toBeNull()
+    expect(read({ ...movedBack, sourceCheckId: null }, revision, notFound)).toBeNull()
+    const stale = rec('source_check_2', 'source_check', {
+      revisionId: null,
+      draft: { draftsId: 'drafts_1', index: 0 },
+      claims: [],
+      replays: [],
+    })
+    expect(read(movedBack, revision, stale)).toBeNull()
+  })
+
+  it('reads none for an older revision’s check while a revision is current', () => {
+    const old = rec('source_check_2', 'source_check', {
+      revisionId: 'revision_1',
+      claims: [],
+      replays: [],
+    })
+    expect(read(approved, ...base, oldRevision, old)).toBeNull()
   })
 })

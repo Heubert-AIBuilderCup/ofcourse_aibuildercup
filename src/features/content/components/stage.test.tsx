@@ -1,9 +1,10 @@
 /// <reference lib="dom" />
 /// <reference path="../../../../node_modules/@testing-library/jest-dom/types/bun.d.ts" />
 
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it, jest } from 'bun:test'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { type ReactNode, useState } from 'react'
+import { SlidePreview } from './SlidePreview'
 import {
   type ActionTab,
   ActionTabs,
@@ -14,7 +15,10 @@ import {
   shownTab,
 } from './stage'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  jest.useRealTimers()
+})
 
 // The shared pieces of the workbench's slide steps: the stage with its filmstrip, the tabs on the
 // right, and the drawer for detail opened now and then. Compared as strings and attributes.
@@ -138,6 +142,28 @@ describe('SlideStage', () => {
     expect(screen.getByText('Daily image limit reached.').textContent).toBe(
       'Daily image limit reached.',
     )
+  })
+
+  it('a slide that fails to load twice says so with Retry on the stage, and a "!" in its thumbnail (18 Oct)', () => {
+    jest.useFakeTimers()
+    const { container } = render(
+      <SlideStage
+        slides={[<SlidePreview key={1} slide={1} assetId="a1" />]}
+        selected={0}
+        onSelect={() => {}}
+      />,
+    )
+    const failAll = () => {
+      for (const img of container.querySelectorAll('img')) fireEvent.error(img)
+    }
+    failAll()
+    act(() => {
+      jest.advanceTimersByTime(2000)
+    })
+    failAll()
+    expect(screen.getAllByRole('button', { name: 'Retry' })).toHaveLength(1)
+    expect(screen.getAllByText("This slide's preview didn't load.")).toHaveLength(1)
+    expect(screen.getAllByText('!')).toHaveLength(1)
   })
 })
 

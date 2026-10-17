@@ -15,13 +15,22 @@ type Shaped = Pick<Item, 'structure' | 'template'>
 
 /**
  * The press that fixes a problem: the shorter chip on one slide (GD10), for words that do not fit;
- * a supported fact bound in an unbound slot's place (criterion 28); or the source's wording in
- * place of a sentence the check could not find, by its place in the check (criterion 104).
+ * a supported fact bound in an unbound slot's place (criterion 28); the source's wording in place
+ * of a sentence the check could not find, by its place in the check (criterion 104); or, for what
+ * no change to the words fixes, the Text tab where it is chosen (18 Oct): the colours on Style,
+ * the template's smallest text by another version.
  */
 export type ProblemFix =
   | { kind: 'nudge'; nudge: 'shorter'; slide: number }
   | { kind: 'bind'; slide: number; slot: string }
   | { kind: 'wording'; claim: number }
+  | { kind: 'open'; tab: 'Style' | 'Versions' }
+
+/** The Text tab where a failing fit row is fixed: Style for colours, Versions for the smallest text, else Checks. */
+export function fitFixTab(row: FitCheck): 'Checks' | 'Style' | 'Versions' {
+  if (row.check === 'contrast') return 'Style'
+  return row.check === 'legibility' ? 'Versions' : 'Checks'
+}
 
 /**
  * One problem: its sentence (the version cards list them), and for the Checks tab's card where it
@@ -71,6 +80,7 @@ function fitProblem(item: Shaped, row: FitCheck): VersionProblem {
       where: `Colours · ${pairOf(row.label)}`,
       what: 'Contrast too low',
       evidence: [`${row.value}:1 · needs ${row.limit}`],
+      fix: { kind: 'open', tab: 'Style' },
     }
   if (row.check === 'legibility') {
     return {
@@ -78,6 +88,7 @@ function fitProblem(item: Shaped, row: FitCheck): VersionProblem {
       where: 'Smallest text',
       what: 'Too small on a phone',
       evidence: [`${row.value}px · needs ${row.limit}`],
+      fix: { kind: 'open', tab: 'Versions' },
     }
   }
   if (slide === null || slot === null) return { text: row.label }

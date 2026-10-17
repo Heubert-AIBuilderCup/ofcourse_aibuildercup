@@ -29,14 +29,16 @@
       "bg": "#16191B",
       "ink": "#F4EFE6",
       "highlight": "#F5C542",
+      "highlightInk": "#1D1F20",
       "muted": "#B3AFA6"
     },
     {
       "id": "signal",
       "name": "Signal",
-      "bg": "#1877F2",
+      "bg": "#1260D8",
       "ink": "#FFFFFF",
       "highlight": "#F5C542",
+      "highlightInk": "#1D1F20",
       "muted": "#E3EDFD"
     }
   ]

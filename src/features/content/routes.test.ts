@@ -11,6 +11,11 @@ const ADMIN: User = { id: 'u3', role: 'admin', editor: false, reviewer: false, n
 const REVIEWER: User = { id: 'u4', role: 'user', editor: false, reviewer: true, name: 'Rev' }
 
 let session: { user: User } | null = null
+/** The session lookup failing, as it does when the database has no connection to give (18 Oct). */
+let sessionDown = false
+/** Postgres's answer when every connection slot is taken (production, 18 Oct). */
+const SLOTS_FULL =
+  'remaining connection slots are reserved for roles with privileges of the pg_use_reserved_connections role'
 const BYTES = new Uint8Array([1, 2, 3])
 const previews: unknown[] = []
 const loaded: string[] = []
@@ -99,7 +104,12 @@ const ASSETS: Record<string, { mime: string; bytes: Uint8Array }> = {
   png2: { mime: 'image/png', bytes: new Uint8Array([4, 5]) },
 }
 
-mock.module('@/shared/lib/auth/session', () => ({ getSession: async () => session }))
+mock.module('@/shared/lib/auth/session', () => ({
+  getSession: async () => {
+    if (sessionDown) throw new Error(SLOTS_FULL)
+    return session
+  },
+}))
 mock.module('@/features/content/server/store', () => ({
   getAsset: async (id: string) =>
     id === 'known' ? { mime: 'image/webp', bytes: BYTES } : id === 'drawing' ? ASSETS.svg1 : null,
@@ -120,15 +130,19 @@ mock.module('@/features/content/server/store', () => ({
 mock.module('@/features/content/server/preview', () => ({
   draftPreviewPng: async (input: unknown) => {
     previews.push(input)
+    if ((input as { draftsId: string }).draftsId === 'down') throw new Error(SLOTS_FULL)
     return (input as { draftsId: string }).draftsId === 'known' ? BYTES : null
   },
   layoutPreviewPng: async (input: unknown) => {
     previews.push(input)
+    if ((input as { layoutId: string }).layoutId === 'down') throw new Error('resvg failed')
     return (input as { layoutId: string }).layoutId === 'known' ? BYTES : null
   },
   // A plan of the layout's text gives its scenes by slide; any other is none.
-  plannedScenes: async (_postId: string, planId: string) =>
-    planId.startsWith('plan') ? [`Scene of ${planId}`, null] : null,
+  plannedScenes: async (_postId: string, planId: string) => {
+    if (planId === 'down') throw new Error(SLOTS_FULL)
+    return planId.startsWith('plan') ? [`Scene of ${planId}`, null] : null
+  },
 }))
 
 const asset = await import('../../app/admin/(console)/assets/[id]/route')
@@ -147,6 +161,7 @@ const get = (query: string) =>
 
 beforeEach(() => {
   session = null
+  sessionDown = false
   previews.length = 0
   loaded.length = 0
 })
@@ -258,6 +273,41 @@ describe('GET /admin/posts/[id]/preview', () => {
     previews.length = 0
     expect((await get('layout=known&slide=1&plan=other')).status).toBe(404)
     expect(previews).toEqual([])
+  })
+
+  test('a database or drawing error is a 503 to retry in 2 s, logged in one line without the ids, and nothing is kept (18 Oct)', async () => {
+    session = { user: STAFF }
+    const logged: unknown[][] = []
+    const error = console.error
+    console.error = (...args: unknown[]) => logged.push(args)
+    try {
+      for (const q of [
+        'drafts=down&i=0&slide=1&theme=paper',
+        'layout=down&slide=2',
+        'layout=known&slide=1&plan=down',
+      ]) {
+        const res = await get(q)
+        expect(res.status).toBe(503)
+        expect(res.headers.get('retry-after')).toBe('2')
+        expect(res.headers.get('cache-control')).toBe('no-store')
+      }
+      sessionDown = true
+      expect((await get('drafts=known&i=0&slide=1')).status).toBe(503)
+      // A failure is not kept: the same URL draws again once the database answers.
+      sessionDown = false
+      previews.length = 0
+      expect((await get('drafts=down&i=0&slide=1&theme=paper')).status).toBe(503)
+      expect(previews).toHaveLength(1)
+    } finally {
+      console.error = error
+    }
+    expect(logged.map((args) => args.join(' '))).toEqual([
+      `[preview] draft slide failed: ${SLOTS_FULL}`,
+      '[preview] layout slide failed: resvg failed',
+      `[preview] layout slide failed: ${SLOTS_FULL}`,
+      `[preview] draft slide failed: ${SLOTS_FULL}`,
+      `[preview] draft slide failed: ${SLOTS_FULL}`,
+    ])
   })
 
   test('missing or bad parameters, and unknown records, are 404', async () => {

@@ -22,6 +22,10 @@ const { RenderStep } = await import('./RenderStep')
 const place = (el: Element) => (el.closest('[aria-label="Step actions"]') ? 'bar' : 'elsewhere')
 type Props = Parameters<typeof RenderStep>[0]
 
+/** The line beside "Try again" on a cover the image model could not draw (18 Oct). */
+const GEMINI_FAILED =
+  "Gemini couldn't draw this picture (it was busy or too slow). Try this one again."
+
 const slide = (kind: LaidSlide['kind']): LaidSlide => ({
   kind,
   lines: [],
@@ -195,6 +199,25 @@ describe('RenderStep', () => {
     expect(screen.queryByRole('link', { name: 'Fix it on Text · Checks' }) === null).toBe(true)
   })
 
+  it('sends a contrast failure to where the colours are chosen, Text · Style, not to Checks (18 Oct)', () => {
+    const faint: FitCheck = {
+      ...PASS,
+      value: 4.2,
+      pass: false,
+      label: 'Contrast · Signal 4.2:1 · Too low',
+    }
+    view({ current: { ...EMPTY, layout: layout([faint]) } })
+    expect(
+      screen.getByRole('link', { name: 'Pick other colours on Text · Style' }).getAttribute('href'),
+    ).toBe('/admin/posts/p1/text?tab=Style')
+    expect(screen.queryByRole('link', { name: 'Fix it on Text · Checks' }) === null).toBe(true)
+    cleanup()
+    view({ current: { ...EMPTY, layout: layout([faint, OVER]) } })
+    expect(screen.getAllByRole('link').map((a) => a.textContent)).toEqual(
+      expect.arrayContaining(['Pick other colours on Text · Style', 'Fix it on Text · Checks']),
+    )
+  })
+
   it('renders when every fit check passes', async () => {
     view()
     await act(async () => {
@@ -251,12 +274,13 @@ describe('RenderStep', () => {
     expect(screen.getByText('Replay')).toBeInTheDocument()
   })
 
-  it('offers "Try again" on a cover with no art', async () => {
+  it('offers "Try again" on a cover with no art, saying plainly Gemini could not draw it (18 Oct)', async () => {
     view({
       stage: 'rendered',
       current: { ...EMPTY, layout: layout([PASS]), render: renderRecord('no_art') },
     })
     expect(within(stageAt(1)).queryAllByText('No art').length).toBe(1)
+    expect(screen.queryAllByText(GEMINI_FAILED).length).toBe(1)
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
     })
@@ -267,6 +291,7 @@ describe('RenderStep', () => {
     for (const stage of ['in_review', 'live'] as const) {
       view({ stage, current: { ...EMPTY, layout: layout([PASS]), render: renderRecord('no_art') } })
       expect(within(stageAt(1)).queryAllByText('No art').length).toBe(1)
+      expect(screen.queryByText(GEMINI_FAILED) === null).toBe(true)
       for (const n of [1, 2, 3]) {
         select(n)
         expect(controls().map((b) => b.textContent)).toEqual([])
@@ -285,6 +310,7 @@ describe('RenderStep', () => {
     expect(within(stageAt(1)).queryAllByText('Daily image limit reached.').length).toBe(1)
     expect(within(stageAt(1)).queryByText('No art') === null).toBe(true)
     expect(within(stageAt(2)).queryByText('Daily image limit reached.') === null).toBe(true)
+    expect(screen.queryByText(GEMINI_FAILED) === null).toBe(true)
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
     })

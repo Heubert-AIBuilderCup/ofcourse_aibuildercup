@@ -26,7 +26,7 @@ import { dailyLimitLine, stepLimitLine } from '../lib/limits'
 import { sendBackLine } from '../lib/lines'
 import { runningReason, type StepProgress } from '../lib/running'
 import { postPath, stepPath } from '../lib/steps'
-import { fitFailures } from '../lib/version-status'
+import { fitFailures, fitFixTab } from '../lib/version-status'
 import { marketById } from '../markets'
 import type { Body } from '../model/artifacts'
 import type { CurrentPost } from '../model/current'
@@ -562,15 +562,24 @@ export function RenderedSlides({
   return <div className="grid grid-cols-3 gap-2">{slides}</div>
 }
 
+/** Where a failing fit row is fixed on the Text step, by its tab, as its link reads. */
+const FIX_LINKS = {
+  Checks: 'Fix it on Text · Checks',
+  Style: 'Pick other colours on Text · Style',
+  Versions: 'Pick another version on Text · Versions',
+} as const
+
 /**
  * Why the slides wait on their fit checks (18 Oct): each failing check by slide, slot and what is
- * wrong, with its numbers, and the way to fix it, the Text step with its Checks tab open. Nothing
+ * wrong, with its numbers, and the way to fix each, the Text step with the tab that fixes it open:
+ * Checks for the words, Style for the colours, Versions for the template's smallest text. Nothing
  * when every check passes.
  */
 export function FitFailures({ postId, current }: { postId: string; current: CurrentPost }) {
   const { revision, layout } = current
   if (!layout || layout.body.fitChecks.every((c) => c.pass)) return null
   const failing = revision ? fitFailures(revision.body, layout.body.fitChecks) : []
+  const tabs = [...new Set(layout.body.fitChecks.filter((c) => !c.pass).map(fitFixTab))]
   return (
     <div className="flex flex-col gap-2">
       {failing.length > 0 && (
@@ -582,12 +591,17 @@ export function FitFailures({ postId, current }: { postId: string; current: Curr
           ))}
         </ul>
       )}
-      <Link
-        href={`${stepPath(postId, 'text')}?tab=Checks`}
-        className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'self-start')}
-      >
-        Fix it on Text · Checks
-      </Link>
+      <div className="flex flex-wrap gap-2">
+        {tabs.map((tab) => (
+          <Link
+            key={tab}
+            href={`${stepPath(postId, 'text')}?tab=${tab}`}
+            className={buttonVariants({ variant: 'outline', size: 'sm' })}
+          >
+            {FIX_LINKS[tab]}
+          </Link>
+        ))}
+      </div>
     </div>
   )
 }

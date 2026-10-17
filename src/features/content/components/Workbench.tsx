@@ -209,6 +209,8 @@ function Screen({
   const props = { view, viewer, actions }
   const k = `${step}-${view.version}`
   const open = (to: StepId) => router.push(stepPath(view.id, to))
+  // The step the post is at now, so a passed screen does not offer two ways to the same place.
+  const atStep = stepsFor(stepPost(view)).find((s) => s.state === 'current')?.id
   // A blog's outline, text and images are its own (BR2–BR4); its settings, review and live are a
   // post's with its article in place of the slides, and its posts at live (BR6). A feed post makes
   // or links its blog on its last step, Blog, which opens once it is live (BR8).
@@ -275,8 +277,9 @@ function Screen({
           ) : (
             <RenderStep {...props} slide={slide} tab={tab} />
           )}
-          {/* Once the pictures are drawn, the settings open (GD25). */}
-          {canOpen('settings', stepPost(view)) && (
+          {/* Once the pictures are drawn, the settings open (GD25); when the post is already there,
+              "Continue at Settings" is the one way on. */}
+          {canOpen('settings', stepPost(view)) && !(passed && atStep === 'settings') && (
             <StepAction>
               <Button variant={passed ? 'outline' : 'default'} onClick={() => open('settings')}>
                 Next: Settings →

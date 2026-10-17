@@ -148,3 +148,29 @@ export function current(pointers: Pointers, records: ReadonlyMap<string, Artifac
     export: exported,
   }
 }
+
+/**
+ * The check "Use the source's wording" reads a claim from (criterion 104): the one that counts;
+ * else, on a post an edit at a passed step has just moved back to its text (GD28,
+ * server/commands/shared.ts movedBack: everything from the revision cleared, the check still
+ * named), the approved revision's check the Text step's Checks tab showed, on the current facts,
+ * until the picked version is checked again. Without it the press failed on every approved post
+ * with "The source check has not finished" (18 Oct). Its claims name the slides the revision was
+ * approved from; a sentence no longer in its slot is refused as moved on. Null for none.
+ */
+export function wordingCheck(
+  pointers: Pointers,
+  c: CurrentPost,
+  records: ReadonlyMap<string, Artifact>,
+): With<'source_check'> {
+  if (c.sourceCheck || c.revision || pointers.sourceCheckId === null) return c.sourceCheck
+  const record = records.get(pointers.sourceCheckId)
+  if (record?.kind !== 'source_check') return null
+  const body = record.body as Body<'source_check'>
+  const revision = body.revisionId === null ? undefined : records.get(body.revisionId)
+  const onFacts =
+    revision?.kind === 'revision' &&
+    (revision.body as Body<'revision'>).factsId === c.facts?.id &&
+    body.blogTextId === undefined
+  return onFacts ? { id: record.id, body } : null
+}

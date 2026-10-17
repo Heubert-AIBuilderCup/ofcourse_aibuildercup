@@ -8,6 +8,7 @@ import {
   WORKFLOW_ERRORS,
 } from '../../lib/workflow'
 import type { Body, SendBackStep } from '../../model/artifacts'
+import { wordingCheck } from '../../model/current'
 import { type FeedSettings, FeedSettingsSchema, type SourcesAt } from '../../model/types'
 import { isLook } from '../../templates'
 import { runStep } from '../steps'
@@ -71,7 +72,9 @@ export async function applySourceWording(
   claim: number,
 ): Promise<Saved> {
   return command('applySourceWording', 'sourceWording', actor, id, version, async (post) => {
-    const check = post.current.sourceCheck
+    // From Images the edit has moved the post back to its text, where the revision's check the
+    // editor read the claim from no longer counts; it is still the one she pressed (18 Oct).
+    const check = wordingCheck(post.pointers, post.current, post.records)
     if (!check) return fail(WORKFLOW_ERRORS.checkFirst)
     const target = check.body.claims[claim]
     const wording = target?.result === 'not_found' ? target.suggestion?.text : undefined

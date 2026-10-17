@@ -8,7 +8,7 @@ import { NativeSelect } from '@/shared/components/ui/native-select'
 import { Textarea } from '@/shared/components/ui/textarea'
 import { Spin, Working } from '@/shared/components/Working'
 import type { Staff } from '@/shared/lib/auth/access'
-import { failureSentence } from '../../lib/failure'
+import { GEMINI_DRAW_FAILED } from '../../lib/failure'
 import {
   ACTION_STAGES,
   actionError,
@@ -133,9 +133,9 @@ function missingLabel(art: SlideArt | undefined): string {
   return art.fallback === 'daily_limit' ? FALLBACK_LABELS.daily_limit : 'Could not draw'
 }
 
-/** Why a picture could not be drawn, when its last call said (busy or too slow); null otherwise. */
+/** Why a picture could not be drawn: Gemini, with this one picture to try again (18 Oct); null otherwise. */
 const failedWhy = (art: SlideArt | undefined): string | null =>
-  art?.fallback === 'no_art' ? failureSentence(art.reason) : null
+  art?.fallback === 'no_art' ? GEMINI_DRAW_FAILED : null
 
 /** A slide's earlier takes from the post's renders, newest first, each image once, without the one in use. */
 function earlierTakes(all: readonly SlideArt[], slide: number, inUse: string | null): SlideArt[] {

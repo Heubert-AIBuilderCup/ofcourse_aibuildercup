@@ -1166,6 +1166,22 @@ describe('StructuresStep for a look post (GD2, GD4, GD5, GD9–GD11)', () => {
     expect(actions.nudgeSlideAction).toHaveBeenCalledWith('p1', 4, { slide: 2, nudge: 'shorter' })
   })
 
+  it('fixes a colour pair too faint to read from "Checks" by opening Style, where the colours are chosen (18 Oct)', () => {
+    const faint: FitCheck = {
+      ...CONTRAST,
+      value: 3.1,
+      pass: false,
+      label: 'Contrast · Pop block 3.1:1 · Too low',
+    }
+    view({ ...LOOK, draftChecks: [[faint], [CONTRAST], [CONTRAST]] })
+    const row = fixCard('Contrast too low')
+    expect(row.textContent).toContain('Colours · Pop block')
+    fireEvent.click(within(row).getByRole('button', { name: 'Pick other colours in Style' }))
+    expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe(
+      screen.getByRole('tab', { name: 'Style' }).id,
+    )
+  })
+
   it('shows the selected slide’s text with its counts and its fact chips beside it (GD24)', () => {
     view(LOOK)
     select(2)

@@ -313,7 +313,7 @@ export function OutlineStep({ view, viewer, actions }: OutlineStepProps) {
             {writeGate.shown && (
               <StepAction>
                 {pressed('write') && (
-                  <Working words="Writing three versions of the slides · this can take a minute" />
+                  <Working words="Writing three text versions of the slides · this can take a minute" />
                 )}
                 <Control reason={writeGate.reason}>
                   <Button disabled={blocked || writeGate.reason !== null} onClick={write}>
