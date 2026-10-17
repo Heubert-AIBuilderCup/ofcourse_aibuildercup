@@ -1380,7 +1380,7 @@ const STUDENT_WORDS_SCHEMA = z.object({
  */
 export const STUDENT_WORDS: PromptSpec<typeof STUDENT_WORDS_SCHEMA> = {
   useCase: 'student_words',
-  version: 'student_words.v2',
+  version: 'student_words.v3',
   tier: 'lite', // criterion 71
   maxTier: 'flash', // a student prompt never reaches Pro (criterion 79)
   temperature: 0.1,
@@ -1399,14 +1399,14 @@ export const STUDENT_WORDS: PromptSpec<typeof STUDENT_WORDS_SCHEMA> = {
   ],
   example: {
     data: {
-      text: 'mero family le 26 lakh dincha, I want to do cyber security. bit worried about being alone',
+      text: 'mero family le 26 lakh dincha, I want to do a masters in cyber security. bit worried about being alone',
       questions: [
         {
           key: 'amount',
           question: 'Amount',
           options: ['AUD 24k', 'AUD 30k', 'AUD 36k', 'AUD 42k'],
         },
-        { key: 'who', question: 'Who pays', options: ['Family', 'Savings', 'Loan', 'A mix'] },
+        { key: 'level', question: 'Study level', options: ['Diploma', "Bachelor's", "Master's"] },
         {
           key: 'field',
           question: 'Which field?',
@@ -1417,7 +1417,7 @@ export const STUDENT_WORDS: PromptSpec<typeof STUDENT_WORDS_SCHEMA> = {
     answer: {
       chips: [
         { key: 'amount', value: 'AUD 30k', quote: '26 lakh' },
-        { key: 'who', value: 'Family', quote: 'mero family le 26 lakh dincha' },
+        { key: 'level', value: "Master's", quote: 'a masters' },
         { key: 'field', value: 'Cyber security', quote: 'cyber security' },
       ],
       tags: [

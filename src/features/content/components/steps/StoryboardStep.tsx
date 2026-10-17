@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useId, useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
+import { Spin, Working } from '@/shared/components/Working'
 import type { Staff } from '@/shared/lib/auth/access'
 import { cn } from '@/shared/lib/utils'
 import { PRESETS } from '../../brands/guideline'
@@ -23,12 +24,11 @@ import type { EditableSlot } from '../EditableSlidePreview'
 import {
   ChangesNote,
   Control,
+  FailedLine,
   ReorderButtons,
   reasonText,
-  Spin,
   StepAction,
   StepAreas,
-  Working,
 } from '../parts'
 import { isLong, SlotField } from '../SlotField'
 import { usePostAction } from '../usePostAction'
@@ -320,7 +320,7 @@ export function StoryboardStep({ view, viewer, actions, slide }: StoryboardStepP
             {drafting && <Working words={running(['draft']) ?? ''} />}
             {failed && draftGate.shown && (
               <div className="flex flex-col gap-2">
-                <p className={reasonText}>{STORY_FAILED}</p>
+                <FailedLine words={STORY_FAILED} reason={view.failedReasons?.draft} />
                 <Control reason={draftGate.reason}>
                   <Button
                     disabled={pending || draftGate.reason !== null}

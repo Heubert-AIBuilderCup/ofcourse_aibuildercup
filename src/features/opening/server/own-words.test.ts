@@ -148,19 +148,11 @@ describe('readOwnWords (36, 37, 40, 42)', () => {
       questions: { key: string; options: string[] }[]
     }
     expect(data.text).toBe(STUDY_TEXT)
-    expect(data.questions.map((q) => q.key)).toEqual([
-      'know',
-      'field',
-      'areas',
-      'level',
-      'learn',
-      'length',
-    ])
+    expect(data.questions.map((q) => q.key)).toEqual(['know', 'field', 'areas', 'level'])
     expect(res?.failed).toBe(false)
     expect(res?.chips.map((c) => [c.key, c.value, c.quote])).toEqual([
       ['field', 'Data science', 'data science'],
       ['level', "Master's", 'masters'],
-      ['learn', 'Hands-on with placements', 'hands-on'],
     ])
     expect(saveOwnWords).toHaveBeenCalledTimes(1)
     expect(saveOwnWords).toHaveBeenCalledWith('student-1', 'study', STUDY_TEXT)
@@ -376,7 +368,7 @@ describe('the student words spec', () => {
   it('runs on Flash-Lite and never climbs past Flash (criteria 71, 79)', () => {
     expect(STUDENT_WORDS).toMatchObject({
       useCase: 'student_words',
-      version: 'student_words.v2',
+      version: 'student_words.v3',
       tier: 'lite',
       maxTier: 'flash',
     })

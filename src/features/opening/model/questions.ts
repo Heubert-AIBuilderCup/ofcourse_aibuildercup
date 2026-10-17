@@ -235,6 +235,25 @@ export function isVisible(key: QuestionKey, answers: StoredAnswers): boolean {
 }
 
 /**
+ * Questions no longer asked (16 Oct 2026): their answers change nothing she sees. They keep their
+ * keys, options and stored answers, which stay readable; onboarding, Your answers and her own
+ * words just never ask them.
+ */
+export const HIDDEN_QUESTIONS: ReadonlySet<QuestionKey> = new Set<QuestionKey>([
+  'who',
+  'learn',
+  'length',
+  'climate',
+  'earn',
+  'settle',
+])
+
+/** Whether onboarding asks this question for these answers: shown, and not hidden. */
+export function isAsked(key: QuestionKey, answers: StoredAnswers): boolean {
+  return !HIDDEN_QUESTIONS.has(key) && isVisible(key, answers)
+}
+
+/**
  * Her person, only while screen 3 still shows that she knows someone: a "Yes" left behind when
  * community turned "No" no longer counts, so no future measures from someone she can't see.
  */

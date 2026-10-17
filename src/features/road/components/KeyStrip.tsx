@@ -73,7 +73,7 @@ const LINES = [
  * draws them, and Got it. On her first visit it shows by itself; Map key shows and hides it. On a
  * phone it sits under the top controls, two columns with Got it beside both rows.
  */
-export function KeyStrip({ onClose }: { onClose: () => void }) {
+export function KeyStrip({ onClose, className }: { onClose: () => void; className?: string }) {
   return (
     <div
       role="note"
@@ -83,6 +83,7 @@ export function KeyStrip({ onClose }: { onClose: () => void }) {
         styles.key,
         'absolute top-4 left-4 z-30 flex items-center gap-x-3 gap-y-1 py-1 pr-1 pl-2.5 text-caption whitespace-nowrap',
         '@max-xl:top-26 @max-xl:right-3 @max-xl:left-3 @max-xl:grid @max-xl:grid-cols-[1fr_1fr_auto] @max-xl:whitespace-normal',
+        className,
       )}
     >
       {LINES.map((l) => (

@@ -154,18 +154,17 @@ export const CHECK_CASES: readonly CheckCase[] = [
     null,
     (read) => keeps(read, 'field'),
   ),
-  // Amounts are AUD thousands once checkOwnWords has converted and snapped them.
+  // Amounts are AUD thousands once checkOwnWords has converted and snapped them. Who pays is
+  // hidden (16 Oct 2026), so her father paying is no chip to keep.
   wordsCase(
     'words-nepali',
     'facts',
     'mero budget 25 lakh jati ho, ghar ma buwa le tirnuhuncha',
     'Nepal',
-    (read) => [
-      ...(read.chips.some((c) => c.key === 'amount' && typeof c.value === 'number')
+    (read) =>
+      read.chips.some((c) => c.key === 'amount' && typeof c.value === 'number')
         ? []
-        : ['No amount chip in AUD was kept.']),
-      ...keeps(read, 'who'),
-    ],
+        : ['No amount chip in AUD was kept.'],
   ),
   // Judged by the words labelled as her feeling, never the app's own word list.
   wordsCase(

@@ -10,6 +10,7 @@ import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { NativeSelect } from '@/shared/components/ui/native-select'
 import { Textarea } from '@/shared/components/ui/textarea'
+import { Spin, Working } from '@/shared/components/Working'
 import type { SuggestedSource } from '../../ai/search'
 import { FEED_POST_PAGES } from '../../brands'
 import { LANGUAGES, type Language, type LanguageId } from '../../languages'
@@ -17,9 +18,12 @@ import type { IdeaStart } from '../../lib/idea-start'
 import { SOURCE_ERRORS, SOURCE_LIMITS } from '../../model/artifacts'
 import type { Made, Suggested } from '../../server/commands'
 import { firstChars } from '../../text/script'
+import { usePress } from '../usePostAction'
 
 const NETWORK_ERROR = 'Could not reach the server. Please try again.'
 const DEFAULT_KIND = 'research summary'
+/** What "Make post" and "Use these" say while the source is read and its ideas found. */
+const READING = 'Reading the source and finding ideas · this can take a minute'
 
 /** The links field's lines, trimmed, blank ones dropped. */
 export function linkLines(links: string): string[] {
@@ -208,11 +212,14 @@ function IdeaSources({
   find,
   onUse,
   busy,
+  using,
   initial = '',
 }: {
   find: (input: unknown) => Promise<Suggested>
   onUse: (links: string[]) => void
   busy: boolean
+  /** "Use these" was pressed and its post is being made. */
+  using: boolean
   /** The idea it opens with, from the Ideas queue or an evidence gap. */
   initial?: string
 }) {
@@ -277,8 +284,10 @@ function IdeaSources({
         </p>
         <div className="flex items-center gap-4">
           <Button type="button" variant="outline" disabled={empty || finding} onClick={search}>
+            {finding && <Spin />}
             {finding ? 'Finding…' : 'Find sources'}
           </Button>
+          {finding && <Working words="Searching for sources…" />}
           {error && (
             <p role="alert" className="text-caption text-destructive">
               {error}
@@ -326,8 +335,10 @@ function IdeaSources({
               disabled={busy || chosen.length === 0 || tooMany}
               onClick={() => onUse(chosen)}
             >
-              Use these
+              {using && <Spin />}
+              {using ? 'Running…' : 'Use these'}
             </Button>
+            {using && <Working words={READING} />}
             {tooMany && <p className="text-caption text-destructive">{SOURCE_ERRORS.links}</p>}
           </div>
         </div>
@@ -384,6 +395,9 @@ export function SourceForm({
   const [error, setError] = useState<string | null>(null)
   const [failed, setFailed] = useState<Failed[]>([])
   const [pending, startTransition] = useTransition()
+  // Which press is making the post: the form's own button, or "Use these".
+  const { mark, pressed } = usePress<'form' | 'sources'>(pending)
+  const making = pressed('form')
   const links = linkLines(values.links)
   // Pasted text needs its title; links alone may take the first page's.
   const pasted = pasting && values.text.trim() !== ''
@@ -391,7 +405,8 @@ export function SourceForm({
   const blocked = empty || sourceFieldsError(values, pasting) !== null
 
   /** "Make post" with these links, from the form or from "Use these". */
-  const make = (sending: string[]) => {
+  const make = (sending: string[], from: 'form' | 'sources') => {
+    mark(from)
     setError(null)
     setFailed([])
     startTransition(async () => {
@@ -424,7 +439,7 @@ export function SourceForm({
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    if (!blocked) make(links)
+    if (!blocked) make(links, 'form')
   }
 
   /** The ticked pages in the Links field, then "Make post" as for links (GD18, GD19, BR13). */
@@ -432,7 +447,7 @@ export function SourceForm({
     const next = { ...values, links: urls.join('\n') }
     setValues(next)
     // Pasted text with the links says so under the field, as typed links would.
-    if (sourceFieldsError(next, pasting) === null) make(urls)
+    if (sourceFieldsError(next, pasting) === null) make(urls, 'sources')
   }
 
   return (
@@ -475,6 +490,7 @@ export function SourceForm({
           find={actions.suggestSourcesAction}
           onUse={useSources}
           busy={pending}
+          using={pressed('sources')}
           initial={idea?.text}
         />
       ) : (
@@ -508,8 +524,10 @@ export function SourceForm({
       </div>
       <div className="flex items-center gap-4">
         <Button type="submit" disabled={blocked || pending}>
-          {pending ? 'Running…' : error ? 'Try again' : `Make ${noun}`}
+          {making && <Spin />}
+          {making ? 'Running…' : error ? 'Try again' : `Make ${noun}`}
         </Button>
+        {making && <Working words={READING} />}
         {error && (
           <p role="alert" className="text-caption text-destructive">
             {error}

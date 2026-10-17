@@ -331,3 +331,30 @@ it('outlines a blog angle with "Use this angle", by its place, with no combining
   expect(actions.pickIdeasAction).not.toHaveBeenCalled()
   expect(push).toHaveBeenCalledWith('/admin/posts/p1/outline')
 })
+
+it('while "Use this idea" outlines, says so beside it, the pressed button waiting as "Running…" and "More ideas" as it reads', async () => {
+  let answer: (saved: Saved) => void = () => {}
+  actions.pickIdeasAction.mockImplementationOnce(
+    () =>
+      new Promise<Saved>((resolve) => {
+        answer = resolve
+      }),
+  )
+  step()
+  await use('The 20-hour line')
+  const buttons = (label: string) =>
+    screen
+      .queryAllByRole('button')
+      .filter((b) => b.textContent === label)
+      .map((b) => (b as HTMLButtonElement).disabled)
+  try {
+    expect(screen.queryAllByRole('status').map((s) => s.textContent)).toEqual([
+      'Outlining the idea…',
+    ])
+    expect(buttons('Running…')).toEqual([true])
+    expect(buttons('More ideas')).toEqual([true])
+  } finally {
+    // A transition left hanging would hold every later one in this file.
+    await act(async () => answer({ ok: true, id: 'p1', version: 5 }))
+  }
+})

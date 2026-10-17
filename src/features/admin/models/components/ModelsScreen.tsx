@@ -24,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/components/ui/table'
+import { Spin, Working } from '@/shared/components/Working'
 import { formatWhen } from '@/shared/lib/site'
 import { cn } from '@/shared/lib/utils'
 import type { ActionResult } from '@/shared/types/action-result'
@@ -261,11 +262,12 @@ function ManageBar({ actions, canReset }: { actions: Actions; canReset: boolean 
           disabled={students.pending}
           onClick={() => students.run(actions.testStudentCalls, (res) => setRows(res.rows))}
         >
+          {students.pending && <Spin />}
           Test all student calls
         </Button>
         {canReset && <ResetToDefaults reset={actions.reset} />}
       </div>
-      {students.pending && <p className={hint}>Testing the student calls…</p>}
+      {students.pending && <Working words="Testing the student calls…" />}
       <Refusal error={students.error} />
       {rows && (
         <ul role="status" className="flex flex-col gap-1 text-caption">
@@ -356,9 +358,10 @@ function UseCaseRow({
                 )
               }
             >
+              {test.pending && <Spin />}
               Test
             </Button>
-            {test.pending && <p className={hint}>Testing…</p>}
+            {test.pending && <Working words="Testing… one call, up to half a minute" />}
             {result && (
               <p
                 role="status"
@@ -448,7 +451,7 @@ function TierRow({
               )
             }
           />
-          {change.pending && <p className={hint}>Testing the new model…</p>}
+          {change.pending && <Working words="Testing the new model…" />}
           {result && <p role="status" className="text-caption">{`Saved. ${resultLine(result)}`}</p>}
           <Refusal error={change.error} />
         </TableCell>
@@ -503,6 +506,7 @@ function ChangePicker({
         disabled={pending || choice === '' || choice === saved}
         onClick={() => onChange(choice)}
       >
+        {pending && <Spin />}
         Change
       </Button>
     </div>

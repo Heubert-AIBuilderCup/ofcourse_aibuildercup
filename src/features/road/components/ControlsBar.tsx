@@ -1,5 +1,7 @@
-import { Columns2, ListChecks, MessageCircle } from 'lucide-react'
-import { Button } from '@/shared/components/ui/button'
+import { ListChecks, Newspaper } from 'lucide-react'
+import Link from 'next/link'
+import { Button, buttonVariants } from '@/shared/components/ui/button'
+import { FEED_PATH } from '@/shared/lib/auth/gate'
 import { cn } from '@/shared/lib/utils'
 import type { Weight } from '../model/road-data'
 
@@ -7,16 +9,14 @@ const CONTROL =
   'h-auto min-h-15 flex-col gap-1 rounded-none px-1 py-1.5 font-sans text-caption font-normal'
 
 /**
- * Below 64rem the board's controls sit in a bar along its foot: Ask, Weights (her weights as bars),
- * Compare. Ask and Compare are not here yet (`onLater` says so); Weights does nothing this round.
+ * Below 64rem the board's controls sit in a bar along its foot: Feed, Your answers, Weights (her
+ * weights as bars). Weights does nothing this round.
  */
 export function ControlsBar({
   weights,
-  onLater,
   onAnswers,
 }: {
   weights: Weight[]
-  onLater: () => void
   /** Opens Your answers over the board; absent on a draft, where they are already open. */
   onAnswers?: () => void
 }) {
@@ -25,13 +25,13 @@ export function ControlsBar({
       aria-label="Controls"
       className={cn(
         'hidden border-t bg-background @max-5xl:grid',
-        onAnswers ? 'grid-cols-4' : 'grid-cols-3',
+        onAnswers ? 'grid-cols-3' : 'grid-cols-2',
       )}
     >
-      <Button type="button" variant="ghost" className={CONTROL} onClick={onLater}>
-        <MessageCircle aria-hidden="true" strokeWidth={1.5} className="size-icon-lg" />
-        Ask · 1
-      </Button>
+      <Link href={FEED_PATH} className={cn(buttonVariants({ variant: 'ghost' }), CONTROL)}>
+        <Newspaper aria-hidden="true" strokeWidth={1.5} className="size-icon-lg" />
+        Feed
+      </Link>
       {onAnswers ? (
         <Button
           type="button"
@@ -54,10 +54,6 @@ export function ControlsBar({
           ))}
         </span>
         Weights
-      </Button>
-      <Button type="button" variant="ghost" className={cn(CONTROL, 'border-l')} onClick={onLater}>
-        <Columns2 aria-hidden="true" strokeWidth={1.5} className="size-icon-lg" />
-        Compare
       </Button>
     </nav>
   )

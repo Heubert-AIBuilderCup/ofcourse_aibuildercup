@@ -8,6 +8,7 @@ import { Checkbox } from '@/shared/components/ui/checkbox'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { NativeSelect } from '@/shared/components/ui/native-select'
+import { Spin, Working } from '@/shared/components/Working'
 import type { Staff } from '@/shared/lib/auth/access'
 import { cn } from '@/shared/lib/utils'
 import { FEED_BRAND, FEED_POST_PAGES, PAGE_BRANDS } from '../../brands'
@@ -35,18 +36,17 @@ import { firstChars } from '../../text/script'
 import {
   ChangesNote,
   Control,
+  FailedLine,
   movesWait,
   reasonText,
-  Spin,
   StepAction,
   StepAreas,
   StepBack,
   Toggle,
   tag,
-  Working,
 } from '../parts'
 import { SlidePreview } from '../SlidePreview'
-import { usePostAction } from '../usePostAction'
+import { usePressedAction } from '../usePostAction'
 import type { WorkbenchActions, WorkbenchView } from '../Workbench'
 import { ChosenSlides, ChosenVersion } from './text/ChosenVersion'
 import { type CheckState, type Gate, type Item, statusText, wordsOf } from './text/shared'
@@ -101,6 +101,19 @@ const PRESET_OPTIONS: { id: Preset; label: string }[] = [
 ]
 
 /**
+ * A press running, by its action, and what it is on: a version's chip (`index`, `nudge`), a slide's
+ * chip (`slide`, `nudge`, and `via` the one pressed, "Shorten it" or a chip under the slide) or its
+ * take (`slide`).
+ */
+type Press = {
+  action: PostAction
+  index?: number
+  slide?: number
+  nudge?: string
+  via?: 'shorten' | 'chip'
+}
+
+/**
  * The text step (GD25): a look post's versions drafted for its idea (GD2), an older post's for its
  * ticked templates (criteria 25–35, 69, 97). Each version is a card with its angle, one status tag
  * and its slides in a strip, its problems in sentences, and its slot list, fact chips and fit
@@ -125,9 +138,10 @@ export function StructuresStep({
   onBackToIdeas,
   slide,
 }: StructuresStepProps) {
-  const { pending, run, error } = usePostAction()
+  const { pending, run, error, current: press, last } = usePressedAction<Press>()
   const router = useRouter()
-  const [busy, setBusy] = useState<PostAction | null>(null)
+  // The press running for `action`, with what it is on, or null.
+  const pressing = (action: PostAction) => (press?.action === action ? press : null)
   // The slot the last edit was for, where its refusal shows (C1).
   const [edited, setEdited] = useState<{ slide: number; slot: string } | null>(null)
   const [ticks, setTicks] = useState<string[]>(view.pointers.ticked)
@@ -159,10 +173,10 @@ export function StructuresStep({
   // viewer who may not edit sees the approved version alone.
   const editing =
     view.stage === 'structures' || actionError('editSlot', viewer, view.stage) === null
-  const drafting = view.running.includes('draft') || (pending && busy === 'draft')
+  const drafting = view.running.includes('draft') || pressing('draft') !== null
   // The last drafting failed, the one "Make post" started or one pressed (criterion 93).
   const draftFailed = !drafting && (view.failed?.includes('draft') ?? false)
-  const checking = view.running.includes(CHECK_STEP) || (pending && busy === 'sourceCheck')
+  const checking = view.running.includes(CHECK_STEP) || pressing('sourceCheck') !== null
 
   // At a passed step every edit waits while any step of the post runs (criterion 122).
   const anyRunning = movesWait(view.running, view.progress)
@@ -170,15 +184,13 @@ export function StructuresStep({
     const error = editWaitError(action, viewer, view.stage, anyRunning)
     return { shown: error !== WORKFLOW_ERRORS.notAuthorised, reason: error }
   }
+  /** A press of `action`, run as the step's presses are (usePressedAction), `on` what it is on. */
   const act = (
     action: PostAction,
     work: () => Promise<Saved>,
     success: string,
-    onDone?: () => void,
-  ) => {
-    setBusy(action)
-    run(work, success, onDone)
-  }
+    options: { onDone?: () => void; on?: Omit<Press, 'action'> } = {},
+  ) => run(work, success, { onDone: options.onDone, press: { action, ...options.on } })
 
   // A post from before the looks ticks from its own templates (GD8).
   const offered = ticksLegacy(pointers.ticked) ? LEGACY_TEMPLATES : TEMPLATES
@@ -228,7 +240,7 @@ export function StructuresStep({
       'Text saved',
     )
   }
-  const editError = busy === 'editSlot' && error && edited ? { ...edited, error } : null
+  const editError = last?.action === 'editSlot' && error && edited ? { ...edited, error } : null
   // The picked version, edited on its slides before the gate (GD24), for a viewer who may edit.
   const chosenItem = pointers.picked === null ? undefined : items[pointers.picked]
   const chosen =
@@ -269,8 +281,9 @@ export function StructuresStep({
   useEffect(() => {
     if (autoPick === null || draftsId === null || autoPicked.current === draftsId) return
     autoPicked.current = draftsId
-    setBusy('pick')
-    run(() => actions.pickAction(view.id, view.version, autoPick), 'Version picked')
+    run(() => actions.pickAction(view.id, view.version, autoPick), 'Version picked', {
+      press: { action: 'pick' },
+    })
   }, [autoPick, draftsId, run, actions, view.id, view.version])
   // The picked version's checks, which "See checks" opens.
   const checksId = `${ids}-checks`
@@ -338,6 +351,7 @@ export function StructuresStep({
         lookGate={lookGate}
         nudgeGate={chips ? versionNudgeGate : { shown: false, reason: null }}
         running={versionRunning}
+        rewriting={pressing('nudgeVersion')?.index === index ? (press?.nudge ?? null) : null}
         pending={pending}
         onLook={(look) =>
           act(
@@ -351,6 +365,7 @@ export function StructuresStep({
             'nudgeVersion',
             () => actions.nudgeVersionAction(view.id, view.version, { index, nudge }),
             `Version ${versionLetter(index)}: ${label}`,
+            { on: { index, nudge } },
           )
         }
       />
@@ -549,7 +564,9 @@ export function StructuresStep({
                     </div>
                   </fieldset>
                 )}
-                {draftGate.shown && draftFailed && <p className={reasonText}>{DRAFT_FAILED}</p>}
+                {draftGate.shown && draftFailed && (
+                  <FailedLine words={DRAFT_FAILED} reason={view.failedReasons?.draft} />
+                )}
                 {draftGate.shown && (
                   <Control reason={draftReason}>
                     {drafting ? (
@@ -591,6 +608,8 @@ export function StructuresStep({
             {chosen && chosenStatus && drafts && (
               <ChosenVersion
                 selected={selection.selected}
+                rewriting={pressing('nudgeSlide')}
+                taking={pressing('redraftSlide')?.slide ?? null}
                 view={view}
                 draftsId={drafts.id}
                 item={chosen.item}
@@ -616,13 +635,15 @@ export function StructuresStep({
                     'redraftSlide',
                     () => actions.redraftSlideAction(view.id, view.version, slide),
                     `Another take on slide ${slide}`,
+                    { on: { slide } },
                   )
                 }
-                onNudge={(slide, nudge, label) =>
+                onNudge={(slide, nudge, label, via) =>
                   act(
                     'nudgeSlide',
                     () => actions.nudgeSlideAction(view.id, view.version, { slide, nudge }),
                     `Slide ${slide}: ${label}`,
+                    { on: { slide, nudge, via } },
                   )
                 }
                 onLayout={(slide, layout) =>
@@ -748,7 +769,10 @@ export function StructuresStep({
                           () => actions.approveStructureAction(view.id, view.version),
                           'Text approved · on to the images',
                           // Approved, the post is at the images: its screen opens (GD27).
-                          () => router.push(stepPath(view.id, stepOfStage('approved', false))),
+                          {
+                            onDone: () =>
+                              router.push(stepPath(view.id, stepOfStage('approved', false))),
+                          },
                         )
                       }
                     >
@@ -870,11 +894,13 @@ function VersionControls(props: {
   lookGate: Gate
   nudgeGate: Gate
   running: boolean
+  /** The chip pressed on this version while it is being redrafted, or null. */
+  rewriting: string | null
   pending: boolean
   onLook: (look: string) => void
   onNudge: (nudge: string, label: string) => void
 }) {
-  const { lookGate, nudgeGate, pending, running } = props
+  const { lookGate, nudgeGate, pending, running, rewriting } = props
   if (!lookGate.shown && !nudgeGate.shown) return null
   return (
     <div className="flex flex-col gap-3">
@@ -895,7 +921,11 @@ function VersionControls(props: {
       )}
       {nudgeGate.shown && (
         <div className="flex flex-col gap-2">
-          {running && <Working words={movesWait([VERSION_STEP]) ?? ''} />}
+          {running ? (
+            <Working words={movesWait([VERSION_STEP]) ?? ''} />
+          ) : (
+            rewriting && <Working words="Rewriting this version…" />
+          )}
           <Control reason={nudgeGate.reason}>
             {TEXT_NUDGES.map((n) => (
               <Button
@@ -906,6 +936,7 @@ function VersionControls(props: {
                 disabled={pending || running || nudgeGate.reason !== null}
                 onClick={() => props.onNudge(n.id, n.label)}
               >
+                {rewriting === n.id && <Spin />}
                 {n.label}
               </Button>
             ))}

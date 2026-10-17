@@ -377,6 +377,35 @@ describe('RenderStep', () => {
       expect(actions.makeCoversAction).toHaveBeenLastCalledWith('p1', 7, '')
     })
 
+    it('while "Make covers" draws, says so, only it waiting as "Running…" and "Try again" as it reads', async () => {
+      let answer: (saved: Saved) => void = () => {}
+      actions.makeCoversAction.mockImplementationOnce(
+        () =>
+          new Promise<Saved>((resolve) => {
+            answer = resolve
+          }),
+      )
+      edited({}, EDITOR, fourSlides({ fallback: 'no_art' }))
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Make covers' }))
+      })
+      const buttons = (label: string) =>
+        screen
+          .queryAllByRole('button')
+          .filter((b) => b.textContent === label)
+          .map((b) => (b as HTMLButtonElement).disabled)
+      try {
+        expect(screen.queryAllByRole('status').map((s) => s.textContent)).toEqual([
+          'Drawing three covers · about a minute',
+        ])
+        expect(buttons('Running…')).toEqual([true])
+        expect(buttons('Try again')).toEqual([true])
+      } finally {
+        // A transition left hanging would hold every later one in this file.
+        await act(async () => answer({ ok: true, id: 'p1', version: 8 }))
+      }
+    })
+
     it('shows each option as the cover drawn with its art, labels one with none, and uses the one picked (6, 102, 103)', async () => {
       edited({}, EDITOR, fourSlides(), COVERS)
       const options = within(screen.getByRole('list', { name: 'Cover options' }))

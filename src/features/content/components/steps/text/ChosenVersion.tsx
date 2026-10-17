@@ -3,8 +3,10 @@
 import { type ReactNode, useId } from 'react'
 import { Blueprint } from '@/shared/components/Blueprint'
 import { Button } from '@/shared/components/ui/button'
+import { Spin, Working } from '@/shared/components/Working'
 import { cn } from '@/shared/lib/utils'
 import { layoutIn, layoutOptions } from '../../../layout/relayout'
+import type { FailureReason } from '../../../lib/failure'
 import { paragraphSite } from '../../../lib/sites'
 import { type VersionStatus, versionLetter } from '../../../lib/version-status'
 import type { Box, ClaimResult, Fact, FitCheck, LayoutId } from '../../../model/types'
@@ -13,7 +15,7 @@ import { findSlideSpec, isLook, slideFitsAt } from '../../../templates'
 import { EditableSlidePreview, type EditableSlot } from '../../EditableSlidePreview'
 import { FactNumber } from '../../FactChip'
 import { LayoutPicker } from '../../LayoutPicker'
-import { Control, movesWait, reasonText, Spin, tag, Working } from '../../parts'
+import { Control, FailedLine, movesWait, reasonText, tag } from '../../parts'
 import { CANVAS_HEIGHT, SlidePreview } from '../../SlidePreview'
 import { isLong, SlotField } from '../../SlotField'
 import type { WorkbenchView } from '../../Workbench'
@@ -141,6 +143,10 @@ export type ChosenVersionProps = {
   facts: Fact[]
   themeId: string
   pending: boolean
+  /** The slide and chip of a slide chip or "Shorten it" pressed and running, and which (`via`), or null. */
+  rewriting?: { slide?: number; nudge?: string; via?: 'shorten' | 'chip' } | null
+  /** The slide whose "Another take" was pressed and is running, or null. */
+  taking?: number | null
   /** Its status (lib/version-status.ts): the problems, each with its fix where one exists. */
   status: VersionStatus
   /** Its source check's results, for the slots that need attention. */
@@ -158,7 +164,8 @@ export type ChosenVersionProps = {
   controls: ReactNode
   onEdit: (slide: number, slot: string, text: string) => void
   onTake: (slide: number) => void
-  onNudge: (slide: number, nudge: string, label: string) => void
+  /** A slide chip, or "Shorten it" (`via` says which was pressed, so only it waits). */
+  onNudge: (slide: number, nudge: string, label: string, via: 'shorten' | 'chip') => void
   onLayout: (slide: number, layout: LayoutId) => void
   onUseSlide: (from: number, slide: number) => void
 }
@@ -174,6 +181,7 @@ export type ChosenVersionProps = {
 export function ChosenVersion(props: ChosenVersionProps) {
   const { view, draftsId, item, facts, themeId, pending } = props
   const ids = useId()
+  const rewriting = props.rewriting ?? null
   const slides = item.structure.slides
   const look = isLook(item.template)
   const n = shownSlide(item, props.selected)
@@ -183,6 +191,8 @@ export function ChosenVersion(props: ChosenVersionProps) {
   const step = slideStep(n)
   const running = view.running.includes(step)
   const failed = !running && (view.failed?.includes(step) ?? false)
+  // A chip under this slide pressed and running, before the polled step names it.
+  const chipRunning = !running && rewriting?.via === 'chip' && rewriting.slide === n
   const attention = attentionOf(item, facts, props.claims)
   const chips = slideFacts(slide, facts)
   const source = view.current.source?.body
@@ -223,6 +233,11 @@ export function ChosenVersion(props: ChosenVersionProps) {
             {props.status.problems.map((problem) => {
               const fix = problem.fix
               const busy = fix ? view.running.includes(slideStep(fix.slide)) : false
+              const shortening =
+                fix !== undefined &&
+                rewriting?.via === 'shorten' &&
+                rewriting.slide === fix.slide &&
+                rewriting.nudge === fix.nudge
               return (
                 <li key={problem.text} className="flex flex-wrap items-center gap-3">
                   <span className="text-caption text-destructive wrap-anywhere">
@@ -233,11 +248,13 @@ export function ChosenVersion(props: ChosenVersionProps) {
                       variant="outline"
                       size="sm"
                       disabled={pending || busy || props.nudgeGate.reason !== null}
-                      onClick={() => props.onNudge(fix.slide, fix.nudge, 'Shorter')}
+                      onClick={() => props.onNudge(fix.slide, fix.nudge, 'Shorter', 'shorten')}
                     >
-                      Shorten it
+                      {shortening && <Spin />}
+                      {shortening ? 'Running…' : 'Shorten it'}
                     </Button>
                   )}
+                  {shortening && <Working words="Rewriting this slide…" />}
                 </li>
               )
             })}
@@ -286,8 +303,9 @@ export function ChosenVersion(props: ChosenVersionProps) {
           <legend className="mb-2 text-overline uppercase text-muted-foreground">
             {`Change slide ${n}`}
           </legend>
-          {failed && <p className={reasonText}>{NUDGE_FAILED}</p>}
+          {failed && <FailedLine words={NUDGE_FAILED} reason={view.failedReasons?.[step]} />}
           {running && <Working words={movesWait([step]) ?? ''} />}
+          {chipRunning && <Working words="Rewriting this slide…" />}
           <Control reason={props.nudgeGate.reason}>
             {TEXT_NUDGES.map((nudge) => (
               <Button
@@ -296,8 +314,9 @@ export function ChosenVersion(props: ChosenVersionProps) {
                 size="sm"
                 aria-label={`${nudge.label} · Slide ${n}`}
                 disabled={pending || running || props.nudgeGate.reason !== null}
-                onClick={() => props.onNudge(n, nudge.id, nudge.label)}
+                onClick={() => props.onNudge(n, nudge.id, nudge.label, 'chip')}
               >
+                {chipRunning && rewriting?.nudge === nudge.id && <Spin />}
                 {nudge.label}
               </Button>
             ))}
@@ -322,7 +341,9 @@ export function ChosenVersion(props: ChosenVersionProps) {
         <AnotherTake
           slide={n}
           running={running}
+          taking={props.taking === n}
           failed={failed}
+          failedReason={view.failedReasons?.[step]}
           reason={props.takeGate.reason}
           pending={pending}
           onTake={props.onTake}
@@ -372,23 +393,30 @@ export function ChosenVersion(props: ChosenVersionProps) {
 function AnotherTake(props: {
   slide: number
   running: boolean
+  /** This take was pressed and is running, before the polled step names it. */
+  taking: boolean
   failed: boolean
+  failedReason?: FailureReason
   reason: string | null
   pending: boolean
   onTake: (slide: number) => void
 }) {
-  const { slide, running, failed, reason, pending } = props
+  const { slide, running, taking, failed, reason, pending } = props
   return (
     <div className="flex flex-col gap-1">
-      {failed && !running && <p className={reasonText}>{TAKE_FAILED}</p>}
+      {failed && !running && !taking && (
+        <FailedLine words={TAKE_FAILED} reason={props.failedReason} />
+      )}
       <Control reason={reason}>
-        {running ? (
+        {running || taking ? (
           <>
             <Button variant="outline" size="sm" disabled>
               <Spin />
               Running…
             </Button>
-            <Working words={movesWait([slideStep(slide)]) ?? ''} />
+            <Working
+              words={running ? (movesWait([slideStep(slide)]) ?? '') : 'Writing another take…'}
+            />
           </>
         ) : (
           <Button

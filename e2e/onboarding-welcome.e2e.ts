@@ -9,7 +9,7 @@ import { newStudent, skipSplash } from './helpers/student'
 // and that once step 00 is answered she never sees it again.
 
 const heading = (page: Page) =>
-  page.getByRole('heading', { level: 1, name: 'About 6 minutes of short questions' })
+  page.getByRole('heading', { level: 1, name: 'About 5 minutes of short questions' })
 
 test('a new student lands on the welcome, and its Start opens step 00', async ({ page }) => {
   const email = await newStudent(page, 'welcome-land')
@@ -114,7 +114,7 @@ test('on a phone the panel band says she has not started, and what comes first',
   try {
     await page.goto('/onboarding/welcome')
     const panel = page.getByRole('complementary', { name: 'Getting started' })
-    await expect(panel.getByText('Not started yet · about 6 min')).toBeVisible()
+    await expect(panel.getByText('Not started yet · about 5 min')).toBeVisible()
     await expect(panel.getByText('First: Your comic character')).toBeVisible()
     await expect(panel.locator('[data-lit="true"]')).toHaveCount(0)
   } finally {

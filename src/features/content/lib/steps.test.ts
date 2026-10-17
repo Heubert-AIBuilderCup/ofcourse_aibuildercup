@@ -142,6 +142,13 @@ describe('picturesDrawn', () => {
     expect(picturesDrawn({ revision: look, render: null })).toBe(false)
   })
 
+  it('counts a slide saved on purpose without a picture ("Skip pictures") as done', () => {
+    const skipped = picture(2, { assetId: null, fallback: 'skipped' })
+    expect(
+      picturesDrawn({ revision: look, render: renderWith(NO_ART, [picture(1), skipped]) }),
+    ).toBe(true)
+  })
+
   it("counts a panorama drawn by its one wide picture, slide 1's", () => {
     const postcard = revisionIn('postcard', LOOK_SLIDES)
     expect(picturesDrawn({ revision: postcard, render: renderWith(NO_ART, [picture(1)]) })).toBe(

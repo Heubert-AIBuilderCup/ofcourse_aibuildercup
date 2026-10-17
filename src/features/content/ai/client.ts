@@ -22,6 +22,10 @@ import { vertexProvider } from './vertex'
 export const AI_ERRORS = {
   failed: 'This step failed. Your work so far is kept.',
   dailyLimit: 'The daily limit for this step is reached.',
+  // The last attempt was refused with a 429 (the model's per-minute limit) or ran out of time:
+  // said so, and lib/failure.ts names the reason after a failed step's line.
+  busy: 'The model is busy right now (429). Try again in a minute.',
+  timeout: 'The model took too long (timeout). Try again.',
 } as const
 
 export type AiResult<T> =
@@ -150,7 +154,9 @@ export const SETTINGS_READ_TIMEOUT_MS = 300
 const JSON_TIMEOUT_MS = 30_000
 // A search runs queries before it answers, so it gets longer than a plain JSON call.
 const SEARCH_TIMEOUT_MS = 45_000
-const IMAGE_TIMEOUT_MS = 20_000
+// A picture takes the image model about 23 s on Cloud Run (16 Oct): a minute leaves it room, so a
+// slow picture is not abandoned, asked again and counted twice against the per-minute quota.
+export const IMAGE_TIMEOUT_MS = 60_000
 const MAX_RATE_LIMIT_WAIT_MS = 5_000
 // Bounds the retry prompt, however many issues an answer has.
 const MAX_PROBLEMS = 20
@@ -168,6 +174,14 @@ const LADDERS: Record<PromptSpec<z.ZodType>['tier'], Array<'lite' | 'flash' | 'p
 const RUNG: Record<PromptSpec<z.ZodType>['tier'], number> = { lite: 0, flash: 1, pro: 2 }
 
 const FAILED = { ok: false, reason: 'failed', error: AI_ERRORS.failed } as const
+
+/** A failed call, saying why when its last error was a 429 or ran out of time (never a caller's abort). */
+function failedFor(err: unknown): { ok: false; reason: 'failed'; error: string } {
+  if (isRateLimit(err)) return { ok: false, reason: 'failed', error: AI_ERRORS.busy }
+  if (err instanceof Error && err.name === 'TimeoutError')
+    return { ok: false, reason: 'failed', error: AI_ERRORS.timeout }
+  return FAILED
+}
 const DAILY_LIMIT = { ok: false, reason: 'daily_limit', error: AI_ERRORS.dailyLimit } as const
 
 const modelSchemas = new WeakMap<z.ZodType, object>()
@@ -583,6 +597,8 @@ export function makeAi(deps: {
         }
         // The tiers whose saved model failed in this call: their later rungs run on the environment's.
         const fellBack = new Set<Tier>()
+        // The last attempt's error, so a ladder that ends on a 429 or a timeout says so.
+        let last: unknown = null
         for (const [i, tier] of tiers.entries()) {
           // Past the caller's deadline nobody reads the answer: no rung starts.
           if (req.signal?.aborted) break
@@ -609,6 +625,7 @@ export function makeAi(deps: {
               ;({ answer, error } = await attempt(i + 1, tier, model, reserved, 'env-default'))
             }
           }
+          last = error
           if (answer?.ok) {
             try {
               if (useCache)
@@ -626,7 +643,7 @@ export function makeAi(deps: {
             problems = answer.problems
           }
         }
-        return FAILED
+        return failedFor(last)
       } catch (err) {
         console.error('[ai] generateJson', err instanceof Error ? err.message : err)
         return FAILED
@@ -834,7 +851,9 @@ export function makeAi(deps: {
           result = await attempt(config.models.image)
           await settle(retry, { ok: result.bytes !== null, ms: result.ms })
         }
-        return result.bytes ? { ok: true, value: result.bytes, cached: false } : FAILED
+        return result.bytes
+          ? { ok: true, value: result.bytes, cached: false }
+          : failedFor(result.error)
       } catch (err) {
         console.error('[ai] generateImage', err instanceof Error ? err.message : err)
         return FAILED

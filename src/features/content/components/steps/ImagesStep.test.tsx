@@ -144,6 +144,7 @@ const actions = {
   planImagesAction: mock(async (_id: unknown, _at: unknown) => saved()),
   editImageSceneAction: mock(async (_id: unknown, _at: unknown, _input: unknown) => saved()),
   drawImagesAction: mock(async (_id: unknown, _at: unknown) => saved()),
+  skipPicturesAction: mock(async (_id: unknown, _at: unknown) => saved()),
   nudgeImageAction: mock(async (_id: unknown, _at: unknown, _input: unknown) => saved()),
   lightEditAction: mock(async (_id: unknown, _at: unknown, _edit: unknown) => saved()),
 }
@@ -523,6 +524,135 @@ describe('ImagesStep', () => {
       text: 'A student on a bus at dawn.',
     })
   })
+
+  it('while a chip redraws one picture, says so, the pressed chip waiting and that slide alone pulsing', async () => {
+    let answer: (saved: Saved) => void = () => {}
+    actions.nudgeImageAction.mockImplementationOnce(
+      () =>
+        new Promise<Saved>((resolve) => {
+          answer = resolve
+        }),
+    )
+    drawn([art(1), art(2)])
+    const closer = within(controlsOf(2)).getByRole('button', { name: 'Closer' })
+    await press(closer)
+    try {
+      const statuses = screen.queryAllByRole('status')
+      expect(statuses.map((s) => s.textContent).filter(Boolean)).toEqual([
+        'Drawing this picture · about half a minute',
+      ])
+      expect(statuses.map((s) => s.getAttribute('aria-label')).filter(Boolean)).toEqual([
+        'Slide 2 · being drawn',
+      ])
+      expect((closer as HTMLButtonElement).disabled).toBe(true)
+    } finally {
+      // A transition left hanging would hold every later one in this file.
+      await act(async () => answer({ ok: true, id: 'p1', version: 8 }))
+    }
+  })
+
+  it('says a failed plan failed, and why, with the text kept', () => {
+    view({ failed: ['scene_plan'], failedReasons: { scene_plan: 'busy' } })
+    expect(
+      screen.queryAllByText(
+        "Planning failed. Your text is kept. Google's model is busy. Try again in a minute.",
+      ).length,
+    ).toBe(1)
+  })
+
+  it('says a failed drawing failed, and why, with the plan kept', () => {
+    drawn([art(1), art(2, { assetId: null, fallback: 'no_art' })], {
+      failed: ['images'],
+      failedReasons: { images: 'timeout' },
+    })
+    expect(
+      screen.queryAllByText('Drawing failed. Your plan is kept. It took too long. Try again.')
+        .length,
+    ).toBe(1)
+  })
+})
+
+describe('Skip pictures', () => {
+  const SKIP = 'Skip pictures · use the text slides'
+  const WHY = 'Each slide is saved as it looks now, without a picture.'
+
+  it('is offered to a writer beside Draw images, with why, and saves the slides as they are', async () => {
+    view(planned)
+    expect(screen.queryByText(WHY) !== null).toBe(true)
+    await press(screen.getByRole('button', { name: SKIP }))
+    expect(actions.skipPicturesAction).toHaveBeenCalledWith('p1', 7)
+    expect(actions.drawImagesAction).not.toHaveBeenCalled()
+  })
+
+  it('is not offered to a viewer who may not draw', () => {
+    render(
+      <ImagesStep
+        view={{ ...VIEW, ...planned }}
+        viewer={{ role: 'user', editor: false, reviewer: true }}
+        actions={actions}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: SKIP })).toBeNull()
+    expect(screen.queryByText(WHY)).toBeNull()
+  })
+
+  it('shows the loader while the slides are saved', async () => {
+    let answer: (saved: Saved) => void = () => {}
+    actions.skipPicturesAction.mockImplementationOnce(
+      () =>
+        new Promise<Saved>((resolve) => {
+          answer = resolve
+        }),
+    )
+    view(planned)
+    const skip = screen.getByRole('button', { name: SKIP })
+    await press(skip)
+    try {
+      expect(
+        screen
+          .queryAllByRole('status')
+          .map((s) => s.textContent)
+          .filter(Boolean),
+      ).toEqual(['Saving the slides…'])
+      expect((skip as HTMLButtonElement).disabled).toBe(true)
+      expect(
+        (screen.getByRole('button', { name: 'Draw images (2 images)' }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(true)
+    } finally {
+      await act(async () => answer({ ok: true, id: 'p1', version: 8 }))
+    }
+  })
+
+  it('is still offered after some pictures were drawn, while a slide has none', async () => {
+    drawn([art(1), art(2, { assetId: null, fallback: 'no_art' })])
+    await press(screen.getByRole('button', { name: SKIP }))
+    expect(actions.skipPicturesAction).toHaveBeenCalledWith('p1', 7)
+  })
+
+  it('afterwards a skipped slide reads "Text only", never "Could not draw", with nothing to retry and nothing left to skip', () => {
+    drawn([art(1), art(2, { assetId: null, fallback: 'skipped' })])
+    const slide = within(figureOf(2))
+    expect(slide.queryByText('Text only') !== null).toBe(true)
+    expect(screen.queryByText('Could not draw')).toBeNull()
+    expect(slide.queryByRole('button', { name: 'Try this one again' })).toBeNull()
+    expect(screen.queryByRole('button', { name: SKIP })).toBeNull()
+  })
+
+  it('a slide whose drawing failed says why beside "Could not draw"', () => {
+    drawn([art(1), art(2, { assetId: null, fallback: 'no_art', reason: 'busy' })])
+    const slide = within(figureOf(2))
+    expect(slide.queryByText('Could not draw') !== null).toBe(true)
+    expect(slide.queryByText("Google's model is busy. Try again in a minute.") !== null).toBe(true)
+    cleanup()
+    drawn([art(1), art(2, { assetId: null, fallback: 'no_art', reason: 'timeout' })])
+    expect(within(figureOf(2)).queryByText('It took too long. Try again.') !== null).toBe(true)
+  })
+
+  it('is not offered for a comic, whose panels are its pictures', () => {
+    view({ ...planned, courseId: 'c1', characterApproved: true })
+    expect(screen.queryByRole('button', { name: SKIP })).toBeNull()
+  })
 })
 
 describe("a comic's panels (RC10)", () => {
@@ -672,6 +802,16 @@ describe("a blog's pictures (BR4)", () => {
     await press(place.getByRole('button', { name: 'Try this one again' }))
     expect(actions.nudgeImageAction).toHaveBeenCalledWith('p1', 7, { slide: 2, nudge: null })
     expect(actions.drawImagesAction).not.toHaveBeenCalled()
+  })
+
+  it('says why a picture could not be drawn when its last call said', () => {
+    blogDrawn([
+      picture(1),
+      picture(2, { assetId: null, tintedAssetId: null, fallback: 'no_art', reason: 'timeout' }),
+    ])
+    const place = within(screen.getByRole('figure', { name: 'Picture after section 2' }))
+    expect(place.queryByText('Could not draw') !== null).toBe(true)
+    expect(place.queryByText('It took too long. Try again.') !== null).toBe(true)
   })
 
   it('offers "Draw remaining" only once a finished run left a picture undrawn, never while one runs', () => {

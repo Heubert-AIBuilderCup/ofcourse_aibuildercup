@@ -102,7 +102,7 @@ test("step 00's Start opens step 01, the panel marking step 00 Done", async ({ p
     await expect(steps.nth(0)).toContainText('Your comic character')
     await expect(steps.nth(0)).toContainText('Done')
     await expect(steps.nth(1)).toHaveAttribute('aria-current', 'step')
-    await expect(steps.nth(1)).toContainText('Now · 1/11')
+    await expect(steps.nth(1)).toContainText('Now · 1/10')
   } finally {
     await deleteUsers([email])
   }
@@ -116,8 +116,8 @@ test('Start on step 00 opens question 1 even after she has answered it and come 
     await startOnboarding(page)
     await page.getByRole('button', { name: 'Skip' }).click()
     await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
+    // The tap moves on to the next question by itself.
     await answerFact(page, ['Where are you right now?', 'Nepal'])
-    await page.getByRole('button', { name: 'Continue' }).click()
     await expect(page).toHaveURL(/\/onboarding\/facts\/amount$/)
 
     await page.getByRole('button', { name: 'Back', exact: true }).click()
@@ -127,7 +127,7 @@ test('Start on step 00 opens question 1 even after she has answered it and come 
 
     await page.getByRole('button', { name: 'Continue' }).click()
     await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
-    await expect(page.getByText('Facts about you · 1 of 11', { exact: true })).toBeVisible()
+    await expect(page.getByText('Facts about you · 1 of 10', { exact: true })).toBeVisible()
   } finally {
     await deleteUsers([email])
   }

@@ -25,7 +25,7 @@ test('coming back partway opens her first unanswered question, with her answers'
     await page.getByRole('button', { name: 'Skip' }).click()
     await expect(page).toHaveURL(/\/onboarding\/facts\/where$/)
     await answerFact(page, ['Amount', 'AUD 36k'])
-    await answerFact(page, ['Who pays', 'Savings'])
+    await answerFact(page, ['It covers', 'Fees and living'])
     await expect.poll(async () => (await profileOf(email))?.lastStep).toBe('facts')
 
     const again = await secondDevice(browser, email)
@@ -37,8 +37,11 @@ test('coming back partway opens her first unanswered question, with her answers'
       ).toBeVisible()
       await again.goto('/onboarding/facts/amount')
       await expect(card(again, 'Amount', 'AUD 36k')).toHaveAttribute('aria-checked', 'true')
-      await again.goto('/onboarding/facts/who-pays')
-      await expect(card(again, 'Who pays', 'Savings')).toHaveAttribute('aria-checked', 'true')
+      await again.goto('/onboarding/facts/covers')
+      await expect(card(again, 'It covers', 'Fees and living')).toHaveAttribute(
+        'aria-checked',
+        'true',
+      )
     } finally {
       await again.context().close()
     }

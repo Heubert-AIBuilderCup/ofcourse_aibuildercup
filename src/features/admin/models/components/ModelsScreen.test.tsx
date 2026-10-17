@@ -135,6 +135,29 @@ it('runs one Test on a use case and shows its result line', async () => {
   expect(rowText('extract')).toContain('Passed on gemini-3.5-flash-lite in 812 ms')
 })
 
+it('while a Test runs, says it is one call that can take half a minute, its button waiting', async () => {
+  let answer: (res: ActionResult<{ result: TestResult }>) => void = () => {}
+  actions.test.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        answer = resolve
+      }),
+  )
+  render(<ModelsScreen {...props()} />)
+  await act(async () => {
+    fireEvent.click(byLabel('button', 'Test extract'))
+  })
+  try {
+    expect([...document.querySelectorAll('[role="status"]')].map((s) => s.textContent)).toEqual([
+      'Testing… one call, up to half a minute',
+    ])
+    expect(byLabel<HTMLButtonElement>('button', 'Test extract').disabled).toBe(true)
+  } finally {
+    // A transition left hanging would hold every later one in this file.
+    await act(async () => answer({ ok: true, result: passed }))
+  }
+})
+
 it('shows a failed Test with its model, time and error', async () => {
   actions.test.mockImplementationOnce(async () => ({
     ok: true,

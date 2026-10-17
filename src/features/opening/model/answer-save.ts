@@ -30,9 +30,10 @@ function useKeyedSave<K extends string, V>(send: (key: K, value: V) => Promise<A
     setStatuses((prev) => ({ ...prev, [key]: status }))
   }, [])
 
+  /** Sends the key's latest value; its outcome, or null when there was nothing to send. */
   const run = useCallback(
-    async (key: K, mine: number) => {
-      if (!latest.current.has(key)) return
+    async (key: K, mine: number): Promise<SaveStatus | null> => {
+      if (!latest.current.has(key)) return null
       const value = latest.current.get(key) as V
       let status: SaveStatus
       try {
@@ -41,6 +42,7 @@ function useKeyedSave<K extends string, V>(send: (key: K, value: V) => Promise<A
         status = 'failed'
       }
       if (sequence.current.get(key) === mine) setStatus(key, status)
+      return status
     },
     [setStatus],
   )
@@ -75,6 +77,23 @@ function useKeyedSave<K extends string, V>(send: (key: K, value: V) => Promise<A
     [start],
   )
 
+  /**
+   * Saves `value` now, with no debounce, replacing any save of the key still waiting; resolves to
+   * how it went, for a screen that moves on once it lands.
+   */
+  const saveNow = useCallback(
+    (key: K, value: V): Promise<SaveStatus | null> => {
+      latest.current.set(key, value)
+      const mine = (sequence.current.get(key) ?? 0) + 1
+      sequence.current.set(key, mine)
+      clearTimeout(timers.current.get(key))
+      timers.current.delete(key)
+      setStatus(key, 'saving')
+      return run(key, mine)
+    },
+    [run, setStatus],
+  )
+
   const retry = useCallback(
     (key: K) => {
       if (latest.current.has(key)) start(key, 0)
@@ -99,7 +118,7 @@ function useKeyedSave<K extends string, V>(send: (key: K, value: V) => Promise<A
 
   const statusOf = useCallback((key: K): SaveStatus => statuses[key] ?? 'idle', [statuses])
 
-  return { statusOf, save, retry, flush }
+  return { statusOf, save, saveNow, retry, flush }
 }
 
 export function useAnswerSave(saveAnswersAction: SaveAnswers) {

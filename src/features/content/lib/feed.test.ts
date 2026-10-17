@@ -11,7 +11,9 @@ import {
   type FeedPost,
   type FeedVersion,
   type Filters,
+  feedCardOf,
   feedOrder,
+  feedPage,
   filterHref,
   isLive,
   matchesWords,
@@ -505,5 +507,90 @@ describe('cardSourceLine (71)', () => {
   it('shows the drawn line when it was whole, and none when no slide has one', () => {
     expect(cardSourceLine([laid(null), laid('Source: Guide · ¶2')])).toBe('Source: Guide · ¶2')
     expect(cardSourceLine([laid(null)])).toBeNull()
+  })
+})
+
+describe("feedPage (the feed's infinite scroll)", () => {
+  const ids = (items: FeedItem[]) => items.map((i) => i.id)
+  const ten = Array.from({ length: 10 }, (_, i) => post(`p${i}`, ago((i + 1) * HOUR)))
+
+  it('keeps the order it is given and takes `size` items from `offset`', () => {
+    expect(ids(feedPage(ten, F(), 0, 4))).toEqual(['p0', 'p1', 'p2', 'p3'])
+    expect(ids(feedPage(ten, F(), 4, 4))).toEqual(['p4', 'p5', 'p6', 'p7'])
+    expect(ids(feedPage([...ten].reverse(), F(), 0, 2))).toEqual(['p9', 'p8'])
+  })
+
+  it('applies the filters before slicing, so the offset counts only what the filters leave', () => {
+    const tagged = ten.map((p, i) => ({
+      ...p,
+      tags: [i % 2 ? 'theme:books-movies' : 'theme:work-study-life'],
+    }))
+    // Under Books and movies only the odd ones stay: p1, p3, p5, p7, p9.
+    expect(ids(feedPage(tagged, F({ theme: 'books-movies' }), 0, 2))).toEqual(['p1', 'p3'])
+    expect(ids(feedPage(tagged, F({ theme: 'books-movies' }), 2, 2))).toEqual(['p5', 'p7'])
+  })
+
+  it('returns a short last page, and nothing past the end', () => {
+    expect(ids(feedPage(ten, F(), 8, 4))).toEqual(['p8', 'p9'])
+    expect(feedPage(ten, F(), 12, 4)).toEqual([])
+  })
+})
+
+describe('feedCardOf (what a feed card shows, and all the browser is sent)', () => {
+  it('shapes a post with the version the home chip asks for and the first line of its excerpt', () => {
+    const p = post(
+      'p1',
+      ago(HOUR),
+      { layer: 'personal', whyLine: 'You weighted work rights.' },
+      {
+        title: 'Paid work',
+        sourceLine: 'Source: Guide · ¶2',
+        language: 'ne',
+        main: { excerpt: 'First line.\nSecond line.', slides: MAIN.slides },
+        market: { id: 'NP', version: NEPAL },
+        sources: [{ site: null, title: 'Guide', url: 'https://example.org' }],
+      },
+    )
+    expect(feedCardOf(p, null)).toEqual({
+      kind: 'post',
+      id: 'p1',
+      title: 'Paid work',
+      page: 'OfCourse',
+      layer: 'personal',
+      whyLine: 'You weighted work rights.',
+      language: 'ne',
+      line: 'First line.',
+      slides: MAIN.slides,
+      sourceLine: 'Source: Guide · ¶2',
+    })
+    expect(feedCardOf(p, 'NP')).toMatchObject({ line: 'Nepal excerpt.', slides: NEPAL.slides })
+  })
+
+  it('names the Instagram page a post went out under, else OfCourse', () => {
+    const instagram = {
+      url: 'https://www.instagram.com/p/x/',
+      handle: 'ofcourse.main',
+      pageUrl: 'https://www.instagram.com/ofcourse.main/',
+    }
+    expect(feedCardOf(post('p1', ago(HOUR), {}, { instagram }), null)).toMatchObject({
+      page: '@ofcourse.main',
+    })
+  })
+
+  it('shapes a blog with its cover and reading time, without its words or settings', () => {
+    const b = blog('b1', ago(HOUR), {
+      title: 'How many hours?',
+      cover: { assetId: 'png-cover', alt: 'A café counter' },
+      minutes: 6,
+      language: 'th',
+    })
+    expect(feedCardOf(b, 'NP')).toEqual({
+      kind: 'blog',
+      id: 'b1',
+      title: 'How many hours?',
+      cover: { assetId: 'png-cover', alt: 'A café counter' },
+      language: 'th',
+      minutes: 6,
+    })
   })
 })

@@ -4,6 +4,7 @@ import { devLogin } from '../helpers/login'
 import {
   answerFact,
   card,
+  chooseAndComeBack,
   factUrl,
   newStudent,
   signOutViaMenu,
@@ -21,12 +22,12 @@ const PHONE = { width: 390, height: 844 }
 const TABLET = { width: 768, height: 1024 }
 const DESKTOP = { width: 1440, height: 900 }
 
-// Step 01's eleven questions in the order criterion 23 lists them, as each screen asks them.
+// Step 01's ten questions in the order criterion 23 lists them, as each screen asks them (who
+// pays is hidden since 16 Oct 2026).
 const FACTS = [
   { key: 'where', question: 'Where are you right now?' },
   { key: 'amount', question: 'Amount' },
   { key: 'covers', question: 'It covers' },
-  { key: 'who', question: 'Who pays' },
   { key: 'hard', question: 'Is this a hard limit, or roughly?' },
   { key: 'earliest', question: 'Earliest start' },
   { key: 'latest', question: "Latest you'd accept" },
@@ -91,9 +92,11 @@ test.describe('on a phone', () => {
           radios(page, fact.question).first(),
           card(page, fact.question, 'Not sure'),
         ]) {
-          await pick.click()
-          await expect(pick).toHaveAttribute('aria-checked', 'true')
-          await expect(page.getByText(SAVED)).toBeVisible()
+          // Each tap moves on by itself: the answered question is read back on its screen.
+          await chooseAndComeBack(page, pick)
+          // From the step's last question Back opens it afresh, where the stored answer stands
+          // for the saved note.
+          if (fact.key !== 'eng') await expect(page.getByText(SAVED)).toBeVisible()
           texts.push(await page.locator('body').innerText())
         }
       }
@@ -109,7 +112,7 @@ test.describe('on a phone', () => {
     const email = await newStudent(page, 'qa-ac3')
     try {
       await openFact(page, "Latest you'd accept")
-      await card(page, "Latest you'd accept", 'Jul 2027').click()
+      await chooseAndComeBack(page, card(page, "Latest you'd accept", 'Jul 2027'))
       await expect(impact(page)).toBeVisible()
       await expect(impact(page).getByText('mock', { exact: true })).toBeVisible()
     } finally {
@@ -227,7 +230,7 @@ test.describe('on a phone', () => {
         await expect(page).toHaveURL(new RegExp(`${factUrl(fact.question)}$`))
         await expect(question(page, fact.question)).toBeVisible()
         await expect(
-          page.getByText(`Facts about you · ${i + 1} of 11`, { exact: true }),
+          page.getByText(`Facts about you · ${i + 1} of 10`, { exact: true }),
         ).toBeVisible()
         await expect(radios(page, fact.question).last()).toHaveAccessibleName('Not sure')
         if (i < FACTS.length - 1)
@@ -247,10 +250,11 @@ test.describe('on a phone', () => {
     const email = await newStudent(page, 'qa-ac24')
     try {
       await openFact(page, 'Where are you right now?')
-      await card(page, 'Where are you right now?', 'Nepal').click()
+      // Each tap moves on by itself: the impact line is read back on the question.
+      await chooseAndComeBack(page, card(page, 'Where are you right now?', 'Nepal'))
       await expect(impact(page)).toBeVisible()
       const offshore = await impact(page).innerText()
-      await card(page, 'Where are you right now?', 'Australia (on a visa)').click()
+      await chooseAndComeBack(page, card(page, 'Where are you right now?', 'Australia (on a visa)'))
       await expect(impact(page)).not.toHaveText(offshore)
       await expect(impact(page)).toHaveText(/onshore/i)
     } finally {
@@ -279,9 +283,11 @@ test.describe('on a phone', () => {
     try {
       for (const fact of FACTS) {
         await openFact(page, fact.question)
-        await card(page, fact.question, 'Not sure').click()
+        // The tap moves on by itself: its line is read back on the question (the profile below
+        // proves each save, the step's last one included, which Back opens afresh).
+        await chooseAndComeBack(page, card(page, fact.question, 'Not sure'))
         await expect(impact(page), `assumed line for ${fact.key}`).toHaveText(/assum/i)
-        await expect(page.getByText(SAVED)).toBeVisible()
+        if (fact.key !== 'eng') await expect(page.getByText(SAVED)).toBeVisible()
       }
       const answers = (await profileOf(email))?.answers ?? {}
       for (const fact of FACTS) expect(answers[fact.key]?.state, fact.key).toBe('assumed')
@@ -297,7 +303,8 @@ test.describe('on a phone', () => {
     }) => {
       const email = await newStudent(page, 'qa-ac27')
       try {
-        await answerFact(page, ['Anyone coming with you?', dependants])
+        await openFact(page, 'Anyone coming with you?')
+        await chooseAndComeBack(page, card(page, 'Anyone coming with you?', dependants))
         await expect(impact(page)).toContainText(FAMILY)
         await expect(page.getByRole('textbox')).toHaveCount(0)
         await expect(page.getByRole('radiogroup')).toHaveCount(1)
@@ -316,8 +323,8 @@ test.describe('on a phone', () => {
     const email = await newStudent(page, 'qa-ac30-study')
     try {
       await answerFact(page, ['Amount', 'AUD 36k'])
+      // A tap on step 01's last question leaves the step by itself.
       await answerFact(page, ['English test', 'Not sure'])
-      await page.getByRole('button', { name: "Next: What you'd study" }).click()
       await expect(page).toHaveURL(/\/onboarding\/study\/know$/)
       await page.getByRole('button', { name: 'Back', exact: true }).click()
       await expect(page).toHaveURL(/\/onboarding\/facts\/english$/)
@@ -355,11 +362,14 @@ test.describe('on a phone', () => {
     const email = await newStudent(page, 'qa-ac30-question')
     try {
       await openFact(page, 'Where are you right now?')
+      // Each tap moves on by itself; Back walks the questions in turn.
       await card(page, 'Where are you right now?', 'Nepal').click()
-      await expect(page.getByText(SAVED)).toBeVisible()
-      await page.getByRole('button', { name: 'Continue', exact: true }).click()
+      await expect(page).toHaveURL(/\/onboarding\/facts\/amount$/)
       await expect(question(page, 'Amount')).toBeVisible()
       await card(page, 'Amount', 'AUD 42k').click()
+      await expect(page).toHaveURL(/\/onboarding\/facts\/covers$/)
+      await page.getByRole('button', { name: 'Back', exact: true }).click()
+      await expect(card(page, 'Amount', 'AUD 42k')).toHaveAttribute('aria-checked', 'true')
       await page.getByRole('button', { name: 'Back', exact: true }).click()
       await expect(question(page, 'Where are you right now?')).toBeVisible()
       await expect(card(page, 'Where are you right now?', 'Nepal')).toHaveAttribute(
@@ -383,7 +393,7 @@ test.describe('on a phone', () => {
       await answerFact(page, ['Where are you right now?', 'Nepal'])
       await answerFact(page, ['Amount', 'AUD 36k'])
       await answerFact(page, ['It covers', 'Fees and living'])
-      await openFact(page, 'Who pays')
+      await openFact(page, 'Is this a hard limit, or roughly?')
 
       await signOutViaMenu(page)
       await expect(page).toHaveURL((url) => url.pathname === '/')
@@ -391,8 +401,8 @@ test.describe('on a phone', () => {
 
       await devLogin(page, email, 'E2E Student', { surface: 'student' })
       await page.goto('/')
-      await expect(page).toHaveURL(/\/onboarding\/facts\/who-pays$/)
-      await expect(question(page, 'Who pays')).toBeVisible()
+      await expect(page).toHaveURL(/\/onboarding\/facts\/limit$/)
+      await expect(question(page, 'Is this a hard limit, or roughly?')).toBeVisible()
       for (const [name, option] of [
         ['Where are you right now?', 'Nepal'],
         ['Amount', 'AUD 36k'],
@@ -424,6 +434,8 @@ test.describe('on a phone', () => {
         .getByRole('alert')
         .filter({ hasText: "We couldn't save that. Your answer is still here." })
       await expect(failed).toBeVisible()
+      // A refused save keeps her on the question: no move on.
+      await expect(page).toHaveURL(/\/onboarding\/facts\/limit$/)
       await expect(hard).toHaveAttribute('aria-checked', 'true')
       expect((await profileOf(email))?.answers.hard).toBeUndefined()
 
@@ -517,11 +529,11 @@ test.describe('on desktop', () => {
       await expect(steps.nth(0)).toContainText('Done')
       await expect(steps.nth(1)).toHaveAttribute('aria-current', 'step')
       await expect(steps.nth(1)).toContainText('Facts about you')
-      await expect(steps.nth(1)).toContainText('Now · 1/11')
+      await expect(steps.nth(1)).toContainText('Now · 1/10')
       await expect(page.locator('[aria-current="step"]')).toHaveCount(1)
 
       await page.getByRole('button', { name: 'Skip', exact: true }).click()
-      await expect(steps.nth(1)).toContainText('Now · 2/11')
+      await expect(steps.nth(1)).toContainText('Now · 2/10')
     } finally {
       await deleteUsers([email])
     }

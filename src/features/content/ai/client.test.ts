@@ -16,7 +16,9 @@ import type { AiSettings } from './settings'
 
 mock.module('server-only', () => ({}))
 
-const { AI_ERRORS, makeAi, SETTINGS_READ_TIMEOUT_MS, settingsFor } = await import('./client')
+const { AI_ERRORS, IMAGE_TIMEOUT_MS, makeAi, SETTINGS_READ_TIMEOUT_MS, settingsFor } = await import(
+  './client'
+)
 const { aiConfig } = await import('./config')
 const { FAKE_ENTRY_POINT, FAKE_SOURCES, makeFake } = await import('./fake')
 const { SYSTEM_RULES } = await import('./prompts')
@@ -324,7 +326,7 @@ describe('makeAi.generateJson', () => {
   it('fails when the provider never answers within timeoutMs', async () => {
     const t = setup(['hang', 'hang', 'hang'])
     const res = await t.ai.generateJson(SPEC, { data: { text: 'x' }, timeoutMs: 20 })
-    expect(res).toEqual({ ok: false, reason: 'failed', error: AI_ERRORS.failed })
+    expect(res).toEqual({ ok: false, reason: 'failed', error: AI_ERRORS.timeout })
     expect(t.reqs.every((r) => r.signal.aborted)).toBe(true)
   })
 
@@ -1178,5 +1180,53 @@ describe('aiConfig', () => {
     expect(aiConfig({ GEMINI_FLASH_MODEL: 'f' }).models.lite).toBe('f')
     expect(aiConfig({ GEMINI_LITE_MODEL: 'l', GEMINI_FLASH_MODEL: 'f' }).models.lite).toBe('l')
     expect(aiConfig({}).models.lite).toBe('')
+  })
+})
+
+describe('the image timeout', () => {
+  // On 16 Oct the image model took about 23 s a picture on Cloud Run; at 20 s every call timed
+  // out, and the retries ran into the per-minute quota (429), so no slide was drawn.
+  it('waits a minute for a picture, longer than the model takes', () => {
+    expect(IMAGE_TIMEOUT_MS).toBeGreaterThanOrEqual(60_000)
+  })
+})
+
+describe('why a call failed, in its error', () => {
+  // The workbench names the reason after a failed step (lib/failure.ts reads this text).
+  it('says the model is busy when the last attempt was refused with a 429', async () => {
+    const t = setup(Array.from({ length: 6 }, () => rateLimited('1s')))
+    const res = await t.ai.generateJson(SPEC, { data: { text: 'x' } })
+    expect(res).toEqual({ ok: false, reason: 'failed', error: AI_ERRORS.busy })
+  })
+
+  it('says an image took too long when the image model timed out', async () => {
+    const timedOut = Object.assign(new Error('The operation was aborted due to timeout'), {
+      name: 'TimeoutError',
+    })
+    const t = setup([], { images: [timedOut] })
+    const res = await t.ai.generateImage({ prompt: 'a desk', aspectRatio: '4:5', data: {} })
+    expect(res).toEqual({ ok: false, reason: 'failed', error: AI_ERRORS.timeout })
+  })
+
+  it('says the image model is busy on a 429', async () => {
+    const t = setup([], { images: [rateLimited('1s')] })
+    const res = await t.ai.generateImage({ prompt: 'a desk', aspectRatio: '4:5', data: {} })
+    expect(res).toEqual({ ok: false, reason: 'failed', error: AI_ERRORS.busy })
+  })
+
+  it('keeps the plain failure for any other error', async () => {
+    const t = setup([], { images: [new Error('boom')] })
+    const res = await t.ai.generateImage({ prompt: 'a desk', aspectRatio: '4:5', data: {} })
+    expect(res).toEqual({ ok: false, reason: 'failed', error: AI_ERRORS.failed })
+  })
+})
+
+describe('the reasons the workbench reads from these errors', () => {
+  it('names busy, timeout and the daily limit, and nothing for a plain failure', async () => {
+    const { failureReason } = await import('../lib/failure')
+    expect(failureReason(AI_ERRORS.busy)).toBe('busy')
+    expect(failureReason(AI_ERRORS.timeout)).toBe('timeout')
+    expect(failureReason(AI_ERRORS.dailyLimit)).toBe('daily_limit')
+    expect(failureReason(AI_ERRORS.failed)).toBe('other')
   })
 })

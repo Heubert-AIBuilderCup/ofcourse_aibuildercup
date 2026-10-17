@@ -10,7 +10,7 @@ import {
   type StyleReference,
   slidePrompt,
 } from '../../ai/art'
-import { AI_ERRORS } from '../../ai/client'
+import { AI_ERRORS, IMAGE_TIMEOUT_MS } from '../../ai/client'
 import { ART_PROMPT_ERROR, artPromptError } from '../../ai/draft'
 import { type PlannedScene, planBlogScenes, planScenes, SCENE_MAX } from '../../ai/scene-plan'
 import { DEFAULT_COMIC_STYLE } from '../../brands'
@@ -24,6 +24,7 @@ import { imageNudge } from '../../nudges'
 import { artSlides, COMIC_TEMPLATE_ID, isLook, isPanorama } from '../../templates'
 import { charCount } from '../../text/script'
 import { characterOf } from '../character'
+import { drawBudget } from '../draw-budget'
 import { canonicalJson } from '../hash'
 import { type DesignLanguage, designLanguageOf, referenceType } from '../page-style'
 import { runStep, runStepAfter, type StepRun } from '../steps'
@@ -415,6 +416,16 @@ async function keptImages(postId: string, ids: string[]): Promise<Map<string, Sl
  */
 const RETRY_WAITS_MS = [2_000, 5_000]
 
+/** Cloud Run's request timeout: work in after() runs within its request's. */
+const REQUEST_TIMEOUT_MS = 300_000
+/**
+ * How long a background draw run (drawEach) may go on starting image calls. The last one may take
+ * IMAGE_TIMEOUT_MS more, after a retry's pause, and the save follows; this leaves those 30 s, so
+ * the run ends inside the request timeout instead of being cut off with its lock left to go stale.
+ * A saved model that falls back to the environment's runs a second attempt, past this bound.
+ */
+const DRAW_BUDGET_MS = REQUEST_TIMEOUT_MS - IMAGE_TIMEOUT_MS - 30_000
+
 /** Why an image is missing: the day's cap, or a failed call. */
 const missing = (fallback: 'replay' | 'no_art' | 'daily_limit' | null) =>
   fallback === 'daily_limit' ? 'daily_limit' : 'no_art'
@@ -490,7 +501,8 @@ type Drawing = {
  * not draw") and the drawing goes on. At the daily limit the drawn pictures stay and the rest are saved as daily_limit. Before each
  * save the run records how far it is (slides done of those planned), which keeps its lock; a run
  * that has lost its lock (taken over after a crash) stops there, and saves nothing more. Each save
- * checks the version the one before left.
+ * checks the version the one before left. Past DRAW_BUDGET_MS the run starts no new call, neither a
+ * slide nor a retry, and saves what it has: the slides not reached are left for "Draw remaining".
  */
 async function drawEach(
   post: LoadedPost,
@@ -523,6 +535,7 @@ async function drawEach(
     return result
   }
 
+  const budget = drawBudget(DRAW_BUDGET_MS)
   if (!(await run.progress(0, scenes.length))) return stopped()
   for (const planned of scenes) {
     const old = kept(planned) && before.find((a) => a.slide === planned.slide)
@@ -539,6 +552,9 @@ async function drawEach(
       unsaved = true
       continue
     }
+    // Out of time: no new slide. The ones not reached stay as they were (undrawn, never marked
+    // failed), so "Draw remaining" draws them.
+    if (!budget.allows()) break
     const aspectRatio = aspect(planned)
     if (!aspectRatio) return fail(WORKFLOW_ERRORS.movedOn)
     const ask = () =>
@@ -551,20 +567,23 @@ async function drawEach(
         aspectRatio,
       })
     let res = await ask()
-    // A failed call is asked again after each pause; the day's cap is not.
+    // A failed call is asked again after each pause, while the run has time; the day's cap is not.
     for (const wait of RETRY_WAITS_MS) {
       if (!res.ok || res.art.bytes || res.art.fallback === 'daily_limit') break
+      if (!budget.allows()) break
       await new Promise((resolve) => setTimeout(resolve, wait))
       res = await ask()
     }
     if (!res.ok) return fail(res.error)
-    const { bytes, fallback } = res.art
+    const { bytes, fallback, reason } = res.art
     done.set(planned.slide, {
       slide: planned.slide,
       scene: planned.scene,
       take: 1,
       nudge: null,
       fallback: bytes ? null : missing(fallback),
+      // Why it could not be drawn, when the last call said (busy or too slow).
+      ...(!bytes && reason && { reason }),
       bytes,
     })
     unsaved = true
@@ -634,6 +653,52 @@ export async function drawImages(actor: Actor, id: string, version: number): Pro
       attempt('drawImages', () => drawEach(post, version, drawing, run)),
     )
     return started ? { ok: true, id, version } : fail(stepRunningError(IMAGES_STEP))
+  })
+}
+
+/**
+ * "Skip pictures": every art-box slide of the look saved as it looks now, text only, with no image
+ * model call, the post rendered as a finished drawing leaves it, and so on to its settings
+ * (lib/steps.ts picturesDrawn). A slide with a picture keeps it; each other (not drawn, could not
+ * draw, or held at the daily limit) is marked 'skipped', with its planned scene when there is a
+ * plan, so "Draw remaining" can still draw it. Gated as Draw images is, under its step's lock, so
+ * it is refused while the images are drawn. Pressed again over slides all drawn or skipped, it
+ * saves nothing. A comic's panels are its pictures, so a comic is refused.
+ */
+export async function skipPictures(actor: Actor, id: string, version: number): Promise<Saved> {
+  return command('skipPictures', 'skipPictures', actor, id, version, async (post) => {
+    const error = renderError(post.current)
+    if (error) return fail(error)
+    const look = lookOf(post)
+    if (!look) return fail(WORKFLOW_ERRORS.movedOn)
+    if (isComic(look)) return fail(WORKFLOW_ERRORS.panels)
+    const { template, structure } = look.revision.body
+    const panorama = isPanorama(template)
+    const wanted = panorama ? [1] : artSlides(template, structure)
+    const render = post.stage === 'rendered' ? post.current.render : null
+    const recorded = render?.body.slideArt ?? []
+    const done = (slide: number) =>
+      recorded.some((a) => a.slide === slide && (a.assetId !== null || a.fallback === 'skipped'))
+    if (render && wanted.every(done)) return { ok: true, id, version }
+
+    const scenes = post.current.artPlan?.body.scenes ?? []
+    const res = await runStep(id, IMAGES_STEP, version, async () => {
+      const before = render ? ((await imagesOf(render.body))?.slideArt ?? []) : []
+      const images = wanted.map((slide): SlideImage => {
+        const had = before.find((a) => a.slide === slide)
+        if (had?.bytes) return had
+        const scene = scenes.find((s) => s.slide === slide)?.scene ?? had?.scene ?? ''
+        return { slide, scene, take: had?.take ?? 1, nudge: null, fallback: 'skipped', bytes: null }
+      })
+      return saveRender(post, version, actor, {
+        look,
+        images: asImages(images, panorama),
+        artVersion: render?.body.art.version ?? 1,
+      })
+    })
+    return !res.ok && res.error === WORKFLOW_ERRORS.running
+      ? fail(stepRunningError(IMAGES_STEP))
+      : res
   })
 }
 
@@ -820,6 +885,8 @@ export async function nudgeImage(
         take: was.bytes ? was.take + 1 : was.take,
         nudge: chip?.id ?? null,
         fallback: null,
+        // Drawn now: why it could not be drawn before no longer holds.
+        reason: undefined,
         bytes,
       })
       return saveRender(post, version, actor, { look, images, artVersion })
@@ -872,6 +939,7 @@ async function nudgeBlog(
             take: p.bytes ? p.take + 1 : p.take,
             nudge: chip?.id ?? null,
             fallback: null,
+            reason: undefined,
             bytes,
           }
         : p,

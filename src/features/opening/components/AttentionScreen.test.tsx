@@ -188,7 +188,7 @@ it('says so when the save never reaches the server, and stays', async () => {
 it("goes back to step 04's last question", async () => {
   empty()
   await press('Back')
-  expect(push).toHaveBeenCalledWith('/onboarding/after/long-term')
+  expect(push).toHaveBeenCalledWith('/onboarding/after/focus')
 })
 
 it('shows the coins she spent before, with the back note', () => {

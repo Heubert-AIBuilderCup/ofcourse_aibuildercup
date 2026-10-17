@@ -29,8 +29,8 @@ import { useCoinPiles } from './useCoinPiles'
 
 const TRAY = Array.from({ length: COINS_TOTAL }, (_, i) => i)
 const STACK = Array.from({ length: MAX_PER_PILE }, (_, i) => i)
-/** Back opens step 04's last question. */
-const BACK_PATH = questionPath(4, 'settle')
+/** Back opens step 04's last question, focus (long-term is hidden since 16 Oct 2026). */
+const BACK_PATH = questionPath(4, 'focus')
 
 /** One coin: a dashed ring while free, filled once placed. */
 function Coin({ on }: { on: boolean }) {

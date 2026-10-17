@@ -6,6 +6,7 @@ import { type ReactNode, useState } from 'react'
 import { Button, buttonVariants } from '@/shared/components/ui/button'
 import type { Staff } from '@/shared/lib/auth/access'
 import { boardBackHref } from '../lib/board'
+import type { FailureReason } from '../lib/failure'
 import { CHANGED_LINE } from '../lib/lines'
 import type { StepProgress } from '../lib/running'
 import { canOpen, type StepId, stepOfStage, stepPath, stepPost, stepsFor } from '../lib/steps'
@@ -77,6 +78,8 @@ export type WorkbenchView = {
   progress?: Record<string, StepProgress>
   /** The steps whose last run failed (server/steps.ts failedSteps), e.g. the source check. */
   failed?: string[]
+  /** Why each failed step failed, by step (server/steps.ts failedNow): the sentence after its line. */
+  failedReasons?: Record<string, FailureReason>
   /** Per draft, the fit checks with the chosen theme (Task 17 draftFitChecks). */
   draftChecks: FitCheck[][]
   /**

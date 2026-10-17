@@ -16,6 +16,7 @@ import { PRESETS } from '../../brands/guideline'
 import { emotionError } from '../../emotions'
 import { unboundSlots } from '../../lib/claims'
 import { comicCaptionError, searchTitleOf } from '../../lib/comic-rules'
+import { chipFailed } from '../../lib/failure'
 import { versionLetter } from '../../lib/version-status'
 import { approveStructureError, WORKFLOW_ERRORS } from '../../lib/workflow'
 import { BODIES, type Body } from '../../model/artifacts'
@@ -346,9 +347,13 @@ export async function redraftSlide(
   )
 }
 
-/** The refusal when a chip's answer never passed its checks; any other failure keeps its own words. */
+/**
+ * A chip's refusal, named by its label whatever the failure (lib/failure.ts chipFailed): the
+ * model's failed check says Try again, a 429, a timeout or the day's cap says why, and any other
+ * refusal keeps its own words after the label.
+ */
 const nudgeFailed = (nudge: Nudge, error: string) =>
-  error === AI_ERRORS.failed ? `Couldn't apply “${nudge.label}”. Try again.` : error
+  chipFailed(nudge.label, error === AI_ERRORS.failed ? null : error)
 
 /** The drafts record with the version at `index` replaced and `note` in the history; the source check runs after. */
 async function saveVersion(

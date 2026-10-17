@@ -1,7 +1,7 @@
 'use client'
 
-import { CircleAlert, Eye, Layers, Minus, Plus, Split } from 'lucide-react'
-import { type ReactNode, useMemo, useRef, useState } from 'react'
+import { CircleAlert, Eye, Info, Layers, Minus, Plus, Split } from 'lucide-react'
+import { type ReactNode, useId, useMemo, useRef, useState } from 'react'
 import { Duck } from '@/shared/components/Duck'
 import motion from '@/shared/components/motion.module.css'
 import { Button } from '@/shared/components/ui/button'
@@ -23,6 +23,7 @@ import {
   toScreen,
 } from '../model/drawing'
 import { ICONS, type IconName, kindOf } from '../model/kinds'
+import type { MatchLine } from '../model/match-line'
 import {
   type BadgeId,
   type Road,
@@ -36,6 +37,7 @@ import type { RoadState } from '../model/road-url'
 import { POINT_A, type Scene } from '../model/scene'
 import { KeyStrip } from './KeyStrip'
 import { LessonLink } from './LessonLink'
+import { MatchStrip } from './MatchStrip'
 import { MockTag } from './MockTag'
 import styles from './road-map.module.css'
 
@@ -87,6 +89,11 @@ type Props = {
    * the map drops its controls, names only what would change and where she is, and frames it.
    */
   answering?: boolean
+  /**
+   * Why this road, when it is not exactly hers (the closest, or the illustrative one): folded
+   * into the map's top-left "Why this road?" button; none, no button.
+   */
+  match?: MatchLine | null
   /** Over the map: the toast, or the phone's peek. */
   children?: ReactNode
 }
@@ -112,6 +119,7 @@ export function RoadMap({
   keyShown,
   onKeyShown,
   answering = false,
+  match = null,
   children,
 }: Props) {
   const mapRef = useRef<HTMLElement>(null)
@@ -131,6 +139,17 @@ export function RoadMap({
   })
   const [hover, setHover] = useState<string | null>(null)
   const keyRef = useRef<HTMLButtonElement>(null)
+  // Why this road and the key share the map's top left: opening one closes the other.
+  const [whyShown, setWhyShown] = useState(false)
+  const whyId = useId()
+  const showWhy = (shown: boolean) => {
+    setWhyShown(shown)
+    if (shown) onKeyShown(false)
+  }
+  const showKey = (shown: boolean) => {
+    onKeyShown(shown)
+    if (shown) setWhyShown(false)
+  }
 
   // The camera re-renders the map every frame of a move: look tiles up by id, once per scene.
   const tiles = useMemo(() => new Map(scene.tiles.map((t) => [t.id, t])), [scene.tiles])
@@ -186,8 +205,29 @@ export function RoadMap({
         />
       ) : null}
 
+      {match && !under ? (
+        <>
+          <Button
+            type="button"
+            variant="square"
+            data-map-control
+            aria-expanded={whyShown}
+            aria-controls={whyId}
+            onClick={() => showWhy(!whyShown)}
+            className={cn(
+              MAP_BUTTON,
+              'absolute top-4 left-4 z-30 aria-expanded:bg-panel-foreground/16 @max-xl:top-3 @max-xl:right-3 @max-xl:left-auto',
+            )}
+          >
+            <Info aria-hidden="true" strokeWidth={1.5} className="size-icon" />
+            Why this road?
+          </Button>
+          {whyShown ? <MatchStrip id={whyId} line={match} /> : null}
+        </>
+      ) : null}
       {keyShown && !under ? (
         <KeyStrip
+          className={match ? 'top-18' : undefined}
           onClose={() => {
             onKeyShown(false)
             // Its Got it goes with it: keyboard focus lands on Map key, not the page.
@@ -201,7 +241,7 @@ export function RoadMap({
         variant="square"
         data-map-control
         aria-pressed={keyShown}
-        onClick={() => onKeyShown(!keyShown)}
+        onClick={() => showKey(!keyShown)}
         className={cn(
           MAP_BUTTON,
           'absolute top-4 right-4 z-30 aria-pressed:bg-panel-foreground/16 @max-xl:top-3 @max-xl:right-auto @max-xl:left-3',

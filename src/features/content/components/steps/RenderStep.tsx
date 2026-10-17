@@ -4,6 +4,7 @@ import { type ReactNode, useId, useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
+import { Spin, Working } from '@/shared/components/Working'
 import type { Staff } from '@/shared/lib/auth/access'
 import { cn } from '@/shared/lib/utils'
 import { LIBRARY } from '../../assets/library'
@@ -28,7 +29,7 @@ import {
   tag,
 } from '../parts'
 import { SlidePreview, slideWords } from '../SlidePreview'
-import { usePostAction } from '../usePostAction'
+import { usePressedAction } from '../usePostAction'
 import type { WorkbenchActions, WorkbenchView } from '../Workbench'
 
 export type RenderStepProps = {
@@ -216,13 +217,17 @@ function Covers({ note, covers, inUse, busy, making, make, choose }: CoversProps
           />
         </div>
         {making ? (
-          <Button disabled>Running…</Button>
+          <Button disabled>
+            <Spin />
+            Running…
+          </Button>
         ) : (
           <Button variant="outline" disabled={busy} onClick={() => make(idea.trim())}>
             {options.length > 0 ? 'Another set' : 'Make covers'}
           </Button>
         )}
       </div>
+      {making && <Working words="Drawing three covers · about a minute" />}
       {options.length > 0 && (
         <ul
           aria-label="Cover options"
@@ -274,11 +279,13 @@ function Covers({ note, covers, inUse, busy, making, make, choose }: CoversProps
  * the looks (GD25); an edit on Text moves the post back by itself, with no "Back to text" (GD28).
  */
 export function RenderStep({ view, viewer, actions }: RenderStepProps) {
-  const { pending, run } = usePostAction()
+  // Which press is running, so only its control waits as "Running…" with its words beside it.
+  const { pending, run, pressed } = usePressedAction<'render' | 'retry' | 'covers'>()
   const ids = useId()
   const { layout, render, sendBack } = view.current
-  // Render and "Try again" are this step's only actions, and both run the render step.
-  const rendering = view.running.includes('render') || pending
+  // Render and "Try again" both run the render step: running, both wait; pressed, the one pressed.
+  const renderRunning = view.running.includes('render')
+  const drawingCover = pressed('render') || pressed('retry')
   const slides = layout?.body.slides.length ?? 0
   const done = `Rendered · ${slides} slides`
 
@@ -286,10 +293,10 @@ export function RenderStep({ view, viewer, actions }: RenderStepProps) {
   const renderReason = renderGate ?? renderError(view.current)
   const retryGate = actionError('retryArt', viewer, view.stage)
   // A set of covers being drawn, as its own step.
-  const drawingCovers = view.running.includes(COVERS_STEP)
+  const drawingCovers = view.running.includes(COVERS_STEP) || pressed('covers')
   // Light edits and a cover used each make a new render: one at a time, none while one renders
   // or a set is drawn.
-  const busy = rendering || drawingCovers
+  const busy = pending || renderRunning || drawingCovers
   const edit: SlideControlsProps['edit'] =
     actionError('lightEdit', viewer, view.stage) === null
       ? {
@@ -354,7 +361,9 @@ export function RenderStep({ view, viewer, actions }: RenderStepProps) {
                 busy={busy}
                 making={drawingCovers}
                 make={(idea) =>
-                  run(() => actions.makeCoversAction(view.id, view.version, idea), 'Covers made')
+                  run(() => actions.makeCoversAction(view.id, view.version, idea), 'Covers made', {
+                    press: 'covers',
+                  })
                 }
                 choose={(option) =>
                   run(
@@ -370,13 +379,20 @@ export function RenderStep({ view, viewer, actions }: RenderStepProps) {
               ACTION_STAGES.retryArt.includes(view.stage) &&
               retryGate !== WORKFLOW_ERRORS.notAuthorised && (
                 <Control reason={retryGate}>
-                  {rendering ? (
-                    <Button disabled>Running…</Button>
+                  {renderRunning || pressed('retry') ? (
+                    <Button disabled>
+                      <Spin />
+                      Running…
+                    </Button>
                   ) : (
                     <Button
                       variant="outline"
                       disabled={pending || retryGate !== null}
-                      onClick={() => run(() => actions.retryArtAction(view.id, view.version), done)}
+                      onClick={() =>
+                        run(() => actions.retryArtAction(view.id, view.version), done, {
+                          press: 'retry',
+                        })
+                      }
                     >
                       Try again
                     </Button>
@@ -407,18 +423,26 @@ export function RenderStep({ view, viewer, actions }: RenderStepProps) {
             {ACTION_STAGES.render.includes(view.stage) &&
               renderGate !== WORKFLOW_ERRORS.notAuthorised && (
                 <Control reason={renderReason}>
-                  {rendering ? (
-                    <Button disabled>Running…</Button>
+                  {renderRunning || pressed('render') ? (
+                    <Button disabled>
+                      <Spin />
+                      Running…
+                    </Button>
                   ) : (
                     <Button
                       disabled={pending || renderReason !== null}
-                      onClick={() => run(() => actions.renderAction(view.id, view.version), done)}
+                      onClick={() =>
+                        run(() => actions.renderAction(view.id, view.version), done, {
+                          press: 'render',
+                        })
+                      }
                     >
                       Render
                     </Button>
                   )}
                 </Control>
               )}
+            {drawingCover && <Working words="Drawing the cover…" />}
           </>
         }
       />
