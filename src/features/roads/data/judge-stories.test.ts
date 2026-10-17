@@ -15,6 +15,7 @@ import { courseConditions } from '../model/conditions'
 import { type RoadFor, roadFor } from '../model/road-for'
 import { whyTemplate } from '../model/why'
 import { courseById } from './courses'
+import { relatedFields } from './fields'
 import { JUDGE_STORIES, judgeStoryById } from './judge-stories'
 
 /** Each story's road: its kind, city, course and ending (the PR route it stays on, or home). */
@@ -98,6 +99,22 @@ describe('the judges’ stories', () => {
       "Staying: this road has no clear road to PR (you said you'd stay)",
     ])
   })
+
+  for (const id of Object.keys(ROADS)) {
+    test(`${id}'s alternative and stacked course are in the story's field or a related one`, () => {
+      const { r } = roadForStory(id)
+      const field = courseById(r.spec?.courseId ?? '')?.field ?? ''
+      const near = (courseId: string) => {
+        const other = courseById(courseId)?.field ?? ''
+        return other === field || relatedFields(field).includes(other)
+      }
+      const alt = r.spec?.altCourseId ?? ''
+      const stack = r.spec?.stackCourseId ?? ''
+      expect(`${id}: ${alt} ${near(alt)} · ${stack} ${near(stack)}`).toBe(
+        `${id}: ${alt} true · ${stack} true`,
+      )
+    })
+  }
 
   test('each lands on a road of its own', () => {
     const ids = JUDGE_STORIES.map((s) => roadOf(s.id).id)

@@ -292,7 +292,8 @@ describe('the road home (criterion 59)', () => {
   const MELBOURNE_HOME = roadById('melbourne-home')!
 
   it('claims no way to stay after the 485 on any road home', () => {
-    expect(HOMES.length).toBe(26)
+    // 48: the 22 courses added so each course has two neighbours in its field add a road home each.
+    expect(HOMES.length).toBe(48)
     for (const p of HOMES) {
       const spec = specOf(p)
       const text = strings(AFTER_485.map((s) => spec.slots[s])).join(' ')
@@ -460,10 +461,10 @@ describe('the courses around her course', () => {
       )
       if (others.some((o) => near(o.courseId))) expect(near(alt.id)).toBe(true)
     }
-    // Data science's neighbour in Perth is business (Commerce); civil engineering has none in
-    // Sydney, so its alternative is the city's other course, in catalogue order.
+    // Data science's neighbour in Perth is business (Commerce); civil engineering's in Sydney is
+    // structural engineering, added beside it.
     expect(composeRoad(pick('perth', 'ecu-data')).altCourseId).toBe('curtin-commerce')
-    expect(composeRoad(pick('sydney', 'uts-civil')).altCourseId).toBe('uts-cyber')
+    expect(composeRoad(pick('sydney', 'uts-civil')).altCourseId).toBe('uts-structural')
   })
 
   it('stacks the alternative again when the city has only two courses, and says so', () => {
