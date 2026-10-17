@@ -30,6 +30,10 @@ import {
 import { requireBoard } from '@/shared/lib/auth/session'
 import { workbenchActions as actions } from '../workbench-actions'
 
+/** The tab `?tab=` names ("Checks"): one short name, only ever compared with the step's tab names. */
+const tabOf = (value: unknown): string | undefined =>
+  typeof value === 'string' && value.length <= 40 ? value : undefined
+
 /**
  * One step of a post's workbench, at its own address (GD27), for everyone who may see the Board;
  * each control and action checks again. An unknown step is not found; a step the post has not
@@ -140,6 +144,7 @@ export default async function AdminPostStepPage({
         from={boardFrom(query.from)}
         actions={actions}
         step={step}
+        openTab={tabOf(query.tab)}
       />
     </DailyLimits>
   )

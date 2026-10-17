@@ -86,7 +86,7 @@ export async function applySourceWording(
         `Source wording used on slide ${target.slide}`,
       )
     }
-    return reviseClaim(post, version, actor, claim, () => wording, 'source wording')
+    return reviseClaim(post, version, actor, claim, () => wording, 'source wording', 'wording')
   })
 }
 

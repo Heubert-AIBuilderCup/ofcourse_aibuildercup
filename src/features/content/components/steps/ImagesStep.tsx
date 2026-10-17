@@ -27,6 +27,7 @@ import {
   DownloadSlides,
   FALLBACK_LABELS,
   FailedLine,
+  FitFailures,
   Move,
   movesWait,
   ReorderButtons,
@@ -461,6 +462,9 @@ export function ImagesStep({ view, viewer, actions, slide, tab: heldTab }: Image
     return !art?.assetId && art?.fallback !== 'skipped'
   })
   const skipShown = offered('skipPictures') && !comic && (!drawn || (!drawing && unsaved))
+  const fitBlocked =
+    (offered('drawImages') || offered('skipPictures')) &&
+    renderError(view.current) === WORKFLOW_ERRORS.fitFailed
 
   // The post's slides on the stage, one at a time: each art-box slide with its scene or its picture,
   // the others as they are laid out, so the filmstrip is the whole post.
@@ -510,7 +514,8 @@ export function ImagesStep({ view, viewer, actions, slide, tab: heldTab }: Image
       </p>
     )
 
-  // The rendered slides, text only or with their pictures, download once no picture is on its way.
+  // The rendered slides, text only or with their pictures, download once no picture is on its way
+  // (in the step bar).
   const downloadable = drawn !== null && !drawing && !redrawing
 
   const planAgainShown = artPlan !== null && offered('planImages')
@@ -714,12 +719,7 @@ export function ImagesStep({ view, viewer, actions, slide, tab: heldTab }: Image
               ))}
               selected={at}
               onSelect={setSelected}
-              below={
-                <>
-                  {here && missing(here)}
-                  {downloadable && <DownloadSlides postId={view.id} />}
-                </>
-              }
+              below={here && missing(here)}
             />
           ) : (
             <p className={reasonText}>No approved layout yet.</p>
@@ -740,6 +740,10 @@ export function ImagesStep({ view, viewer, actions, slide, tab: heldTab }: Image
             {drawFailed && (
               <FailedLine words={DRAW_FAILED} reason={view.failedReasons?.[DRAW_STEP]} />
             )}
+            {/* What keeps the pictures from being drawn or saved, named, with the way to fix it. */}
+            {fitBlocked && <FitFailures postId={view.id} current={view.current} />}
+            {/* In the step bar, before "Next: Settings →" (18 Oct). */}
+            {downloadable && <DownloadSlides postId={view.id} />}
             <StepTabs
               label="Image controls"
               tabs={tabs}

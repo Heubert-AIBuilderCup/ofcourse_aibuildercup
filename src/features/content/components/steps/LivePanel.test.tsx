@@ -23,6 +23,9 @@ mock.module('next/navigation', () => ({
 
 const { LivePanel } = await import('./LivePanel')
 
+/** Where a link sits: in the step bar ("Step actions", 18 Oct) or anywhere else. */
+const place = (el: Element) => (el.closest('[aria-label="Step actions"]') ? 'bar' : 'elsewhere')
+
 type Props = Parameters<typeof LivePanel>[0]
 
 const RAVI = { userId: 'u-ravi', name: 'Ravi K.', at: '2026-10-05T11:00:00.000Z' }
@@ -679,12 +682,12 @@ describe('LivePanel', () => {
 })
 
 describe('LivePanel: Download slides', () => {
-  it('offers the live slides to download under the stage', () => {
+  it('offers the live slides to download in the step bar (18 Oct)', () => {
     render(<LivePanel view={VIEW} viewer={REVIEWER} actions={actions} />)
     expect(
       screen
         .queryAllByRole('link', { name: 'Download slides' })
-        .map((a) => `${a.getAttribute('href')} ${a.hasAttribute('download')}`),
-    ).toEqual(['/admin/posts/p1/slides true'])
+        .map((a) => `${a.getAttribute('href')} ${a.hasAttribute('download')} ${place(a)}`),
+    ).toEqual(['/admin/posts/p1/slides true bar'])
   })
 })

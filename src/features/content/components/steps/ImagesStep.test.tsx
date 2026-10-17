@@ -22,6 +22,9 @@ mock.module('next/navigation', () => ({
 }))
 
 const { BlogImagesStep, ImagesStep } = await import('./ImagesStep')
+
+/** Where a link sits: in the step bar ("Step actions", 18 Oct) or anywhere else. */
+const place = (el: Element) => (el.closest('[aria-label="Step actions"]') ? 'bar' : 'elsewhere')
 type Props = Parameters<typeof ImagesStep>[0]
 
 const FIELD_NOTES = templateById('field-notes')
@@ -1058,23 +1061,23 @@ describe('Download slides (Images on)', () => {
   const downloads = () =>
     screen
       .queryAllByRole('link', { name: 'Download slides' })
-      .map((a) => `${a.getAttribute('href')} ${a.hasAttribute('download')}`)
+      .map((a) => `${a.getAttribute('href')} ${a.hasAttribute('download')} ${place(a)}`)
 
-  it('is offered once the slides are saved text only, under the stage', () => {
+  it('is offered once the slides are saved text only, in the step bar and not under the stage (18 Oct)', () => {
     drawn([
       art(1, { assetId: null, fallback: 'skipped' }),
       art(2, { assetId: null, fallback: 'skipped' }),
     ])
-    expect(downloads()).toEqual(['/admin/posts/p1/slides true'])
+    expect(downloads()).toEqual(['/admin/posts/p1/slides true bar'])
     expect(
       within(screen.getByRole('group', { name: 'Slides, one at a time' })).queryAllByRole('link')
         .length,
-    ).toBe(1)
+    ).toBe(0)
   })
 
   it('is offered once the pictures are drawn into the slides', () => {
     drawn([art(1), art(2)])
-    expect(downloads()).toEqual(['/admin/posts/p1/slides true'])
+    expect(downloads()).toEqual(['/admin/posts/p1/slides true bar'])
   })
 
   it('is not offered before the slides are rendered, nor while the pictures are drawn', () => {
@@ -1083,5 +1086,34 @@ describe('Download slides (Images on)', () => {
     cleanup()
     drawn([art(1), art(2, { assetId: null, fallback: 'no_art' })], { running: ['images'] })
     expect(downloads()).toEqual([])
+  })
+})
+
+describe('a fit check failing at Images (18 Oct)', () => {
+  it('names each failing check by slide, slot and what, with the way to the Text step’s Checks', () => {
+    const over = {
+      check: 'length' as const,
+      slide: 2,
+      slot: 'heading',
+      value: 90,
+      limit: '1–40 chars',
+      pass: false,
+      label: 'Slide 2 · 90 chars (1–40) · Over',
+    }
+    const layout = BASE.layout
+    if (!layout) throw new Error('no layout')
+    view({
+      current: { ...BASE, layout: { ...layout, body: { ...layout.body, fitChecks: [over] } } },
+    })
+    expect(screen.getByRole('button', { name: /^Draw images/ })).toBeDisabled()
+    const failing = screen.getByRole('list', { name: 'Failing fit checks' })
+    expect(
+      within(failing)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Slide 2 · Heading · Too long · 90 characters · limit 1–40'])
+    expect(screen.getByRole('link', { name: 'Fix it on Text · Checks' }).getAttribute('href')).toBe(
+      '/admin/posts/p1/text?tab=Checks',
+    )
   })
 })

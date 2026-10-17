@@ -120,7 +120,7 @@ describe('SourceCheckPanel', () => {
     cleanup()
     view({ current: checked([FOUND]) })
     expect(screen.queryByRole('button', { name: 'Run source check' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Try again' }) === null).toBe(true)
   })
 
   it('offers "Try again" when no check of this version has landed (98)', async () => {
@@ -338,37 +338,52 @@ describe('"Research this" on a sentence not found (BR14)', () => {
   })
 })
 
-describe('SourceCheckPanel, only what keeps the post from review (the Settings "To fix" tab)', () => {
-  const fixes = (over: Partial<Props['view']> = {}) =>
-    render(
-      <SourceCheckPanel view={{ ...VIEW, ...over }} viewer={EDITOR} actions={actions} fixesOnly />,
-    )
-
-  it('lists each sentence not found with its fixes, and nothing else: no summary, no other sentence', async () => {
-    fixes({ current: checked([FOUND, NOT_FOUND]) })
-    expect(screen.getAllByTestId('check-row')).toHaveLength(1)
-    expect(screen.queryByText(FOUND.text) === null).toBe(true)
-    expect(screen.queryByText(/found in the article/) === null).toBe(true)
-    expect(screen.queryByRole('button', { name: 'All checked sentences' }) === null).toBe(true)
+describe('SourceCheckPanel: the one place for the check on Settings (18 Oct)', () => {
+  it('lists the problems first, each sentence not found with its fixes, then the summary, then the drawer', () => {
+    view({ current: checked([FOUND, NOT_FOUND]) })
     const row = rowOf(NOT_FOUND.text)
-    for (const name of ['Remove', 'Mark as editorial opinion', 'Research this']) {
-      expect(within(row).getByRole('button', { name })).toBeEnabled()
-    }
-    await act(async () => {
-      fireEvent.click(within(row).getByRole('button', { name: 'Remove' }))
-    })
-    expect(actions.removeClaimAction).toHaveBeenCalledWith('p1', 9, 1)
+    const summary = screen.getByText('1 found in the article · 1 not found · 0 opinion')
+    const drawer = screen.getByRole('button', { name: 'All checked sentences' })
+    const before = (a: Node, b: Node) =>
+      Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(before(row, summary)).toBe(true)
+    expect(before(summary, drawer)).toBe(true)
+    const fixes = within(row)
+      .getAllByRole('button')
+      .map((b) => b.textContent)
+    expect(fixes).toEqual(['Remove', 'Mark as editorial opinion', 'Research this'])
   })
 
-  it('offers to run the check when none of this version has landed, and says nothing once every sentence is found', async () => {
-    fixes()
+  it('offers "Run source check" when none of this version has landed, and "Try again" after a failure', async () => {
+    view()
     expect(screen.getByText('Not checked on this version yet.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try again' }) === null).toBe(true)
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Run source check' }))
     })
     expect(actions.checkSourceAction).toHaveBeenCalledWith('p1', 9)
-    cleanup()
-    const { container } = fixes({ current: checked([FOUND]) })
-    expect(container.textContent).toBe('')
+  })
+
+  it('says a refused fix under its sentence: a removal that would leave a slot too short', async () => {
+    const refusal =
+      "Removing it would leave Slide 3 · Body too short. Use the source's wording, or edit it on Text."
+    render(
+      <SourceCheckPanel
+        view={{ ...VIEW, current: checked([FOUND, NOT_FOUND]) }}
+        viewer={EDITOR}
+        actions={{
+          ...actions,
+          removeClaimAction: mock(async (_id: unknown, _at: unknown, _claim: unknown) => ({
+            ok: false as const,
+            error: refusal,
+          })),
+        }}
+      />,
+    )
+    const row = rowOf(NOT_FOUND.text)
+    await act(async () => {
+      fireEvent.click(within(row).getByRole('button', { name: 'Remove' }))
+    })
+    expect(within(row).getByRole('alert').textContent).toBe(refusal)
   })
 })

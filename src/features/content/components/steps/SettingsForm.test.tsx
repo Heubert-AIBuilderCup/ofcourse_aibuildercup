@@ -138,6 +138,11 @@ describe('SettingsForm', () => {
     view({ current: withSettings({ ...GENERAL_90, layer: 'personal' }) })
     openPanel('Expiry')
     expect(screen.getByRole('button', { name: 'Send to review → Review' })).toBeDisabled()
+    // Said where it is fixed, and the button's reason points there.
+    expect(screen.getByRole('tooltip').textContent).toBe(
+      'Personal and matched posts always say why: open Who sees it',
+    )
+    openPanel('Who sees it')
     expect(screen.getByText('Personal and matched posts always say why')).toBeInTheDocument()
   })
 
@@ -393,11 +398,10 @@ describe('SettingsForm: one panel at a time, the post beside it', () => {
       slots,
     )
     const tab = (name: string) => within(indicator()).getByRole('tab', { name })
-    // "To fix" opens first (below); its own panels keep their marks.
-    openPanel('Source check')
-    expect(tab('Source check · needs attention').getAttribute('aria-selected')).toBe('true')
+    // The source check opens first while it holds something to fix, counted; the others say "Fix".
+    expect(tab('Source check · 1 to fix').getAttribute('aria-selected')).toBe('true')
     // One word in a tag, never an exclamation mark.
-    expect(tab('Source check · needs attention').textContent).toContain('Fix')
+    expect(tab('Source check · 1 to fix').textContent).toContain('1')
     expect(indicator().textContent).not.toContain('!')
     expect(tab('Who sees it · needs attention').getAttribute('aria-selected')).toBe('false')
     expect(tab('Who sees it · needs attention').textContent).toContain('Fix')
@@ -406,12 +410,12 @@ describe('SettingsForm: one panel at a time, the post beside it', () => {
       expect(tab(name).getAttribute('aria-selected')).toBe('false')
     }
     // The open panel is its tab's, and named by it.
-    expect(screen.getByRole('tabpanel', { name: 'Source check · needs attention' }).id).toBe(
-      tab('Source check · needs attention').getAttribute('aria-controls') ?? 'none',
+    expect(screen.getByRole('tabpanel', { name: 'Source check · 1 to fix' }).id).toBe(
+      tab('Source check · 1 to fix').getAttribute('aria-controls') ?? 'none',
     )
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(tab('Who sees it · needs attention').getAttribute('aria-selected')).toBe('true')
-    expect(tab('Source check · needs attention').getAttribute('aria-selected')).toBe('false')
+    expect(tab('Source check · 1 to fix').getAttribute('aria-selected')).toBe('false')
     cleanup()
 
     // The check found every sentence and the why line is not needed; an expiry date is still to choose.
@@ -481,7 +485,7 @@ describe('SettingsForm: one panel at a time, the post beside it', () => {
   })
 })
 
-describe('SettingsForm: defaults that send, and a "To fix" tab for what keeps the post from review (17 Oct)', () => {
+describe('SettingsForm: one Source check tab for the check, each other problem on its own tab (18 Oct)', () => {
   const notFound = (n: number): CurrentPost['sourceCheck'] => ({
     id: 'sc1',
     body: {
@@ -496,15 +500,11 @@ describe('SettingsForm: defaults that send, and a "To fix" tab for what keeps th
       replays: [],
     },
   })
-  const slots = {
-    check: <p>The source check</p>,
-    fixes: <p>The check's fixes</p>,
-    market: <p>The market versions</p>,
-  }
+  const slots = { check: <p>The source check</p>, market: <p>The market versions</p> }
   const tabs = () => within(indicator()).getAllByRole('tab')
-  const toFix = (count: number) =>
-    within(indicator()).getByRole('tab', { name: `To fix · ${count} to fix` })
+  const named = (name: string) => within(indicator()).getByRole('tab', { name })
   const panel = () => screen.getByRole('tabpanel')
+  const reason = () => screen.getByRole('tooltip').textContent
 
   it('offers "Send to review" on untouched defaults, and sending saves them first, as Save does', async () => {
     view()
@@ -517,64 +517,50 @@ describe('SettingsForm: defaults that send, and a "To fix" tab for what keeps th
     expect(actions.sendToReviewAction).toHaveBeenCalledWith('p1', 12)
   })
 
-  it('opens on "To fix", first, counted as a problem: the sentences not found and a why line still to write, with the way to it', () => {
-    view(
-      {
-        current: {
-          ...withSettings({ ...GENERAL_90, layer: 'personal' }),
-          sourceCheck: notFound(2),
-        },
-      },
-      slots,
-    )
-    expect(tabs()[0].textContent).toContain('To fix')
-    expect(toFix(3).getAttribute('aria-selected')).toBe('true')
-    expect(panel().textContent).toContain("The check's fixes")
-    expect(panel().textContent).toContain('Personal and matched posts always say why')
-    // The full list stays in the Source check tab.
-    expect(tabs()[1].textContent).toContain('Source check')
-    fireEvent.click(within(panel()).getByRole('button', { name: 'Open Who sees it' }))
-    expect(
-      within(indicator())
-        .getByRole('tab', { name: 'Who sees it · needs attention' })
-        .getAttribute('aria-selected'),
-    ).toBe('true')
-  })
-
-  it('asks for the source check when none of this version has landed', () => {
-    view({ current: { ...withSettings(GENERAL_90), sourceCheck: null } }, slots)
-    expect(toFix(1).getAttribute('aria-selected')).toBe('true')
-    expect(panel().textContent).toContain("The check's fixes")
-  })
-
-  it('names an expiry still to choose, keeping the panel the editor is on', () => {
-    view({ current: withSettings(GENERAL_90) }, slots)
-    openPanel('Expiry')
-    fireEvent.click(screen.getByRole('radio', { name: 'On a date' }))
-    expect(toFix(1).getAttribute('aria-selected')).toBe('false')
-    expect(panel().getAttribute('aria-labelledby')).toBe(
-      within(indicator()).getByRole('tab', { name: 'Expiry · needs attention' }).id,
-    )
-    openPanel('To fix')
-    expect(panel().textContent).toContain('Choose the expiry before sending to review.')
-    expect(panel().textContent).not.toContain("The check's fixes")
-    fireEvent.click(within(panel()).getByRole('button', { name: 'Open Expiry' }))
-    expect(
-      within(indicator())
-        .getByRole('tab', { name: 'Expiry · needs attention' })
-        .getAttribute('aria-selected'),
-    ).toBe('true')
-  })
-
-  it('leaves "To fix" out when nothing keeps the post from review', () => {
-    view({ current: withSettings(GENERAL_90) }, slots)
+  it('has no "To fix" tab: the Source check opens first, counting the sentences not found, and Send points to it', () => {
+    view({ current: { ...withSettings(GENERAL_90), sourceCheck: notFound(2) } }, slots)
     expect(tabs().map((t) => t.textContent)).toEqual([
-      'Source check',
+      'Source check2 · 2 to fix',
       'Who sees it',
       'Tags',
       'Where sources go',
       'Expiry',
       'Market versions',
     ])
+    expect(named('Source check · 2 to fix').getAttribute('aria-selected')).toBe('true')
+    expect(panel().textContent).toContain('The source check')
+    expect(reason()).toBe('2 to fix: open Source check')
+  })
+
+  it('counts a check not run yet as one to fix', () => {
+    view({ current: { ...withSettings(GENERAL_90), sourceCheck: null } }, slots)
+    expect(named('Source check · 1 to fix').getAttribute('aria-selected')).toBe('true')
+    expect(reason()).toBe('1 to fix: open Source check')
+  })
+
+  it('marks a why line still to write on Who sees it, says it there, and points Send to it', () => {
+    view(
+      {
+        current: {
+          ...withSettings({ ...GENERAL_90, layer: 'personal' }),
+          sourceCheck: notFound(0),
+        },
+      },
+      slots,
+    )
+    expect(named('Source check').getAttribute('aria-selected')).toBe('true')
+    expect(reason()).toBe('Personal and matched posts always say why: open Who sees it')
+    openPanel('Who sees it')
+    expect(named('Who sees it · needs attention').getAttribute('aria-selected')).toBe('true')
+    expect(panel().textContent).toContain('Personal and matched posts always say why')
+  })
+
+  it('marks an expiry still to choose on Expiry, keeping the panel the editor is on', () => {
+    view({ current: { ...withSettings(GENERAL_90), sourceCheck: notFound(0) } }, slots)
+    openPanel('Expiry')
+    fireEvent.click(screen.getByRole('radio', { name: 'On a date' }))
+    expect(panel().getAttribute('aria-labelledby')).toBe(named('Expiry · needs attention').id)
+    expect(named('Source check').textContent).toBe('Source check')
+    expect(reason()).toBe('Choose the expiry before sending to review: open Expiry')
   })
 })

@@ -441,13 +441,10 @@ export function LivePanel({ view, viewer, actions, article, links, tab: heldTab 
               {shownVersion ? (
                 <MarketSlides market={shownVersion.body} stage />
               ) : (
-                <RenderedSlides
-                  render={render.body}
-                  layout={layout?.body.slides}
-                  stage
-                  below={() => <DownloadSlides postId={view.id} />}
-                />
+                <RenderedSlides render={render.body} layout={layout?.body.slides} stage />
               )}
+              {/* In the step bar, before the step's action (18 Oct). */}
+              <DownloadSlides postId={view.id} />
             </div>
           ))
         }

@@ -109,7 +109,7 @@ export function SocialWorkbench({ view, viewer, from, actions }: SocialWorkbench
   const platform = view.pointers.social?.platform ?? caption?.body.platform ?? 'instagram'
 
   return (
-    <div className="flex min-w-0 flex-col gap-8">
+    <div className="workbench flex min-w-0 flex-col gap-8">
       <div className="flex flex-col gap-4">
         <Link
           href={boardBackHref(from)}

@@ -5,6 +5,7 @@
 // alike.
 
 import { ArrowDown, ArrowUp, X } from 'lucide-react'
+import Link from 'next/link'
 import {
   createContext,
   type ReactNode,
@@ -24,9 +25,11 @@ import { type FailureReason, failureSentence } from '../lib/failure'
 import { dailyLimitLine, stepLimitLine } from '../lib/limits'
 import { sendBackLine } from '../lib/lines'
 import { runningReason, type StepProgress } from '../lib/running'
-import { postPath } from '../lib/steps'
+import { postPath, stepPath } from '../lib/steps'
+import { fitFailures } from '../lib/version-status'
 import { marketById } from '../markets'
 import type { Body } from '../model/artifacts'
+import type { CurrentPost } from '../model/current'
 import type { LaidSlide } from '../model/types'
 import { reasonText, tag } from './classes'
 import { SlidePreview, slideWords } from './SlidePreview'
@@ -37,19 +40,60 @@ export { reasonText, tag } from './classes'
 /** Inside the step bar's action row, where a control's reason opens from the row's end. */
 const ControlAtEnd = createContext(false)
 
+/** Which edge of its row a control's reason opens from. */
+type Side = 'start' | 'end'
+
+/** The nearest ancestor that clips or scrolls what overflows it, if any. */
+function clippingAncestor(el: HTMLElement): HTMLElement | null {
+  for (let at = el.parentElement; at; at = at.parentElement) {
+    const { overflowX, overflowY } = getComputedStyle(at)
+    if (/auto|scroll|hidden|clip/.test(`${overflowX} ${overflowY}`)) return at
+  }
+  return null
+}
+
+/**
+ * The side a reason opens from, measured as it shows: its own while the tooltip fits between the
+ * nearest scrolling area's edges and the viewport's from there, else the other side if that fits,
+ * else whichever leaves more of it in view.
+ */
+function sideWithRoom(row: HTMLElement, tip: HTMLElement, own: Side): Side {
+  const at = row.getBoundingClientRect()
+  const width = tip.getBoundingClientRect().width
+  const area = clippingAncestor(row)?.getBoundingClientRect()
+  const left = Math.max(area?.left ?? 0, 0)
+  const right = Math.min(area?.right ?? window.innerWidth, window.innerWidth)
+  // Room for the tooltip opening from the row's start (rightward) and from its end (leftward).
+  const room: Record<Side, number> = { start: right - at.left, end: at.right - left }
+  const other: Side = own === 'start' ? 'end' : 'start'
+  if (room[own] >= width) return own
+  if (room[other] >= width) return other
+  return room[own] >= room[other] ? own : other
+}
+
 /**
  * A button row that says why it is unavailable (criterion 8): with a reason, a red "!" badge beside
  * the control, and the reason in a tooltip shown while the row is hovered or holds focus and
  * announced as the badge's description. Escape hides it until the pointer or focus leaves the row
  * (WCAG 1.4.13). The reason opens above the row, from its start, or from its end in the step bar
  * where the action sits at the right edge, so the panel never cuts it off, it never covers the
- * fields below, and it stays on screen in the step bar at the viewport's bottom. The reason stays
+ * fields below, and it stays on screen in the step bar at the viewport's bottom; measured as it
+ * shows (pointer or focus), it opens from the other side when its own has no room in the nearest
+ * scrolling area or the viewport (`data-align` says which). The reason stays
  * in the DOM, so a step bar's action stays right-most.
  */
 export function Control({ reason, children }: { reason: string | null; children: ReactNode }) {
   const tip = useId()
   // In the step bar the action sits at the right edge: the reason opens from the row's end there.
-  const align = useContext(ControlAtEnd) ? 'end' : 'start'
+  const own = useContext(ControlAtEnd) ? 'end' : 'start'
+  // Measured as it shows (18 Oct): a narrow scrolling area can leave its own side no room.
+  const [measured, setMeasured] = useState<Side | null>(null)
+  const align = measured ?? own
+  const row = useRef<HTMLDivElement>(null)
+  const tipRef = useRef<HTMLSpanElement>(null)
+  const place = () => {
+    if (row.current && tipRef.current) setMeasured(sideWithRoom(row.current, tipRef.current, own))
+  }
   const [hovered, setHovered] = useState(false)
   const [dismissed, setDismissed] = useState(false)
   // Keys go to the focused element, not the hovered one: while hovered, listen on the document.
@@ -64,11 +108,16 @@ export function Control({ reason, children }: { reason: string | null; children:
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the row's handlers only dismiss its tooltip; the controls inside it are the interactive ones.
     <div
+      ref={row}
       className="group/control relative flex flex-wrap items-center gap-3"
       onKeyDown={(event) => {
         if (event.key === 'Escape') setDismissed(true)
       }}
-      onPointerEnter={() => setHovered(true)}
+      onFocus={place}
+      onPointerEnter={() => {
+        place()
+        setHovered(true)
+      }}
       onPointerLeave={() => {
         setHovered(false)
         setDismissed(false)
@@ -90,6 +139,7 @@ export function Control({ reason, children }: { reason: string | null; children:
             !
           </button>
           <span
+            ref={tipRef}
             id={tip}
             role="tooltip"
             data-align={align}
@@ -208,7 +258,10 @@ export function StepBar({ children }: { children: ReactNode }) {
           className={cn(stepBar, 'hidden has-[>:not(:empty)]:flex')}
         >
           <div ref={setBack} className="flex flex-wrap items-center gap-4 empty:hidden" />
-          <div ref={setAction} className="ml-auto flex flex-1 justify-end empty:hidden" />
+          <div
+            ref={setAction}
+            className="ml-auto flex flex-1 flex-wrap items-center justify-end gap-4 empty:hidden"
+          />
         </section>
       </div>
     </StepBarTarget>
@@ -228,13 +281,24 @@ export function StepBack({ children }: { children: ReactNode }) {
 
 /**
  * A step's primary action (and what goes with it: its checks, its refusal), shown on the right of
- * the workbench's step bar. A step shown outside a workbench gets a bar of its own in place.
+ * the workbench's step bar. With `lead`, it goes before every other action there, whenever it
+ * mounts ("Download slides", 18 Oct). A step shown outside a workbench gets a bar of its own in
+ * place.
  */
-export function StepAction({ children }: { children: ReactNode }) {
+export function StepAction({ children, lead = false }: { children: ReactNode; lead?: boolean }) {
   const slots = useContext(StepBarTarget)
   const row = (
     <ControlAtEnd value>
-      <div className="flex flex-1 flex-wrap items-center justify-end gap-4">{children}</div>
+      <div
+        className={cn(
+          'flex flex-wrap items-center justify-end gap-4',
+          // In the bar's slot the rows pack to its end; alone in a bar of its own, it fills it.
+          slots === undefined && 'flex-1',
+          lead && 'order-first',
+        )}
+      >
+        {children}
+      </div>
     </ControlAtEnd>
   )
   if (slots === undefined) {
@@ -499,19 +563,51 @@ export function RenderedSlides({
 }
 
 /**
+ * Why the slides wait on their fit checks (18 Oct): each failing check by slide, slot and what is
+ * wrong, with its numbers, and the way to fix it, the Text step with its Checks tab open. Nothing
+ * when every check passes.
+ */
+export function FitFailures({ postId, current }: { postId: string; current: CurrentPost }) {
+  const { revision, layout } = current
+  if (!layout || layout.body.fitChecks.every((c) => c.pass)) return null
+  const failing = revision ? fitFailures(revision.body, layout.body.fitChecks) : []
+  return (
+    <div className="flex flex-col gap-2">
+      {failing.length > 0 && (
+        <ul aria-label="Failing fit checks" className="flex flex-col gap-1">
+          {failing.map((p) => (
+            <li key={p.text} className="text-caption text-destructive">
+              {p.where ? [p.where, p.what, ...(p.evidence ?? [])].join(' · ') : p.text}
+            </li>
+          ))}
+        </ul>
+      )}
+      <Link
+        href={`${stepPath(postId, 'text')}?tab=Checks`}
+        className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'self-start')}
+      >
+        Fix it on Text · Checks
+      </Link>
+    </div>
+  )
+}
+
+/**
  * "Download slides" (Images on): the zip of a feed post's rendered slides, PNG and SVG, text only
- * or with their pictures, from src/app/admin/(console)/posts/[id]/slides. Shown under the selected
- * slide, above the filmstrip, wherever the post's rendered slides are on the stage.
+ * or with their pictures, from src/app/admin/(console)/posts/[id]/slides. Shown in the step bar,
+ * before the step's action, wherever the post's rendered slides are on the stage.
  */
 export function DownloadSlides({ postId }: { postId: string }) {
   return (
-    <a
-      href={`${postPath(postId)}/slides`}
-      download
-      className={buttonVariants({ variant: 'outline', size: 'sm' })}
-    >
-      Download slides
-    </a>
+    <StepAction lead>
+      <a
+        href={`${postPath(postId)}/slides`}
+        download
+        className={buttonVariants({ variant: 'outline' })}
+      >
+        Download slides
+      </a>
+    </StepAction>
   )
 }
 

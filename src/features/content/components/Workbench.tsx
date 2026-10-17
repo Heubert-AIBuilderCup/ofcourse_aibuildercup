@@ -126,6 +126,11 @@ export type WorkbenchProps = {
   actions: WorkbenchActions
   /** The step whose screen this is (GD27); the page has checked the post has reached it. */
   step: StepId
+  /**
+   * The tab the address names (`?tab=Checks`), open first on this step, as "Fix it on Text ·
+   * Checks" asks; a name no tab has opens none.
+   */
+  openTab?: string
 }
 
 /** A look post (GD4) has its own images step; a post from before keeps the render and covers (GD8). */
@@ -174,7 +179,6 @@ function SettingsScreen({
             {...props}
             tab={tab}
             check={<SourceCheckPanel {...props} />}
-            fixes={<SourceCheckPanel {...props} fixesOnly />}
             market={
               pictured ? <MarketControls {...props} shown={shown} onShow={onShow} /> : undefined
             }
@@ -371,15 +375,17 @@ function Published({ view, viewer, actions }: Omit<WorkbenchProps, 'from' | 'ste
  * line, the numbered step bar that opens each done or current step, then that step's screen. Every control
  * asks the workflow rules; each action checks again on the server.
  */
-export function Workbench({ view, viewer, from, actions, step }: WorkbenchProps) {
+export function Workbench({ view, viewer, from, actions, step, openTab }: WorkbenchProps) {
   useRefreshWhileRunning(view.running.length > 0)
   const { sendBack } = view.current
   // The picked version's selected slide, above the screen's version key, so it survives a save
   // (GD24); the version's slide count clamps it where it is shown.
   const [selected, onSelect] = useState(1)
   // Each step's open tab by its name, above the version key too, so a save keeps the editor on
-  // the tab she was on; none until she opens or works in one.
-  const [tabs, setTabs] = useState<Partial<Record<StepId, string>>>({})
+  // the tab she was on; none until she opens or works in one, or the address names one.
+  const [tabs, setTabs] = useState<Partial<Record<StepId, string>>>(() =>
+    openTab ? { [step]: openTab } : {},
+  )
   const tab: TabHold = {
     open: tabs[step] ?? null,
     onOpen: (name) => setTabs((held) => ({ ...held, [step]: name })),
@@ -391,7 +397,7 @@ export function Workbench({ view, viewer, from, actions, step }: WorkbenchProps)
   const lite = liteLine(view.lite, view.running, step)
 
   return (
-    <div className="@container flex min-w-0 flex-col gap-4">
+    <div className="workbench @container flex min-w-0 flex-col gap-4">
       <div className="flex flex-col gap-3">
         {/* One line, as a breadcrumb: the title truncates, its full text on hover. */}
         <div className="flex min-w-0 items-baseline gap-2">

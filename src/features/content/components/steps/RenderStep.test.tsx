@@ -17,6 +17,9 @@ mock.module('next/navigation', () => ({
 }))
 
 const { RenderStep } = await import('./RenderStep')
+
+/** Where a link sits: in the step bar ("Step actions", 18 Oct) or anywhere else. */
+const place = (el: Element) => (el.closest('[aria-label="Step actions"]') ? 'bar' : 'elsewhere')
 type Props = Parameters<typeof RenderStep>[0]
 
 const slide = (kind: LaidSlide['kind']): LaidSlide => ({
@@ -180,6 +183,16 @@ describe('RenderStep', () => {
     expect(within(row).getByText('Fail')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Render' })).toBeDisabled()
     expect(screen.getByText('Fix the failing fit checks before rendering.')).toBeInTheDocument()
+  })
+
+  it('offers the way to fix a failing fit check: the Text step with its Checks open (18 Oct)', () => {
+    view({ current: { ...EMPTY, layout: layout([OVER, PASS]) } })
+    expect(screen.getByRole('link', { name: 'Fix it on Text · Checks' }).getAttribute('href')).toBe(
+      '/admin/posts/p1/text?tab=Checks',
+    )
+    cleanup()
+    view()
+    expect(screen.queryByRole('link', { name: 'Fix it on Text · Checks' }) === null).toBe(true)
   })
 
   it('renders when every fit check passes', async () => {
@@ -576,15 +589,15 @@ describe('Download slides (Images on)', () => {
   const downloads = () =>
     screen
       .queryAllByRole('link', { name: 'Download slides' })
-      .map((a) => `${a.getAttribute('href')} ${a.hasAttribute('download')}`)
+      .map((a) => `${a.getAttribute('href')} ${a.hasAttribute('download')} ${place(a)}`)
 
-  it('is offered once rendered, with or without cover art', () => {
+  it('is offered once rendered, with or without cover art, in the step bar (18 Oct)', () => {
     for (const fallback of [null, 'no_art'] as const) {
       view({
         stage: 'rendered',
         current: { ...EMPTY, layout: layout([PASS]), render: renderRecord(fallback) },
       })
-      expect(downloads()).toEqual(['/admin/posts/p1/slides true'])
+      expect(downloads()).toEqual(['/admin/posts/p1/slides true bar'])
       cleanup()
     }
   })

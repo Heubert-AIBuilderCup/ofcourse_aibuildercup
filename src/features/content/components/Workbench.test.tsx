@@ -238,13 +238,14 @@ it('at the settings step, shows the source check, the feed settings and Send to 
       step="settings"
     />,
   )
-  // No check of this version yet: "To fix" opens first, with the check to run (17 Oct).
+  // No check of this version yet: the Source check opens first, counted, with the check to run
+  // (18 Oct: one tab for the check, no "To fix").
   const panel = () => screen.getByRole('tabpanel')
   expect(panel().getAttribute('aria-labelledby')).toBe(
-    screen.getByRole('tab', { name: 'To fix · 1 to fix' }).id,
+    screen.getByRole('tab', { name: 'Source check · 1 to fix' }).id,
   )
+  expect(screen.queryByRole('tab', { name: /^To fix/ }) === null).toBe(true)
   expect(within(panel()).getByRole('button', { name: 'Run source check' })).toBeEnabled()
-  openPanel('Source check')
   expect(screen.getByRole('heading', { level: 2, name: /Source check/ })).toBeInTheDocument()
   expect(screen.getByRole('heading', { level: 2, name: /Feed settings/ })).toBeInTheDocument()
   openPanel('Expiry')
@@ -258,6 +259,51 @@ it('at the settings step, shows the source check, the feed settings and Send to 
   expect(screen.getAllByRole('button', { name: '← Images' })).toHaveLength(1)
   fireEvent.click(back)
   expect(push).toHaveBeenCalledWith('/admin/posts/p1/images')
+})
+
+it('puts "Download slides" in the step bar just before the step’s action (18 Oct)', () => {
+  const rendered = {
+    id: 'ren1',
+    body: {
+      revisionId: 'rev1',
+      layoutId: 'lay1',
+      art: { assetId: null, prompt: '', version: 1, fallback: null },
+      slides: [{ svgAssetId: 's1', pngAssetId: 'png1' }],
+    },
+  } as unknown as Props['view']['current']['render']
+  render(
+    <Workbench
+      view={{ ...VIEW, stage: 'rendered', current: { ...VIEW.current, render: rendered } }}
+      viewer={EDITOR}
+      from="all"
+      actions={actions}
+      step="settings"
+    />,
+  )
+  const bar = within(screen.getByRole('region', { name: 'Step actions' }))
+  const download = bar.getByRole('link', { name: 'Download slides' })
+  const send = bar.getByRole('button', { name: 'Send to review → Review' })
+  expect(Boolean(download.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(
+    true,
+  )
+  expect(
+    within(screen.getByRole('group', { name: 'Slides, one at a time' })).queryAllByRole('link')
+      .length,
+  ).toBe(0)
+})
+
+it('opens the tab the address names on its step, as "Fix it on Text · Checks" asks (18 Oct)', () => {
+  render(
+    <Workbench
+      view={{ ...VIEW, stage: 'rendered' }}
+      viewer={EDITOR}
+      from="all"
+      actions={actions}
+      step="settings"
+      openTab="Expiry"
+    />,
+  )
+  expect(screen.getByRole('tab', { name: /^Expiry/ }).getAttribute('aria-selected')).toBe('true')
 })
 
 it('reads Source · Ideas · Text · Images · Settings · Review · Live on the step bar of a post with ideas', () => {

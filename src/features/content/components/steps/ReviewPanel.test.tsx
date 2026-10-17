@@ -19,6 +19,9 @@ mock.module('next/navigation', () => ({
 }))
 
 const { ReviewPanel } = await import('./ReviewPanel')
+
+/** Where a link sits: in the step bar ("Step actions", 18 Oct) or anywhere else. */
+const place = (el: Element) => (el.closest('[aria-label="Step actions"]') ? 'bar' : 'elsewhere')
 type Props = Parameters<typeof ReviewPanel>[0]
 
 const THE_LINE = templateById('the-line')
@@ -299,11 +302,11 @@ describe('ReviewPanel', () => {
 
   it('lets a reviewer approve and publish, from the step actions bar', async () => {
     view(REVIEWER)
-    expect(
-      within(screen.getByRole('region', { name: 'Step actions' })).getByRole('button', {
-        name: 'Approve and publish',
-      }),
-    ).toBeInTheDocument()
+    // Outside a workbench each step action has a bar of its own: "Download slides" has one too.
+    const holding = screen
+      .getAllByRole('region', { name: 'Step actions' })
+      .filter((bar) => within(bar).queryAllByRole('button', { name: 'Approve and publish' }).length)
+    expect(holding.length).toBe(1)
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Approve and publish' }))
     })
@@ -488,15 +491,15 @@ describe('ReviewPanel', () => {
 })
 
 describe('ReviewPanel: Download slides', () => {
-  it('offers the rendered slides to download, once, beside a market version too', () => {
+  it('offers the rendered slides to download, once, in the step bar, beside a market version too (18 Oct)', () => {
     const links = () =>
       screen
         .queryAllByRole('link', { name: 'Download slides' })
-        .map((a) => `${a.getAttribute('href')} ${a.hasAttribute('download')}`)
+        .map((a) => `${a.getAttribute('href')} ${a.hasAttribute('download')} ${place(a)}`)
     view(REVIEWER)
-    expect(links()).toEqual(['/admin/posts/p1/slides true'])
+    expect(links()).toEqual(['/admin/posts/p1/slides true bar'])
     cleanup()
     view(REVIEWER, { ...CURRENT, market: MARKET })
-    expect(links()).toEqual(['/admin/posts/p1/slides true'])
+    expect(links()).toEqual(['/admin/posts/p1/slides true bar'])
   })
 })

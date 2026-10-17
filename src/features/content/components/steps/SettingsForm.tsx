@@ -41,13 +41,11 @@ export type SettingsFormProps = {
   actions: Pick<WorkbenchActions, 'saveSettingsAction' | 'sendToReviewAction'>
   /** The panel shown, by its name, held by the workbench so that a save does not send the editor back to the first. */
   tab: TabHold
-  /** The source check (SourceCheckPanel), the first panel. */
-  check?: ReactNode
   /**
-   * What of the source check keeps the post from review (SourceCheckPanel `fixesOnly`): the check
-   * to run, or each sentence not found with its fixes. Shown in the "To fix" tab.
+   * The source check (SourceCheckPanel), the first panel and the one place for what of it keeps
+   * the post from review: its tab counts that ("Source check · 2 to fix").
    */
-  fixes?: ReactNode
+  check?: ReactNode
   /** The market versions (PostPreview's MarketControls), the last panel; none for a blog. */
   market?: ReactNode
 }
@@ -206,12 +204,33 @@ function checkProblems(current: WorkbenchView['current']): number {
 /** A panel's tag when it holds something to fix: one word, read as "needs attention". */
 const FIX: TabBadge = { text: 'Fix', label: 'needs attention', problem: true }
 
+const SOURCE_CHECK = 'Source check'
+const WHO = 'Who sees it'
+const EXPIRY = 'Expiry'
+
+/**
+ * "Send to review"'s reason, pointing to the panel that fixes it (18 Oct): the source check's
+ * count, or a setting's sentence with its panel's name; any other reason as it is.
+ */
+function pointed(
+  reason: string | null,
+  where: { checkCount: number; whoError: string | null; missing: string | null },
+): string | null {
+  if (reason === null) return null
+  const open = (text: string, panel: string) => `${text.replace(/\.$/, '')}: open ${panel}`
+  if (reason === where.missing) return open(reason, EXPIRY)
+  if (reason === where.whoError) return open(reason, WHO)
+  if (reason === WORKFLOW_ERRORS.checkFirst || reason === WORKFLOW_ERRORS.notFound) {
+    return `${Math.max(where.checkCount, 1)} to fix: open ${SOURCE_CHECK}`
+  }
+  return reason
+}
+
 /**
  * The panels one at a time (as a post editor's settings are): "2 of 6" over the panels as tabs
- * (StepTabs), one with something to fix marked "Fix", then "Back" and "Next", or the last
- * panel's own actions. The held panel opens, else the first ("To fix" while anything is left);
- * the one shown is held once she works in it, so a "To fix" her own change brings does not take
- * her there.
+ * (StepTabs), one with something to fix marked "Fix" (the source check's counted), then "Back"
+ * and "Next", or the last panel's own actions. The held panel opens, else the first, the source
+ * check; the one shown is held once she works in it.
  */
 function Panels({ panels, tab, last }: { panels: Panel[]; tab: TabHold; last: ReactNode }) {
   const first = panels[0]?.name
@@ -259,15 +278,7 @@ function Panels({ panels, tab, last }: { panels: Panel[]; tab: TabHold; last: Re
  * from the defaults its facts suggest (GD29). "Send to review" asks the same rule the command
  * does, about what the form shows, and saves changed settings first.
  */
-export function SettingsForm({
-  view,
-  viewer,
-  actions,
-  tab,
-  check,
-  fixes,
-  market,
-}: SettingsFormProps) {
+export function SettingsForm({ view, viewer, actions, tab, check, market }: SettingsFormProps) {
   const { pending, run } = usePostAction()
   const router = useRouter()
   const ids = useId()
@@ -303,7 +314,16 @@ export function SettingsForm({
   )
   const checkCount = checkProblems(view.current)
   const first: Panel[] = check
-    ? [{ name: 'Source check', problem: checkCount > 0, body: check }]
+    ? [
+        {
+          name: SOURCE_CHECK,
+          problem:
+            checkCount > 0
+              ? { text: String(checkCount), label: `${checkCount} to fix`, problem: true }
+              : false,
+          body: check,
+        },
+      ]
     : []
   const end: Panel[] = market ? [{ name: 'Market versions', problem: false, body: market }] : []
   if (settingsGate === WORKFLOW_ERRORS.notAuthorised) {
@@ -358,54 +378,20 @@ export function SettingsForm({
       toReview,
     )
 
-  // Who sees it holds a problem when its choices alone would be refused (a why line it needs).
+  // Who sees it holds a problem when its choices alone would be refused (a why line it needs);
+  // each problem is said on its own panel, where it is fixed.
   const who = settingsOf({ ...draft, expiry: 'none' })
   const whoError = who ? settingsError(who) : null
-  // What keeps the post from review, each with the way to its fix: the check's, then the settings'.
-  const unchosen = [
-    ...(whoError ? [{ text: whoError, panel: 'Who sees it' }] : []),
-    ...(missing ? [{ text: missing, panel: 'Expiry' }] : []),
-  ]
-  const fixCount = (fixes ? checkCount : 0) + unchosen.length
-  const toFix: Panel[] =
-    fixCount > 0
-      ? [
-          {
-            name: 'To fix',
-            problem: { text: String(fixCount), label: `${fixCount} to fix`, problem: true },
-            body: (
-              <div className="flex flex-col gap-6">
-                {checkCount > 0 && fixes}
-                {unchosen.length > 0 && (
-                  <ul className="flex flex-col gap-4">
-                    {unchosen.map((u) => (
-                      <li key={u.text} className="flex flex-col gap-2">
-                        <span className="text-caption text-destructive">{u.text}</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="self-start"
-                          onClick={() => tab.onOpen(u.panel)}
-                        >
-                          {`Open ${u.panel}`}
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ),
-          },
-        ]
-      : []
+  const problemLine = (text: string | null) =>
+    text && <p className="text-caption text-destructive">{text}</p>
   const panels: Panel[] = [
-    ...toFix,
     ...first,
     {
-      name: 'Who sees it',
+      name: WHO,
       problem: whoError !== null,
       body: (
         <>
+          {problemLine(whoError)}
           <fieldset className={fieldset}>
             <legend className={legend}>Layer</legend>
             {LAYERS.map((layer) => (
@@ -554,11 +540,12 @@ export function SettingsForm({
       ),
     },
     {
-      name: 'Expiry',
+      name: EXPIRY,
       problem: missingOf(draft).length > 0,
       body: (
         <fieldset className={fieldset}>
           <legend className={legend}>Expiry</legend>
+          {problemLine(missing)}
           {EXPIRIES.map((e) => (
             <Choice
               key={e.value}
@@ -603,7 +590,7 @@ export function SettingsForm({
       {/* Sending is the step's action: in the step bar, from any panel (A4). */}
       {sendOffered && (
         <StepAction>
-          <Control reason={sendReason ?? saveReason}>
+          <Control reason={pointed(sendReason ?? saveReason, { checkCount, whoError, missing })}>
             <Button disabled={pending || sendReason !== null} onClick={send}>
               Send to review → Review
             </Button>

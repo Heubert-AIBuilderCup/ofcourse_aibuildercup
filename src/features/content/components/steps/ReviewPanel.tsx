@@ -138,8 +138,6 @@ export function ReviewPanel({
   // it passes them, so a save keeps them (GD24).
   const { at: slide, onSelect: setSlide, tab } = useHolds(heldSlide, heldTab)
   const { render, revision, facts, source, sourceCheck, settings, market, layout } = view.current
-  // Under the default version's selected slide: its slides as a zip.
-  const download = () => <DownloadSlides postId={view.id} />
 
   // Past the review (a live post) the panel is its summary: no decision is offered (criterion 111).
   const deciding = ACTION_STAGES.approvePublish.includes(view.stage)
@@ -256,7 +254,6 @@ export function ReviewPanel({
                   stage
                   selected={slide}
                   onSelect={setSlide}
-                  below={download}
                 />
               </section>
               <section
@@ -276,7 +273,6 @@ export function ReviewPanel({
               stage
               selected={slide}
               onSelect={setSlide}
-              below={download}
             />
           ) : (
             <p className="text-muted-foreground">No render on this version.</p>
@@ -285,6 +281,8 @@ export function ReviewPanel({
         actions={
           <>
             <StepTabs label="Review panels" tabs={tabs} open={tab.open} onOpen={tab.onOpen} />
+            {/* The default version's slides as a zip, in the step bar before the decision (18 Oct). */}
+            {render && !article && <DownloadSlides postId={view.id} />}
 
             {deciding &&
               (approveGate !== WORKFLOW_ERRORS.notAuthorised ||

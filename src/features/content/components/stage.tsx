@@ -24,11 +24,11 @@ const clamp = (at: number, count: number) => Math.min(Math.max(at, 0), count - 1
 const STAGE_KEYS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1 }
 
 /**
- * The left area of a slide step: the selected slide on top, as large as the height left after the
- * filmstrip allows (from @5xl, where the step's frame bounds the area; one column of a form card's
- * width below it), anything the caller puts below it (a "Limit" line), then the filmstrip, one
- * thumbnail per slide, eight to a row, the selected one marked. A click on a thumbnail selects
- * it; Left and Right move the selection while the stage or a thumbnail has focus (never from a
+ * The left area of a slide step: the selected slide on top, centred, as large as the height left
+ * after the filmstrip allows (from @5xl, where the step's frame bounds the area; one column of a
+ * form card's width below it), anything the caller puts below it (a "Limit" line), then the
+ * filmstrip, one thumbnail per slide, eight to a row, centred, the selected one marked. A click on
+ * a thumbnail selects it; Left and Right move the selection while the stage or a thumbnail has focus (never from a
  * field inside the slide). The thumbnails are the slides themselves, scaled, unless the caller
  * draws its own; they are hidden from screen readers, which hear each by its button's name.
  */
@@ -73,7 +73,7 @@ export function SlideStage({
       aria-label={label}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: the stage takes focus so Left and Right move the selection.
       tabIndex={0}
-      className="flex min-w-0 flex-col items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring @5xl:min-h-0 @5xl:flex-1"
+      className="flex w-full min-w-0 flex-col items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring @5xl:min-h-0 @5xl:flex-1"
       onKeyDown={(e) => {
         const step = STAGE_KEYS[e.key]
         if (!step) return
@@ -88,7 +88,7 @@ export function SlideStage({
     >
       {/* From @5xl the slide takes the height the filmstrip leaves, its width following its 4:5 shape. */}
       <div className="flex w-full justify-center @5xl:min-h-0 @5xl:flex-1">
-        <div className="aspect-4/5 w-full max-w-sm @5xl:h-full @5xl:w-auto @5xl:max-w-full">
+        <div className="mx-auto aspect-4/5 w-full max-w-sm @5xl:h-full @5xl:w-auto @5xl:max-w-full">
           {slides[at]}
         </div>
       </div>
@@ -96,10 +96,14 @@ export function SlideStage({
       <p aria-live="polite" className="sr-only">
         {where}
       </p>
-      <ul ref={strip} aria-label="All slides" className="grid w-full shrink-0 grid-cols-8 gap-2">
+      <ul
+        ref={strip}
+        aria-label="All slides"
+        className="flex w-full shrink-0 flex-wrap justify-center gap-2"
+      >
         {thumbs.map((thumb, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: a slide is its position; two may share bytes.
-          <li key={i}>
+          <li key={i} className="basis-[calc((100%-3.5rem)/8)]">
             <button
               id={thumbId(i)}
               type="button"
@@ -259,7 +263,7 @@ export function useHolds(slide?: SlideHold, tab?: TabHold) {
 
 /**
  * The place of the tab shown: the held one while it shows, else `initial`, the one the step needs
- * first ("To fix" while anything is left), else the first.
+ * first (the source check, while it holds something to fix), else the first.
  */
 export function shownTab(
   tabs: readonly { name: string }[],
@@ -276,8 +280,8 @@ export function shownTab(
 
 /**
  * Holds the tab shown once she works in the step (a click or a key inside it, before it acts), so
- * a change of her own that brings a tab needed first ("To fix") does not take her from it: the
- * handlers for the step's root. A tab she opens with that click or key is held after it.
+ * a change of her own that brings a tab needed first (Checks, on Text) does not take her from
+ * it: the handlers for the step's root. A tab she opens with that click or key is held after it.
  */
 export function holdOnWork(hold: TabHold, shown: string | undefined) {
   const pin = () => {
@@ -348,7 +352,7 @@ export function SideDrawer({
         showCloseButton={false}
         aria-describedby={undefined}
         // The shared sheet caps a side at max-w-sm from sm; this one is max-w-md at every width.
-        className="flex w-full max-w-md flex-col gap-6 overflow-y-auto sm:max-w-md"
+        className="workbench flex w-full max-w-md flex-col gap-6 overflow-y-auto sm:max-w-md"
       >
         <div className="flex items-start justify-between gap-4">
           <SheetTitle className="text-h4">{title}</SheetTitle>

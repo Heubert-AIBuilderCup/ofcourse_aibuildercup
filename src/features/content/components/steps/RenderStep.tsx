@@ -22,6 +22,7 @@ import {
   ChangesNote,
   Control,
   DownloadSlides,
+  FitFailures,
   fallbackLine,
   RenderedSlides,
   ReorderButtons,
@@ -437,7 +438,6 @@ export function RenderStep({ view, viewer, actions, slide, tab: heldTab }: Rende
               stage
               selected={at}
               onSelect={setSelected}
-              below={renderRunning ? undefined : () => <DownloadSlides postId={view.id} />}
             />
           ) : layout && count > 0 ? (
             <SlideStage
@@ -486,6 +486,9 @@ export function RenderStep({ view, viewer, actions, slide, tab: heldTab }: Rende
                 </ul>
               </div>
             )}
+            {layout && !render && renderReason === WORKFLOW_ERRORS.fitFailed && (
+              <FitFailures postId={view.id} current={view.current} />
+            )}
 
             {ACTION_STAGES.render.includes(view.stage) &&
               renderGate !== WORKFLOW_ERRORS.notAuthorised && (
@@ -510,6 +513,8 @@ export function RenderStep({ view, viewer, actions, slide, tab: heldTab }: Rende
                 </Control>
               )}
             {drawingCover && <Working words="Drawing the cover…" />}
+            {/* In the step bar, before "Next: Settings →" (18 Oct). */}
+            {render && !renderRunning && <DownloadSlides postId={view.id} />}
           </>
         }
       />

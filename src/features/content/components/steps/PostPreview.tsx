@@ -214,13 +214,10 @@ export function PostPreview({ view, shown }: { view: WorkbenchView; shown: Shown
       ) : seen === 'context' ? (
         <ContextPreview view={view} render={render.body} />
       ) : (
-        <RenderedSlides
-          render={render.body}
-          layout={layout?.body.slides}
-          stage
-          below={() => <DownloadSlides postId={view.id} />}
-        />
+        <RenderedSlides render={render.body} layout={layout?.body.slides} stage />
       )}
+      {/* In the step bar, before "Send to review" (18 Oct). */}
+      <DownloadSlides postId={view.id} />
     </section>
   )
 }

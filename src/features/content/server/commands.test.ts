@@ -1960,6 +1960,52 @@ Cc versions marker paragraph.`,
     SLOW,
   )
 
+  test(
+    'a removal that would leave a slot too short is refused, naming it: nothing saved, the post stays rendered (18 Oct)',
+    async () => {
+      // A source of its own, so no cached draft stands in for the tweaked one: the planted
+      // sentence's slot keeps only 20 words before it, so it passes (32 of 30–70) and its removal
+      // would leave 20.
+      const source = { ...paidWork, text: `${paidWork.text}\n\nCc short slot ${randomUUID()}.` }
+      draftTweak = (answer) => {
+        for (const v of answer.versions) {
+          for (const s of v.slides) {
+            for (const slot of s.slots) {
+              const at = slot.text.indexOf(PLANTED)
+              if (at < 0) continue
+              const kept = slot.text.slice(0, at).split(/\s+/).filter(Boolean).slice(0, 20)
+              slot.text = `${kept.join(' ').replace(/[.!?,;:]?$/, '.')} ${PLANTED}`
+            }
+          }
+        }
+        return answer
+      }
+      let id: string
+      let version: number
+      try {
+        ;({ id, version } = await rendered(ED, source))
+      } finally {
+        draftTweak = null
+      }
+      const before = await load(id)
+      const claims = before.current.sourceCheck?.body.claims ?? []
+      const index = claims.findIndex((c) => c.text === PLANTED && c.result === 'not_found')
+      expect(index).toBeGreaterThanOrEqual(0)
+      const { slide } = claims[index]
+
+      expect(await commands.removeClaim(ED, id, version, index)).toEqual({
+        ok: false,
+        error: `Removing it would leave Slide ${slide} · Body too short. Use the source's wording, or edit it on Text.`,
+      })
+      await settled()
+      const after = await load(id)
+      expect(after.version).toBe(version)
+      expect(after.stage).toBe('rendered')
+      expect(after.pointers).toEqual(before.pointers)
+    },
+    SLOW,
+  )
+
   // ── Editing on the slide, checked as you go (criteria 98, 104) ──────────────────────────────
 
   /** The fake's planted line: in the second body slide of the-line, bound to a fact it is not. */

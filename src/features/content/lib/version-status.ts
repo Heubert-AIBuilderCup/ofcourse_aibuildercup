@@ -10,6 +10,8 @@ import { findSlideSpec, isLook } from '../templates'
 import { unboundSlots } from './claims'
 
 type Item = Body<'drafts'>['items'][number]
+/** What the problems read of a version: its slides and its template (a draft's item, or a revision). */
+type Shaped = Pick<Item, 'structure' | 'template'>
 
 /**
  * The press that fixes a problem: the shorter chip on one slide (GD10), for words that do not fit;
@@ -42,26 +44,26 @@ const UNITS = { chars: 'characters', words: 'words', points: 'points' } as const
 export const versionLetter = (index: number): string => String.fromCharCode(65 + index)
 
 /** A slot's spec on a slide of the version, if the template has one. */
-function specOf(item: Item, slide: number, key: string): SlotSpec | undefined {
+function specOf(item: Shaped, slide: number, key: string): SlotSpec | undefined {
   const at = item.structure.slides[slide - 1]
   return at ? findSlideSpec(item.template, at)?.slots.find((s) => s.key === key) : undefined
 }
 
 /** "Slide 2 body": a slot by its slide and its label, as the editor sees it. */
-function slotName(item: Item, slide: number, key: string): string {
+function slotName(item: Shaped, slide: number, key: string): string {
   const label = specOf(item, slide, key)?.label ?? key
   return `Slide ${slide} ${label.charAt(0).toLowerCase()}${label.slice(1)}`
 }
 
 /** "Slide 2 · Body": where a slot's problem is, on its card. */
-const slotPlace = (item: Item, slide: number, key: string) =>
+const slotPlace = (item: Shaped, slide: number, key: string) =>
   `Slide ${slide} · ${specOf(item, slide, key)?.label ?? key}`
 
 /** The colour pair a contrast row names: "Contrast · Pop block 3.1:1 · Too low" names "Pop block". */
 const pairOf = (label: string) => (label.split(' · ')[1] ?? '').replace(/ [\d.]+:1$/, '')
 
 /** A failing fit row as a sentence, with the shorter chip where the words are too many. */
-function fitProblem(item: Item, row: FitCheck): VersionProblem {
+function fitProblem(item: Shaped, row: FitCheck): VersionProblem {
   const { slide, slot } = row
   if (row.check === 'contrast')
     return {
@@ -120,6 +122,43 @@ function fitProblem(item: Item, row: FitCheck): VersionProblem {
       }
 }
 
+/** The failing fit rows of a version, each as a problem named by its place and what is wrong. */
+export const fitFailures = (version: Shaped, checks: FitCheck[]): VersionProblem[] =>
+  checks.filter((row) => !row.pass).map((row) => fitProblem(version, row))
+
+/** A fit row's identity across two layouts of the same slides: its check and slot, or its label. */
+const rowKey = (row: FitCheck) =>
+  row.slide === null || row.slot === null ? row.label : `${row.check}|${row.slide}|${row.slot}`
+
+/** What a newly failing row leaves its slot, after "would leave Slide 2 · Body". */
+const LEFT: Record<string, string> = {
+  'Too short': 'too short',
+  'Too long': 'too long',
+  'Does not fit its box': 'over its box',
+}
+
+/**
+ * Why a sentence the source check could not find may not be removed or put in the source's words
+ * (server/commands/render.ts reviseClaim): the new layout fails a fit row that passed before, so
+ * the post would drop back to Images with nothing it could render. Names the first such slot and
+ * the ways to fix it; null when no row that passed before fails after.
+ */
+export function claimFitError(
+  change: 'remove' | 'wording',
+  version: Shaped,
+  before: FitCheck[],
+  after: FitCheck[],
+): string | null {
+  const failedBefore = new Set(before.filter((row) => !row.pass).map(rowKey))
+  const fresh = after.find((row) => !row.pass && !failedBefore.has(rowKey(row)))
+  if (!fresh) return null
+  const { where, what = '' } = fitProblem(version, fresh)
+  const left = where ? `${where} ${LEFT[what] ?? what.toLowerCase()}` : fresh.label
+  return change === 'remove'
+    ? `Removing it would leave ${left}. Use the source's wording, or edit it on Text.`
+    : `The source's wording would leave ${left}. Remove the sentence, or edit it on Text.`
+}
+
 /**
  * The version's problems, each one sentence: its failing fit rows, the problems drafting left on
  * it, each claim with no supported fact behind it, and each sentence the source check could not
@@ -132,7 +171,7 @@ export function versionStatus(
   claims: ClaimResult[] = [],
 ): VersionStatus {
   const problems: VersionProblem[] = [
-    ...checks.filter((row) => !row.pass).map((row) => fitProblem(item, row)),
+    ...fitFailures(item, checks),
     ...(item.problems ?? []).map((text) => ({ text })),
     ...unboundSlots(item.structure, item.template, facts).map(
       (u): VersionProblem => ({

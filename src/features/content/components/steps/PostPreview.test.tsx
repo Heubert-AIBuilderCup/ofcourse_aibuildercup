@@ -27,6 +27,9 @@ mock.module('next/navigation', () => ({
 }))
 
 const { MarketControls, PostPreview, useShownMarket } = await import('./PostPreview')
+
+/** Where a link sits: in the step bar ("Step actions", 18 Oct) or anywhere else. */
+const place = (el: Element) => (el.closest('[aria-label="Step actions"]') ? 'bar' : 'elsewhere')
 type Props = Parameters<typeof MarketControls>[0]
 
 /** The market versions' panel and the preview, sharing the version shown, as Settings has them. */
@@ -392,12 +395,12 @@ describe('PostPreview: preview in context (55)', () => {
 })
 
 describe('PostPreview: Download slides', () => {
-  it('offers the rendered slides to download under the stage', () => {
+  it('offers the rendered slides to download in the step bar (18 Oct)', () => {
     view()
     expect(
       screen
         .queryAllByRole('link', { name: 'Download slides' })
-        .map((a) => `${a.getAttribute('href')} ${a.hasAttribute('download')}`),
-    ).toEqual(['/admin/posts/p1/slides true'])
+        .map((a) => `${a.getAttribute('href')} ${a.hasAttribute('download')} ${place(a)}`),
+    ).toEqual(['/admin/posts/p1/slides true bar'])
   })
 })

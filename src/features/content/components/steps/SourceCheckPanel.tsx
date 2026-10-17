@@ -26,11 +26,6 @@ export type SourceCheckPanelProps = {
     | 'researchClaimAction'
     | 'addResearchSourceAction'
   >
-  /**
-   * Only what keeps the post from review, for the Settings "To fix" tab: the check to run when none
-   * of this version has landed, or each sentence not found with its fixes; nothing once all pass.
-   */
-  fixesOnly?: boolean
 }
 
 /** The source check's step, as server/commands/check.ts runs it. */
@@ -176,6 +171,8 @@ type ClaimControls = {
   remove: ClaimControl
   opinion: ClaimControl
   research?: ResearchControl
+  /** The last fix refused, by the claim it was pressed on: said under that sentence. */
+  refused?: { claim: number; error: string } | null
 }
 
 /**
@@ -194,12 +191,13 @@ export function ClaimRows({
   controls?: ClaimControls
   only?: (claim: ClaimResult) => boolean
 }) {
-  const button = (control: ClaimControl, claim: number, label: string) =>
+  // The recommended fix, the source's wording, is the filled one; the others are outlined.
+  const button = (control: ClaimControl, claim: number, label: string, filled = false) =>
     controls &&
     control.shown && (
       <Control reason={control.reason}>
         <Button
-          variant="outline"
+          variant={filled ? 'default' : 'outline'}
           size="sm"
           disabled={controls.pending || control.reason !== null}
           onClick={() => control.run(claim)}
@@ -241,11 +239,16 @@ export function ClaimRows({
               >{`Source ${c.suggestion.ref}: ${c.suggestion.text}`}</p>
             )}
             {controls && c.result === 'not_found' && (
-              <div className="flex flex-wrap gap-3">
-                {c.suggestion && button(controls.wording, i, "Use the source's wording")}
+              <div className="flex flex-wrap items-center gap-2">
+                {c.suggestion && button(controls.wording, i, "Use the source's wording", true)}
                 {button(controls.remove, i, 'Remove')}
                 {button(controls.opinion, i, 'Mark as editorial opinion')}
               </div>
+            )}
+            {controls?.refused?.claim === i && (
+              <p role="alert" className="text-caption text-destructive">
+                {controls.refused.error}
+              </p>
             )}
             {controls?.research?.shown && c.result === 'not_found' && (
               <Research claim={c} control={controls.research} pending={controls.pending} />
@@ -265,13 +268,13 @@ function checkSummary(claims: ClaimResult[]): string {
 
 const notFound = (c: ClaimResult) => c.result === 'not_found'
 
-/** The summary, the sentences not found with their fixes, and the rest in a drawer opened on demand. */
+/** The sentences not found with their fixes first, then the summary, and the rest in a drawer opened on demand. */
 function CheckList({ claims, controls }: { claims: ClaimResult[]; controls: ClaimControls }) {
   const rest = claims.some((c) => !notFound(c))
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-caption">{checkSummary(claims)}</p>
       {claims.some(notFound) && <ClaimRows claims={claims} controls={controls} only={notFound} />}
+      <p className="text-caption">{checkSummary(claims)}</p>
       {rest && (
         <SideDrawer title="All checked sentences" trigger="All checked sentences">
           <ClaimRows claims={claims} only={(c) => !notFound(c)} />
@@ -283,14 +286,17 @@ function CheckList({ claims, controls }: { claims: ClaimResult[]; controls: Clai
 
 /**
  * The rendered version's source check, which runs by itself after approval and after each text
- * change (criterion 98): summed up first, then only the sentences not found, each with its fixes,
- * and every other sentence in the "All checked sentences" drawer (never a fold-out that pushes the
- * panel down); "Try again" only when no check of this version has landed. With `fixesOnly`, only
- * what keeps the post from review (the Settings "To fix" tab).
+ * change (criterion 98), and the one place on Settings for what of it keeps the post from review
+ * (18 Oct): the problems first ("Run source check" when no check of this version has landed, "Try
+ * again" after a failure; each sentence not found with its fixes, a refused fix said under it),
+ * then the summary, and every other sentence in the "All checked sentences" drawer (never a
+ * fold-out that pushes the panel down).
  */
-export function SourceCheckPanel({ view, viewer, actions, fixesOnly }: SourceCheckPanelProps) {
-  const { pending, run } = usePostAction()
+export function SourceCheckPanel({ view, viewer, actions }: SourceCheckPanelProps) {
+  const { pending, run, error } = usePostAction()
   const [busy, setBusy] = useState<PostAction | null>(null)
+  // The claim the last fix was pressed on, so a refusal is said under its sentence.
+  const [pressedClaim, setPressedClaim] = useState<number | null>(null)
   const ids = useId()
   const check = view.current.sourceCheck
   const checking = view.running.includes(CHECK_STEP) || (pending && busy === 'sourceCheck')
@@ -310,7 +316,10 @@ export function SourceCheckPanel({ view, viewer, actions, fixesOnly }: SourceChe
     success: string,
   ) => ({
     ...gate(action),
-    run: (claim: number) => act(action, () => work(claim), success),
+    run: (claim: number) => {
+      setPressedClaim(claim)
+      act(action, () => work(claim), success)
+    },
   })
 
   const controls: ClaimControls = {
@@ -346,9 +355,11 @@ export function SourceCheckPanel({ view, viewer, actions, fixesOnly }: SourceChe
         ),
       addReason: editWaitError('addResearchSource', viewer, view.stage, movesWait(view.running)),
     },
+    refused:
+      !pending && error !== null && pressedClaim !== null ? { claim: pressedClaim, error } : null,
   }
   const failed = view.failed?.includes(CHECK_STEP) ?? false
-  // "Try again" after a failed run; "Run source check" where the To fix tab asks for one.
+  // "Try again" after a failed run; "Run source check" when none has run on this version.
   const retry = (label: string) =>
     retryGate.shown && (
       <Control reason={retryGate.reason}>
@@ -374,16 +385,9 @@ export function SourceCheckPanel({ view, viewer, actions, fixesOnly }: SourceChe
           ? 'The source check failed. Your text is kept.'
           : 'Not checked on this version yet.'}
       </p>
-      {retry(fixesOnly && !failed ? 'Run source check' : 'Try again')}
+      {retry(failed ? 'Try again' : 'Run source check')}
     </div>
   )
-
-  if (fixesOnly) {
-    if (checking) return <Working words="Checking against the source…" />
-    if (!check) return unchecked
-    if (!check.body.claims.some(notFound)) return null
-    return <ClaimRows claims={check.body.claims} controls={controls} only={notFound} />
-  }
 
   return (
     <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-4">

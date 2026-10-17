@@ -3,8 +3,10 @@ import type { Body } from '../model/artifacts'
 import type { ClaimResult, Fact, FitCheck } from '../model/types'
 import { templateById } from '../templates'
 import {
+  claimFitError,
   draftChoices,
   firstReady,
+  fitFailures,
   themeOrDefault,
   versionLetter,
   versionStatus,
@@ -340,5 +342,62 @@ describe('themeOrDefault: the colours of a post drafted before draftChoices, sho
   it('keeps the theme she chose', () => {
     expect(themeOrDefault('subdued', [READY])).toBe('subdued')
     expect(themeOrDefault('ink', [line])).toBe('ink')
+  })
+})
+
+describe('fitFailures: the failing fit rows, each named by its slide, slot and what is wrong', () => {
+  it('names only the failing rows, as "Slide 2 · Body · Too short"', () => {
+    const under = row({ slide: 2, slot: 'body', value: 3, limit: '15–25 words', pass: false })
+    const box = row({
+      check: 'box',
+      slide: 2,
+      slot: 'body',
+      value: 5,
+      limit: '4 lines',
+      pass: false,
+    })
+    expect(fitFailures(READY, [row({}), under, box]).map((p) => `${p.where} · ${p.what}`)).toEqual([
+      'Slide 2 · Body · Too short',
+      'Slide 2 · Body · Does not fit its box',
+    ])
+  })
+})
+
+describe('claimFitError: a claim removed or reworded never leaves a slot failing that passed', () => {
+  const body = (over: Partial<FitCheck>) =>
+    row({ slide: 2, slot: 'body', value: 20, limit: '15–25 words', ...over })
+  const passing = [row({}), body({})]
+
+  it('refuses a removal that leaves a slot too short, naming it and the ways to fix it', () => {
+    expect(
+      claimFitError('remove', READY, passing, [row({}), body({ value: 9, pass: false })]),
+    ).toBe(
+      "Removing it would leave Slide 2 · Body too short. Use the source's wording, or edit it on Text.",
+    )
+  })
+
+  it("refuses the source's wording when it leaves a slot too long or over its box", () => {
+    expect(
+      claimFitError('wording', READY, passing, [row({}), body({ value: 30, pass: false })]),
+    ).toBe(
+      "The source's wording would leave Slide 2 · Body too long. Remove the sentence, or edit it on Text.",
+    )
+    const box = row({
+      check: 'box',
+      slide: 2,
+      slot: 'body',
+      value: 5,
+      limit: '4 lines',
+      pass: false,
+    })
+    expect(claimFitError('wording', READY, passing, [...passing, box])).toBe(
+      "The source's wording would leave Slide 2 · Body over its box. Remove the sentence, or edit it on Text.",
+    )
+  })
+
+  it('lets a change through when every row still passes, or a row failed already before it', () => {
+    expect(claimFitError('remove', READY, passing, passing)).toBeNull()
+    const failing = [row({}), body({ value: 9, pass: false })]
+    expect(claimFitError('remove', READY, failing, failing)).toBeNull()
   })
 })

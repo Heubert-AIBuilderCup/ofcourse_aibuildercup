@@ -111,6 +111,52 @@ describe('Control', () => {
     expect(tooltip().hasAttribute('data-dismissed')).toBe(false)
   })
 
+  describe('measured on show: it opens toward the side with room in its scrolling area (18 Oct)', () => {
+    type Box = { left: number; right: number }
+    const stub = (el: Element, { left, right }: Box) => {
+      el.getBoundingClientRect = () =>
+        ({ left, right, width: right - left, top: 0, bottom: 20, height: 20 }) as DOMRect
+    }
+    /** A row inside a scrolling area, each box stubbed, the tooltip 200px wide. */
+    const measured = (row: Box, area: Box, inBar = false) => {
+      const control = (
+        <Control reason="Fix the failing fit checks before rendering.">
+          <button type="button" disabled>
+            Draw images
+          </button>
+        </Control>
+      )
+      render(
+        <div data-testid="area" style={{ overflowY: 'auto' }}>
+          {inBar ? <StepAction>{control}</StepAction> : control}
+        </div>,
+      )
+      stub(screen.getByTestId('area'), area)
+      stub(tooltip().parentElement as Element, row)
+      stub(tooltip(), { left: 0, right: 200 })
+    }
+
+    it('opens from the end when the start would run past the area’s right edge', () => {
+      measured({ left: 300, right: 400 }, { left: 0, right: 420 })
+      expect(tooltip().getAttribute('data-align')).toBe('start')
+      fireEvent.pointerEnter(tooltip().parentElement as Element)
+      expect(tooltip().getAttribute('data-align')).toBe('end')
+    })
+
+    it('opens from the start in the step bar when the end would run past the area’s left edge, on focus too', () => {
+      measured({ left: 20, right: 120 }, { left: 0, right: 900 }, true)
+      expect(tooltip().getAttribute('data-align')).toBe('end')
+      fireEvent.focus(badge())
+      expect(tooltip().getAttribute('data-align')).toBe('start')
+    })
+
+    it('keeps its own side while that side has room', () => {
+      measured({ left: 300, right: 400 }, { left: 0, right: 900 })
+      fireEvent.pointerEnter(tooltip().parentElement as Element)
+      expect(tooltip().getAttribute('data-align')).toBe('start')
+    })
+  })
+
   it('without a reason, shows only the control', () => {
     render(
       <Control reason={null}>
