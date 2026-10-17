@@ -1,9 +1,11 @@
 // Which posts and updates belong to which tile (criteria 44-47): a live comic about a course sits
 // on that course's tile, a live update from its university (for her country, or for all) on the
-// same tile, and posts tagged for Australia on the Australia tile. At most three a tile; a tile
-// with nothing has no key, so city tiles never get one. Nothing is ranked. Pure.
+// same tile (aimed at a topic, only on a course in that field), and posts tagged for Australia on
+// the Australia tile. At most three a tile; a tile with nothing has no key, so city tiles never
+// get one. Nothing is ranked. Pure.
 
 import type { FeedPost } from '@/features/content/lib/feed'
+import { ALL_TOPICS, audienceOf } from '@/features/updates/lib/audience'
 import { FEED_PATH } from '@/shared/lib/auth/gate'
 import type { StoredAnswers } from '@/shared/types/student'
 import { courseById } from '../data/courses'
@@ -16,7 +18,8 @@ export type LiveUpdate = {
   institution: string
   title: string
   body: string
-  audience: { institution: string; homeCountry: string | null }
+  /** No `topic` on an update stored before topics: it reads as all topics. */
+  audience: { institution: string; homeCountry: string | null; topic?: string }
 }
 
 export type TilePost = {
@@ -59,7 +62,7 @@ export function tilePosts(
 
   for (const [slot, key] of COURSE_SLOTS) {
     const courseId = spec[key]
-    const university = courseById(courseId)?.university
+    const course = courseById(courseId)
     const comics = input.posts
       .filter((p) => p.courseId === courseId)
       .map(
@@ -72,12 +75,15 @@ export function tilePosts(
         }),
       )
     const updates = input.updates
-      .filter(
-        (u) =>
+      .filter((u) => {
+        const topic = audienceOf(u.audience).topic
+        return (
           u.status === 'live' &&
-          u.audience.institution === university &&
-          (u.audience.homeCountry === null || u.audience.homeCountry === where),
-      )
+          u.audience.institution === course?.university &&
+          (u.audience.homeCountry === null || u.audience.homeCountry === where) &&
+          (topic === ALL_TOPICS || topic === course?.field)
+        )
+      })
       .map(
         (u): TilePost => ({
           kind: 'update',

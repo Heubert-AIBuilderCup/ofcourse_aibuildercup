@@ -61,3 +61,7 @@ Other   another student's (or your other roadmap's) road is unchanged: finder co
 **Verification** — type-check clean · lint clean · finder database tests 31 pass 0 fail · full suite 4081 pass, 556 skip, 0 fail · `bun run build` compiles.
 
 **After the review fixes** — type-check clean · lint clean · finder database tests 31 pass 0 fail · roadmaps database tests 29 pass 0 fail · full suite 4100 pass, 556 skip, 0 fail · build not re-run.
+
+## Result
+
+17 Oct 2026, local, branch `test/finder-intersections-all` (all four branches combined). Nikhil reported the smoke test passed. Which steps were run by hand was not itemised; every criterion is also covered by the tests named in "No need to click" and the criteria tables, and by the branch reviews.

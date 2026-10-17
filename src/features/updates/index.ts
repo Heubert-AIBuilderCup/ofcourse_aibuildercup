@@ -7,6 +7,7 @@
 
 import { z } from 'zod'
 import { COURSES } from '@/features/engine'
+import { audienceOf, TOPIC_IDS } from './lib/audience'
 import type { UpdateInput, UpdateKind } from './lib/update'
 import mockUpdates from './mock-updates.json'
 import students from './students.json'
@@ -19,6 +20,8 @@ const StudentSchema = z.object({
   homeCountry: z.string().min(1),
   /** Her ranked routes, first first: catalogue course ids. */
   ranked: z.array(z.string().refine((id) => COURSE_IDS.has(id))).min(1),
+  /** The fields she said she is drawn to. */
+  interests: z.array(z.enum(TOPIC_IDS)).default([]),
 })
 export type MockStudent = z.infer<typeof StudentSchema>
 
@@ -49,7 +52,9 @@ const MockUpdateSchema = z.object({
   applyBy: day.nullable(),
   sourceTitle: z.string().min(1),
   sourceCheckedAt: day,
-  audience: z.object({ institution: z.string().min(1), homeCountry: z.string().min(1).nullable() }),
+  audience: z
+    .object({ institution: z.string().min(1), homeCountry: z.string().min(1).nullable() })
+    .transform(audienceOf),
 })
 export type MockUpdate = UpdateInput & { id: string; status: string }
 

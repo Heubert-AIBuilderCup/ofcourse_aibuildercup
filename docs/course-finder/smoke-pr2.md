@@ -46,3 +46,7 @@ Other   with COURSE_DETAIL_ON unset, the found cards have no "Jobs and fields cl
 | **Total** | | 7m 48s | 112,570 | 2 |
 
 **Verification (overnight)** — type-check clean · lint one warning (the catalogue's size, from PR 1) · finder database tests 19 pass 0 fail · full suite 3810 pass, 546 skip, 0 fail.
+
+## Result
+
+17 Oct 2026, local, branch `test/finder-intersections-all` (all four branches combined). Nikhil reported the smoke test passed. Which steps were run by hand was not itemised; every criterion is also covered by the tests named in "No need to click" and the criteria tables, and by the branch reviews.

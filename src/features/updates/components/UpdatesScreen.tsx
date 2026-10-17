@@ -11,7 +11,17 @@ import { Textarea } from '@/shared/components/ui/textarea'
 import { cn } from '@/shared/lib/utils'
 import type { ActionResult } from '@/shared/types/action-result'
 import { HOME_COUNTRIES, type MockStudent, type MockUpdate } from '..'
-import { ALL_INSTITUTIONS, INSTITUTIONS, type Match, matchAudience } from '../lib/audience'
+import {
+  ALL_INSTITUTIONS,
+  ALL_TOPICS,
+  type AudienceRule,
+  INSTITUTIONS,
+  type Match,
+  matchAudience,
+  NO_TOPIC,
+  TOPIC_IDS,
+  topicName,
+} from '../lib/audience'
 import {
   DEMO_DRAFT,
   KIND_LABELS,
@@ -427,7 +437,7 @@ function UpdateForm({
       </Field>
       <fieldset className="grid gap-3 border-t pt-3 @xl:col-span-2 @xl:grid-cols-2">
         <legend className={cn(overline, 'pb-1')}>Audience</legend>
-        <Field id={field('aud-inst')} label="Ranked a route at">
+        <Field id={field('aud-inst')} label="Ranked a route at" className="@xl:col-span-2">
           <NativeSelect
             id={field('aud-inst')}
             value={value.audience.institution}
@@ -436,6 +446,31 @@ function UpdateForm({
             {INSTITUTION_CHOICES.map((i) => (
               <option key={i} value={i}>
                 {i}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
+        <Field id={field('aud-topic')} label="Topic">
+          <NativeSelect
+            id={field('aud-topic')}
+            value={value.audience.topic}
+            onChange={(e) =>
+              set('audience', {
+                ...value.audience,
+                topic: e.target.value as AudienceRule['topic'],
+              })
+            }
+          >
+            {/* A stored topic that is none of the eight: shown as it is, never as All topics. */}
+            {value.audience.topic === NO_TOPIC && (
+              <option value={NO_TOPIC} disabled>
+                No topic (unknown)
+              </option>
+            )}
+            <option value={ALL_TOPICS}>{ALL_TOPICS}</option>
+            {TOPIC_IDS.map((t) => (
+              <option key={t} value={t}>
+                {topicName(t)}
               </option>
             ))}
           </NativeSelect>
@@ -464,9 +499,19 @@ function UpdateForm({
   )
 }
 
-function Field({ id, label, children }: { id: string; label: string; children: ReactNode }) {
+function Field({
+  id,
+  label,
+  className,
+  children,
+}: {
+  id: string
+  label: string
+  className?: string
+  children: ReactNode
+}) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className={cn('flex flex-col gap-1', className)}>
       <Label htmlFor={id}>{label}</Label>
       {children}
     </div>

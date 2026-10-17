@@ -1,8 +1,9 @@
 // Which live updates are hers, on the feed: one of her roadmaps has the institution (or the update
-// is for all of them) and her country, when the update names one. Pure.
+// is for all of them), her country, when the update names one, and the topic, when it names one
+// (a course in the field, or the field among her stated interests). Pure.
 
 import { describe, expect, it } from 'bun:test'
-import { ALL_INSTITUTIONS } from './audience'
+import { ALL_INSTITUTIONS, ALL_TOPICS, type AudienceRule } from './audience'
 import { type FeedRoadmap, feedUpdates } from './feed-updates'
 import { DEMO_DRAFT, type StoredUpdate } from './update'
 
@@ -11,20 +12,39 @@ const update = (
   institution: string,
   homeCountry: string | null = null,
   status: StoredUpdate['status'] = 'live',
+  topic: AudienceRule['topic'] = ALL_TOPICS,
 ): StoredUpdate => ({
   ...DEMO_DRAFT,
   id,
   status,
   institution,
   title: `Update ${id}`,
-  audience: { institution, homeCountry },
+  audience: { institution, homeCountry, topic },
 })
 
 const roadmap = (
   id: string,
   universities: string[],
   country: string | null = 'India',
-): FeedRoadmap => ({ id, name: `Roadmap ${id}`, universities, country })
+  topics: Partial<Pick<FeedRoadmap, 'courseTopics' | 'interestTopics' | 'hasRoad'>> = {},
+): FeedRoadmap => ({
+  id,
+  name: `Roadmap ${id}`,
+  universities,
+  country,
+  courseTopics: [],
+  interestTopics: [],
+  hasRoad: true,
+  ...topics,
+})
+
+/** A live update aimed at `topic`, for all institutions unless one is given. */
+const aimed = (
+  id: string,
+  topic: AudienceRule['topic'],
+  institution = ALL_INSTITUTIONS,
+  homeCountry: string | null = null,
+) => update(id, institution, homeCountry, 'live', topic)
 
 const PERTH = roadmap('perth', ['ECU', 'Curtin', 'UWA'])
 const ids = (found: { update: { id: string } }[]) => found.map((f) => f.update.id)
@@ -110,5 +130,91 @@ describe('feedUpdates', () => {
 
   it('finds nothing without a roadmap', () => {
     expect(feedUpdates([update('u1', ALL_INSTITUTIONS)], [])).toEqual([])
+  })
+
+  describe('by topic', () => {
+    const course = (id: string) => roadmap(id, ['ECU'], 'India', { courseTopics: ['data'] })
+    const drawn = (id: string) => roadmap(id, ['ECU'], 'India', { interestTopics: ['data'] })
+
+    it('finds an update aimed at a topic a course on her roadmap is in, saying so', () => {
+      const perth = { ...course('perth'), name: 'Perth' }
+      const found = feedUpdates([aimed('u1', 'data')], [perth])
+      expect(found.map((f) => [f.roadmapId, f.why])).toEqual([
+        ['perth', 'Because Data science is on your roadmap "Perth"'],
+      ])
+    })
+
+    it('finds one aimed at a topic she said she is drawn to, saying so', () => {
+      const found = feedUpdates([aimed('u1', 'data')], [drawn('a')])
+      expect(found.map((f) => [f.roadmapId, f.why])).toEqual([
+        ['a', "Because you said you're drawn to Data science"],
+      ])
+    })
+
+    it('gives it once, through a course match before an earlier interest match', () => {
+      const found = feedUpdates([aimed('u1', 'data')], [drawn('a'), course('b')])
+      expect(found.map((f) => f.roadmapId)).toEqual(['b'])
+    })
+
+    it('gives it once, through the first of two course matches', () => {
+      const found = feedUpdates([aimed('u1', 'data')], [course('a'), course('b')])
+      expect(found.map((f) => f.roadmapId)).toEqual(['a'])
+    })
+
+    it('finds nothing aimed at a topic she is neither on nor drawn to', () => {
+      const other = roadmap('a', ['ECU'], 'India', {
+        courseTopics: ['health'],
+        interestTopics: ['design'],
+      })
+      expect(feedUpdates([aimed('u1', 'data')], [other])).toEqual([])
+    })
+
+    it('finds nothing when the topic matches but the country or the institution does not', () => {
+      const nepal = aimed('u1', 'data', ALL_INSTITUTIONS, 'Nepal')
+      expect(feedUpdates([nepal], [course('a'), drawn('b')])).toEqual([])
+      expect(feedUpdates([aimed('u1', 'data', 'Monash')], [course('a'), drawn('b')])).toEqual([])
+    })
+
+    it('finds one that matches its institution, country and topic, saying why by the topic', () => {
+      const found = feedUpdates([aimed('u1', 'data', 'ECU', 'India')], [course('a')])
+      expect(found.map((f) => f.why)).toEqual([
+        'Because Data science is on your roadmap "Roadmap a"',
+      ])
+    })
+
+    it('finds one through a road-less roadmap only by her stated interest, for all institutions', () => {
+      const roadless = roadmap('a', [], 'India', { interestTopics: ['data'], hasRoad: false })
+      expect(feedUpdates([aimed('u1', 'data')], [roadless]).map((f) => f.why)).toEqual([
+        "Because you said you're drawn to Data science",
+      ])
+      expect(feedUpdates([aimed('u1', 'health')], [roadless])).toEqual([])
+      expect(feedUpdates([aimed('u1', 'data', ALL_INSTITUTIONS, 'Nepal')], [roadless])).toEqual([])
+    })
+
+    it('never finds an update for all topics, or for one institution, through a road-less roadmap', () => {
+      const roadless = roadmap('a', ['ECU'], 'India', { interestTopics: ['data'], hasRoad: false })
+      expect(feedUpdates([update('u1', ALL_INSTITUTIONS)], [roadless])).toEqual([])
+      expect(feedUpdates([update('u1', 'ECU')], [roadless])).toEqual([])
+      expect(feedUpdates([aimed('u1', 'data', 'ECU')], [roadless])).toEqual([])
+    })
+
+    it('never finds an update stored with a topic that is not one of the topics', () => {
+      const stored = {
+        ...update('u1', ALL_INSTITUTIONS),
+        audience: { institution: ALL_INSTITUTIONS, homeCountry: null, topic: 'astrology' },
+      } as unknown as StoredUpdate
+      const drawn = roadmap('a', ['ECU'], 'India', { interestTopics: ['data'] })
+      expect(feedUpdates([stored], [PERTH, drawn])).toEqual([])
+    })
+
+    it('reads an update stored without a topic as for all topics', () => {
+      const stored = {
+        ...update('u1', ALL_INSTITUTIONS),
+        audience: { institution: ALL_INSTITUTIONS, homeCountry: null },
+      } as unknown as StoredUpdate
+      expect(feedUpdates([stored], [PERTH]).map((f) => f.why)).toEqual([
+        'Because it applies to every student',
+      ])
+    })
   })
 })

@@ -534,7 +534,7 @@ export const adminUpdate = pgTable(
     sourceCheckedAt: date('source_checked_at', { mode: 'string' }).notNull(),
     audience: jsonb('audience')
       .notNull()
-      .$type<{ institution: string; homeCountry: string | null }>(),
+      .$type<{ institution: string; homeCountry: string | null; topic?: string }>(),
     status: text('status').notNull().$type<'draft' | 'in_review' | 'live'>(),
     createdByUserId: text('created_by_user_id').references(() => user.id, {
       onDelete: 'set null',

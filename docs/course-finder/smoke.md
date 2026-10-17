@@ -69,3 +69,7 @@ Other   docs/course-finder/eval.md, section "17 Oct 2026, after Nikhil's decisio
 Tokens are the subagents' own; this session's context is not in them.
 
 **Verification (overnight)** — type-check clean · lint clean but one warning (the catalogue's size) · finder database tests 19 pass 0 fail (127.0.0.1:5434) · full suite `BETTER_AUTH_URL=http://localhost:3000 bun run test:run` 3796 pass, 546 skip, 0 fail.
+
+## Result
+
+17 Oct 2026, local, branch `test/finder-intersections-all` (all four branches combined). Nikhil reported the smoke test passed. Which steps were run by hand was not itemised; every criterion is also covered by the tests named in "No need to click" and the criteria tables, and by the branch reviews.
