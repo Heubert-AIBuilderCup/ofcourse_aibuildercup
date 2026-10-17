@@ -34,13 +34,16 @@ export type CheckResultsProps = {
   fixGate: Gate
   onNudge: (slide: number, nudge: string, label: string, via: 'shorten' | 'chip') => void
   onFix: (slide: number, slot: string, factId: string) => void
+  /** Opens another of the Text step's tabs: Style for colours too faint, Versions for text too small. */
+  onOpenTab: (tab: string) => void
 }
 
 /**
  * The picked version's checks, in the Text step's last tab, "Checks" (17 Oct), in three sections:
  * "To fix" first, one card per problem saying where it is ("Slide 3 · Body"), what is wrong, its
  * evidence (the length against its limit, the sentence at fault, the source's paragraph it should
- * match) and its fix where one exists ("Shorten it", "Fix unbound claim", the source's wording);
+ * match) and its fix where one exists ("Shorten it", "Fix unbound claim", the source's wording,
+ * or the tab where colours and versions are chosen);
  * then the source check in one line, its sentences not found being in To fix already; then the
  * fit table, slide by slide. With nothing to fix it says every check passes.
  */
@@ -100,6 +103,18 @@ function ProblemFixControl({ problem, ...props }: CheckResultsProps & { problem:
         pending={props.pending}
         onFix={(factId) => props.onFix(fix.slide, fix.slot, factId)}
       />
+    )
+  }
+  if (fix.kind === 'open') {
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        className="self-start"
+        onClick={() => props.onOpenTab(fix.tab)}
+      >
+        {fix.tab === 'Style' ? 'Pick other colours in Style' : 'Pick another version in Versions'}
+      </Button>
     )
   }
   if (fix.kind === 'wording') {

@@ -1,3 +1,5 @@
+import { Newspaper } from 'lucide-react'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { AccountMenu, onboardingResumePath } from '@/features/opening'
 import { getProfile } from '@/features/opening/server/profile'
@@ -26,8 +28,11 @@ import '@/features/finder/server/road-courses'
 import { listRoadmaps } from '@/features/roadmaps/server/roadmaps'
 import { roadFor } from '@/features/roads'
 import { Duck } from '@/shared/components/Duck'
+import { buttonVariants } from '@/shared/components/ui/button'
+import { FEED_PATH } from '@/shared/lib/auth/gate'
 import { requireStudent } from '@/shared/lib/auth/session'
 import { SITE_NAME } from '@/shared/lib/site'
+import { cn } from '@/shared/lib/utils'
 
 const join = (...parts: (string | null | undefined)[]) => parts.filter(Boolean).join(' · ')
 
@@ -106,7 +111,18 @@ export default async function RoadmapsRoute({ searchParams }: PageProps<'/roadma
           <Duck size="1.75rem" eager className="size-7 object-contain" />
           {SITE_NAME}
         </span>
-        <AccountMenu band={false} className="ml-auto" />
+        {/* The feed, as the board's header offers it. */}
+        <Link
+          href={FEED_PATH}
+          className={cn(
+            buttonVariants({ variant: 'square' }),
+            'ml-auto h-11 gap-2 px-3.5 font-sans font-medium',
+          )}
+        >
+          <Newspaper aria-hidden="true" strokeWidth={1.5} className="size-icon" />
+          Feed
+        </Link>
+        <AccountMenu band={false} />
       </header>
       <RoadmapsPage
         roadmaps={summaries}

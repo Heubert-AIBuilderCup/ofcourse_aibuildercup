@@ -13,8 +13,12 @@ import { Lru } from '@/shared/lib/lru'
 // PREVIEWS_KEPT pictures it drew, keyed by the post and those ids, so a repeat request (another
 // reviewer, a reload without the browser's cache) does not run the layout and resvg again. Only a
 // drawn picture is kept, and the session is checked before the cache is read.
+// A database or drawing error (every connection slot taken, 18 Oct) is a 503 the browser may try
+// again in two seconds (components/SlidePreview.tsx does, once), logged in one line, never a 500.
 
 const NOT_FOUND = () => new Response(null, { status: 404 })
+const TRY_AGAIN = () =>
+  new Response(null, { status: 503, headers: { 'Retry-After': '2', 'Cache-Control': 'no-store' } })
 
 /** The most preview PNGs kept in memory: a few posts' drafts, a few hundred kilobytes each. */
 const PREVIEWS_KEPT = 64
@@ -28,6 +32,17 @@ const Query = z.union([
 ])
 
 export async function GET(req: NextRequest, ctx: RouteContext<'/admin/posts/[id]/preview'>) {
+  try {
+    return await preview(req, ctx)
+  } catch (error) {
+    // Which kind of slide, and why, without the ids or anything the slide says.
+    const what = new URL(req.url).searchParams.has('layout') ? 'layout slide' : 'draft slide'
+    console.error(`[preview] ${what} failed: ${error instanceof Error ? error.message : error}`)
+    return TRY_AGAIN()
+  }
+}
+
+async function preview(req: NextRequest, ctx: RouteContext<'/admin/posts/[id]/preview'>) {
   const session = await getSession()
   if (!session || !canSeeBoard(session.user)) return NOT_FOUND()
   const { id } = await ctx.params

@@ -21,6 +21,7 @@
       "bg": "#16191B",
       "ink": "#F4EFE6",
       "highlight": "#F5C542",
+      "highlightInk": "#1D1F20",
       "muted": "#B3AFA6"
     }
   ],

@@ -51,6 +51,10 @@ const laid = (artBox: LaidSlide['artBox']): LaidSlide => ({
   searchLine: null,
 })
 
+/** The line under a picture the image model could not draw (18 Oct). */
+const GEMINI_FAILED =
+  "Gemini couldn't draw this picture (it was busy or too slow). Try this one again."
+
 const COVER_BOX = { x: 0, y: 0, w: 1080, h: 780 }
 const PICTURE_BOX = { x: 0, y: 0, w: 1080, h: 540 }
 
@@ -760,14 +764,17 @@ describe('Skip pictures', () => {
     expect(screen.queryByRole('button', { name: SKIP }) === null).toBe(true)
   })
 
-  it('a slide whose drawing failed says why beside "Could not draw"', () => {
-    drawn([art(1), art(2, { assetId: null, fallback: 'no_art', reason: 'busy' })])
-    const slide = within(stageAt(2))
-    expect(slide.queryByText('Could not draw') !== null).toBe(true)
-    expect(slide.queryByText("Google's model is busy. Try again in a minute.") !== null).toBe(true)
-    cleanup()
-    drawn([art(1), art(2, { assetId: null, fallback: 'no_art', reason: 'timeout' })])
-    expect(within(stageAt(2)).queryByText('It took too long. Try again.') !== null).toBe(true)
+  it('a slide whose drawing failed says plainly it was Gemini, beside "Could not draw", with its retry enabled (18 Oct)', () => {
+    for (const reason of ['busy', 'timeout', undefined] as const) {
+      drawn([art(1), art(2, { assetId: null, fallback: 'no_art', reason })])
+      const slide = within(stageAt(2))
+      expect(slide.queryByText('Could not draw') !== null).toBe(true)
+      expect(slide.queryAllByText(GEMINI_FAILED).length).toBe(1)
+      expect(
+        slide.getByRole('button', { name: 'Try this one again' }).hasAttribute('disabled'),
+      ).toBe(false)
+      cleanup()
+    }
   })
 
   it('is not offered for a comic, whose panels are its pictures', () => {
@@ -963,7 +970,7 @@ describe("a blog's pictures (BR4)", () => {
     expect(actions.nudgeImageAction).toHaveBeenCalledWith('p1', 7, { slide: 2, nudge: 'closer' })
   })
 
-  it('says why a picture could not be drawn when its last call said', () => {
+  it('says plainly it was Gemini that could not draw a picture (18 Oct)', () => {
     blogDrawn([
       picture(1),
       picture(2, { assetId: null, tintedAssetId: null, fallback: 'no_art', reason: 'timeout' }),
@@ -971,7 +978,7 @@ describe("a blog's pictures (BR4)", () => {
     pick(AFTER_2)
     const place = within(screen.getByRole('figure', { name: 'Picture after section 2' }))
     expect(place.queryByText('Could not draw') !== null).toBe(true)
-    expect(place.queryByText('It took too long. Try again.') !== null).toBe(true)
+    expect(place.queryAllByText(GEMINI_FAILED).length).toBe(1)
   })
 
   it('offers "Draw remaining" only once a finished run left a picture undrawn, never while one runs', () => {

@@ -16,6 +16,7 @@ import {
 } from '@/shared/components/ui/sheet'
 import { cn } from '@/shared/lib/utils'
 import { tag } from './classes'
+import { SlideThumbnail } from './SlidePreview'
 
 /** A selection kept inside `0 … count - 1`: a newer render may have fewer slides than it was counted on. */
 const clamp = (at: number, count: number) => Math.min(Math.max(at, 0), count - 1)
@@ -119,7 +120,8 @@ export function SlideStage({
               onClick={() => onSelect(i)}
             >
               <span aria-hidden="true" inert className="pointer-events-none block">
-                {thumb}
+                {/* A thumbnail that fails to load shows a small "!", not words and a Retry. */}
+                <SlideThumbnail>{thumb}</SlideThumbnail>
               </span>
             </button>
           </li>

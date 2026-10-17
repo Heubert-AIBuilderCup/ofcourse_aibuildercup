@@ -600,7 +600,7 @@ it('at the images step of a rendered post from before the looks, offers "Make co
   expect(screen.queryByRole('button', { name: /^(Plan|Draw) images/ })).toBeNull()
 })
 
-it('offers "Next: Settings →" on the Images screen once the pictures are drawn, which opens Settings', () => {
+it('offers the way on to Settings from the Images screen once the pictures are drawn, one button only', () => {
   const item = (PAST_GATE.current.drafts as NonNullable<Props['view']['current']['drafts']>).body
     .items[0]
   render(
@@ -640,8 +640,11 @@ it('offers "Next: Settings →" on the Images screen once the pictures are drawn
       step="images"
     />,
   )
-  fireEvent.click(screen.getByRole('button', { name: 'Next: Settings →' }))
-  expect(push).toHaveBeenCalledWith('/admin/posts/p1/settings')
+  // The post is at Settings once its pictures are drawn: "Continue at Settings" is the one way on.
+  expect(screen.queryAllByRole('button', { name: 'Next: Settings →' }).length).toBe(0)
+  expect(screen.getByRole('link', { name: 'Continue at Settings →' }).getAttribute('href')).toBe(
+    '/admin/posts/p1/settings',
+  )
 })
 
 /** A rendered post from before the looks with its cover art: its pictures are drawn. */
@@ -679,14 +682,12 @@ function drawnLegacy(): Props['view'] {
   }
 }
 
-it('fills one button on a passed Images step: "Continue at", with "Next: Settings →" outlined', () => {
+it('on a passed Images step whose post is at Settings, offers one way on: "Continue at Settings →"', () => {
   render(
     <Workbench view={drawnLegacy()} viewer={EDITOR} from="all" actions={actions} step="images" />,
   )
-  expect(screen.getByRole('button', { name: 'Next: Settings →' })).toBeInTheDocument()
-  const filled = document.querySelectorAll('.bg-primary-strong')
-  expect(filled).toHaveLength(1)
-  expect(filled[0]).toHaveTextContent('Continue at Settings →')
+  expect(screen.queryAllByRole('button', { name: 'Next: Settings →' }).length).toBe(0)
+  expect(screen.queryAllByRole('link', { name: 'Continue at Settings →' }).length).toBe(1)
 })
 
 it('shows the market versions in their panel and "Preview in context" beside them on Settings, not on Images (55, 56, 85)', () => {
@@ -1235,8 +1236,8 @@ it('puts each step’s primary action in one "Step actions" bar, outside the two
   render(
     <Workbench view={drawnLegacy()} viewer={EDITOR} from="all" actions={actions} step="images" />,
   )
-  expect(within(bar()).getByRole('button', { name: 'Next: Settings →' })).toBeInTheDocument()
-  expect(within(bar()).getByRole('link', { name: 'Continue at Settings →' })).toBeInTheDocument()
+  expect(within(bar()).queryAllByRole('button', { name: 'Next: Settings →' }).length).toBe(0)
+  expect(within(bar()).queryAllByRole('link', { name: 'Continue at Settings →' }).length).toBe(1)
   cleanup()
 
   // Settings sends from the bar on any panel, not only the last.

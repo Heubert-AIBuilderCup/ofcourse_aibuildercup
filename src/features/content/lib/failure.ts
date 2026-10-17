@@ -38,6 +38,13 @@ const SENTENCES: Record<Exclude<FailureReason, 'other'>, string> = {
   no_facts: NO_FACTS_ERROR,
 }
 
+/**
+ * The line under a picture every call to the image model failed to draw (fallback 'no_art', busy or
+ * too slow), beside its own retry: it says plainly it was Gemini (18 Oct). The day's limit has its own.
+ */
+export const GEMINI_DRAW_FAILED =
+  "Gemini couldn't draw this picture (it was busy or too slow). Try this one again."
+
 /** The sentence after a failed step's line for its reason, or null when there is nothing more to say. */
 export const failureSentence = (reason: FailureReason | undefined): string | null =>
   reason === undefined || reason === 'other' ? null : SENTENCES[reason]

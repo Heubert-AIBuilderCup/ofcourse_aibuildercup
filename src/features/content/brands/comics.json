@@ -18,9 +18,10 @@
     {
       "id": "main",
       "name": "Main",
-      "bg": "#1877F2",
+      "bg": "#1260D8",
       "ink": "#FFFFFF",
       "highlight": "#F5C542",
+      "highlightInk": "#1D1F20",
       "muted": "#E3EDFD"
     }
   ],

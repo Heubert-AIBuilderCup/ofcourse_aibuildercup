@@ -7,7 +7,7 @@ _Runbook, 11 Oct 2026. Decisions: ADR-120 (hosting shape), ADR-132 (project `app
 | Project | `applyims` (number 44805428675) |
 | Region | `asia-southeast1` (Singapore); Gemini on `global` |
 | Service | `ofcourse` → `https://ofcourse-44805428675.asia-southeast1.run.app` |
-| Database | Cloud SQL `ofcourse-db`, PostgreSQL 17, Enterprise edition, `db-custom-1-3840`, database `ofcourse`, user `ofcourse` |
+| Database | Cloud SQL `ofcourse-db`, PostgreSQL 17, Enterprise edition, `db-custom-1-3840`, database `ofcourse`, user `ofcourse`. The docs say `db-custom-1-3840`; production runs `db-f1-micro` (checked 18 Oct), about 25 connections, so keep instances × `DB_POOL_MAX` under it |
 | Runtime account | `ofcourse-run@applyims.iam.gserviceaccount.com` |
 | Secrets | `ofcourse-database-url`, `ofcourse-db-password`, `ofcourse-better-auth-secret`, `ofcourse-google-client-id`, `ofcourse-google-client-secret` |
 

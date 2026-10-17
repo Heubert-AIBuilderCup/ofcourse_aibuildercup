@@ -692,6 +692,7 @@ export function StructuresStep({
               fixGate={gate('fixUnbound')}
               onNudge={nudgeSlide}
               onFix={fixUnbound}
+              onOpenTab={tab.onOpen}
             />
           ),
         }

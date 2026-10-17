@@ -148,6 +148,15 @@ export function fitChecks(input: {
     }
   } else {
     rows.push(contrastRow(theme.ink, theme.bg, theme.name))
+    // The words on the highlight too, where a slot is marked, as on a look's surfaces above.
+    const marked = structure.slides.some((slide) =>
+      slideSpec(template, slide).slots.some((s) => s.mark !== 'none'),
+    )
+    if (marked) {
+      rows.push(
+        contrastRow(theme.highlightInk ?? theme.ink, theme.highlight, `${theme.name} highlight`),
+      )
+    }
   }
 
   const sizes = [...new Set(layout.fits.filter((f) => f.lines > 0).map((f) => f.fontPx))].sort(

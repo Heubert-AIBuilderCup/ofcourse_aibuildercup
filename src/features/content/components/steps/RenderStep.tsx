@@ -8,6 +8,7 @@ import { Spin, Working } from '@/shared/components/Working'
 import type { Staff } from '@/shared/lib/auth/access'
 import { cn } from '@/shared/lib/utils'
 import { LIBRARY } from '../../assets/library'
+import { GEMINI_DRAW_FAILED } from '../../lib/failure'
 import {
   ACTION_STAGES,
   actionError,
@@ -390,6 +391,9 @@ export function RenderStep({ view, viewer, actions, slide, tab: heldTab }: Rende
                           )
                         }
                       />
+                    )}
+                    {retryShown && render.body.art.fallback === 'no_art' && (
+                      <p className={reasonText}>{GEMINI_DRAW_FAILED}</p>
                     )}
                     {retryShown && (
                       <Control reason={retryGate}>

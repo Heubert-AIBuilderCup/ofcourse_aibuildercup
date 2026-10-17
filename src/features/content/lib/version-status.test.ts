@@ -7,6 +7,7 @@ import {
   draftChoices,
   firstReady,
   fitFailures,
+  fitFixTab,
   themeOrDefault,
   versionLetter,
   versionStatus,
@@ -252,12 +253,14 @@ describe('versionStatus', () => {
         where: 'Colours · Pop block',
         what: 'Contrast too low',
         evidence: ['3.1:1 · needs 4.5:1'],
+        fix: { kind: 'open', tab: 'Style' },
       },
       {
         text: 'The smallest text is 9.8px on a phone; it needs 11px at 328px.',
         where: 'Smallest text',
         what: 'Too small on a phone',
         evidence: ['9.8px · needs 11px at 328px'],
+        fix: { kind: 'open', tab: 'Versions' },
       },
       { text: 'slides.0.slots.kicker: remove "best".' },
     ])
@@ -360,6 +363,16 @@ describe('fitFailures: the failing fit rows, each named by its slide, slot and w
       'Slide 2 · Body · Too short',
       'Slide 2 · Body · Does not fit its box',
     ])
+  })
+})
+
+describe('fitFixTab: the Text tab where a failing fit row is fixed (18 Oct)', () => {
+  it('sends colours to Style and the smallest text to Versions, the words to Checks', () => {
+    const at = (check: FitCheck['check']) =>
+      fitFixTab(row({ check, slide: null, slot: null, pass: false }))
+    expect(
+      ['contrast', 'legibility', 'length', 'box', 'glyph'].map((c) => at(c as FitCheck['check'])),
+    ).toEqual(['Style', 'Versions', 'Checks', 'Checks', 'Checks'])
   })
 })
 
