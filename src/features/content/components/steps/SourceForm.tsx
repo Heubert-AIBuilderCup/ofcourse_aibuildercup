@@ -32,6 +32,23 @@ const NETWORK_ERROR = 'Could not reach the server. Please try again.'
 const DEFAULT_KIND = 'research summary'
 /** What "Make post" and the idea's makes say while the source is read and its ideas found. */
 const READING = 'Reading the source and finding ideas · this can take a minute'
+/** The longest title a source takes, in characters as a reader sees them. */
+const TITLE_MAX = 200
+
+/** The kind of a source made from the idea alone, with no page found or ticked for it. */
+export const IDEA_KIND = 'Your idea'
+const IDEA_ONLY =
+  'No sources ticked: the post is built from your idea alone, and its source check compares against your idea.'
+
+/**
+ * How a source's kind reads on the post: one made from the idea alone says so; one remade from
+ * links since keeps its kind but is no longer the idea alone.
+ */
+export function sourceKindLabel(source: { kind: string; parts?: unknown[] }): string {
+  return source.kind === IDEA_KIND && (source.parts?.length ?? 0) === 0
+    ? 'From your idea, no outside source'
+    : source.kind
+}
 
 /** The links field's lines, trimmed, blank ones dropped. */
 export function linkLines(links: string): string[] {
@@ -239,8 +256,9 @@ type IdeaSearch = {
  * site and why, and Google's search entry point in a sandboxed frame, as its grounding display
  * rules require: the markup is Google's, so it never runs in the page. "Write a blog first" and
  * "Go straight to the post" hand the ticked pages on, in the list's order, with the kind to make;
- * nothing is used unticked. The search is the form's, so a switch to the blog start and back keeps
- * the pages found (a paid search).
+ * nothing is used unticked. With none ticked (no search run, nothing found, or all unticked) they
+ * hand on none, and the post is made from the idea alone, as the note under them says. The search
+ * is the form's, so a switch to the blog start and back keeps the pages found (a paid search).
  */
 function IdeaSources({
   find,
@@ -364,24 +382,27 @@ function IdeaSources({
               className="h-20 w-full"
             />
           )}
-          <div className="flex flex-wrap items-center gap-4">
-            {IDEA_MAKES.map(({ kind, label }) => (
-              <Button
-                key={kind}
-                type="button"
-                variant={kind === 'feed' ? 'outline' : 'default'}
-                disabled={busy || chosen.length === 0 || tooMany}
-                onClick={() => onUse(chosen, kind)}
-              >
-                {using === kind && <Spin />}
-                {using === kind ? 'Running…' : label}
-              </Button>
-            ))}
-            {using && <Working words={READING} />}
-            {tooMany && <p className="text-caption text-destructive">{SOURCE_ERRORS.links}</p>}
-          </div>
         </div>
       )}
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-4">
+          {IDEA_MAKES.map(({ kind, label }) => (
+            <Button
+              key={kind}
+              type="button"
+              variant={kind === 'feed' ? 'outline' : 'default'}
+              disabled={busy || empty || tooMany}
+              onClick={() => onUse(chosen, kind)}
+            >
+              {using === kind && <Spin />}
+              {using === kind ? 'Running…' : label}
+            </Button>
+          ))}
+          {using && <Working words={READING} />}
+          {tooMany && <p className="text-caption text-destructive">{SOURCE_ERRORS.links}</p>}
+        </div>
+        {chosen.length === 0 && <p className="text-caption text-muted-foreground">{IDEA_ONLY}</p>}
+      </div>
     </div>
   )
 }
@@ -396,8 +417,8 @@ type Start = (typeof STARTS)[number]['id']
 /**
  * "Start from" a blog or an idea, then the source (criteria 1–4; 93, 94; GD18–GD21). From a blog:
  * its link, or pasted text, with a framing line and notes, and "Make post", which always makes a
- * feed post. From an idea: the found pages, then "Write a blog first" (a blog) or "Go straight to
- * the post" (a feed post). The server reads each link, extracts the facts, and drafts on its own
+ * feed post. From an idea: the found pages ticked, or with none the idea itself as the source, then
+ * "Write a blog first" (a blog) or "Go straight to the post" (a feed post). The server reads each link, extracts the facts, and drafts on its own
  * once the post opens. The request ids are made once, when the form mounts, one per kind of post,
  * and each is the new post's id: a double submit or a "Try again" after a failure is still one
  * post, and the other kind is always another. A failure keeps every
@@ -464,11 +485,14 @@ export function SourceForm({
   const blocked = empty || sourceFieldsError(values, pasting) !== null
 
   /**
-   * Makes a post of `makes` from these links: the blog start's "Make post" (its pasted text
-   * included), or an idea's make with the ticked pages.
+   * Makes a post of `makes` from this source: the blog start's "Make post" (its links or pasted
+   * text), or an idea's make with the ticked pages, or with none the idea itself.
    */
-  const make = (sending: string[], makes: PostKind, from: 'form' | PostKind) => {
-    const withText = from === 'form' && pasting
+  const make = (
+    sent: { links: string[]; title: string; kind: string; text: string },
+    makes: PostKind,
+    from: 'form' | PostKind,
+  ) => {
     mark(from)
     setError(null)
     setFailed([])
@@ -476,10 +500,10 @@ export function SourceForm({
       try {
         const res = await actions.makePostAction({
           requestId: requestIds[makes],
-          title: withText ? title : '',
-          kind,
-          text: withText ? values.text : '',
-          links: sending,
+          title: sent.title,
+          kind: sent.kind,
+          text: sent.text,
+          links: sent.links,
           framing: values.framing,
           notes: values.notes,
           language: values.language,
@@ -503,7 +527,26 @@ export function SourceForm({
   const submit = (event: FormEvent) => {
     event.preventDefault()
     // From an idea only its own makes send; a blog always makes a feed post (criterion 2).
-    if (!fromIdea && !blocked) make(links, 'feed', 'form')
+    if (fromIdea || blocked) return
+    const text = pasting ? values.text : ''
+    make({ links, title: pasting ? title : '', kind, text }, 'feed', 'form')
+  }
+
+  /**
+   * An idea's make: the ticked pages, or with none the idea alone as the source, titled by it. The
+   * framing and notes go as their own fields, as always: they steer the post, never become facts.
+   */
+  const makeFromIdea = (urls: string[], makes: PostKind) => {
+    if (urls.length > 0) {
+      make({ links: urls, title: '', kind, text: '' }, makes, makes)
+      return
+    }
+    const idea = search.idea.trim()
+    make(
+      { links: [], title: firstChars(idea, TITLE_MAX), kind: IDEA_KIND, text: idea },
+      makes,
+      makes,
+    )
   }
 
   return (
@@ -556,7 +599,7 @@ export function SourceForm({
               <Input
                 id={`${ids}-title`}
                 value={title}
-                onChange={(e) => setTitle(firstChars(e.target.value, 200))}
+                onChange={(e) => setTitle(firstChars(e.target.value, TITLE_MAX))}
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -593,7 +636,7 @@ export function SourceForm({
       {fromIdea && (
         <IdeaSources
           find={actions.suggestSourcesAction}
-          onUse={(urls, makes) => make(urls, makes, makes)}
+          onUse={makeFromIdea}
           busy={pending}
           using={using}
           search={search}

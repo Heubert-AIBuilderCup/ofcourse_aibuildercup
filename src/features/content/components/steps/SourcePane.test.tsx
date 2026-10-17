@@ -616,3 +616,28 @@ it('names the site each fact came from, and marks where each article starts, for
   expect(screen.getByText('abc.example · Work A')).toBeInTheDocument()
   expect(screen.getByText('study.example · Rights B')).toBeInTheDocument()
 })
+
+it('names a source made from the idea alone "From your idea, no outside source", and any other kind as it is', () => {
+  const base = current()
+  const source = base.source as NonNullable<CurrentPost['source']>
+  const withKind = (kind: string, parts?: Body<'source'>['parts']) =>
+    current({ source: { ...source, body: { ...source.body, kind, ...(parts ? { parts } : {}) } } })
+  const overline = () =>
+    screen.getByRole('heading', { name: TWIN_TITLE }).previousSibling?.textContent
+
+  pane({ current: withKind('Your idea') })
+  expect(overline()).toBe('From your idea, no outside source')
+  cleanup()
+
+  pane({ current: withKind('research summary') })
+  expect(overline()).toBe('research summary')
+  cleanup()
+
+  // Remade from links, it keeps its kind but is no longer the idea alone.
+  pane({
+    current: withKind('Your idea', [
+      { url: 'https://abc.example/a', site: 'abc.example', title: 'Work A', from: 1, to: 2 },
+    ]),
+  })
+  expect(overline()).toBe('Your idea')
+})
