@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { DIMENSION_LABELS, DIMENSIONS } from '@/features/engine'
+import { ALL_INSTITUTIONS, ALL_TOPICS, matchAudience } from '@/features/updates/lib/audience'
 import {
   barRows,
   cacheShare,
@@ -111,13 +112,30 @@ describe('performanceRows', () => {
 describe('updateReach', () => {
   const FALLBACK = { title: 'ECU International Scholarship', matched: 412 }
   const students = [
-    { id: 'a', name: 'A', homeCountry: 'Nepal', ranked: ['ecu-cyber'] },
-    { id: 'b', name: 'B', homeCountry: 'India', ranked: ['monash-data'] },
+    { id: 'a', name: 'A', homeCountry: 'Nepal', ranked: ['ecu-cyber'], interests: [] },
+    { id: 'b', name: 'B', homeCountry: 'India', ranked: ['monash-data'], interests: [] },
+    {
+      id: 'c',
+      name: 'C',
+      homeCountry: 'India',
+      ranked: ['ecu-cyber'],
+      interests: ['data' as const],
+    },
   ]
 
   it("is the latest live update's reach over the mock students", () => {
-    const latest = { title: 'ECU grant', audience: { institution: 'ECU', homeCountry: null } }
-    expect(updateReach(latest, FALLBACK, students)).toEqual({ title: 'ECU grant', matched: 1 })
+    const latest = {
+      title: 'ECU grant',
+      audience: { institution: 'ECU', homeCountry: null, topic: ALL_TOPICS },
+    }
+    expect(updateReach(latest, FALLBACK, students)).toEqual({ title: 'ECU grant', matched: 2 })
+  })
+
+  it("counts a topic's reach by the audience rule", () => {
+    const audience = { institution: ALL_INSTITUTIONS, homeCountry: null, topic: 'data' as const }
+    const reach = updateReach({ title: 'Data grant', audience }, FALLBACK, students)
+    expect(reach.matched).toBe(matchAudience(audience, students).length)
+    expect(reach.matched).toBe(2)
   })
 
   it('is the mock reach while no update is live', () => {

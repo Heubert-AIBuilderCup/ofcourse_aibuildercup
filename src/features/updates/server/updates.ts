@@ -5,6 +5,7 @@ import { ACCESS_ERRORS, canEdit, canReview, type Staff } from '@/shared/lib/auth
 import { db } from '@/shared/lib/db'
 import { adminUpdate } from '@/shared/lib/db/schema'
 import type { ActionResult } from '@/shared/types/action-result'
+import { audienceOf } from '../lib/audience'
 import { parseUpdateInput, type StoredUpdate, type UpdateStatus } from '../lib/update'
 
 // Targeted updates (ADR-057): an editor writes one as a draft and sends it to review; a reviewer
@@ -40,9 +41,20 @@ const COLUMNS = {
   audience: adminUpdate.audience,
 }
 
+/** A row as an update: an audience stored before topics reads as all topics. */
+const stored = <T extends { audience: Parameters<typeof audienceOf>[0] }>(row: T) => ({
+  ...row,
+  audience: audienceOf(row.audience),
+})
+
 /** The updates, latest change first, at most LIST_LIMIT. */
 export async function listUpdates(): Promise<StoredUpdate[]> {
-  return db.select(COLUMNS).from(adminUpdate).orderBy(desc(adminUpdate.updatedAt)).limit(LIST_LIMIT)
+  const rows = await db
+    .select(COLUMNS)
+    .from(adminUpdate)
+    .orderBy(desc(adminUpdate.updatedAt))
+    .limit(LIST_LIMIT)
+  return rows.map(stored)
 }
 
 /** The update made live most recently, or none. */
@@ -53,7 +65,7 @@ export async function latestLiveUpdate(): Promise<StoredUpdate | null> {
     .where(eq(adminUpdate.status, 'live'))
     .orderBy(desc(adminUpdate.updatedAt))
     .limit(1)
-  return row ?? null
+  return row ? stored(row) : null
 }
 
 /** A live update as the students' boards and feed read it: all its fields, the card draws them. */
@@ -61,12 +73,13 @@ export type LiveUpdateRow = StoredUpdate
 
 /** The live updates, latest change first, at most LIST_LIMIT; never a draft or one in review. */
 export async function listLiveUpdates(): Promise<LiveUpdateRow[]> {
-  return db
+  const rows = await db
     .select(COLUMNS)
     .from(adminUpdate)
     .where(eq(adminUpdate.status, 'live'))
     .orderBy(desc(adminUpdate.updatedAt))
     .limit(LIST_LIMIT)
+  return rows.map(stored)
 }
 
 /** A new draft from the form's fields, each checked; answers with its id. Never throws. */

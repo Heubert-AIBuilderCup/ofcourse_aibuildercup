@@ -1,6 +1,13 @@
 import { z } from 'zod'
 import { HOME_COUNTRIES } from '..'
-import { ALL_INSTITUTIONS, type AudienceRule, INSTITUTIONS, type Match } from './audience'
+import {
+  ALL_INSTITUTIONS,
+  ALL_TOPICS,
+  type AudienceRule,
+  INSTITUTIONS,
+  type Match,
+  TOPIC_IDS,
+} from './audience'
 
 // A targeted update's fields and their rules, pure: what the form sends, what the server keeps,
 // the words for its kind, its status, its admin preview and its card on a student's feed, and the
@@ -32,7 +39,7 @@ export const UPDATE_ERRORS = {
   body: `Write what it says, up to ${UPDATE_LIMITS.body} characters.`,
   date: 'Give dates as a calendar date.',
   source: `Name its source, up to ${UPDATE_LIMITS.source} characters.`,
-  audience: 'Choose who it reaches: an institution, and a home country or everyone.',
+  audience: 'Choose who it reaches: an institution, a topic, and a home country or everyone.',
 } as const
 
 export type UpdateInput = {
@@ -59,7 +66,7 @@ export const DEMO_DRAFT: UpdateInput = {
   applyBy: '2026-11-30',
   sourceTitle: 'ECU international scholarships page',
   sourceCheckedAt: '2026-10-01',
-  audience: { institution: 'ECU', homeCountry: null },
+  audience: { institution: 'ECU', homeCountry: null, topic: ALL_TOPICS },
 }
 
 const text = (max: number) => z.string().trim().min(1).max(max)
@@ -84,6 +91,7 @@ const FIELDS = [
     z.object({
       institution,
       homeCountry: z.enum(HOME_COUNTRIES as [string, ...string[]]).nullable(),
+      topic: z.enum([ALL_TOPICS, ...TOPIC_IDS]).default(ALL_TOPICS),
     }),
     UPDATE_ERRORS.audience,
   ],

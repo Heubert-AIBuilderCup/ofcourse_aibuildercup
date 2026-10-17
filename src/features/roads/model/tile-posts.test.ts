@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'bun:test'
 import type { FeedPost } from '@/features/content/lib/feed'
-import { ALL_INSTITUTIONS } from '@/features/updates/lib/audience'
+import { ALL_INSTITUTIONS, ALL_TOPICS } from '@/features/updates/lib/audience'
 import { courseById } from '../data/courses'
 import { roadById } from '../data/roads'
 import { specById } from './compose'
@@ -93,6 +93,23 @@ describe('tilePosts: updates', () => {
   it('drops a country-specific update when she has not said where she is from', () => {
     const result = tilePosts(SPEC, { posts: [], updates: [update('u', uni, 'Nepal')] }, null)
     expect(result[SPEC.slots.course.id]).toBeUndefined()
+  })
+
+  it('puts a topic-aimed update only on a course tile in that field; all topics on every one', () => {
+    // ECU Cyber Security on the course tile, ECU Data Science on the alternative's.
+    const spec = { ...SPEC, altCourseId: 'ecu-data' }
+    const aimed = (id: string, topic: string) =>
+      ({
+        ...update(id, 'ECU'),
+        audience: { institution: 'ECU', homeCountry: null, topic },
+      }) as LiveUpdate
+    const result = tilePosts(
+      spec,
+      { posts: [], updates: [aimed('data', 'data'), aimed('all', ALL_TOPICS)] },
+      null,
+    )
+    expect(result[spec.slots.course.id]?.map((p) => p.id)).toEqual(['all'])
+    expect(result[spec.slots['alt-course'].id]?.map((p) => p.id)).toEqual(['data', 'all'])
   })
 
   it('ignores a draft or in-review update passed by mistake', () => {

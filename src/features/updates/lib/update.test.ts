@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { MOCK_STUDENTS, MOCK_UPDATES } from '..'
-import { ALL_INSTITUTIONS, INSTITUTIONS } from './audience'
+import { ALL_INSTITUTIONS, ALL_TOPICS, INSTITUTIONS } from './audience'
 import {
   DEMO_DRAFT,
   feedWords,
@@ -45,6 +45,33 @@ describe('parseUpdateInput', () => {
   })
 })
 
+describe('parseUpdateInput: the topic', () => {
+  it('reads an audience without a topic as all topics, as older updates send it', () => {
+    const res = parseUpdateInput({
+      ...DEMO_DRAFT,
+      audience: { institution: 'ECU', homeCountry: null },
+    })
+    expect(res.ok && res.value.audience.topic).toBe(ALL_TOPICS)
+  })
+
+  it('keeps a topic among the eight fields', () => {
+    const res = parseUpdateInput({
+      ...DEMO_DRAFT,
+      audience: { institution: 'ECU', homeCountry: null, topic: 'data' },
+    })
+    expect(res.ok && res.value.audience.topic).toBe('data')
+  })
+
+  it('refuses a topic that is not one of the fields, naming the audience', () => {
+    expect(
+      parseUpdateInput({
+        ...DEMO_DRAFT,
+        audience: { institution: 'ECU', homeCountry: null, topic: 'astrology' },
+      }),
+    ).toEqual({ ok: false, error: UPDATE_ERRORS.audience })
+  })
+})
+
 describe('updateStatusLine', () => {
   it("says an update's status in one word with its reach", () => {
     expect(updateStatusLine('draft', 7)).toBe('Draft · reaches 7 students (mock)')
@@ -58,7 +85,7 @@ describe('parseUpdateInput: all institutions', () => {
     const all = {
       ...DEMO_DRAFT,
       institution: ALL_INSTITUTIONS,
-      audience: { institution: ALL_INSTITUTIONS, homeCountry: 'Nepal' },
+      audience: { institution: ALL_INSTITUTIONS, homeCountry: 'Nepal', topic: ALL_TOPICS },
     }
     expect(parseUpdateInput(all)).toEqual({ ok: true, value: all })
   })
