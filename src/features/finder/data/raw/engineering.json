@@ -1,0 +1,1239 @@
+[
+  {
+    "name": "Master of Engineering (Civil Infrastructure)",
+    "campusId": "ecu-joondalup",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 45,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "This two-year course takes graduates of related degrees into the design of bridges, roads and drainage networks. Students work through design studios and site-based case studies. A supervised project in the second year ties the units together.",
+    "majors": ["Structural Design", "Transport Infrastructure"],
+    "units": [
+      "Advanced Structural Analysis",
+      "Geotechnical Engineering",
+      "Pavement and Road Design",
+      "Water and Drainage Systems",
+      "Construction Planning",
+      "Engineering Research Project"
+    ]
+  },
+  {
+    "name": "Master of Engineering Management",
+    "campusId": "ecu-joondalup",
+    "level": "Master's",
+    "years": 1,
+    "feeK": 38,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": false,
+    "description": "A one-year course for engineers who are moving into supervisory roles. It covers planning, budgeting, contracts and safety management through case discussions and group assignments. Graduates learn to run a technical team as well as a technical task.",
+    "majors": ["Project Delivery", "Operations Leadership"],
+    "units": [
+      "Engineering Project Management",
+      "Risk and Safety Systems",
+      "Contracts and Procurement",
+      "Quality Management",
+      "Leading Technical Teams"
+    ]
+  },
+  {
+    "name": "Master of Robotics and Intelligent Systems",
+    "campusId": "ecu-joondalup",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 48,
+    "field": "engineering",
+    "graphField": "robotics",
+    "niche": true,
+    "placements": true,
+    "description": "Students build and program robots across two years, starting with kinematics and control and moving to vision and planning. Most units run as lab sessions where code is tested on real hardware. The final year is a capstone in which a team delivers a working machine.",
+    "majors": ["Autonomous Systems", "Machine Perception"],
+    "units": [
+      "Robot Kinematics and Control",
+      "Machine Vision",
+      "Embedded Programming",
+      "Sensor Fusion",
+      "Motion Planning",
+      "Robotics Capstone"
+    ]
+  },
+  {
+    "name": "Diploma of Engineering Technology (Mechanical)",
+    "campusId": "ecu-joondalup",
+    "level": "Diploma",
+    "years": 2,
+    "feeK": 19,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "A two-year diploma that teaches the drawing, workshop and calculation skills used in mechanical engineering support work. Classes mix computer-aided drawing with hands-on machining. It can lead on to degree study.",
+    "majors": ["Mechanical Technology"],
+    "units": [
+      "Engineering Drawing and CAD",
+      "Materials and Manufacturing",
+      "Fluid Mechanics Basics",
+      "Workshop Practice",
+      "Engineering Mathematics"
+    ]
+  },
+  {
+    "name": "Master of Renewable Energy Engineering",
+    "campusId": "ecu-joondalup",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 46,
+    "field": "engineering",
+    "graphField": "renewable-energy-engineering",
+    "niche": true,
+    "placements": true,
+    "description": "This course covers how solar, wind and battery systems are designed and connected to the electricity grid. Students model systems in software and test components in the power laboratory. Over two years the focus moves from single installations to whole networks.",
+    "majors": ["Solar and Storage", "Grid Integration"],
+    "units": [
+      "Photovoltaic Systems",
+      "Energy Storage Technologies",
+      "Power Electronics",
+      "Smart Grid Operation",
+      "Energy Policy and Markets",
+      "Renewable Systems Project"
+    ]
+  },
+  {
+    "name": "Diploma of Biomedical Engineering Technology",
+    "campusId": "ecu-joondalup",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 22,
+    "field": "engineering",
+    "graphField": "biomedical-engineering",
+    "niche": true,
+    "placements": true,
+    "description": "A one-year diploma for people who want to maintain and test the equipment used in clinics and hospitals. Students learn basic anatomy and electronics, then practise calibrating and safety-checking devices. Work placements give time in a real equipment workshop.",
+    "majors": ["Clinical Equipment"],
+    "units": [
+      "Anatomy for Technicians",
+      "Medical Electronics",
+      "Equipment Testing and Calibration",
+      "Infection Control and Safety"
+    ]
+  },
+  {
+    "name": "Master of Engineering (Electrical Power Systems)",
+    "campusId": "ecu-joondalup",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 47,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": false,
+    "description": "Aimed at electrical graduates who want to work on generation, transmission and distribution. The units teach fault analysis, protection schemes and system control, mostly through simulation exercises. Students finish with an applied project in the second year.",
+    "majors": ["Power Systems", "Protection and Control"],
+    "units": [
+      "Power System Analysis",
+      "Electrical Machines",
+      "Protection Engineering",
+      "High Voltage Engineering",
+      "Control Systems",
+      "Power Systems Project"
+    ]
+  },
+  {
+    "name": "Master of Engineering (Mechanical)",
+    "campusId": "curtin-bentley",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 50,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "A two-year coursework degree for graduates who want to design machines and thermal systems. It teaches modelling, analysis and testing, with a good deal of time in design studios. Industry-set problems feature in the project units.",
+    "majors": ["Thermofluids", "Machine Design"],
+    "units": [
+      "Advanced Dynamics",
+      "Heat Transfer",
+      "Finite Element Analysis",
+      "Machine Design",
+      "Manufacturing Systems",
+      "Mechanical Design Project"
+    ]
+  },
+  {
+    "name": "Master of Project Management (Engineering and Construction)",
+    "campusId": "curtin-bentley",
+    "level": "Master's",
+    "years": 1,
+    "feeK": 40,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "Students learn how large engineering and construction projects are planned, priced and controlled. Teaching is built around scheduling tools, contract documents and real project case studies. It suits engineers and technical staff who already have some site experience.",
+    "majors": ["Construction Projects", "Infrastructure Delivery"],
+    "units": [
+      "Project Planning and Scheduling",
+      "Cost Engineering",
+      "Contract Law for Projects",
+      "Risk Management",
+      "Stakeholder Leadership"
+    ]
+  },
+  {
+    "name": "Master of Biomedical Engineering",
+    "campusId": "curtin-bentley",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 52,
+    "field": "engineering",
+    "graphField": "biomedical-engineering",
+    "niche": true,
+    "placements": true,
+    "description": "This course brings engineering methods to problems in medicine, such as joint replacement, imaging and monitoring devices. Students study physiology alongside mechanics and electronics, then design a device in a team project. Clinical placements are available in the second year.",
+    "majors": ["Medical Devices", "Biomechanics"],
+    "units": [
+      "Human Physiology for Engineers",
+      "Biomaterials",
+      "Biomechanics",
+      "Medical Imaging Systems",
+      "Regulatory Affairs for Devices",
+      "Biomedical Design Project"
+    ]
+  },
+  {
+    "name": "Diploma of Engineering Studies",
+    "campusId": "curtin-bentley",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 17,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": false,
+    "description": "A one-year bridging diploma that prepares students for an engineering degree. It revises mathematics and physics and introduces design thinking and basic programming. Small classes and regular problem sessions keep the pace manageable.",
+    "majors": ["General Engineering"],
+    "units": [
+      "Engineering Mathematics",
+      "Physics for Engineers",
+      "Introduction to Design",
+      "Computing for Engineers"
+    ]
+  },
+  {
+    "name": "Master of Solar and Wind Energy Systems",
+    "campusId": "curtin-bentley",
+    "level": "Master's",
+    "years": 1,
+    "feeK": 42,
+    "field": "engineering",
+    "graphField": "renewable-energy-engineering",
+    "niche": true,
+    "placements": false,
+    "description": "Over one year, students learn to assess a site, size a solar or wind installation and model its output. The course is taught through design exercises and software modelling rather than long lectures. It finishes with a feasibility study of a full project.",
+    "majors": ["Solar Systems", "Wind Power"],
+    "units": [
+      "Solar Resource Assessment",
+      "Wind Turbine Aerodynamics",
+      "Electrical Design for Renewables",
+      "Project Finance for Energy",
+      "Systems Modelling"
+    ]
+  },
+  {
+    "name": "Master of Mechatronic Engineering",
+    "campusId": "curtin-bentley",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 49,
+    "field": "engineering",
+    "graphField": "robotics",
+    "niche": true,
+    "placements": true,
+    "description": "Mechatronics joins mechanical design, electronics and software, and this course teaches all three over two years. Students build small automated systems from the first semester. Later units cover industrial controllers and a team project with a working prototype.",
+    "majors": ["Robotics", "Embedded Control"],
+    "units": [
+      "Mechatronic Design",
+      "Real-Time Embedded Systems",
+      "Control Theory",
+      "Actuators and Sensors",
+      "Industrial Automation",
+      "Mechatronics Project"
+    ]
+  },
+  {
+    "name": "Master of Engineering (Structural)",
+    "campusId": "curtin-bentley",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 48,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": false,
+    "description": "This course is for graduates who want to specialise in how buildings and bridges carry load. Students design in steel and concrete, check designs with modelling software and learn the relevant codes. A major design project closes the second year.",
+    "majors": ["Steel and Concrete Structures"],
+    "units": [
+      "Structural Dynamics",
+      "Reinforced Concrete Design",
+      "Steel Structures",
+      "Foundation Engineering",
+      "Structural Modelling",
+      "Structural Design Project"
+    ]
+  },
+  {
+    "name": "Diploma of Civil Construction Design",
+    "campusId": "tafe-perth",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 14,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "A practical one-year diploma in preparing the drawings and documents that civil construction crews work from. Students draft roads, drains and earthworks plans on computer and practise reading site surveys. Placements put the skills to use on live projects.",
+    "majors": ["Civil Design"],
+    "units": [
+      "Civil Drafting",
+      "Surveying Basics",
+      "Earthworks and Drainage",
+      "Construction Documentation",
+      "Work Health and Safety"
+    ]
+  },
+  {
+    "name": "Diploma of Electrical Engineering",
+    "campusId": "tafe-perth",
+    "level": "Diploma",
+    "years": 2,
+    "feeK": 18,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "This two-year diploma teaches the theory behind electrical systems and how to apply it to installations and controllers. About half the time is spent in workshops wiring, testing and programming equipment. Students graduate able to work as technicians or continue to a degree.",
+    "majors": ["Electrical Technology"],
+    "units": [
+      "Circuit Analysis",
+      "Electrical Installation Design",
+      "Programmable Controllers",
+      "Electrical Machines",
+      "Safety and Standards",
+      "Engineering Mathematics"
+    ]
+  },
+  {
+    "name": "Diploma of Mechanical Engineering Technology",
+    "campusId": "tafe-perth",
+    "level": "Diploma",
+    "years": 2,
+    "feeK": 17,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "Students learn to draw, make and maintain mechanical parts and assemblies. The course alternates between design software and workshop practice on lathes, mills and test rigs. It is a hands-on route for people who prefer learning by doing.",
+    "majors": ["Mechanical Design", "Maintenance Engineering"],
+    "units": [
+      "Technical Drawing",
+      "Mechanics of Materials",
+      "Machining Processes",
+      "Hydraulics and Pneumatics",
+      "Maintenance Planning"
+    ]
+  },
+  {
+    "name": "Diploma of Renewable Energy Technology",
+    "campusId": "tafe-perth",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 16,
+    "field": "engineering",
+    "graphField": "renewable-energy-engineering",
+    "niche": true,
+    "placements": true,
+    "description": "A one-year diploma on installing and servicing solar and battery systems. Students size arrays, wire small systems and test them on the training roof. Safety on site is taught in every unit.",
+    "majors": ["Solar Installation"],
+    "units": [
+      "Solar Array Design",
+      "Battery Systems",
+      "Electrical Safety",
+      "Site Assessment",
+      "Energy Monitoring"
+    ]
+  },
+  {
+    "name": "Diploma of Robotics and Automation Technology",
+    "campusId": "tafe-perth",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 18,
+    "field": "engineering",
+    "graphField": "robotics",
+    "niche": true,
+    "placements": false,
+    "description": "This course teaches the basics of programming and servicing automated machines and small robot arms. Students wire controllers, write simple programs and troubleshoot faults in the lab. It is a short, practical start for a career in automation.",
+    "majors": ["Automation Technology"],
+    "units": [
+      "Introduction to Robotics",
+      "Programmable Logic Controllers",
+      "Sensors and Actuators",
+      "Industrial Networks"
+    ]
+  },
+  {
+    "name": "Diploma of Engineering Project Support",
+    "campusId": "tafe-perth",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 15,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "A one-year diploma for people who help engineering projects run smoothly behind the scenes. It covers record keeping, schedules, ordering and cost tracking using common software. Placement time lets students practise on real project teams.",
+    "majors": ["Project Coordination"],
+    "units": [
+      "Project Documentation",
+      "Scheduling Basics",
+      "Cost Tracking",
+      "Procurement Support",
+      "Communication in Teams"
+    ]
+  },
+  {
+    "name": "Diploma of Biomedical Equipment Servicing",
+    "campusId": "tafe-perth",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 17,
+    "field": "engineering",
+    "graphField": "biomedical-engineering",
+    "niche": true,
+    "placements": true,
+    "description": "Students learn to service, test and repair the machines used in healthcare, from patient monitors to sterilisers. The course combines electronics theory with bench work on donated equipment. Careful record keeping and safety checking are part of every unit.",
+    "majors": ["Equipment Servicing"],
+    "units": [
+      "Medical Device Principles",
+      "Electrical Safety Testing",
+      "Fault Finding",
+      "Sterilisation Equipment",
+      "Maintenance Records"
+    ]
+  },
+  {
+    "name": "Master of Engineering (Civil and Environmental)",
+    "campusId": "unisa-city-west",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 44,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "This course joins civil design with the care of land and water. Students study how rivers, drains and treatment plants behave and how projects are assessed for their effects on the environment. The second year is given over to a research or design project.",
+    "majors": ["Water Engineering", "Environmental Management"],
+    "units": [
+      "Hydrology and Hydraulics",
+      "Environmental Impact Assessment",
+      "Geotechnical Engineering",
+      "Wastewater Treatment",
+      "Sustainable Infrastructure",
+      "Research Project"
+    ]
+  },
+  {
+    "name": "Master of Electrical Engineering",
+    "campusId": "unisa-city-west",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 46,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": false,
+    "description": "A two-year course covering power, electronics and control for electrical graduates. Lectures are paired with laboratory work and design studios. Students can lean towards energy or towards electronics in the second year.",
+    "majors": ["Power and Energy", "Electronics"],
+    "units": [
+      "Electrical Machines and Drives",
+      "Power Electronics",
+      "Signal Processing",
+      "Control Systems",
+      "Electrical Design Studio",
+      "Electrical Project"
+    ]
+  },
+  {
+    "name": "Master of Engineering Project Management",
+    "campusId": "unisa-city-west",
+    "level": "Master's",
+    "years": 1,
+    "feeK": 36,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": false,
+    "description": "This one-year course teaches engineers to plan and deliver projects on time and within budget. Case studies and group simulations make up most of the assessment. It suits working engineers who want formal management training.",
+    "majors": ["Project Management"],
+    "units": [
+      "Principles of Project Management",
+      "Engineering Economics",
+      "Project Risk",
+      "Procurement and Contracts",
+      "Leadership and Ethics"
+    ]
+  },
+  {
+    "name": "Diploma of Engineering Foundations",
+    "campusId": "unisa-city-west",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 15,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": false,
+    "description": "A diploma that builds the mathematics, physics and drawing skills needed to start an engineering degree. Classes are small and include regular tutoring. Students who pass can move straight into the first year of a degree.",
+    "majors": ["Foundation Studies"],
+    "units": [
+      "Mathematics for Engineering",
+      "Physics Foundations",
+      "Engineering Drawing",
+      "Study Skills for Technical Courses"
+    ]
+  },
+  {
+    "name": "Master of Renewable Energy and Power Systems",
+    "campusId": "unisa-city-west",
+    "level": "Master's",
+    "years": 1,
+    "feeK": 41,
+    "field": "engineering",
+    "graphField": "renewable-energy-engineering",
+    "niche": true,
+    "placements": true,
+    "description": "Students learn how renewable generation is built into working power systems, including microgrids and storage. Teaching mixes modelling exercises with laboratory demonstrations. A short placement or industry project fills the final term.",
+    "majors": ["Renewable Generation", "Power Systems"],
+    "units": [
+      "Renewable Energy Technologies",
+      "Power System Operation",
+      "Energy Storage",
+      "Microgrids",
+      "Energy Project Evaluation"
+    ]
+  },
+  {
+    "name": "Master of Biomedical Engineering Practice",
+    "campusId": "unisa-city-west",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 47,
+    "field": "engineering",
+    "graphField": "biomedical-engineering",
+    "niche": true,
+    "placements": true,
+    "description": "The course trains engineers to work alongside clinicians on devices that measure or assist the body. Students learn signal processing and instrumentation, then design and test a device in the project units. Hospital-based placements form part of the second year.",
+    "majors": ["Rehabilitation Engineering", "Medical Instrumentation"],
+    "units": [
+      "Physiological Measurement",
+      "Biomedical Signal Processing",
+      "Rehabilitation Technology",
+      "Medical Device Design",
+      "Clinical Engineering Practice",
+      "Biomedical Project"
+    ]
+  },
+  {
+    "name": "Master of Engineering (Civil)",
+    "campusId": "uts-ultimo",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 53,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "A two-year degree for graduates who want to design and build urban infrastructure. Studio classes use building information modelling and real design briefs. The capstone asks students to produce a complete civil design package.",
+    "majors": ["Structures", "Construction Engineering"],
+    "units": [
+      "Advanced Structural Design",
+      "Geotechnical Analysis",
+      "Construction Methods",
+      "Transport Engineering",
+      "Building Information Modelling",
+      "Civil Capstone"
+    ]
+  },
+  {
+    "name": "Master of Mechatronics and Robotics Engineering",
+    "campusId": "uts-ultimo",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 55,
+    "field": "engineering",
+    "graphField": "robotics",
+    "niche": true,
+    "placements": true,
+    "description": "This course teaches how to design robots from the sensors and motors through to the software that drives them. Students spend much of their time in the robotics lab. The two years end with a capstone in which teams build and demonstrate a robotic system.",
+    "majors": ["Robotics", "Mechatronic Systems"],
+    "units": [
+      "Robot Dynamics and Control",
+      "Computer Vision",
+      "Embedded Systems Design",
+      "Machine Learning for Robotics",
+      "Systems Integration",
+      "Robotics Capstone"
+    ]
+  },
+  {
+    "name": "Master of Engineering Management",
+    "campusId": "uts-ultimo",
+    "level": "Master's",
+    "years": 1,
+    "feeK": 48,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": false,
+    "description": "Built for engineers who are ready to lead people and budgets as well as designs. It covers project control, finance and operations through workshops and case analyses. The course runs for one year.",
+    "majors": ["Technology Management", "Project Leadership"],
+    "units": [
+      "Managing Engineering Projects",
+      "Innovation and Technology",
+      "Financial Management for Engineers",
+      "Operations and Supply Chains",
+      "Professional Practice"
+    ]
+  },
+  {
+    "name": "Master of Biomedical Engineering",
+    "campusId": "uts-ultimo",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 56,
+    "field": "engineering",
+    "graphField": "biomedical-engineering",
+    "niche": true,
+    "placements": true,
+    "description": "Students apply engineering to the body, studying imaging, instruments, implants and tissue repair. Laboratory classes run alongside design projects set by clinical partners. A capstone project completes the two years.",
+    "majors": ["Biomedical Devices", "Tissue and Biomaterials"],
+    "units": [
+      "Biomedical Instrumentation",
+      "Biomaterials and Tissue Engineering",
+      "Medical Imaging",
+      "Biomechanics",
+      "Device Regulation and Quality",
+      "Biomedical Capstone"
+    ]
+  },
+  {
+    "name": "Diploma of Engineering Practice",
+    "campusId": "uts-ultimo",
+    "level": "Diploma",
+    "years": 2,
+    "feeK": 24,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "A two-year diploma that gives a broad base in engineering before choosing a specialty. Students try small design tasks in civil, mechanical and electrical work. Strong results can count towards a full engineering degree.",
+    "majors": ["Engineering Practice"],
+    "units": [
+      "Engineering Mathematics",
+      "Introduction to Engineering Design",
+      "Materials and Mechanics",
+      "Electrical Fundamentals",
+      "Computing for Engineers",
+      "Professional Communication"
+    ]
+  },
+  {
+    "name": "Master of Engineering (Electrical Power)",
+    "campusId": "uts-ultimo",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 54,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": false,
+    "description": "This course covers how electricity is generated, moved and controlled. Students analyse networks, design converters and study how energy markets shape operation. The second year has a major project built on a real network problem.",
+    "majors": ["Power Engineering", "Energy Systems"],
+    "units": [
+      "Power Systems Analysis",
+      "Electrical Machines",
+      "Power Electronics",
+      "High Voltage Systems",
+      "Energy Markets",
+      "Power Engineering Project"
+    ]
+  },
+  {
+    "name": "Master of Sustainable Energy Engineering",
+    "campusId": "uts-ultimo",
+    "level": "Master's",
+    "years": 1,
+    "feeK": 50,
+    "field": "engineering",
+    "graphField": "renewable-energy-engineering",
+    "niche": true,
+    "placements": true,
+    "description": "A one-year course on designing energy systems that cut waste and use clean sources. Students model buildings, solar farms and storage, and assess them across their whole life. The final project tackles a real design or planning question.",
+    "majors": ["Renewable Systems", "Energy Efficiency"],
+    "units": [
+      "Renewable Energy Technologies",
+      "Energy Efficiency in Buildings",
+      "Energy Storage",
+      "Life Cycle Assessment",
+      "Sustainable Energy Project"
+    ]
+  },
+  {
+    "name": "Master of Engineering (Mechanical)",
+    "campusId": "monash-clayton",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 58,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "Over two years, students develop deep skills in analysing and designing mechanical systems. Computer simulation sits beside laboratory testing in most units. The research project lets students investigate one question in detail.",
+    "majors": ["Mechanical Design", "Aerospace Mechanics"],
+    "units": [
+      "Advanced Thermodynamics",
+      "Computational Fluid Dynamics",
+      "Mechanical Vibrations",
+      "Advanced Materials",
+      "Design Optimisation",
+      "Mechanical Research Project"
+    ]
+  },
+  {
+    "name": "Master of Chemical and Process Engineering",
+    "campusId": "monash-clayton",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 57,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": false,
+    "description": "This course teaches how chemicals and materials are made at scale. Students design plants, model reactions and study safety and control. Plant design work in the second year draws everything together.",
+    "majors": ["Process Design", "Sustainable Processes"],
+    "units": [
+      "Reaction Engineering",
+      "Separation Processes",
+      "Process Control",
+      "Process Safety",
+      "Plant Design Project"
+    ]
+  },
+  {
+    "name": "Master of Autonomous Systems Engineering",
+    "campusId": "monash-clayton",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 57,
+    "field": "engineering",
+    "graphField": "robotics",
+    "niche": true,
+    "placements": true,
+    "description": "The course covers machines that sense their surroundings and decide how to move, such as drones and ground vehicles. Students write navigation and control software and test it in simulation and on small vehicles. A two-year project closes the course.",
+    "majors": ["Autonomous Vehicles", "Intelligent Control"],
+    "units": [
+      "Autonomous Navigation",
+      "Control of Nonlinear Systems",
+      "Perception and Mapping",
+      "Reinforcement Learning",
+      "Systems Safety",
+      "Autonomous Systems Project"
+    ]
+  },
+  {
+    "name": "Master of Energy Systems Engineering",
+    "campusId": "monash-clayton",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 56,
+    "field": "engineering",
+    "graphField": "renewable-energy-engineering",
+    "niche": true,
+    "placements": true,
+    "description": "Students study how clean energy sources are generated, stored and delivered through electricity networks. Modelling and laboratory work run side by side. The second year includes an extended project on a real energy problem.",
+    "majors": ["Renewable Energy", "Grid Technology"],
+    "units": [
+      "Renewable Power Generation",
+      "Electricity Networks",
+      "Energy Storage Systems",
+      "Energy Economics",
+      "Power Electronics for Energy",
+      "Energy Systems Project"
+    ]
+  },
+  {
+    "name": "Master of Biomedical Engineering and Devices",
+    "campusId": "monash-clayton",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 60,
+    "field": "engineering",
+    "graphField": "biomedical-engineering",
+    "niche": true,
+    "placements": true,
+    "description": "This course teaches how to design, test and bring to clinic the devices used in diagnosis and treatment. Students move between engineering labs and clinical settings. A research project in the second year goes into one problem in depth.",
+    "majors": ["Medical Devices", "Imaging and Diagnostics"],
+    "units": [
+      "Cell and Tissue Mechanics",
+      "Medical Device Design",
+      "Biomedical Imaging",
+      "Neural Engineering",
+      "Clinical Translation",
+      "Biomedical Research Project"
+    ]
+  },
+  {
+    "name": "Diploma of Engineering Foundations",
+    "campusId": "monash-clayton",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 26,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": false,
+    "description": "A one-year pathway course for students who need extra preparation before entering an engineering degree. It teaches mathematics, physics and design in small groups. Teachers set regular problem work and give prompt feedback.",
+    "majors": ["Engineering Foundations"],
+    "units": [
+      "Calculus for Engineers",
+      "Physics for Engineering",
+      "Engineering Design Basics",
+      "Academic Writing for Science"
+    ]
+  },
+  {
+    "name": "Master of Engineering Project Management",
+    "campusId": "monash-clayton",
+    "level": "Master's",
+    "years": 1,
+    "feeK": 44,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": false,
+    "description": "A one-year course on planning, running and closing out engineering projects. Students use industry scheduling tools and work through contract and risk cases. It is suited to engineers moving into coordinator or manager roles.",
+    "majors": ["Engineering Project Management"],
+    "units": [
+      "Project Management Foundations",
+      "Engineering Contracts",
+      "Cost and Schedule Control",
+      "Project Risk and Safety",
+      "Team Leadership"
+    ]
+  },
+  {
+    "name": "Master of Engineering (Structures and Geotechnics)",
+    "campusId": "swinburne-hawthorn",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 49,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "This course looks at how structures and the ground beneath them work together. Students design foundations, frames and retaining walls and check their results by modelling. Placement time on civil projects is available.",
+    "majors": ["Structural Engineering", "Geotechnical Engineering"],
+    "units": [
+      "Structural Analysis",
+      "Soil Mechanics",
+      "Foundation Design",
+      "Concrete and Steel Design",
+      "Ground Improvement",
+      "Civil Design Project"
+    ]
+  },
+  {
+    "name": "Master of Electrical and Electronic Engineering",
+    "campusId": "swinburne-hawthorn",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 51,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": false,
+    "description": "Students build knowledge of circuits, communications and power over two years. Laboratory sessions let them design and test hardware, while project units tackle larger systems. The course suits graduates from science or related engineering degrees.",
+    "majors": ["Electronics", "Electrical Systems"],
+    "units": [
+      "Analogue and Digital Electronics",
+      "Power Systems",
+      "Communication Systems",
+      "Embedded Systems",
+      "Control Engineering",
+      "Electrical Project"
+    ]
+  },
+  {
+    "name": "Master of Robotics and Mechatronics Engineering",
+    "campusId": "swinburne-hawthorn",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 52,
+    "field": "engineering",
+    "graphField": "robotics",
+    "niche": true,
+    "placements": true,
+    "description": "This course covers the design of robots and mechatronic machines, from arms on a factory floor to small mobile robots. Students program, build and test in the lab throughout. The project units invite teams to solve a problem set by an outside client.",
+    "majors": ["Robotics", "Mechatronics"],
+    "units": [
+      "Robot Manipulators",
+      "Mechatronic System Design",
+      "Machine Vision",
+      "Real-Time Control",
+      "Human-Robot Interaction",
+      "Robotics Project"
+    ]
+  },
+  {
+    "name": "Master of Engineering Project Management",
+    "campusId": "swinburne-hawthorn",
+    "level": "Master's",
+    "years": 1,
+    "feeK": 42,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "A one-year course that treats project management as an engineering skill. Students plan projects, track cost and manage risk through realistic simulations. A short placement or project report rounds out the year.",
+    "majors": ["Project Delivery"],
+    "units": [
+      "Project Planning",
+      "Systems Engineering Practice",
+      "Engineering Finance",
+      "Project Risk and Quality",
+      "Leading Projects"
+    ]
+  },
+  {
+    "name": "Diploma of Engineering Technology",
+    "campusId": "swinburne-hawthorn",
+    "level": "Diploma",
+    "years": 2,
+    "feeK": 22,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "A two-year diploma that blends theory with workshop practice across mechanical and electrical subjects. Students draw, build and test small assemblies. Placement experience is built into the second year.",
+    "majors": ["Engineering Technology"],
+    "units": [
+      "Engineering Drawing",
+      "Electrical and Electronic Basics",
+      "Mechanical Principles",
+      "Manufacturing Processes",
+      "Engineering Mathematics"
+    ]
+  },
+  {
+    "name": "Master of Solar Energy Engineering",
+    "campusId": "swinburne-hawthorn",
+    "level": "Master's",
+    "years": 1,
+    "feeK": 44,
+    "field": "engineering",
+    "graphField": "renewable-energy-engineering",
+    "niche": true,
+    "placements": false,
+    "description": "This one-year course looks closely at solar power, from how a cell turns light into current to how a farm is designed. Lab work tests real panels and inverters. Students end the year with a design project.",
+    "majors": ["Solar Technology"],
+    "units": [
+      "Solar Cell Physics",
+      "Photovoltaic System Design",
+      "Power Conversion",
+      "Energy Storage Integration",
+      "Solar Project"
+    ]
+  },
+  {
+    "name": "Master of Medical Device Engineering",
+    "campusId": "swinburne-hawthorn",
+    "level": "Master's",
+    "years": 1,
+    "feeK": 48,
+    "field": "engineering",
+    "graphField": "biomedical-engineering",
+    "niche": true,
+    "placements": true,
+    "description": "Students learn how a medical device moves from idea to safe, tested product. The units cover materials, electronics, quality systems and clinical testing. Teams design a device prototype during the year, with input from clinicians.",
+    "majors": ["Device Design"],
+    "units": [
+      "Medical Device Design",
+      "Biocompatible Materials",
+      "Quality Systems for Devices",
+      "Clinical Evaluation",
+      "Biomedical Electronics"
+    ]
+  },
+  {
+    "name": "Master of Engineering (Mechanical)",
+    "campusId": "deakin-waurn-ponds",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 46,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "A two-year degree in analysing and designing mechanical systems, with a lean towards manufacturing. Students use simulation software and practise on workshop equipment. The final project is a design carried from concept to prototype.",
+    "majors": ["Advanced Mechanics", "Manufacturing"],
+    "units": [
+      "Advanced Mechanics of Materials",
+      "Thermodynamics and Heat Transfer",
+      "Computer-Aided Engineering",
+      "Manufacturing Technology",
+      "Mechanical Design Project"
+    ]
+  },
+  {
+    "name": "Master of Engineering (Civil)",
+    "campusId": "deakin-waurn-ponds",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 45,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "The course covers structures, water and transport for graduates who want to practise civil engineering. Students work on design problems drawn from real sites. Two years of study finish with a substantial project.",
+    "majors": ["Structural Engineering", "Water Engineering"],
+    "units": [
+      "Structural Design",
+      "Hydraulic Engineering",
+      "Transport Systems",
+      "Geotechnical Design",
+      "Civil Engineering Project"
+    ]
+  },
+  {
+    "name": "Master of Electrical Engineering",
+    "campusId": "deakin-waurn-ponds",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 47,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": false,
+    "description": "This course teaches electrical engineering to graduates from related fields. Students begin with circuits and signals, then move on to power and control. Project work gives time to design, build and test a working system.",
+    "majors": ["Electrical Systems", "Control"],
+    "units": [
+      "Circuit Design",
+      "Power System Fundamentals",
+      "Control Systems",
+      "Digital Electronics",
+      "Electrical Project"
+    ]
+  },
+  {
+    "name": "Diploma of Engineering Technology (Civil)",
+    "campusId": "deakin-waurn-ponds",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 18,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "A one-year diploma in the skills a civil technician uses every day: surveying, drafting and understanding construction materials. Practical sessions are held outdoors on the campus grounds. Placements are arranged on local civil projects.",
+    "majors": ["Civil Technology"],
+    "units": [
+      "Surveying and Setting Out",
+      "Civil Drafting",
+      "Construction Materials",
+      "Site Safety"
+    ]
+  },
+  {
+    "name": "Master of Renewable Energy Engineering",
+    "campusId": "deakin-waurn-ponds",
+    "level": "Master's",
+    "years": 1,
+    "feeK": 40,
+    "field": "engineering",
+    "graphField": "renewable-energy-engineering",
+    "niche": true,
+    "placements": true,
+    "description": "This one-year course teaches students to design wind and solar projects and to connect them to the grid. Teaching includes modelling tasks and a feasibility study. It builds on a first degree in engineering or science.",
+    "majors": ["Wind and Solar Power"],
+    "units": [
+      "Wind Energy Systems",
+      "Solar Power Design",
+      "Grid Connection",
+      "Energy Storage",
+      "Renewable Project Planning"
+    ]
+  },
+  {
+    "name": "Master of Engineering Management",
+    "campusId": "deakin-waurn-ponds",
+    "level": "Master's",
+    "years": 1,
+    "feeK": 37,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": false,
+    "description": "Designed for engineers moving into leadership, this course covers budgeting, risk and the management of technical staff. Students work through case studies drawn from engineering projects. It runs for one year.",
+    "majors": ["Engineering Leadership"],
+    "units": [
+      "Engineering Management",
+      "Project and Risk Management",
+      "Financial Decision Making",
+      "Managing Technology Teams"
+    ]
+  },
+  {
+    "name": "Master of Engineering (Civil and Hydraulic)",
+    "campusId": "utas-sandy-bay",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 41,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "A two-year course in structures and water engineering, with attention to rivers, dams and coasts. Students use hydraulic models and field data in class. Field trips and a design project give practice on real sites.",
+    "majors": ["Hydraulic Engineering", "Coastal Structures"],
+    "units": [
+      "Open Channel Hydraulics",
+      "Coastal Engineering",
+      "Structural Design",
+      "Geotechnical Engineering",
+      "Water Resources Planning",
+      "Civil Project"
+    ]
+  },
+  {
+    "name": "Master of Engineering (Electrical and Power)",
+    "campusId": "utas-sandy-bay",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 42,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": false,
+    "description": "This course trains graduates to work on electrical generation and supply. Students analyse power networks, design controls and study how new sources connect to the grid. The second year centres on an applied project.",
+    "majors": ["Power Engineering"],
+    "units": [
+      "Power System Design",
+      "Electrical Machines",
+      "Control Engineering",
+      "Renewable Integration",
+      "Electrical Project"
+    ]
+  },
+  {
+    "name": "Master of Engineering (Mechanical and Marine)",
+    "campusId": "utas-sandy-bay",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 42,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": true,
+    "description": "A two-year course for graduates who want to design vessels and the machinery that drives them. It covers hull forms, propulsion and structures, using computer models and tank testing. A major design project is completed in the second year.",
+    "majors": ["Naval Architecture", "Mechanical Systems"],
+    "units": [
+      "Ship and Vessel Design",
+      "Marine Hydrodynamics",
+      "Mechanical Design",
+      "Propulsion Systems",
+      "Marine Structures Project"
+    ]
+  },
+  {
+    "name": "Master of Renewable Energy Engineering",
+    "campusId": "utas-sandy-bay",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 43,
+    "field": "engineering",
+    "graphField": "renewable-energy-engineering",
+    "niche": true,
+    "placements": true,
+    "description": "This course looks at hydro, wind and storage and how they make up a clean energy supply. Students model plants, study the electrical side and consider how projects are financed. The second year is a project on a real or realistic site.",
+    "majors": ["Hydro and Wind", "Energy Systems"],
+    "units": [
+      "Hydropower Engineering",
+      "Wind Energy Technology",
+      "Power Electronics",
+      "Energy Storage",
+      "Renewable Energy Economics",
+      "Renewable Energy Project"
+    ]
+  },
+  {
+    "name": "Diploma of Engineering Practice",
+    "campusId": "utas-sandy-bay",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 16,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": false,
+    "description": "A one-year diploma that gives an all-round start in engineering. It covers calculation, drawing and basic computing, with workshop sessions to make ideas concrete. Students can carry credit into a degree.",
+    "majors": ["General Engineering"],
+    "units": [
+      "Engineering Mathematics",
+      "Mechanics and Materials",
+      "Computing for Engineers",
+      "Engineering Design Basics"
+    ]
+  },
+  {
+    "name": "Master of Engineering Project Management",
+    "campusId": "utas-sandy-bay",
+    "level": "Master's",
+    "years": 1,
+    "feeK": 34,
+    "field": "engineering",
+    "graphField": "engineering",
+    "niche": false,
+    "placements": false,
+    "description": "A one-year course on running engineering projects, from first plan to handover. Students practise scheduling, costing and risk analysis in group exercises. The course suits engineers already working in the field.",
+    "majors": ["Project Management"],
+    "units": [
+      "Project Planning and Control",
+      "Engineering Contracts",
+      "Risk and Safety",
+      "Professional Leadership"
+    ]
+  },
+  {
+    "name": "Master of Robotics for Marine and Field Systems",
+    "campusId": "utas-sandy-bay",
+    "level": "Master's",
+    "years": 1,
+    "feeK": 40,
+    "field": "engineering",
+    "graphField": "robotics",
+    "niche": true,
+    "placements": true,
+    "description": "This one-year course is about robots that work outdoors and on the water. Students study sensing, navigation and control, then test small vehicles in field exercises. A project closes the year with a robot built to meet a stated task.",
+    "majors": ["Field Robotics", "Marine Robotics"],
+    "units": [
+      "Robot Sensing and Navigation",
+      "Underwater Vehicle Systems",
+      "Control and Autonomy",
+      "Field Testing Methods",
+      "Robotics Project"
+    ]
+  }
+]

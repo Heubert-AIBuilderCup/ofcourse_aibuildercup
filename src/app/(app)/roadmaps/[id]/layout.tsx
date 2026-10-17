@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import { after } from 'next/server'
+import { findCoursesAction, finderOn, finderSeedText, finderWhyAction } from '@/features/finder'
 import { getProfile } from '@/features/opening/server/profile'
 import { matchLine, RoadBoard, roadRedirect } from '@/features/road'
 import { roadmapName, roadNames } from '@/features/roadmaps'
@@ -43,7 +44,9 @@ const asksOn = (spec: RoadSpec): Record<string, TileAsk[]> =>
  * here so the catalogue stays out of the browser, and lists the posts and updates about its tile
  * (read beside the roadmap, unless the roads are off; an update for one country only when she
  * stated hers). With the student AI off (STUDENT_AI_OFF=1) no card calls a model: the why keeps its
- * template and a city or course card offers its suggested questions only.
+ * template and a city or course card offers its suggested questions only. With the finder on
+ * (FINDER_ON=1) and a road built from her answers, the board offers Find courses, its box
+ * starting with her study words.
  */
 export default async function RoadmapLayout({ children, params }: LayoutProps<'/roadmaps/[id]'>) {
   const [{ user }, { id }] = await Promise.all([requireStudent(), params])
@@ -91,6 +94,11 @@ export default async function RoadmapLayout({ children, params }: LayoutProps<'/
       asks={built && result.spec ? asksOn(result.spec) : undefined}
       details={details}
       tilePosts={posts}
+      finder={
+        finderOn(process.env) && built
+          ? { seed: finderSeedText(roadmap), search: findCoursesAction, why: finderWhyAction }
+          : undefined
+      }
     >
       {children}
     </RoadBoard>

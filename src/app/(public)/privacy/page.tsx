@@ -92,13 +92,15 @@ export default function PrivacyPage() {
             <h2 className="text-h3">Google Cloud and Gemini</h2>
             <p>
               {SITE_NAME} runs on Google Cloud: the app on Cloud Run and the database on Cloud SQL,
-              both in Singapore. To read what you write in your own words, write the explanations
-              and answer your questions, we send that text, the relevant answers and your question
-              to Google's Gemini models on Vertex AI, never your name, email or account. Google
-              processes them under its Google Cloud terms and does not use them to train its models.
-              If you write about how you are feeling, it is kept as a private note: never turned
-              into an answer, and never sent to the models that write explanations or answer
-              questions.
+              both in Singapore. To read what you write in your own words, write the explanations,
+              answer your questions and find courses from what you type, we send that text, the
+              relevant answers and your question to Google's Gemini models on Vertex AI, never your
+              name, email or account. Google processes them under its Google Cloud terms and does
+              not use them to train its models. If you write about how you are feeling in the
+              own-words boxes during onboarding, it is kept as a private note: never turned into an
+              answer, and never sent to the models that write explanations or answer questions. What
+              you type into Find courses is sent to Google's models to find courses and write each
+              course's explanation, so don't write anything there you wouldn't want read by them.
             </p>
           </section>
 

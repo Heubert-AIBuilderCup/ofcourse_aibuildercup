@@ -95,7 +95,7 @@ export const FIELDS: readonly Field[] = [
     id: 'cyber-psychology',
     name: 'Cyber-psychology',
     definition:
-      'How people behave online and why they fall for attacks; used to design safer systems and training.',
+      'The psychology of how people think, feel and behave online: trust, habits, wellbeing and risk.',
     niche: true,
   },
   {
@@ -126,6 +126,125 @@ export const FIELDS: readonly Field[] = [
       'Shaping how products and services look and work for the people who use them, from research to the final screen.',
     niche: false,
   },
+  {
+    id: 'ot-security',
+    name: 'Industrial and critical infrastructure security',
+    definition:
+      'Protecting the computers that run power grids, water plants and factories, where an attack can stop real machines.',
+    niche: true,
+  },
+  {
+    id: 'cyber-strategy',
+    name: 'Cyber policy and strategy',
+    definition:
+      'How governments and companies plan for cyber threats, write the laws and rules, and handle attacks between countries.',
+    niche: true,
+  },
+  {
+    id: 'bioinformatics',
+    name: 'Bioinformatics',
+    definition:
+      'Using code and statistics to read DNA and other biological data, to understand diseases and find new treatments.',
+    niche: true,
+  },
+  {
+    id: 'spatial-data-science',
+    name: 'Geospatial science (GIS)',
+    definition:
+      'Working with maps, satellite images and location data to plan cities, track the environment and respond to disasters.',
+    niche: true,
+  },
+  {
+    id: 'actuarial-studies',
+    name: 'Actuarial studies',
+    definition:
+      'Using maths and statistics to measure risk and price insurance, super and pensions so they stay affordable.',
+    niche: true,
+  },
+  {
+    id: 'fintech',
+    name: 'Financial technology (FinTech)',
+    definition:
+      'Building and running the tech behind modern money: payment apps, online banking, digital lending and blockchain.',
+    niche: true,
+  },
+  {
+    id: 'hci',
+    name: 'Human-computer interaction',
+    definition:
+      'Studying how people use technology and testing designs so apps and devices are easy, safe and pleasant to use.',
+    niche: true,
+  },
+  {
+    id: 'game-development',
+    name: 'Game development',
+    definition:
+      'Designing and programming video games, from the rules and levels to the graphics engine that runs them.',
+    niche: true,
+  },
+  {
+    id: 'organisational-psychology',
+    name: 'Organisational psychology',
+    definition:
+      'Using psychology at work: hiring the right people, building good teams and keeping staff well and motivated.',
+    niche: true,
+  },
+  {
+    id: 'human-factors',
+    name: 'Human factors and safety science',
+    definition:
+      'Designing equipment, jobs and systems around how people actually think and make mistakes, so work is safer.',
+    niche: true,
+  },
+  {
+    id: 'biostatistics',
+    name: 'Biostatistics and epidemiology',
+    definition:
+      'Using statistics to track how diseases spread and to test whether medicines and health programs really work.',
+    niche: true,
+  },
+  {
+    id: 'genetic-counselling',
+    name: 'Genetic counselling',
+    definition:
+      'Helping families understand genetic test results and inherited health risks, and make decisions about them.',
+    niche: true,
+  },
+  {
+    id: 'renewable-energy-engineering',
+    name: 'Renewable energy engineering',
+    definition:
+      'Designing solar, wind, battery and grid systems that produce clean power and keep it reliable.',
+    niche: true,
+  },
+  {
+    id: 'biomedical-engineering',
+    name: 'Biomedical engineering',
+    definition:
+      'Designing medical devices like implants, prosthetics and scanners that help doctors diagnose and treat people.',
+    niche: true,
+  },
+  {
+    id: 'robotics',
+    name: 'Robotics and mechatronics',
+    definition:
+      'Building machines that sense, move and decide for themselves, mixing mechanics, electronics and code.',
+    niche: true,
+  },
+  {
+    id: 'service-design',
+    name: 'Service design',
+    definition:
+      'Designing the whole experience of a service, like a hospital visit or a bank account, not just one screen.',
+    niche: true,
+  },
+  {
+    id: 'design-strategy',
+    name: 'Design strategy and innovation',
+    definition:
+      'Using design thinking to help organisations spot new ideas, test them quickly and turn them into products.',
+    niche: true,
+  },
 ]
 
 // A "combines" edge runs from the combined field to each field it is made of.
@@ -155,6 +274,45 @@ export const FIELD_EDGES: readonly FieldEdge[] = [
   { from: 'psych', to: 'health', kind: 'related' },
   { from: 'engineering', to: 'it', kind: 'related' },
   { from: 'design', to: 'it', kind: 'related' },
+  { from: 'ot-security', to: 'cyber', kind: 'is-a' },
+  { from: 'ot-security', to: 'engineering', kind: 'related' },
+  { from: 'ot-security', to: 'networks', kind: 'related' },
+  { from: 'cyber-strategy', to: 'cyber', kind: 'is-a' },
+  { from: 'cyber-strategy', to: 'security-governance', kind: 'related' },
+  { from: 'bioinformatics', to: 'data', kind: 'combines' },
+  { from: 'bioinformatics', to: 'health', kind: 'combines' },
+  { from: 'spatial-data-science', to: 'data', kind: 'is-a' },
+  { from: 'spatial-data-science', to: 'engineering', kind: 'related' },
+  { from: 'actuarial-studies', to: 'business', kind: 'combines' },
+  { from: 'actuarial-studies', to: 'data', kind: 'combines' },
+  { from: 'fintech', to: 'business', kind: 'combines' },
+  { from: 'fintech', to: 'it', kind: 'combines' },
+  { from: 'fintech', to: 'software', kind: 'related' },
+  { from: 'hci', to: 'it', kind: 'combines' },
+  { from: 'hci', to: 'design', kind: 'combines' },
+  { from: 'hci', to: 'psych', kind: 'related' },
+  { from: 'game-development', to: 'it', kind: 'is-a' },
+  { from: 'game-development', to: 'software', kind: 'related' },
+  { from: 'game-development', to: 'design', kind: 'related' },
+  { from: 'organisational-psychology', to: 'psych', kind: 'combines' },
+  { from: 'organisational-psychology', to: 'business', kind: 'combines' },
+  { from: 'human-factors', to: 'psych', kind: 'combines' },
+  { from: 'human-factors', to: 'engineering', kind: 'combines' },
+  { from: 'human-factors', to: 'design', kind: 'related' },
+  { from: 'biostatistics', to: 'health', kind: 'combines' },
+  { from: 'biostatistics', to: 'data', kind: 'combines' },
+  { from: 'genetic-counselling', to: 'health', kind: 'is-a' },
+  { from: 'genetic-counselling', to: 'psych', kind: 'related' },
+  { from: 'renewable-energy-engineering', to: 'engineering', kind: 'is-a' },
+  { from: 'biomedical-engineering', to: 'engineering', kind: 'combines' },
+  { from: 'biomedical-engineering', to: 'health', kind: 'combines' },
+  { from: 'robotics', to: 'engineering', kind: 'is-a' },
+  { from: 'robotics', to: 'ai-ml', kind: 'related' },
+  { from: 'robotics', to: 'software', kind: 'related' },
+  { from: 'service-design', to: 'design', kind: 'is-a' },
+  { from: 'service-design', to: 'business', kind: 'related' },
+  { from: 'design-strategy', to: 'design', kind: 'combines' },
+  { from: 'design-strategy', to: 'business', kind: 'combines' },
 ]
 
 /** The fields one step away over any kind of edge, in either direction. */

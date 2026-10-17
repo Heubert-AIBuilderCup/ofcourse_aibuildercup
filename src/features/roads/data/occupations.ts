@@ -234,11 +234,19 @@ export type StayingRoute = '190' | '491' | '186' | 'none'
  * employers; else a 190 on the state's 190 list, a 491 on its 491 list, else an employer's 186.
  */
 export function stayingRoute(courseId: string, cityId: string): StayingRoute {
+  return routeFor(occupationsFor(courseId), cityId, courseById(courseId)?.prScore)
+}
+
+/** The staying route for any course, from its occupations and PR score (stayingRoute's rule). */
+export function routeFor(
+  occupations: readonly Occupation[],
+  cityId: string,
+  prScore: number | undefined,
+): StayingRoute {
   const state = CITY_STATE[cityId]
-  const occupations = occupationsFor(courseId)
   const on = (list: '190' | '491') => occupations.some((o) => (o.lists[state] ?? []).includes(list))
   const someWay = occupations.some((o) => (o.lists[state] ?? []).length > 0 || o.employerSponsored)
-  if (courseById(courseId)?.prScore === 0 || !someWay) return 'none'
+  if (prScore === 0 || !someWay) return 'none'
   return on('190') ? '190' : on('491') ? '491' : '186'
 }
 

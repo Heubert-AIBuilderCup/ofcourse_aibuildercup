@@ -12,7 +12,8 @@
       "!next-env.d.ts",
       "!src/shared/lib/db/migrations",
       "!.claude",
-      "!docs/roadmaps/reference"
+      "!docs/roadmaps/reference",
+      "!src/features/finder/data/catalogue.ts"
     ]
   },
   "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },

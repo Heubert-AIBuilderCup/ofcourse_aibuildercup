@@ -103,6 +103,26 @@ gcloud run jobs execute ofcourse-migrate --project applyims --region asia-southe
 
 The migrator applies only migrations newer (by the journal's `when`) than the last one the database ran. Since the merge with dev on 15 Oct, the migrations are in date order, and dev's `0010_student_profile_onboarded_at` sits between ours. A database last migrated from the admin branch after 13 Oct 11:29 UTC (at `0011_content_step_progress` or later) skips it, and `0018_roadmaps` then fails. Before the job, check with `select max(created_at) from drizzle.__drizzle_migrations`; if it is 1791890988254 or later, run the one statement by hand first: `ALTER TABLE "student_profile" ADD COLUMN IF NOT EXISTS "onboarded_at" timestamp with time zone;`.
 
+## 6b. Seed the finder
+
+After the migrations job, seed the finder's `course_doc` table from the catalogue with a second job from the same image. It runs `dist/finder-seed.js`, the bundle of `scripts/finder-seed.ts` that the Dockerfile builds, and calls the embedding model, so it also gets the Vertex project and location:
+
+It needs the same database secrets as the migrations job above. Set `JOB_SECRETS` to that job's exact `--set-secrets` value:
+
+```bash
+JOB_SECRETS='<the --set-secrets value from §6>'
+gcloud run jobs deploy ofcourse-finder-seed --project applyims --region asia-southeast1 \
+  --image "$(gcloud run services describe ofcourse --project applyims --region asia-southeast1 --format='value(spec.template.spec.containers[0].image)')" \
+  --service-account ofcourse-run@applyims.iam.gserviceaccount.com \
+  --set-cloudsql-instances applyims:asia-southeast1:ofcourse-db \
+  --set-secrets "$JOB_SECRETS" \
+  --set-env-vars PGHOST=/cloudsql/applyims:asia-southeast1:ofcourse-db,PGUSER=ofcourse,GOOGLE_CLOUD_PROJECT=applyims,GOOGLE_CLOUD_LOCATION=global \
+  --command bun --args dist/finder-seed.js
+gcloud run jobs execute ofcourse-finder-seed --project applyims --region asia-southeast1 --wait
+```
+
+The first run prints `embedded N of N · removed 0`. It embeds only the courses that are new, whose name or description changed, or that another model embedded, so a second run prints `embedded 0 of N`. Run it again after any image whose catalogue changed.
+
 ## 7. Google sign-in (Nikhil)
 
 In the Google Cloud console of the project that owns the OAuth client in `.env`: APIs & Services → Credentials → the OAuth client → Authorised redirect URIs → add

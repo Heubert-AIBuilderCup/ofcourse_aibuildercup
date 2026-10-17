@@ -4,6 +4,8 @@
 #
 # Migrations run as a Cloud Run job from this same image:
 #   --command bun --args scripts/migrate.ts
+# and the finder seed as another, from its bundle (docs/hackathon/deploy.md §6b):
+#   --command bun --args dist/finder-seed.js
 
 # 1. build: Node 24 with Bun's binary. Installs from the lockfile and builds inside Linux, so the
 #    Linux @resvg/resvg-js binary is the one installed and traced into .next/standalone.
@@ -15,6 +17,8 @@ COPY package.json bun.lock bunfig.toml ./
 RUN bun install --frozen-lockfile
 COPY . .
 RUN bun run build
+# The finder seed job's script, bundled with everything it imports.
+RUN bun build scripts/finder-seed.ts --target bun --conditions react-server --outfile dist/finder-seed.js
 
 # 2. runtime: the standalone server, its static files and public/. The brand fonts and the art
 #    library are traced into standalone at their repo paths (next.config.ts), so the app's
@@ -31,6 +35,7 @@ COPY --from=build /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
 COPY --from=build /app/node_modules/postgres ./node_modules/postgres
 COPY --from=build /app/src/shared/lib/db/migrations ./src/shared/lib/db/migrations
 COPY --from=build /app/scripts/migrate.ts ./scripts/migrate.ts
+COPY --from=build /app/dist/finder-seed.js ./dist/finder-seed.js
 USER node
 EXPOSE 8080
 CMD ["node", "server.js"]

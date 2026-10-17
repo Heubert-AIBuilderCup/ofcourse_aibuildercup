@@ -176,6 +176,13 @@
       "when": 1792099061877,
       "tag": "0024_ai_setting",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792175649983,
+      "tag": "0025_course_doc",
+      "breakpoints": true
     }
   ]
 }

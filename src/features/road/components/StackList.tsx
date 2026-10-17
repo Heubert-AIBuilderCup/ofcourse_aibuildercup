@@ -20,6 +20,7 @@ const ROW_ACTION = 'h-10 px-3.5 font-sans font-medium'
  * course with its actions. "Put on my board" places a row's course beside her road; a row whose
  * course has no tile this round, and More, do nothing yet. A course already on the board is left
  * out. A row whose course is in a field next to the one she picked says so, with that field defined.
+ * With `onFind` (the course finder is on), the list starts with a way to find courses by her words.
  */
 export function StackList({
   stack,
@@ -27,6 +28,7 @@ export function StackList({
   onBoard,
   onClose,
   onPut,
+  onFind,
 }: {
   stack: Tile
   rows: StackRow[]
@@ -34,6 +36,7 @@ export function StackList({
   onBoard: string[]
   onClose: () => void
   onPut: (tileId: string) => void
+  onFind?: () => void
 }) {
   const [filter, setFilter] = useState<Filter>('All')
   const listed = rows.filter((r) => !(r.tileId && onBoard.includes(r.tileId)) && shows(filter, r))
@@ -56,6 +59,11 @@ export function StackList({
           </Button>
         ))}
       </fieldset>
+      {onFind ? (
+        <Button type="button" variant="text" className="self-start" onClick={onFind}>
+          Find courses by what you enjoy
+        </Button>
+      ) : null}
       <ul className="m-0 flex list-none flex-col p-0">
         {listed.map(({ tileId, ...row }) => (
           <li

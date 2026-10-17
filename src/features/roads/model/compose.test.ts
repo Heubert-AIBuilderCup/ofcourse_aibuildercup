@@ -10,7 +10,7 @@ import { ROADS, roadById } from '../data/roads'
 import { SKELETONS } from '../data/skeletons'
 import type { RoadSpec, SlotCopy } from '../data/types'
 import { buildRoad } from './build'
-import { composeRoad, specById } from './compose'
+import { composeRoad, specById, workRightsLine } from './compose'
 import { courseWords } from './course-words'
 import { expectSound, strings } from './sound.test-helpers'
 
@@ -490,5 +490,25 @@ describe('specById: the one lookup for any road (criterion 56)', () => {
     expect(specById('nowhere')).toBeNull()
     expect(specById('perth-uts-data-stay')).toBeNull()
     expect(specById('adelaide-unisa-nursing-later')).toBeNull()
+  })
+})
+
+describe('workRightsLine: the work rights after any course', () => {
+  it('says a regional city gives a master’s up to 5 years', () => {
+    expect(workRightsLine('perth', "Master's", 2)).toBe(
+      'Counts as regional: up to 5 years of post-study work rights after the course',
+    )
+  })
+
+  it('says a big city gives a diploma about 18 months', () => {
+    expect(workRightsLine('sydney', 'Diploma', 2)).toBe(
+      'Not regional: about 18 months of post-study work rights after a diploma',
+    )
+  })
+
+  it('says one year of study alone opens no 485', () => {
+    expect(workRightsLine('perth', "Master's", 1)).toBe(
+      'One year of study alone does not open the Temporary Graduate visa (485)',
+    )
   })
 })

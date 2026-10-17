@@ -17,18 +17,22 @@ import type { RoadSpec, SlotCopy } from '../data/types'
 import { courseWords } from './course-words'
 import { homeEnding, prEnding } from './endings'
 
+/** The work rights a course of her level and length earns in a city: none from one year alone. */
+export function workRightsLine(cityId: string, level: Level, years: number): string {
+  if (years < 2) return 'One year of study alone does not open the Temporary Graduate visa (485)'
+  const regional = cityById(cityId).regional
+  return level === 'Diploma'
+    ? regional
+      ? 'Counts as regional, but a diploma earns about 18 months of post-study work rights anywhere'
+      : 'Not regional: about 18 months of post-study work rights after a diploma'
+    : regional
+      ? 'Counts as regional: up to 5 years of post-study work rights after the course'
+      : 'Not regional: 2 years of post-study work rights after a master’s'
+}
+
 /** A city's guide on a composed road: its work rights after a course of her level, and its living costs. */
 function cityGuide(cityId: string, level: Level): string {
-  const regional = cityById(cityId).regional
-  const rights =
-    level === 'Diploma'
-      ? regional
-        ? 'Counts as regional, but a diploma earns about 18 months of post-study work rights anywhere'
-        : 'Not regional: about 18 months of post-study work rights after a diploma'
-      : regional
-        ? 'Counts as regional: up to 5 years of post-study work rights after the course'
-        : 'Not regional: 2 years of post-study work rights after a master’s'
-  return `${rights}. About ${livingOf(cityId)}.`
+  return `${workRightsLine(cityId, level, 2)}. About ${livingOf(cityId)}.`
 }
 
 /** The board's trade-off words, in the order its cards say them. */

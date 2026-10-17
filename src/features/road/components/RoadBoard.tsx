@@ -1,9 +1,11 @@
 'use client'
 
-import { List, Map as MapIcon } from 'lucide-react'
+import { List, Map as MapIcon, Search } from 'lucide-react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useRouter, useSelectedLayoutSegments } from 'next/navigation'
-import { type ReactNode, type RefObject, useLayoutEffect, useRef, useState } from 'react'
+import { type ReactNode, type RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { FinderProps } from '@/features/finder/client'
 import { answerGroups, type RoadChangeOf } from '@/features/opening'
 import { RoadmapLoader } from '@/features/roadmaps'
 import {
@@ -30,7 +32,7 @@ import { cardFor, primaryAction } from '../model/press'
 import type { Road, Tile } from '../model/road-data'
 import type { View } from '../model/road-url'
 import { panelAt } from '../model/routes'
-import { AnswersPanel } from './AnswersPanel'
+import { type AnswersCloser, AnswersPanel } from './AnswersPanel'
 import answersStyles from './answers.module.css'
 import { BottomSheet } from './BottomSheet'
 import { ControlsBar } from './ControlsBar'
@@ -43,6 +45,14 @@ import { RoadHeader } from './RoadHeader'
 import { RoadMap } from './RoadMap'
 import { StackList } from './StackList'
 import type { AskAction } from './TileAsk'
+
+/**
+ * The Find panel, in its own chunk: next/dynamic (React.lazy with Suspense) loads it "on demand,
+ * only when/if the condition is met" (node_modules/next/dist/docs/01-app/02-guides/lazy-loading.md,
+ * "Importing Client Components"), so a board without `finder`, which never renders it, never
+ * loads it.
+ */
+const FinderPanel = dynamic(() => import('@/features/finder/client').then((m) => m.FinderPanel))
 
 /**
  * The board's layout from its own width: phone, stacked or wide (side by side); null until it has
@@ -114,6 +124,8 @@ const nothingSaved = async (): Promise<ActionResult> => ({ ok: true })
  * own only with `askAction` too (the layout passes them on the same roads as the why, and no
  * action while the student AI is off). `details`: each tile's catalogue facts, by tile id.
  * `tilePosts`: the posts and updates about each tile, by tile id, that its card lists.
+ * `finder`: Find courses (the box's first words and its two actions) when the finder is on; none
+ * on a draft. Without it nothing on the board offers to find courses.
  */
 export function RoadBoard({
   road,
@@ -126,6 +138,7 @@ export function RoadBoard({
   asks,
   details,
   tilePosts,
+  finder,
   children,
   ...writes
 }: Writes & {
@@ -139,6 +152,7 @@ export function RoadBoard({
   asks?: Record<string, Suggested[]>
   details?: Record<string, CardDetails>
   tilePosts?: Record<string, TilePost[]>
+  finder?: FinderProps
   children: ReactNode
 }) {
   const actions: BoardActions = writes.draft
@@ -159,6 +173,7 @@ export function RoadBoard({
         asks={asks}
         details={details ?? {}}
         tilePosts={tilePosts}
+        finder={writes.draft ? undefined : finder}
       >
         {children}
       </Board>
@@ -178,7 +193,10 @@ export function RoadBoard({
  * it measures either). Her answers open over it: in the card column, widened; on a phone, in a
  * sheet over the map's lower part with no scrim, the map above it the preview. On a draft they are
  * open from the start, in draft mode: Create runs the loader, whose first step makes the roadmap,
- * and lands on the new roadmap's board; Cancel goes back to her roadmaps.
+ * and lands on the new roadmap's board; Cancel goes back to her roadmaps. Find courses (`finder`)
+ * opens where her answers open, from the top of the card column, the controls bar or the stack's
+ * list; opening one of the two closes the other, and closing Find gives the column back to what
+ * it showed.
  */
 function Board({
   road,
@@ -193,6 +211,7 @@ function Board({
   asks,
   details,
   tilePosts,
+  finder,
   children,
 }: {
   road: Road
@@ -207,6 +226,7 @@ function Board({
   asks: Record<string, Suggested[]> | undefined
   details: Record<string, CardDetails>
   tilePosts: Record<string, TilePost[]> | undefined
+  finder: FinderProps | undefined
   children: ReactNode
 }) {
   const router = useRouter()
@@ -256,6 +276,59 @@ function Board({
   // On a phone, a draft's answers are over the map, as Your answers opens them.
   const phoneView = draft ? 'map' : state.view
 
+  // Find courses, open over the column (or in a sheet on a phone). Her answers opening, however
+  // they open (a button, Point A, Forward), close it; a tile pressed on the map or the road closes
+  // it for that tile's card. Over her answers it opens once they have closed, through their own
+  // ask when picks wait: kept editing, it does not open.
+  const [finding, setFinding] = useState(false)
+  const [wasAnswering, setWasAnswering] = useState(answering)
+  if (answering !== wasAnswering) {
+    setWasAnswering(answering)
+    if (answering) setFinding(false)
+  }
+  const answersCloser = useRef<AnswersCloser>(null)
+  // Focus: the panel takes it into its box; Close gives it back to the control that opened Find,
+  // or, when that control is gone, to Find courses at the top of the column (wide) or the controls
+  // bar's Find.
+  const findOpener = useRef<HTMLElement | null>(null)
+  const findButton = useRef<HTMLButtonElement>(null)
+  const refocus = useRef(false)
+  const openFind = finder
+    ? () => {
+        const active = document.activeElement
+        findOpener.current =
+          active instanceof HTMLElement && active !== document.body ? active : null
+        const find = () => setFinding(true)
+        if (answering && answersCloser.current) answersCloser.current.close(find)
+        else find()
+      }
+    : undefined
+  const closeFind = () => {
+    refocus.current = true
+    setFinding(false)
+  }
+  useEffect(() => {
+    if (finding || !refocus.current) return
+    refocus.current = false
+    const opener = findOpener.current
+    findOpener.current = null
+    const controlsFind = () =>
+      [
+        ...(rootRef.current?.querySelectorAll<HTMLElement>('nav[aria-label="Controls"] button') ??
+          []),
+      ].find((b) => b.textContent?.trim() === 'Find')
+    const to = opener?.isConnected
+      ? opener
+      : layout === 'wide'
+        ? findButton.current
+        : controlsFind()
+    to?.focus()
+  }, [finding, layout])
+  const pressTile = (tileId: string) => {
+    setFinding(false)
+    press(tileId)
+  }
+
   // Create roadmap: the answers it is made with, while the loader runs; the id it was given.
   const [creating, setCreating] = useState<StoredAnswers | null>(null)
   const madeId = useRef<string | null>(null)
@@ -297,19 +370,21 @@ function Board({
   const stack = scene.tiles.find((t) => t.id === state.tile && t.kind === 'stack')
   const list = !!stack && state.open === 'list'
   const lesson = panel?.kind === 'lesson' ? panel.lesson : null
-  const columnLabel = answering
-    ? 'Your answers'
-    : lesson
-      ? 'Lesson'
-      : panel?.kind === 'route'
-        ? 'Route detail'
-        : list
-          ? 'Stack'
-          : state.zoom === 'whole'
-            ? 'Overview'
-            : card.kind === 'here'
-              ? 'Where you are'
-              : 'The tile you pressed'
+  const columnLabel = finding
+    ? 'Find courses'
+    : answering
+      ? 'Your answers'
+      : lesson
+        ? 'Lesson'
+        : panel?.kind === 'route'
+          ? 'Route detail'
+          : list
+            ? 'Stack'
+            : state.zoom === 'whole'
+              ? 'Overview'
+              : card.kind === 'here'
+                ? 'Where you are'
+                : 'The tile you pressed'
 
   const onPrimary = primaryAction(road, scene, state.tile) ? primary : undefined
   const stackList = stack ? (
@@ -319,6 +394,7 @@ function Board({
       onBoard={scene.tiles.map((t) => t.id)}
       onClose={closeList}
       onPut={put}
+      onFind={openFind}
     />
   ) : null
   const lessonPanel = lesson ? (
@@ -350,10 +426,16 @@ function Board({
         rematch={roadChangeOf}
         onSave={saveAnswers}
         onClose={closeAnswers}
+        closer={answersCloser}
       />
     )
 
+  const finderPanel = finder ? (
+    <FinderPanel roadmapId={roadmap.id} {...finder} onClose={closeFind} />
+  ) : null
+
   function column() {
+    if (finding) return finderPanel
     if (answering) return answersPanel('column')
     if (lessonPanel) return lessonPanel
     if (panel?.kind === 'route') return <RouteCard step={panel.step} />
@@ -383,7 +465,7 @@ function Board({
    * One sheet, always mounted: this picks what it shows, or null to let it slide away.
    */
   function sheet(): { label: string; onClose: () => void; body: ReactNode } | null {
-    if (!phone || answering) return null
+    if (!phone || answering || finding) return null
     if (lesson) return { label: lesson.title, onClose: leaveLesson, body: lessonPanel }
     if (panel?.kind === 'route')
       return {
@@ -448,7 +530,7 @@ function Board({
     scene,
     state,
     layout,
-    onPress: press,
+    onPress: pressTile,
     onZoom: zoom,
     onLesson,
     keyShown,
@@ -484,7 +566,7 @@ function Board({
                   card={cardFor(road, scene, null)}
                   tile={state.tile}
                   changed={changed}
-                  onOpen={press}
+                  onOpen={pressTile}
                   onClose={close}
                   onPrimary={primaryAction(road, scene, null) ? primary : undefined}
                   onLesson={onLesson}
@@ -494,7 +576,9 @@ function Board({
                   posts={tilePosts?.[scene.here]}
                 />
               )}
-              {toastEl(answering ? 'top-14' : phoneView === 'map' ? 'bottom-56' : 'bottom-4')}
+              {toastEl(
+                answering || finding ? 'top-14' : phoneView === 'map' ? 'bottom-56' : 'bottom-4',
+              )}
             </div>
           </>
         ) : (
@@ -504,14 +588,30 @@ function Board({
               aria-label={columnLabel}
               className={cn(
                 'relative z-30 flex min-h-0 shrink-0 flex-col gap-4 overflow-auto border-l bg-background p-6 @max-5xl:w-auto @max-5xl:border-t @max-5xl:border-l-0 @max-5xl:py-5',
-                answering ? 'w-md @max-5xl:h-1/2' : 'w-95 @max-5xl:h-88',
+                answering || finding ? 'w-md @max-5xl:h-1/2' : 'w-95 @max-5xl:h-88',
               )}
             >
+              {openFind && !answering && !finding ? (
+                <Button
+                  ref={findButton}
+                  type="button"
+                  variant="outline"
+                  className="self-start @max-5xl:hidden"
+                  onClick={openFind}
+                >
+                  <Search aria-hidden="true" strokeWidth={1.5} className="size-icon-sm" />
+                  Find courses
+                </Button>
+              ) : null}
               {column()}
             </aside>
           </div>
         )}
-        <ControlsBar weights={road.weights} onAnswers={draft ? undefined : openAnswers} />
+        <ControlsBar
+          weights={road.weights}
+          onAnswers={draft ? undefined : openAnswers}
+          onFind={openFind}
+        />
       </div>
       <BottomSheet
         open={phoneSheet !== null}
@@ -521,7 +621,7 @@ function Board({
         {phoneSheet?.body}
       </BottomSheet>
       {/* Her answers on a phone: modeless, so the map above stays live; Escape is the panel's. */}
-      <Sheet open={phone && answering} modal={false}>
+      <Sheet open={phone && answering && !finding} modal={false}>
         <SheetContent
           side="bottom"
           showCloseButton={false}
@@ -535,9 +635,29 @@ function Board({
         >
           <span aria-hidden="true" className="h-1 w-10 shrink-0 self-center bg-neutral-400" />
           <SheetTitle className="sr-only">Your answers</SheetTitle>
-          {phone && answering ? answersPanel('sheet') : null}
+          {phone && answering && !finding ? answersPanel('sheet') : null}
         </SheetContent>
       </Sheet>
+      {/* Find courses on a phone: modeless too, as her answers open. */}
+      {finderPanel ? (
+        <Sheet open={phone && finding} modal={false}>
+          <SheetContent
+            side="bottom"
+            showCloseButton={false}
+            aria-describedby={undefined}
+            onInteractOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+            className={cn(
+              answersStyles.sheet,
+              'flex flex-col gap-4 overflow-auto px-4 pt-3 pb-4 text-foreground',
+            )}
+          >
+            <span aria-hidden="true" className="h-1 w-10 shrink-0 self-center bg-neutral-400" />
+            <SheetTitle className="sr-only">Find courses</SheetTitle>
+            {phone && finding ? finderPanel : null}
+          </SheetContent>
+        </Sheet>
+      ) : null}
       <p role="status" aria-live="polite" className="sr-only">
         {status}
       </p>

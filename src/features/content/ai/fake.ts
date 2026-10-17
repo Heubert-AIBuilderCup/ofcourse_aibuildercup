@@ -728,6 +728,14 @@ export const FAKE_ANSWERS: FakeAnswers = {
       }))
     return { chips, tags }
   },
+  /** Her first 40 characters, and the description's first sentence as the quote. */
+  student_finder_why(data) {
+    const { said, course } = data as { said: string; course: { description: string } }
+    return {
+      why: `You said ${said.slice(0, 40)}; this course covers it.`,
+      quote: course.description.trim().split(/(?<=[.!?])\s+/)[0],
+    }
+  },
 }
 
 /** How the fake finds an option in her words: as it is, without apostrophes, a hyphenated first word. */
