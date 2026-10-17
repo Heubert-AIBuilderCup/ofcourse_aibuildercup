@@ -11,6 +11,7 @@ import type { Guideline } from '../brands/guideline'
 import { emotionOf } from '../emotions'
 import type { Language, LanguageId } from '../languages'
 import { unboundSlots } from '../lib/claims'
+import { NO_FACTS_ERROR } from '../lib/failure'
 import type { Body } from '../model/artifacts'
 import {
   type Fact,
@@ -448,7 +449,8 @@ export async function draftStructures(input: {
   const items: DraftItem[] = []
   const replays: string[] = []
   for (const d of drafted) {
-    if (!d.ok) return { ok: false, error: d.error }
+    // With no supported fact, no factual slot had anything to cite: said in words (bug, 18 Oct).
+    if (!d.ok) return { ok: false, error: supported.length === 0 ? NO_FACTS_ERROR : d.error }
     items.push(...d.items)
     if (d.replay) replays.push(d.replay)
   }

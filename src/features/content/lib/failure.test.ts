@@ -11,6 +11,8 @@ const RATE_LIMITED =
 const EXHAUSTED = '{"error":{"message":"Quota exceeded","status":"RESOURCE_EXHAUSTED"}}'
 const TIMED_OUT = 'TimeoutError: The operation was aborted due to timeout'
 const ABORTED = 'AbortError: This operation was aborted'
+// ai/draft.ts's refusal when a draft fails with no supported fact to write from (bug, 18 Oct).
+const NO_FACTS = 'No facts to write from: add sources, or start from a longer idea.'
 
 describe('failureReason', () => {
   it("reads the app's daily-limit refusal as the daily limit", () => {
@@ -27,6 +29,10 @@ describe('failureReason', () => {
     expect(failureReason(ABORTED)).toBe('timeout')
   })
 
+  it('reads a draft with no facts to write from as no facts', () => {
+    expect(failureReason(NO_FACTS)).toBe('no_facts')
+  })
+
   it('reads any other failure, or none recorded, as other', () => {
     expect(failureReason(FAILED)).toBe('other')
     expect(failureReason(DB_ERROR)).toBe('other')
@@ -39,6 +45,7 @@ describe('failureSentence', () => {
     expect(failureSentence('busy')).toBe("Google's model is busy. Try again in a minute.")
     expect(failureSentence('timeout')).toBe('It took too long. Try again.')
     expect(failureSentence('daily_limit')).toBe("Today's limit is reached. It resets tomorrow.")
+    expect(failureSentence('no_facts')).toBe(NO_FACTS)
     expect(failureSentence('other')).toBeNull()
     expect(failureSentence(undefined)).toBeNull()
   })

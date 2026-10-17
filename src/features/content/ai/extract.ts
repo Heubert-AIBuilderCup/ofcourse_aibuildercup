@@ -105,6 +105,34 @@ async function headlineClaims(
   return { ok: true, facts, replays: checked.replays }
 }
 
+/**
+ * A source that is the editor's idea alone (model/artifacts.ts IDEA_KIND): the idea is the
+ * source, so each of its sentences is a supported fact, quoted word for word as an extracted
+ * fact is, and its first three sentences are its key ideas. No model is asked: an opinion states
+ * no fact it would name (bug, 18 Oct), and the title is the idea, so it makes no headline claim.
+ */
+export function extractIdea(input: { title: string; kind: string; text: string }): Extracted {
+  const { title, kind, text } = input
+  const paragraphs = splitParagraphs(text)
+  if (paragraphs.length === 0) return { ok: false, error: NO_PARAGRAPHS }
+  const said = paragraphs.flatMap((p) => sourceSentences(p))
+  const source: Body<'source'> = {
+    title,
+    kind,
+    text,
+    paragraphs,
+    demoKey: demoKeyFor(title, text),
+    language: 'en',
+  }
+  return {
+    ok: true,
+    source,
+    facts: said.map((sentence, i) => sentenceFact(sentence, `f${i + 1}`)),
+    keyIdeas: said.slice(0, 3).map((s) => s.text),
+    replays: [],
+  }
+}
+
 export async function extractFacts(input: {
   title: string
   kind: string

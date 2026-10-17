@@ -23,7 +23,7 @@ import type { SuggestedSource } from '../../ai/search'
 import { FEED_POST_PAGES } from '../../brands'
 import { LANGUAGES, type Language, type LanguageId } from '../../languages'
 import type { IdeaStart } from '../../lib/idea-start'
-import { SOURCE_ERRORS, SOURCE_LIMITS } from '../../model/artifacts'
+import { IDEA_KIND, SOURCE_ERRORS, SOURCE_LIMITS } from '../../model/artifacts'
 import type { Made, Suggested } from '../../server/commands'
 import { firstChars } from '../../text/script'
 import { usePress } from '../usePostAction'
@@ -35,8 +35,6 @@ const READING = 'Reading the source and finding ideas · this can take a minute'
 /** The longest title a source takes, in characters as a reader sees them. */
 const TITLE_MAX = 200
 
-/** The kind of a source made from the idea alone, with no page found or ticked for it. */
-export const IDEA_KIND = 'Your idea'
 const IDEA_ONLY =
   'No sources ticked: the post is built from your idea alone, and its source check compares against your idea.'
 
