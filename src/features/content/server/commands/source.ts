@@ -2,7 +2,13 @@ import 'server-only'
 import { z } from 'zod'
 import { canEdit } from '@/shared/lib/auth/access'
 import { db } from '@/shared/lib/db'
-import { extractFacts, sentenceFact, sentencesById, splitParagraphs } from '../../ai/extract'
+import {
+  extractFacts,
+  extractIdea,
+  sentenceFact,
+  sentencesById,
+  splitParagraphs,
+} from '../../ai/extract'
 import { isFeedPostPage } from '../../brands'
 import { LANGUAGE_IDS, type LanguageId } from '../../languages'
 import { claimsIn } from '../../lib/claims'
@@ -12,6 +18,7 @@ import {
   type Body,
   emptyPointers,
   FramingSchema,
+  IDEA_KIND,
   SOURCE_ERRORS,
   SOURCE_LIMITS,
   type SourcePart,
@@ -343,7 +350,11 @@ async function extract(
   const { title, kind, text } = input
   // The framing line steers the key ideas; the notes are never source text (GD20, GD21).
   const framing = extras.framing ?? null
-  const extracted = await extractFacts({ title, kind, text, postId, framing })
+  // The idea alone is its own source: its sentences are the facts, with no model asked for them.
+  const ideaAlone = kind === IDEA_KIND && (extras.parts?.length ?? 0) === 0
+  const extracted = ideaAlone
+    ? extractIdea({ title, kind, text })
+    : await extractFacts({ title, kind, text, postId, framing })
   if (!extracted.ok) return fail(extracted.error)
   const source = BODIES.source.parse({ ...extracted.source, ...extras })
   const facts: Body<'facts'> = {

@@ -45,6 +45,11 @@ const id = z.string().min(1)
  * the characters of an idea to find sources for (BR12).
  */
 export const SOURCE_LIMITS = { links: 5, framing: 200, notes: 2000, idea: 200 } as const
+/**
+ * The kind of a source made from the idea alone, with no page found or ticked for it: the idea is
+ * the source, and each of its sentences a fact (ai/extract.ts extractIdea).
+ */
+export const IDEA_KIND = 'Your idea'
 /** Its refusals, the same in the form and on the server. */
 export const SOURCE_ERRORS = {
   links: 'Up to five links.',

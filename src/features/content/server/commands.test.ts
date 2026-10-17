@@ -478,6 +478,47 @@ Run ${requestId}`,
   )
 
   test(
+    'makePost from an idea with no links stores each sentence of the idea as a supported fact without asking the model, and its slides draft from them (bug, 18 Oct)',
+    async () => {
+      const { IDEA_KIND } = await import('../model/artifacts')
+      const requestId = randomUUID()
+      posts.push(requestId)
+      // A run of its own, so no answer cached by another test serves its ideas or drafts.
+      const said = [
+        'Do not always push yourself.',
+        `Enjoy what we have right now, cc ${requestId}.`,
+      ]
+      const idea = said.join(' ')
+      const before = extractCalls
+      ok(
+        await commands.makePost(ED, {
+          requestId,
+          links: [],
+          title: idea,
+          kind: IDEA_KIND,
+          text: idea,
+        }),
+      )
+      await settled()
+      expect(extractCalls).toBe(before)
+      let post = await load(requestId)
+      expect(post.current.source?.body.kind).toBe(IDEA_KIND)
+      expect(
+        post.current.facts?.body.facts.map((f) => [f.id, f.text, f.quote, f.supported]),
+      ).toEqual([
+        ['f1', said[0], said[0], true],
+        ['f2', said[1], said[1], true],
+      ])
+      expect((await ideasOf(requestId)).cards.length).toBeGreaterThan(0)
+
+      post = await drafted(requestId)
+      expect(post.current.drafts?.body.items).toHaveLength(3)
+      expect(await steps.failedSteps(requestId)).toEqual([])
+    },
+    SLOW,
+  )
+
+  test(
     'a [fake:fail-ideas] source keeps the source and facts, shows the ideas step failed, and Try again makes the cards (GD1, 93)',
     async () => {
       const requestId = randomUUID()

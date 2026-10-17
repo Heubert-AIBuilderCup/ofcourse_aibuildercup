@@ -349,8 +349,11 @@ const slideRow = 'group flex items-start gap-3 py-2'
  */
 const pointField =
   '-mx-2 field-sizing-content max-h-[calc(2lh+0.5rem+2px)] min-h-0 resize-none border-transparent px-2 py-1 text-base hover:border-input focus-visible:border-input'
-/** Job and layout: small selects on one quiet line under the point, a hairline only when pointed at. */
-const quietSelect = 'h-6 w-auto border-transparent px-1 py-0 hover:border-input'
+/** Job and layout: small dropdowns under the point, framed and filled so they read as choices. */
+const quietSelect =
+  'h-8 w-auto min-w-28 border-input bg-background px-2 py-0 text-sm hover:border-foreground/40'
+/** The label before each dropdown: a small overline, so it reads as a label, not a value. */
+const selectLabel = 'text-overline text-muted-foreground uppercase tracking-wide'
 /** The moves and removal, muted until the row is pointed at or holds the focus. */
 const quietMoves =
   'text-muted-foreground group-focus-within:text-foreground group-hover:text-foreground'
@@ -407,9 +410,9 @@ function OutlineRow(props: {
                 if (point.trim() !== slide.point) onEdit({ op: 'change', slide: n, point })
               }}
             />
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <div className="flex items-center gap-1">
-                <Label htmlFor={`${ids}-job`} className={reasonText}>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+              <div className="flex items-center gap-2">
+                <Label htmlFor={`${ids}-job`} className={selectLabel}>
                   Job
                 </Label>
                 <NativeSelect
@@ -428,8 +431,8 @@ function OutlineRow(props: {
                   ))}
                 </NativeSelect>
               </div>
-              <div className="flex items-center gap-1">
-                <Label htmlFor={`${ids}-layout`} className={reasonText}>
+              <div className="flex items-center gap-2">
+                <Label htmlFor={`${ids}-layout`} className={selectLabel}>
                   Layout
                 </Label>
                 <NativeSelect

@@ -16,9 +16,14 @@ import type { AiSettings } from './settings'
 
 mock.module('server-only', () => ({}))
 
-const { AI_ERRORS, IMAGE_TIMEOUT_MS, makeAi, SETTINGS_READ_TIMEOUT_MS, settingsFor } = await import(
-  './client'
-)
+const {
+  AI_ERRORS,
+  IMAGE_TIMEOUT_MS,
+  jsonTimeoutMs,
+  makeAi,
+  SETTINGS_READ_TIMEOUT_MS,
+  settingsFor,
+} = await import('./client')
 const { aiConfig } = await import('./config')
 const { dailyLimitLine } = await import('../lib/limits')
 const { FAKE_ENTRY_POINT, FAKE_SOURCES, makeFake } = await import('./fake')
@@ -1425,6 +1430,16 @@ describe('the image timeout', () => {
   // out, and the retries ran into the per-minute quota (429), so no slide was drawn.
   it('waits a minute for a picture, longer than the model takes', () => {
     expect(IMAGE_TIMEOUT_MS).toBeGreaterThanOrEqual(60_000)
+  })
+})
+
+describe('the JSON timeout, by tier', () => {
+  // On 18 Oct a Pro draft rung timed out at 30 s; drafting runs after the response, so Pro waits
+  // a minute while Lite and Flash keep 30 s.
+  it('gives Pro a minute and Lite and Flash 30 s', () => {
+    expect(jsonTimeoutMs('pro')).toBe(60_000)
+    expect(jsonTimeoutMs('flash')).toBe(30_000)
+    expect(jsonTimeoutMs('lite')).toBe(30_000)
   })
 })
 

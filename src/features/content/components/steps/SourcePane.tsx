@@ -16,7 +16,13 @@ import { type SourceSentence, sourceSentences } from '../../text/sentences'
 import { Control, movesWait, reasonText, tag } from '../parts'
 import { usePostAction, usePressedAction } from '../usePostAction'
 import type { WorkbenchActions, WorkbenchView } from '../Workbench'
-import { linkLines, SourceFields, type SourceValues, sourceFieldsError } from './SourceForm'
+import {
+  linkLines,
+  SourceFields,
+  type SourceValues,
+  sourceFieldsError,
+  sourceKindLabel,
+} from './SourceForm'
 
 type SourcePaneProps = {
   /** The picked draft (pointers.picked): the paragraphs its bound facts rest on are highlighted (criterion 27). */
@@ -264,7 +270,7 @@ export function SourcePane({ view, viewer, actions }: SourcePaneProps) {
     <div className="flex flex-col gap-8">
       <section aria-labelledby="source-heading" className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <p className="text-overline uppercase text-muted-foreground">{source.kind}</p>
+          <p className="text-overline uppercase text-muted-foreground">{sourceKindLabel(source)}</p>
           {/* The article's own title, not the step's name: shown, small. */}
           <h2 id="source-heading" className="text-h4 wrap-anywhere">
             {source.title}

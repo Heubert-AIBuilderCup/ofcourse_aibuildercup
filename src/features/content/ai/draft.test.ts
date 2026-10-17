@@ -58,6 +58,7 @@ const { NATIVE, NATIVE_IDS, nativeOf } = await import('../text/native-fixtures')
 const { toModelSchema } = await import('./schema-guard')
 const { templateById } = await import('../templates')
 const { unboundSlots } = await import('../lib/claims')
+const { NO_FACTS_ERROR } = await import('../lib/failure')
 const { DEMO_SOURCES } = await import('../demo-sources')
 const { EMOTIONS, emotionById } = await import('../emotions')
 const { FEED_BRAND } = await import('../brands')
@@ -548,6 +549,23 @@ describe('draftStructures', () => {
     expect(res.items[1].problems).toEqual(['slides.0.slots.kicker: remove "best".'])
     expect(res.items[2].problems).toEqual([])
     expect(res.items[1].structure.slides[0].slots.kicker.text).toBe('The best research')
+  })
+
+  it('says there are no facts to write from when a draft with no supported fact fails (bug, 18 Oct)', async () => {
+    const extracted = await paidWorkFacts()
+    // As the model answered with DATA.facts empty: a paragraph ref where a fact id belongs.
+    FAKE_ANSWERS.draft = (data) => {
+      const answer = fakeDraft?.(data) as DraftAnswer
+      for (const v of answer.versions) {
+        for (const s of v.slides) for (const slot of s.slots) slot.fact_ids = ['¶1']
+      }
+      return answer
+    }
+    const none = await draftStructures({ ...base(extracted), facts: [] })
+    expect(none).toEqual({ ok: false, error: NO_FACTS_ERROR })
+    // With facts to cite, the same failure is the plain one.
+    const some = await draftStructures({ ...base(extracted), attempt: 2 })
+    expect(some).toEqual({ ok: false, error: client.AI_ERRORS.failed })
   })
 
   it('sends a repeated or empty angle back to the model', async () => {
