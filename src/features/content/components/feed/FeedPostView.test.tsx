@@ -8,10 +8,10 @@ import { FeedPostView } from './FeedPostView'
 afterEach(cleanup)
 
 const F = (over: Partial<Filters> = {}): Filters => ({
-  destination: null,
+  destination: [],
   home: null,
-  theme: null,
-  age: null,
+  theme: [],
+  age: [],
   q: '',
   ...over,
 })
@@ -68,7 +68,7 @@ describe('FeedPostView', () => {
   })
 
   it('shows the Nepal version when the home market is NP and keeps every filter in the link back to the feed', () => {
-    render(<FeedPostView post={POST} filters={F({ home: 'NP', theme: 'books-movies' })} />)
+    render(<FeedPostView post={POST} filters={F({ home: 'NP', theme: ['books-movies'] })} />)
     expect(screen.getAllByRole('img').map((img) => img.getAttribute('src'))).toEqual([
       '/feed/assets/png-np-1',
     ])
@@ -93,7 +93,7 @@ describe('FeedPostView', () => {
 
   it('links "Read the full guide" to its live blog in the feed, keeping the filters, and only when it has one (BR7)', () => {
     const guided: FeedPost = { ...POST, guide: { id: 'b1', slug: 'paid-work-in-australia' } }
-    render(<FeedPostView post={guided} filters={F({ theme: 'books-movies' })} />)
+    render(<FeedPostView post={guided} filters={F({ theme: ['books-movies'] })} />)
     expect(screen.getByRole('link', { name: 'Read the full guide' })).toHaveAttribute(
       'href',
       '/feed/blog/b1?theme=books-movies',

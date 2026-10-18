@@ -358,7 +358,12 @@ function Board({
   // beside the study step can only start one: without compare's pin it has no primary.
   const compared = state.tile ? details[state.tile]?.compare : undefined
   const startHref = compared?.pin ? pinnedDraftPath(compared.roadmapId, compared.pin) : null
-  const card = withStart(cardFor(road, scene, state.tile), startHref !== null)
+  // A primary with nothing to do is not drawn: a Swap with no road behind it would do nothing.
+  const card = withStart(
+    cardFor(road, scene, state.tile),
+    startHref !== null,
+    primaryAction(road, scene, state.tile) !== null,
+  )
   const why: CardWhy = {
     roadmapId: roadmap.id,
     answers: roadmap.answers,

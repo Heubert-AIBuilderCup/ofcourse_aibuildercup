@@ -171,14 +171,14 @@ describe('the map', () => {
   it('at Whole road, a press opens the tile in the card and the camera stays at Whole road', () => {
     query = 'zoom=whole'
     board()
-    expect(within(zoom()).getByRole('button', { name: 'Whole road' })).toHaveAttribute(
+    expect(within(zoom()).getByRole('button', { name: 'Journey' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
 
     press(tile('Adelaide, not visited. Open in the card'))
 
-    expect(within(zoom()).getByRole('button', { name: 'Whole road' })).toHaveAttribute(
+    expect(within(zoom()).getByRole('button', { name: 'Journey' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -286,22 +286,22 @@ describe('zoom', () => {
   it('is a group with the current stop pressed, and says each change in the live region', () => {
     board()
     const group = zoom()
-    expect(within(group).getByRole('button', { name: 'Level' })).toHaveAttribute(
+    expect(within(group).getByRole('button', { name: 'Stage' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
 
-    press(within(group).getByRole('button', { name: 'Tile' }))
+    press(within(group).getByRole('button', { name: 'Step' }))
 
-    expect(within(group).getByRole('button', { name: 'Tile' })).toHaveAttribute(
+    expect(within(group).getByRole('button', { name: 'Step' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
-    expect(within(group).getByRole('button', { name: 'Level' })).toHaveAttribute(
+    expect(within(group).getByRole('button', { name: 'Stage' })).toHaveAttribute(
       'aria-pressed',
       'false',
     )
-    expect(screen.getByText('Zoom: Tile')).toHaveAttribute('aria-live', 'polite')
+    expect(screen.getByText('Zoom: Step')).toHaveAttribute('aria-live', 'polite')
     expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?zoom=tile`)
   })
 
@@ -309,7 +309,7 @@ describe('zoom', () => {
     board()
     const out = within(zoom()).getByRole('button', { name: 'Zoom out' })
     press(out)
-    expect(screen.getByText('Zoom: Whole road')).toBeInTheDocument()
+    expect(screen.getByText('Zoom: Journey')).toBeInTheDocument()
     expect(out).toHaveAttribute('aria-disabled', 'true')
   })
 })
@@ -398,6 +398,19 @@ describe('the card’s actions', () => {
     press(button('Undo'))
     expect(tile('Cyber Security, you are here. Open in the card')).toBeInTheDocument()
     expect(screen.queryByText(SWAP_TOAST)).not.toBeInTheDocument()
+  })
+
+  it('draws no Swap that would do nothing: another city, or a course put on from the stack, with no new roadmap to start', () => {
+    query = 'tile=adelaide'
+    board()
+    expect(screen.queryAllByRole('button', { name: 'Swap onto your roadmap' }).length).toBe(0)
+    expect(screen.queryAllByRole('button', { name: 'Cancel' }).length).toBe(1)
+
+    cleanup()
+    query = 'tile=information-systems-curtin-perth'
+    board(null, { choices: { added: true } })
+    expect(screen.getByText('Added · from your stack · Course')).toBeInTheDocument()
+    expect(screen.queryAllByRole('button', { name: 'Swap onto your roadmap' }).length).toBe(0)
   })
 
   it('moves the two tiles on the arc with the tag, then settles; under reduced motion it jumps', () => {
@@ -623,7 +636,7 @@ describe('the lesson', () => {
 
   it('a zoom over it leaves the lesson for /road at that stop, never writing onto the lesson’s path', () => {
     lesson()
-    press(within(zoom()).getByRole('button', { name: 'Tile' }))
+    press(within(zoom()).getByRole('button', { name: 'Step' }))
     expect(router.replace).toHaveBeenCalledWith(`${BOARD}?zoom=tile`)
     expect(replace).not.toHaveBeenCalled()
   })
@@ -644,7 +657,7 @@ describe('Whole road', () => {
       screen.getByRole('heading', { name: 'You’ve looked at 3 of 11 routes' }),
     ).toBeInTheDocument()
     press(button('Close overview'))
-    expect(within(zoom()).getByRole('button', { name: 'Level' })).toHaveAttribute(
+    expect(within(zoom()).getByRole('button', { name: 'Stage' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -908,7 +921,7 @@ describe('the first arrival', () => {
 
   it('a zoom press ends the hint too, saving her spot as a tile press does', async () => {
     board(null, { firstVisit: true })
-    press(within(zoom()).getByRole('button', { name: 'Tile' }))
+    press(within(zoom()).getByRole('button', { name: 'Step' }))
     expect(screen.queryByText('Tap Perth to see its courses.')).not.toBeInTheDocument()
     await settle()
     expect(saveChoicesAction.mock.calls).toEqual([['rm-1', { ...NOTHING_CHOSEN, country: true }]])
@@ -1448,7 +1461,7 @@ describe('a new roadmap’s draft', () => {
   it('a zoom keeps the draft’s source in the URL', () => {
     query = 'from=rm-1'
     draftBoard()
-    press(within(zoom()).getByRole('button', { name: 'Tile' }))
+    press(within(zoom()).getByRole('button', { name: 'Step' }))
     expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?from=rm-1&zoom=tile`)
   })
 

@@ -107,10 +107,19 @@ export function alternativeForCity(spec: RoadSpec, altCityId: string): RoadSpec 
   return pick ? composeRoad(pick) : null
 }
 
-/** Her road around another course, in its own city, ending as hers does; null for an unknown course. */
+/**
+ * Her road around another course, in its own city, ending as hers does; null for an unknown course
+ * or one no road can be composed around (its city has no road, as Geelong's stack course in
+ * Wollongong), so that one tile has nothing to compare instead of the whole board failing.
+ */
 export function alternativeForCourse(spec: RoadSpec, courseId: string): RoadSpec | null {
   const course = courseById(courseId)
-  return course ? composeRoad({ cityId: cityOf(course).id, courseId, stays: spec.stays }) : null
+  if (!course) return null
+  try {
+    return composeRoad({ cityId: cityOf(course).id, courseId, stays: spec.stays })
+  } catch {
+    return null
+  }
 }
 
 /** A course a new roadmap can be built around: a two-year one, until the one-year road shape. */

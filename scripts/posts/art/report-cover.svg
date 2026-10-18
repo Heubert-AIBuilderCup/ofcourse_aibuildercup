@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="780" viewBox="0 0 1080 780">
+  <title>Two blank cards, one set over the other</title>
+  <!-- The cover: a plain field with two blank cards, one set over the other. No text. Ink and white, for the Pop tint. -->
+  <rect width="1080" height="780" fill="#16191B"/>
+  <rect x="300" y="180" width="420" height="300" fill="#FFFFFF" stroke="#16191B" stroke-width="6" transform="rotate(-6 510 330)"/>
+  <rect x="380" y="260" width="420" height="300" fill="#FFFFFF" stroke="#16191B" stroke-width="6" transform="rotate(4 590 410)"/>
+  <rect x="380" y="260" width="420" height="56" fill="#FFFFFF" stroke="#16191B" stroke-width="6" transform="rotate(4 590 410)"/>
+</svg>

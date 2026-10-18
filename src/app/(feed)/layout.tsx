@@ -9,7 +9,9 @@ import { recordLastSeen } from '@/shared/lib/presence-server'
  * The feed: every signed-in account that is not suspended, students and staff alike (criterion 71,
  * ADR-121); the student app's layout would send staff to the admin. Phone-first, under a top bar:
  * a student's is the student app's header (Your roadmaps, the Feed, her menu), staff keep a slim
- * one back to the Board (FeedHeader).
+ * one back to the Board (FeedHeader). Each page sets its own frame; the feed itself
+ * (`data-feed-shell`) is one screen tall, so the bar and the feed fill it and the page never
+ * scrolls (its posts scroll inside it).
  */
 export default async function FeedLayout({ children }: LayoutProps<'/'>) {
   const { user } = await requireAppPage(FEED_PATH)
@@ -18,9 +20,9 @@ export default async function FeedLayout({ children }: LayoutProps<'/'>) {
   after(() => recordLastSeen(user.id))
 
   return (
-    <div className="@container flex min-h-dvh flex-col bg-background text-foreground">
+    <div className="@container/feed flex min-h-dvh flex-col bg-background text-foreground has-[[data-feed-shell]]:h-dvh">
       <FeedHeader student={isStudent(user)} />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-gutter py-section">{children}</main>
+      <main className="flex min-h-0 w-full flex-1 flex-col">{children}</main>
     </div>
   )
 }

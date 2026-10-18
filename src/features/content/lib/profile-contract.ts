@@ -5,12 +5,12 @@
 // the feed changes nothing when it does. Changing a field name is a new ADR.
 
 import type { MarketId } from '../markets'
-import { type Filters, knownTagValue, parseMarket } from './feed'
+import { type Filters, knownTagValues, parseMarket } from './feed'
 
 /** What the student slice stores: the tag file's values, so a tag edit is one place (ADR-126). */
 export type StudentProfile = {
   homeMarket: MarketId | null
-  /** Destination tag values: AU, UK, NZ, US. */
+  /** Destination tag values across all her roadmaps: AU, UK, NZ, US. */
   destinations: string[]
   /** An age-band tag value: under-21, 21-25, over-25. */
   ageBand: string | null
@@ -20,16 +20,15 @@ export type StudentProfile = {
  * The chips a feed URL with no filter key at all opens with (criterion 84: the URL wins). Any
  * filter key in the URL, even an empty one, is the student's own choice, so the profile stays out
  * whole: a chip she cleared stays clear, since filterHref keeps an emptied URL naming its filters.
- * The first destination the tag file knows becomes the destination chip; a value the file lacks
- * is ignored, since the profile crossed a slice boundary.
+ * Every destination the tag file knows becomes a destination chip (her roadmaps may lead to
+ * several); a value the file lacks is ignored, since the profile crossed a slice boundary.
  */
 export function chipsFromProfile(profile: StudentProfile | null, f: Filters): Filters {
   if (!profile || f.chosen) return f
   return {
     ...f,
-    destination:
-      profile.destinations.map((d) => knownTagValue('destination', d)).find((d) => d) ?? null,
+    destination: knownTagValues('destination', profile.destinations),
     home: parseMarket(profile.homeMarket),
-    age: knownTagValue('age', profile.ageBand),
+    age: knownTagValues('age', profile.ageBand),
   }
 }

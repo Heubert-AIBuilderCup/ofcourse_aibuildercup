@@ -647,6 +647,7 @@ describe.skipIf(!enabled)('the post store and step lock against the database', (
       },
       market: null,
       instagram: null,
+      sharedTo: [],
       sources: [{ site: null, title: 'Store test', url: null }],
       // Linked to no blog: no "Read the full guide" (BR7).
       guide: null,

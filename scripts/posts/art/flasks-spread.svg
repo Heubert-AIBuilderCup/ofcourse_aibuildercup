@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="540" viewBox="0 0 1080 540">
+  <title>The same water spread thinly across five round flasks</title>
+  <!-- But not everything: the same water spread across five round flasks, each a little full. Ink and white, for the Pop tint. -->
+  <defs>
+    <clipPath id="b1"><circle cx="140" cy="370" r="85"/></clipPath>
+    <clipPath id="b2"><circle cx="340" cy="370" r="85"/></clipPath>
+    <clipPath id="b3"><circle cx="540" cy="370" r="85"/></clipPath>
+    <clipPath id="b4"><circle cx="740" cy="370" r="85"/></clipPath>
+    <clipPath id="b5"><circle cx="940" cy="370" r="85"/></clipPath>
+  </defs>
+  <rect width="1080" height="540" fill="#FFFFFF"/>
+  <g transform="translate(0 -60)">
+  <g fill="#16191B">
+    <rect x="40" y="415" width="200" height="60" clip-path="url(#b1)"/>
+    <rect x="240" y="415" width="200" height="60" clip-path="url(#b2)"/>
+    <rect x="440" y="415" width="200" height="60" clip-path="url(#b3)"/>
+    <rect x="640" y="415" width="200" height="60" clip-path="url(#b4)"/>
+    <rect x="840" y="415" width="200" height="60" clip-path="url(#b5)"/>
+  </g>
+  <g fill="none" stroke="#16191B" stroke-width="8" stroke-linejoin="round">
+    <path d="M115 290 L115 230 L165 230 L165 290"/>
+    <circle cx="140" cy="370" r="85"/>
+    <path d="M315 290 L315 230 L365 230 L365 290"/>
+    <circle cx="340" cy="370" r="85"/>
+    <path d="M515 290 L515 230 L565 230 L565 290"/>
+    <circle cx="540" cy="370" r="85"/>
+    <path d="M715 290 L715 230 L765 230 L765 290"/>
+    <circle cx="740" cy="370" r="85"/>
+    <path d="M915 290 L915 230 L965 230 L965 290"/>
+    <circle cx="940" cy="370" r="85"/>
+  </g>
+  <rect x="40" y="472" width="1000" height="10" fill="#16191B"/>
+  </g>
+  <text x="1060" y="524" font-family="Barlow" font-weight="400" font-size="20" fill="#5F5D58" text-anchor="end">Illustration idea: @pjmilani</text>
+</svg>

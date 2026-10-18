@@ -193,12 +193,40 @@ const card = (page: Page, id: string, query?: string) =>
 /** One row of chips on a post's page (a fieldset named by its legend): Destination, Home country, Theme or Age. */
 const chipRow = (page: Page, name: string) => page.getByRole('group', { name, exact: true })
 const homeSwitch = (page: Page) => chipRow(page, 'Home country')
-/** The feed's dropdown for a group, named by it, showing its choice or the group's name. */
-const dropdown = (page: Page, name: string) => page.getByRole('combobox', { name, exact: true })
-/** Pick an option, or Clear, from a group's dropdown on the feed. */
-const choose = async (page: Page, group: string, option: string) => {
-  await dropdown(page, group).click()
-  await page.getByRole('option', { name: option, exact: true }).click()
+/**
+ * The feed's filters: its side column on a wide screen; on a phone, the sheet its Filters button
+ * opens (opened here when closed).
+ */
+const openFilters = async (page: Page): Promise<Locator> => {
+  const button = page.getByRole('button', { name: 'Filters', exact: true })
+  if (!(await button.isVisible())) return page.getByRole('complementary', { name: 'Filters' })
+  const sheet = page.getByRole('dialog', { name: 'Filters' })
+  if (!(await sheet.isVisible())) await button.click()
+  return sheet
+}
+/** Close the Filters sheet on a phone, when it is open. */
+const closeFilters = async (page: Page) => {
+  if (await page.getByRole('dialog', { name: 'Filters' }).isVisible()) {
+    await page.keyboard.press('Escape')
+  }
+}
+/** The feed's Home country dropdown (one choice), showing its choice or the group's name. */
+const homeDropdown = async (page: Page) =>
+  (await openFilters(page)).getByRole('combobox', { name: 'Home country', exact: true })
+/** A value's checkbox in a group of the feed's filters that holds several (Destination, Theme, Age). */
+const box = async (page: Page, group: string, option: string) =>
+  (await openFilters(page))
+    .getByRole('group', { name: group, exact: true })
+    .getByRole('checkbox', { name: option, exact: true })
+/** Tick or untick a value of such a group on the feed, or Clear the group, then close the sheet. */
+const pick = async (page: Page, group: string, option: string) => {
+  const row = (await openFilters(page)).getByRole('group', { name: group, exact: true })
+  const target =
+    option === 'Clear'
+      ? row.getByRole('button', { name: 'Clear', exact: true })
+      : row.getByRole('checkbox', { name: option, exact: true })
+  await target.click()
+  await closeFilters(page)
 }
 /** A post page's own way back to the feed, beside the Feed in a student's header. */
 const backToFeed = (page: Page) =>
@@ -321,7 +349,8 @@ test('home=NP shows the Nepal version with NPR and keeps the choice into the pos
   expect(main.join(' ')).not.toContain('NPR')
 
   await page.goto('/feed?home=NP')
-  await expect(dropdown(page, 'Home country')).toHaveText('Nepal')
+  await expect(await homeDropdown(page)).toHaveText('Nepal')
+  await closeFilters(page)
   await expect(card(page, posts.money, 'home=NP')).toHaveCount(1)
   await expect(card(page, posts.general, 'home=NP')).toHaveCount(1)
   await card(page, posts.money, 'home=NP').getByRole('link', { name: MONEY.title }).click()
@@ -528,7 +557,8 @@ test('home=IN shows the India version with INR on the post that has one, and the
   expect(main.join(' ')).not.toContain('INR')
 
   await page.goto('/feed?home=IN')
-  await expect(dropdown(page, 'Home country')).toHaveText('India')
+  await expect(await homeDropdown(page)).toHaveText('India')
+  await closeFilters(page)
   for (const id of [posts.rupees, posts.money, posts.general]) {
     await expect(card(page, id, 'home=IN')).toHaveCount(1)
   }
@@ -555,24 +585,26 @@ test('the dropdowns keep the posts tagged or untagged for the pick, combine acro
   const { page } = st
   const absent = (id: string) => expect(page.locator(`a[href^="/feed/${id}"]`)).toHaveCount(0)
   await page.goto('/feed')
-  await choose(page, 'Destination', 'Australia')
+  await pick(page, 'Destination', 'Australia')
   await expect(page).toHaveURL(/\/feed\?destination=AU$/)
-  await expect(dropdown(page, 'Destination')).toHaveText('Australia')
+  await expect(await box(page, 'Destination', 'Australia')).toBeChecked()
+  await closeFilters(page)
   await expect(card(page, posts.general, 'destination=AU')).toHaveCount(1)
   await expect(card(page, posts.rupees, 'destination=AU')).toHaveCount(1)
   await absent(posts.money)
 
   // A second group narrows further: only the post tagged with both stays.
-  await choose(page, 'Theme', 'Books and movies')
+  await pick(page, 'Theme', 'Books and movies')
   await expect(page).toHaveURL(/\/feed\?destination=AU&theme=books-movies$/)
   await expect(card(page, posts.rupees, 'destination=AU&theme=books-movies')).toHaveCount(1)
   await absent(posts.general)
   await absent(posts.money)
 
   // Clear on one group keeps the other group's pick.
-  await choose(page, 'Destination', 'Clear')
+  await pick(page, 'Destination', 'Clear')
   await expect(page).toHaveURL(/\/feed\?theme=books-movies$/)
-  await expect(dropdown(page, 'Destination')).toHaveText('Destination')
+  await expect(await box(page, 'Destination', 'Australia')).not.toBeChecked()
+  await closeFilters(page)
   await expect(card(page, posts.money, 'theme=books-movies')).toHaveCount(1)
   await expect(card(page, posts.rupees, 'theme=books-movies')).toHaveCount(1)
   await absent(posts.general)
@@ -591,36 +623,39 @@ test('the dropdowns keep the posts tagged or untagged for the pick, combine acro
 test('search keeps the posts with every word in any case, combines with the chips, and reads "No posts match." (83)', async () => {
   const { page } = st
   const absent = (id: string) => expect(page.locator(`a[href^="/feed/${id}"]`)).toHaveCount(0)
-  const search = page.getByRole('search')
-  const box = search.getByPlaceholder('Search posts')
-  const go = () => search.getByRole('button', { name: 'Search', exact: true }).click()
+  // The search box sits with the filters: the side column, or the Filters sheet on a phone.
+  const words = async () =>
+    (await openFilters(page)).getByRole('search').getByPlaceholder('Search posts')
+  const find = async (text: string) => {
+    const search = (await openFilters(page)).getByRole('search')
+    await search.getByPlaceholder('Search posts').fill(text)
+    await search.getByRole('button', { name: 'Search', exact: true }).click()
+  }
 
   await page.goto('/feed')
-  await box.fill('rupees')
-  await go()
+  await find('rupees')
   await expect(page).toHaveURL(/\/feed\?q=rupees$/)
-  await expect(box).toHaveValue('rupees')
+  await expect(await words()).toHaveValue('rupees')
+  await closeFilters(page)
   await expect(card(page, posts.rupees, 'q=rupees')).toHaveCount(1)
   await absent(posts.general)
   await absent(posts.money)
 
   // Every word, whatever its case: "first" is in other posts' slides, "RUPEES" in one title only.
-  await box.fill('RUPEES first')
-  await go()
+  await find('RUPEES first')
   await expect(page).toHaveURL(/\/feed\?q=RUPEES\+first$/)
   await expect(card(page, posts.rupees, 'q=RUPEES+first')).toHaveCount(1)
   await absent(posts.general)
   await absent(posts.money)
 
   // A destination picked while searching keeps the words; the rupees post is for Australia, so none is left.
-  await choose(page, 'Destination', 'United Kingdom')
+  await pick(page, 'Destination', 'United Kingdom')
   await expect(page).toHaveURL(/\/feed\?destination=UK&q=RUPEES\+first$/)
   await expect(page.getByText('No posts match.', { exact: true })).toBeVisible()
   await absent(posts.rupees)
 
   // A search made with a chip active keeps the chip: the Personal post is the only one for the UK.
-  await box.fill('money')
-  await go()
+  await find('money')
   await expect(page).toHaveURL(/[?&]q=money(&|$)/)
   await expect(page).toHaveURL(/[?&]destination=UK(&|$)/)
   await expect(card(page, posts.money, 'destination=UK&q=money')).toHaveCount(1)

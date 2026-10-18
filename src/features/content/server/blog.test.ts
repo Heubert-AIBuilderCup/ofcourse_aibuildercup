@@ -1322,14 +1322,14 @@ describe.skipIf(!enabled)("a blog's commands against the database", () => {
       const { feedBlogOf } = await import('../lib/public-blog')
       const [posts, blogs] = await Promise.all([store.listLive(), store.liveBlogs()])
       const items = feed.feedOrder([...posts, ...blogs.map(feedBlogOf)], new Date())
-      const chips = { destination: null, home: null, age: null, q: '' }
+      const chips = { destination: [], home: null, age: [], q: '' }
       const card = feed
-        .applyFilters(items, { ...chips, theme: 'books-movies' })
+        .applyFilters(items, { ...chips, theme: ['books-movies'] })
         .find((i) => i.id === id)
       expect(card && feed.isFeedBlog(card) ? card.cover?.assetId : null).toBeString()
       expect(card && feed.isFeedBlog(card) ? card.minutes : 0).toBeGreaterThan(0)
       expect(
-        feed.applyFilters(items, { ...chips, theme: 'work-study-life' }).some((i) => i.id === id),
+        feed.applyFilters(items, { ...chips, theme: ['work-study-life'] }).some((i) => i.id === id),
       ).toBe(false)
     },
     SLOW * 2,

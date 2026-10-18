@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, mock, spyOn, test } from 'bun:test'
 import type { FeedItem, FeedPost, Filters } from './lib/feed'
+import type { FeedRoadmap } from './lib/roadmap-lines'
 
 // The feed's next page with the session and the feed read mocked: who it refuses, what it passes
 // to the read, and the page it shapes. The read is server/feed.ts; the paging rule lib/feed.ts.
 
 let session: { user: { id: string } } | null = { user: { id: 'st-1' } }
 const reads: { userId: string; query: unknown }[] = []
-let filters: Filters = { destination: null, home: null, theme: null, age: null, q: '' }
+let filters: Filters = { destination: [], home: null, theme: [], age: [], q: '' }
 let ordered: FeedItem[] = []
+let roadmaps: FeedRoadmap[] = []
 let failRead = false
 
 mock.module('@/shared/lib/auth/session', () => ({ getSession: async () => session }))
@@ -15,7 +17,7 @@ mock.module('./server/feed', () => ({
   readFeedPage: async (userId: string, query: unknown) => {
     reads.push({ userId, query })
     if (failRead) throw new Error('connection refused at 127.0.0.1:5433')
-    return { filters, ordered }
+    return { filters, ordered, roadmaps }
   },
 }))
 
@@ -51,8 +53,9 @@ const ids = (r: Awaited<ReturnType<typeof loadFeedPageAction>>) =>
 beforeEach(() => {
   session = { user: { id: 'st-1' } }
   reads.length = 0
-  filters = { destination: null, home: null, theme: null, age: null, q: '' }
+  filters = { destination: [], home: null, theme: [], age: [], q: '' }
   ordered = TWENTY
+  roadmaps = []
   failRead = false
 })
 
@@ -87,18 +90,29 @@ describe('loadFeedPageAction', () => {
       kind: 'post',
       id: 'p19',
       title: 'p19',
-      page: 'OfCourse',
+      accounts: ['@ofcourse_ai'],
       layer: 'general',
       whyLine: null,
       language: undefined,
-      line: 'p19 excerpt',
+      caption: 'p19 excerpt',
       slides: [{ pngAssetId: 'png-p19', alt: 'Slide 1' }],
       sourceLine: null,
+      roadmapLinks: null,
+    })
+  })
+
+  test('links each card to the roadmaps the read found for her', async () => {
+    roadmaps = [{ name: 'Sydney · Data science', destinations: ['AU'] }]
+    ordered = [post('au', { tags: ['destination:AU'] })]
+    const r = await loadFeedPageAction({ query: {}, offset: 0 })
+    expect(r.ok && r.cards[0]?.kind === 'post' && r.cards[0].roadmapLinks).toMatchObject({
+      all: false,
+      names: ['Sydney · Data science'],
     })
   })
 
   test('slices what the filters leave, in the version the home filter asks for', async () => {
-    filters = { ...filters, theme: 'books-movies', home: 'NP' }
+    filters = { ...filters, theme: ['books-movies'], home: 'NP' }
     ordered = [
       post('a', { tags: ['theme:work-study-life'] }),
       post('b'),
@@ -108,7 +122,7 @@ describe('loadFeedPageAction', () => {
     ]
     const r = await loadFeedPageAction({ query: { theme: 'books-movies' }, offset: 1 })
     expect(ids(r)).toEqual(['c'])
-    expect(r.ok && r.cards[0]).toMatchObject({ line: 'Nepal' })
+    expect(r.ok && r.cards[0]).toMatchObject({ caption: 'Nepal' })
   })
 
   test('refuses a malformed call before reading', async () => {

@@ -8,10 +8,10 @@ import { FeedList } from './FeedList'
 import { slideAt } from './FeedPostCard'
 
 const F = (over: Partial<Filters> = {}): Filters => ({
-  destination: null,
+  destination: [],
   home: null,
-  theme: null,
-  age: null,
+  theme: [],
+  age: [],
   q: '',
   ...over,
 })
@@ -21,15 +21,16 @@ const postCard = (id: string, over: Partial<Extract<FeedCard, { kind: 'post' }>>
     kind: 'post',
     id,
     title: `Post ${id}`,
-    page: 'OfCourse',
+    accounts: ['@ofcourse_ai'],
     layer: 'general',
     whyLine: null,
-    line: `${id} first line.`,
+    caption: `${id} first line.`,
     slides: [
       { pngAssetId: `png-${id}-1`, alt: `Slide 1: ${id}` },
       { pngAssetId: `png-${id}-2`, alt: `Slide 2: ${id}` },
     ],
     sourceLine: null,
+    roadmapLinks: null,
     ...over,
   }) satisfies FeedCard as FeedCard
 
@@ -44,6 +45,12 @@ type Load = (input: {
 // The scroll's sentinel: each IntersectionObserver the list makes, and what it watches.
 type Watcher = { callback: IntersectionObserverCallback; watched: Element[]; live: boolean }
 let watchers: Watcher[] = []
+// next/image (the page's mark beside a post) resolves its src against the page's URL; happy-dom starts on about:blank.
+const dom = (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM
+const startUrl = location.href
+beforeAll(() => dom.setURL('http://localhost:3000/feed'))
+afterAll(() => dom.setURL(startUrl))
+
 const RealObserver = window.IntersectionObserver
 beforeAll(() => {
   window.IntersectionObserver = class {
@@ -112,7 +119,7 @@ describe('FeedList: the cards', () => {
         cards: [
           postCard('p1', {
             layer: 'personal',
-            page: '@ofcourse.main',
+            accounts: ['@ofcourse.main'],
             language: 'ne',
             whyLine: 'You weighted work rights.',
           }),
@@ -126,7 +133,7 @@ describe('FeedList: the cards', () => {
       ['Slide 2: p1', '/feed/assets/png-p1-2'],
     ])
     expect(screen.queryByText('@ofcourse.main') !== null).toBe(true)
-    expect(screen.getAllByText('OfCourse')).toHaveLength(1)
+    expect(screen.getAllByText('@ofcourse_ai')).toHaveLength(1)
     expect(screen.queryByText('p1 first line.') !== null).toBe(true)
     expect(screen.getAllByText('For you')).toHaveLength(1)
     expect(screen.getByText('नेपाली').getAttribute('lang')).toBe('ne')
@@ -142,7 +149,7 @@ describe('FeedList: the cards', () => {
       minutes: 6,
       language: 'th',
     }
-    render(list({ cards: [blog, postCard('p1')], filters: F({ theme: 'work-study-life' }) }))
+    render(list({ cards: [blog, postCard('p1')], filters: F({ theme: ['work-study-life'] }) }))
     expect(
       screen.getByRole('link', { name: 'How many hours can I work?' }).getAttribute('href'),
     ).toBe('/feed/blog/b1?theme=work-study-life')
@@ -161,6 +168,98 @@ describe('FeedList: the cards', () => {
     render(list({ cards: [], liveCount: 2, filters: F({ q: 'nothing' }) }))
     expect(screen.getByText('No posts match.')).toBeInTheDocument()
     expect(screen.queryByText('Nothing in the feed yet.')).toBeNull()
+  })
+})
+
+describe('FeedList: the Show group', () => {
+  const updates = [
+    { id: 'u1', card: <h2>Update u1</h2> },
+    { id: 'u2', card: <h2>Update u2</h2> },
+  ]
+  const blog: FeedCard = {
+    kind: 'blog',
+    id: 'b1',
+    title: 'Blog b1',
+    cover: null,
+    minutes: 3,
+  }
+
+  it('puts her updates first, a screen each, before the posts', () => {
+    render(list({ cards: [postCard('p1'), postCard('p2')], updates }))
+    expect(titles()).toEqual(['Update u1', 'Update u2', 'Post p1', 'Post p2'])
+  })
+
+  it('drops the update screens when Updates is unticked', () => {
+    render(list({ cards: [postCard('p1')], updates, filters: F({ show: ['posts', 'blogs'] }) }))
+    expect(titles()).toEqual(['Post p1'])
+  })
+
+  it('drops the posts, or the blogs, the Show group unticked', () => {
+    render(list({ cards: [blog, postCard('p1')], filters: F({ show: ['updates', 'blogs'] }) }))
+    expect(screen.queryAllByRole('link', { name: 'Post p1' })).toHaveLength(0)
+    expect(screen.queryAllByRole('link', { name: 'Blog b1' })).toHaveLength(1)
+    cleanup()
+    render(list({ cards: [blog, postCard('p1')], filters: F({ show: ['updates', 'posts'] }) }))
+    expect(screen.queryAllByRole('link', { name: 'Post p1' })).toHaveLength(1)
+    expect(screen.queryAllByRole('link', { name: 'Blog b1' })).toHaveLength(0)
+  })
+
+  it('says "No updates for your roadmaps right now." with only Updates ticked and none for her', () => {
+    render(list({ cards: [], updates: [], filters: F({ show: ['updates'] }) }))
+    expect(screen.queryAllByText('No updates for your roadmaps right now.')).toHaveLength(1)
+    expect(screen.queryAllByText('No posts match.')).toHaveLength(0)
+    cleanup()
+    // With some, her updates alone, and no line about posts.
+    render(list({ cards: [], updates, filters: F({ show: ['updates'] }) }))
+    expect(titles()).toEqual(['Update u1', 'Update u2'])
+    expect(screen.queryAllByText('No posts match.')).toHaveLength(0)
+    expect(screen.queryAllByText('No updates for your roadmaps right now.')).toHaveLength(0)
+  })
+
+  it('keeps her updates when no post matches, then says so', () => {
+    render(list({ cards: [], updates, liveCount: 3 }))
+    expect(titles()).toEqual(['Update u1', 'Update u2'])
+    expect(screen.queryAllByText('No posts match.')).toHaveLength(1)
+  })
+})
+
+describe('FeedPostCard: the panel beside the slides', () => {
+  const region = (name: string) => screen.queryByRole('region', { name })
+  const items = (el: HTMLElement | null) =>
+    el ? [...el.querySelectorAll('li')].map((li) => li.textContent) : []
+
+  it('names the account that posted it on one line, and how many more it went to', () => {
+    const accounts = ['@ofcourse_ai', '@ofcourse_comics', '@ofcourse_selfhelp']
+    render(list({ cards: [postCard('p1', { accounts }), postCard('p2')] }))
+    expect(screen.getAllByText('@ofcourse_ai')).toHaveLength(2)
+    expect(screen.queryByText('@ofcourse_comics')).toBeNull()
+    expect(screen.getAllByText(/more$/).map((m) => m.textContent)).toEqual(['+2 more'])
+    expect(screen.getByText('+2 more').getAttribute('title')).toBe(
+      '@ofcourse_comics, @ofcourse_selfhelp',
+    )
+  })
+
+  it('says the sample effect once, then the roadmaps it applies to and how many more', () => {
+    const roadmapLinks = { effect: 'Adds background.', all: false, names: ['A', 'B', 'C'], more: 2 }
+    render(list({ cards: [postCard('p1', { roadmapLinks })] }))
+    const section = region('For your roadmaps')
+    expect(section?.textContent).toContain('Sample')
+    expect(section?.textContent?.split('Adds background.')).toHaveLength(2)
+    expect(items(section)).toEqual(['A', 'B', 'C', 'and 2 more'])
+  })
+
+  it('says a general post applies to all her roadmaps', () => {
+    const roadmapLinks = { effect: 'Adds background.', all: true, names: ['A'], more: 0 }
+    render(list({ cards: [postCard('p1', { roadmapLinks })] }))
+    expect(region('For your roadmaps')?.textContent).toContain('Applies to all your roadmaps')
+    expect(items(region('For your roadmaps'))).toEqual(['A'])
+  })
+
+  it('says when the post is linked to none of her roadmaps, and leaves the section out without roadmaps', () => {
+    const none = { effect: 'Adds background.', all: false, names: [], more: 0 }
+    render(list({ cards: [postCard('p1', { roadmapLinks: none }), postCard('p2')] }))
+    expect(screen.getAllByRole('region', { name: 'For your roadmaps' })).toHaveLength(1)
+    expect(region('For your roadmaps')?.textContent).toContain('Not linked to your roadmaps yet')
   })
 })
 
@@ -279,7 +378,7 @@ describe('FeedList: the infinite scroll', () => {
       list({
         loadPage,
         cards: cards('t', 8),
-        filters: F({ theme: 'books-movies' }),
+        filters: F({ theme: ['books-movies'] }),
         query: { theme: 'books-movies' },
       }),
     )

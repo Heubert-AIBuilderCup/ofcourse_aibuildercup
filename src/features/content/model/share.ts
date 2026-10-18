@@ -64,3 +64,10 @@ export function shareLine(body: Body<'share'>): string {
   )
   return `Shared to ${parts.join(' · ')} · by ${body.by.name}`
 }
+
+/** The Instagram accounts a post was shared to, by label, in the order listed; one no longer listed by its id, after. */
+export function instagramLabels(ids: readonly string[]): string[] {
+  const listed = SHARE_ACCOUNTS.instagram.filter((a) => ids.includes(a.id)).map((a) => a.label)
+  const gone = ids.filter((id) => !SHARE_ACCOUNTS.instagram.some((a) => a.id === id))
+  return [...listed, ...gone]
+}

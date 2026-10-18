@@ -177,6 +177,20 @@ describe('alternativeForCourse (criteria 27 and 28)', () => {
   test('null for a course the catalogue does not have', () => {
     expect(alternativeForCourse(perth, 'no-such-course')).toBeNull()
   })
+
+  test('null for a known course in a city no road can be composed in (Wollongong)', () => {
+    expect(alternativeForCourse(perth, 'uow-cyber')).toBeNull()
+  })
+})
+
+describe('compareByTile on a road whose stack course has no road (Geelong’s, from Wollongong)', () => {
+  const geelong = roadById('geelong-business') as RoadSpec
+
+  test('drops that tile and compares the rest', () => {
+    const byTile = compareByTile(geelong, noBudget)
+    expect(byTile[geelong.slots['stack-course'].id]).toBeUndefined()
+    expect(byTile[geelong.slots['alt-course'].id]?.pin).toBe(geelong.altCourseId)
+  })
 })
 
 describe('compareByTile (criterion 26)', () => {
