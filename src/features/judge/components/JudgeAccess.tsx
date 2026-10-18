@@ -23,6 +23,8 @@ type Props = {
   action: (previous: ActionResult | null, form: FormData) => Promise<ActionResult>
   /** The student page's story (one today); without it, the admin page's form, with no choice. */
   stories?: readonly JudgeStoryCard[]
+  /** The passcode, said in the dialog and filled in, when the developer chose to show it (18 Oct). */
+  passcode?: string
 }
 
 // The sign-in form's field: a small label that takes the accent while the field has focus.
@@ -39,7 +41,7 @@ const CHOICE =
  * story offered, its card a way in as a new student with that story. The action answers a wrong
  * passcode, too many tries or a failed sign-in, said in the dialog; a sign-in redirects.
  */
-export function JudgeAccess({ action, stories }: Props) {
+export function JudgeAccess({ action, stories, passcode }: Props) {
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -48,14 +50,14 @@ export function JudgeAccess({ action, stories }: Props) {
         </Button>
       </DialogTrigger>
       <DialogContent className={cn(stories && 'max-h-dvh max-w-2xl overflow-y-auto')}>
-        <JudgeForm action={action} stories={stories} />
+        <JudgeForm action={action} stories={stories} passcode={passcode} />
       </DialogContent>
     </Dialog>
   )
 }
 
 /** Inside the dialog's content, so each opening starts with an empty passcode and no message. */
-function JudgeForm({ action, stories }: Props) {
+function JudgeForm({ action, stories, passcode }: Props) {
   const id = useId()
   const [state, formAction, pending] = useActionState(action, null)
   const error = state && !state.ok ? state.error : null
@@ -75,6 +77,12 @@ function JudgeForm({ action, stories }: Props) {
             ? 'Enter the passcode from the submission notes, then open her roadmap. Each sign-in makes a new account, so nothing carries over.'
             : 'Enter the passcode from the submission notes. The judge account edits and reviews posts; users and models stay closed.'}
         </DialogDescription>
+        {passcode ? (
+          <p className="m-0 text-sm">
+            The passcode is <strong className="font-semibold">{passcode}</strong>; it is filled in
+            for you.
+          </p>
+        ) : null}
       </div>
 
       <div className="group flex flex-col gap-1.5">
@@ -84,7 +92,8 @@ function JudgeForm({ action, stories }: Props) {
         <Input
           id={`${id}-passcode`}
           name="passcode"
-          type="password"
+          type={passcode ? 'text' : 'password'}
+          defaultValue={passcode}
           autoComplete="off"
           maxLength={200}
           aria-invalid={error ? true : undefined}

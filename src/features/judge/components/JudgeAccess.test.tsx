@@ -67,3 +67,23 @@ describe('JudgeAccess for the admin', () => {
     )
   })
 })
+
+describe('JudgeAccess with the passcode shown (18 Oct: judges find it in the dialog)', () => {
+  it('names the passcode and fills it in, so one press signs in', async () => {
+    const action = refused('nope')
+    render(<JudgeAccess action={action} stories={STORIES} passcode="ofcourse" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Judge access' }))
+    expect(screen.getByText('ofcourse').tagName).toBe('STRONG')
+    expect((screen.getByLabelText('Passcode') as HTMLInputElement).value).toBe('ofcourse')
+    fireEvent.click(screen.getByRole('button', { name: /Priya/ }))
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(1))
+    expect(sent(action)).toEqual(['passcode=ofcourse', 'story=priya'])
+  })
+
+  it('without it, says nothing of a passcode and leaves the field empty', () => {
+    render(<JudgeAccess action={refused('nope')} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Judge access' }))
+    expect(screen.queryByText('ofcourse')).toBeNull()
+    expect((screen.getByLabelText('Passcode') as HTMLInputElement).value).toBe('')
+  })
+})

@@ -71,9 +71,9 @@ export type CardAsk = {
  * The card column's card: where she is (no tile open), or the tile she pressed, per cardFor. Its
  * badges open their explanation; a sibling opens that tile; the primary does what the board says
  * (`onPrimary`; without one it is drawn and does nothing this round); route detail and the lesson
- * are links (they push, so Back returns); Cancel (or Back to where she is) closes the card. "What
- * it asks for" and "More" do nothing yet. `flat`: the card inside the phone's road, its guide
- * without a box, its badges side by side and no course actions. The name where she is and each
+ * are links (they push, so Back returns); Cancel (or Back to where she is) closes the card. No
+ * button is drawn with nothing behind it. `flat`: the card inside the phone's road, its guide
+ * without a box and its badges side by side. The name where she is and each
  * sibling carry their tile (`data-swap-id`), so a swap can move them. A tile her answers decided
  * says why it is there: the template at once, the model's words when `why` lets it ask. A city or
  * course card on a road built from her answers takes questions (`ask`). `details` (the road's own
@@ -124,7 +124,6 @@ export function RoadCard({
   const siblings = here ? siblingsOf(scene) : []
   const board = useBoardPath()
   const hereTile = scene.tiles.find((t) => t.id === scene.here)
-  const course = here && hereTile?.kind === 'course' && !flat
   // Where she is, what her saved answers mark on her tile (applyAnswers): its cost line and the
   // over-budget badge. A pressed tile's card has its scene tile's badges already.
   const plain = road.tiles.find((t) => t.id === hereTile?.id)
@@ -230,17 +229,6 @@ export function RoadCard({
               </span>
             </Button>
           ))}
-        </div>
-      ) : null}
-
-      {course ? (
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="square" className="h-11 px-3.5 font-sans font-medium">
-            What it asks for
-          </Button>
-          <Button type="button" variant="square" className="h-11 px-3.5 font-sans font-medium">
-            More
-          </Button>
         </div>
       ) : null}
 

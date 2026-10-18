@@ -21,9 +21,9 @@ export const FIND = 'Find more courses by your interests'
 
 /**
  * A stack's list (`open=list`): its title and Close, the filters as a button group, then a row per
- * course with its actions. "Put on my board" places a row's course beside her road; a row whose
- * course has no tile this round, and More, do nothing yet. A course already on the board is left
- * out. A row whose course is in a field next to the one she picked says so, with that field defined.
+ * course with its actions. "Put on my board" places a row's course beside her road, drawn only on
+ * a row whose course has a tile: no button is drawn with nothing behind it. A course already on
+ * the board is left out. A row whose course is in a field next to the one she picked says so, with that field defined.
  * With `onFind` (the course finder is on), the list ends with a way to find more courses by her
  * interests, saying that her level, budget and destination stay as her roadmap has them.
  */
@@ -97,18 +97,15 @@ export function StackList({
                 {row.tag}
               </span>
             ) : null}
-            {row.blocked ? null : (
+            {row.blocked || !tileId ? null : (
               <span className="col-span-2 flex gap-2">
                 <Button
                   type="button"
                   variant="square"
                   className={ROW_ACTION}
-                  onClick={tileId ? () => onPut(tileId) : undefined}
+                  onClick={() => onPut(tileId)}
                 >
                   Put on my board
-                </Button>
-                <Button type="button" variant="square" className={ROW_ACTION}>
-                  More
                 </Button>
               </span>
             )}

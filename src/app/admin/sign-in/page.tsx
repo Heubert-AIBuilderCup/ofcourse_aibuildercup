@@ -89,7 +89,12 @@ export default async function AdminSignInPage({ searchParams }: PageProps<'/admi
           </Blueprint>
 
           {/* Only while JUDGE_PASSCODE is set: the AI Builder Cup judges' way in (features/judge). */}
-          {judgeAccessOn(process.env) ? <JudgeAccess action={judgeAdminSignInAction} /> : null}
+          {judgeAccessOn(process.env) ? (
+            <JudgeAccess
+              action={judgeAdminSignInAction}
+              passcode={process.env.JUDGE_PASSCODE?.trim()}
+            />
+          ) : null}
 
           <div
             className={cn(

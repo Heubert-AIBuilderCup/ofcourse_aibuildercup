@@ -383,6 +383,19 @@ const ADD_TOAST =
 const READ_TOAST = 'Lesson read. The Master’s years now show as looked at.'
 
 describe('the card’s actions', () => {
+  it('draws no course action with nothing behind it: no "What it asks for", no "More"', () => {
+    for (const tileId of ['data-science-uwa-perth', 'information-systems-curtin-perth']) {
+      query = `tile=${tileId}`
+      const view = board()
+      const dead = screen
+        .queryAllByRole('button')
+        .map((b) => b.textContent)
+        .filter((text) => text === 'What it asks for' || text === 'More')
+      expect(`${tileId}: ${dead.join(', ')}`).toBe(`${tileId}: `)
+      view.unmount()
+    }
+  })
+
   it('swaps the alternative onto her road, says so with Undo, and Undo puts it back', () => {
     reduceMotion()
     query = 'tile=data-science-uwa-perth'
@@ -580,6 +593,25 @@ describe('the stack', () => {
     press(within(filter).getByRole('button', { name: 'Not yet reachable' }))
     expect(screen.getByText('Master of Nursing')).toBeInTheDocument()
     expect(screen.queryByText('Information Systems')).not.toBeInTheDocument()
+  })
+
+  it('draws no button with nothing behind it: "Put on my board" only on a row with a tile, no "More"', () => {
+    query = 'tile=more-courses-perth&open=list'
+    board()
+    const rows = screen.getAllByRole('listitem').map((li) => {
+      const name = li.querySelector('.font-heading')?.textContent
+      const buttons = within(li)
+        .queryAllByRole('button')
+        .map((b) => b.textContent)
+      return `${name}: ${buttons.join(', ')}`
+    })
+    expect(rows).toEqual([
+      'Information Systems: Put on my board',
+      'Business Analytics: ',
+      'Computer Science: ',
+      'Accounting: ',
+      'Master of Nursing: ',
+    ])
   })
 
   it('puts a course on her board, says so with Undo, and Undo takes it off', () => {

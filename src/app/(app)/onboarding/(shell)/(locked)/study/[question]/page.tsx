@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import { QuestionScreen, questionBySlug } from '@/features/opening'
 import { readOwnWordsAction, saveAnswersAction } from '@/features/opening/actions'
 import { getProfile, markStep } from '@/features/opening/server/profile'
-import { englishScores, studentAiOff } from '@/features/roads'
+import { areasWithoutRoads, englishScores, studentAiOff } from '@/features/roads'
 import { requireStudent } from '@/shared/lib/auth/session'
 
 /**
@@ -29,6 +29,7 @@ export default async function StudyQuestionPage({
       relative={profile.relative}
       saveAnswersAction={saveAnswersAction}
       englishScores={englishScores()}
+      borrowedAreas={areasWithoutRoads()}
       // The student AI switched off: no own-words box (criterion 81).
       readOwnWordsAction={studentAiOff(process.env) ? undefined : readOwnWordsAction}
     />

@@ -2,7 +2,6 @@
 
 import { Check } from 'lucide-react'
 import { useId, useState } from 'react'
-import { AREA_FIELDS } from '@/features/engine'
 import { Note } from '@/shared/components/Note'
 import { cn } from '@/shared/lib/utils'
 import { type AnswerValue, AREAS_MAX, type StoredAnswer } from '@/shared/types/student'
@@ -17,7 +16,7 @@ const NOTE = 'Nearest field used for now'
  * three marks. A tap chooses an area (at the end) or removes it; removing the last reports `null`,
  * a clear. A fourth tap changes nothing and shows a calm refusal until she removes an area; while
  * three are chosen the others read as full but stay pressable, since the refusal is the answer.
- * An area the preview has no courses for says it borrows the nearest field (AREA_FIELDS).
+ * An area in `borrowed` (no road teaches a course in its fields) says it borrows the nearest field.
  * `labelledBy` is the id of the h1 that asks the question.
  */
 export function AreaChecks({
@@ -25,12 +24,15 @@ export function AreaChecks({
   labelledBy,
   answer,
   onAnswer,
+  borrowed = [],
 }: {
   question: Question
   labelledBy: string
   answer: StoredAnswer | undefined
   /** The areas now chosen, in the order she chose them; null when she removed the last one. */
   onAnswer: (raw: AnswerValue | null) => void
+  /** The areas no road teaches a course in, from the roads' catalogue (areasWithoutRoads). */
+  borrowed?: readonly string[]
 }) {
   const [refused, setRefused] = useState(false)
   const countId = useId()
@@ -93,7 +95,7 @@ export function AreaChecks({
         {question.options.map((option) => {
           const area = String(option)
           const checked = chosen.includes(area)
-          const borrowed = AREA_FIELDS[area]?.substitutedFrom !== undefined
+          const borrows = borrowed.includes(area)
           return (
             // biome-ignore lint/a11y/useSemanticElements: a card holding a name, a note and a box is not an input; the checkbox pattern on a native button is built here
             <button
@@ -115,7 +117,7 @@ export function AreaChecks({
             >
               <span className="flex min-w-0 flex-col gap-1">
                 <span>{area}</span>
-                {borrowed ? (
+                {borrows ? (
                   <span className="font-sans text-caption leading-snug font-normal text-muted-foreground group-aria-checked:text-accent-800">
                     {NOTE}
                   </span>

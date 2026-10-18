@@ -91,7 +91,11 @@ export default async function SignInPage({ searchParams }: PageProps<'/'>) {
 
           {/* Only while JUDGE_PASSCODE is set: the AI Builder Cup judges' way in (features/judge). */}
           {judgeAccessOn(process.env) ? (
-            <JudgeAccess action={judgeStudentSignInAction} stories={JUDGE_CARDS} />
+            <JudgeAccess
+              action={judgeStudentSignInAction}
+              stories={JUDGE_CARDS}
+              passcode={process.env.JUDGE_PASSCODE?.trim()}
+            />
           ) : null}
 
           <div

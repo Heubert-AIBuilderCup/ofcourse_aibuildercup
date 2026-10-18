@@ -8,7 +8,7 @@ import { ROAD_KEYS } from '../data/road-keys'
 import { composeRoad, specById } from './compose'
 import { stated as a, DEMO_PROFILES, relativeAt } from './demo-profiles'
 import { levelsOpenTo } from './eligibility'
-import { type Difference, matchRoad, pickedFields } from './match'
+import { areasWithoutRoads, type Difference, matchRoad, pickedFields } from './match'
 
 type Values = Parameters<typeof a>[0]
 const DRAWN = "A few areas I'm drawn to"
@@ -602,5 +602,19 @@ describe('pickedFields: the fields she picked, as matching reads them', () => {
     expect(pickedFields({})).toBeNull()
     expect(pickedFields(a({ know: 'Suggest me', field: 'Data science' }))).toBeNull()
     expect(pickedFields({ field: { value: 'Data science', state: 'assumed' } })).toBeNull()
+  })
+})
+
+describe('areasWithoutRoads: the areas onboarding says borrow the nearest field', () => {
+  it('is none today: every area reaches a field some candidate road teaches', () => {
+    expect(areasWithoutRoads()).toEqual([])
+  })
+
+  it('lists an area once no candidate road teaches any of its fields, from the data alone', () => {
+    const noHealth = ROAD_CANDIDATES.filter((c) => c.field !== 'health')
+    expect(areasWithoutRoads(noHealth)).toEqual(['Health'])
+    const noIt = ROAD_CANDIDATES.filter((c) => !['it', 'cyber'].includes(c.field))
+    // IT and computing still reaches the data roads.
+    expect(areasWithoutRoads(noIt)).toEqual([])
   })
 })

@@ -27,7 +27,7 @@ const NOTE = 'Nearest field used for now'
 
 const stated = (value: AnswerValue): StoredAnswer => ({ value, state: 'stated' })
 
-function renderChecks(answer?: StoredAnswer) {
+function renderChecks(answer?: StoredAnswer, borrowed?: readonly string[]) {
   return render(
     <>
       <h1 id="q">Pick up to three</h1>
@@ -36,6 +36,7 @@ function renderChecks(answer?: StoredAnswer) {
         labelledBy="q"
         answer={answer}
         onAnswer={onAnswer}
+        borrowed={borrowed}
       />
     </>,
   )
@@ -127,16 +128,14 @@ it('refuses a fourth area calmly, marks the rest full, and lets go when she make
   expect(live).toBeEmptyDOMElement()
 })
 
-it('notes the areas that borrow the nearest field, and only those: never the three new ones', () => {
+it('notes only the areas it is told borrow the nearest field (no road teaches their own)', () => {
+  renderChecks(undefined, ['Health'])
+  const noted = (AREAS as string[]).filter((area) => box(area).textContent?.includes(NOTE))
+  expect(noted).toEqual(['Health'])
+})
+
+it('notes no area when every one has courses of its own', () => {
   renderChecks()
-  for (const area of ['Health', 'Engineering', 'Design']) expect(box(area)).toHaveTextContent(NOTE)
-  const plain = [
-    'IT and computing',
-    'Business',
-    'Psychology',
-    'Education / Teaching',
-    'Social work',
-    'Hospitality & tourism',
-  ]
-  expect(plain.filter((area) => box(area).textContent?.includes(NOTE))).toEqual([])
+  const noted = (AREAS as string[]).filter((area) => box(area).textContent?.includes(NOTE))
+  expect(noted).toEqual([])
 })

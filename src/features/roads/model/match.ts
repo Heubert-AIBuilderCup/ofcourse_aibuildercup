@@ -14,7 +14,7 @@ import { DRAWN_TO_AREAS, PARTICULAR, SUGGEST_ME } from '@/features/opening/model
 import type { QuestionKey, Relative, StoredAnswers } from '@/shared/types/student'
 import { ROAD_CANDIDATES } from '../data/candidates'
 import { openEntry } from '../data/entry'
-import { areaFields, FIELD_OF_OPTION, FIELDS } from '../data/fields'
+import { AREA_FIELDS, areaFields, FIELD_OF_OPTION, FIELDS } from '../data/fields'
 import { stayingRoute } from '../data/occupations'
 import type { RoadKey } from '../data/types'
 import { eligibleRoads, levelsOpenTo } from './eligibility'
@@ -112,6 +112,18 @@ function fieldPick(answers: StoredAnswers): FieldPick | null {
  */
 export const pickedFields = (answers: StoredAnswers): string[] | null =>
   fieldPick(answers)?.fields ?? null
+
+/**
+ * The areas none of whose fields any candidate road teaches: onboarding notes on each that it
+ * borrows the nearest field. Read from the candidates, so an area gains or loses its note with the
+ * catalogue. Plain names, for the study page to hand to its question screen.
+ */
+export function areasWithoutRoads(candidates: readonly RoadKey[] = ROAD_CANDIDATES): string[] {
+  const taught = new Set<string>(candidates.map((c) => c.field))
+  return Object.entries(AREA_FIELDS)
+    .filter(([, fields]) => !fields.some((field) => taught.has(field)))
+    .map(([area]) => area)
+}
 
 function fieldRule(answers: StoredAnswers): Rule | null {
   const pick = fieldPick(answers)
