@@ -20,8 +20,12 @@ import { BULLET, CANVAS, FRAME, LEGIBILITY_FLOOR_PX, SOURCE_LINE, sourceLineY } 
 import { measure, runs, SCRIPT_FONTS, wrap } from './measure'
 import { tintFilter } from './tint'
 
-/** The card under a panel layout's slots: white at 90%, so the art shows through a little. */
-const PANEL = { fill: '#FFFFFF', opacity: 0.9, radius: 14 } as const
+/**
+ * The card under a panel layout's slots: the slide's surface colour at 90%, so the art shows
+ * through a little and the surface's ink reads on it as it does on the surface (white on Pop's
+ * deep blue, ink on its white).
+ */
+const PANEL = { opacity: 0.9, radius: 14 } as const
 
 /** Only an embedded image: an external or file reference would let the rasteriser read it. */
 const ART_URI = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/
@@ -186,12 +190,13 @@ const BAR_CONTRAST = 3
 const DEEP_BLUE = GUIDELINE.palette.find((c) => c.name === 'deep blue')?.hex
 
 /**
- * The second bar's colour: the guideline's deep blue, or where that is the surface's own colour,
- * its ink (the first bar's) or too faint on it, the surface's highlight, then its muted ink; the
- * first of them that stands apart from the first bar at 3:1 against the surface.
+ * The second bar's colour: the preset's deep colour (Pop's deep blue, Subdued's dark sepia; the
+ * guideline's deep blue without a preset), or where that is the surface's own colour, its ink (the
+ * first bar's) or too faint on it, the surface's highlight, then its muted ink; the first of them
+ * that stands apart from the first bar at 3:1 against the surface.
  */
-function secondBar(theme: Theme): string {
-  const candidates = [DEEP_BLUE, theme.highlight, theme.muted].filter((c) => c !== undefined)
+function secondBar(theme: Theme, deep: string | undefined): string {
+  const candidates = [deep, theme.highlight, theme.muted].filter((c) => c !== undefined)
   return (
     candidates.find((c) => c !== theme.ink && contrastRatio(c, theme.bg) >= BAR_CONTRAST) ??
     theme.highlight
@@ -203,8 +208,8 @@ function secondBar(theme: Theme): string {
  * larger reaching the slide's right margin; a value with no number gets no bar. The first bar is
  * the surface's ink, the second `secondBar`, both at 3:1 or more against the surface.
  */
-function bars(slide: LaidSlide, theme: Theme): string {
-  const second = secondBar(theme)
+function bars(slide: LaidSlide, theme: Theme, deep: string | undefined): string {
+  const second = secondBar(theme, deep)
   const rows = BAR_SLOTS.flatMap(({ slot, id }) => {
     const lines = slide.lines.filter((l) => l.slot === slot)
     if (lines.length === 0) return []
@@ -429,11 +434,11 @@ export function svgSlides(input: {
     if (slide.panel) {
       const p = slide.panel
       parts.push(
-        `<rect x="${n(p.x)}" y="${n(p.y)}" width="${n(p.w)}" height="${n(p.h)}" rx="${PANEL.radius}" fill="${PANEL.fill}" fill-opacity="${PANEL.opacity}"/>`,
+        `<rect x="${n(p.x)}" y="${n(p.y)}" width="${n(p.w)}" height="${n(p.h)}" rx="${PANEL.radius}" fill="${theme.bg}" fill-opacity="${PANEL.opacity}"/>`,
       )
     }
     for (const l of slide.lines) parts.push(line(l, theme, brand))
-    if (slide.surface) parts.push(bars(slide, theme))
+    if (slide.surface) parts.push(bars(slide, theme, surfaces?.deep.bg ?? DEEP_BLUE))
     if (slide.sourceLine !== null) {
       const searchRows = slide.lines.filter((l) => l.slot === SEARCH_SLOT).length
       parts.push(small(sourceLineY(searchRows), slide.sourceLine, theme))

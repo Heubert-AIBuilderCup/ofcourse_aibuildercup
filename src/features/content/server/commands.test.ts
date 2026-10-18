@@ -512,7 +512,7 @@ Run ${requestId}`,
       expect((await ideasOf(requestId)).cards.length).toBeGreaterThan(0)
 
       post = await drafted(requestId)
-      expect(post.current.drafts?.body.items).toHaveLength(3)
+      expect(post.current.drafts?.body.items).toHaveLength(1)
       expect(await steps.failedSteps(requestId)).toEqual([])
     },
     SLOW,
@@ -589,7 +589,7 @@ Run ${requestId}`,
   )
 
   test(
-    "writing the slides drafts three versions in the card's look that follow the outline: its slides, in order, in its layouts (GD2, GD32)",
+    "writing the slides drafts a version in the card's look that follow the outline: its slides, in order, in its layouts (GD2, GD32)",
     async () => {
       const post = await outlined((await atIdeas()).id, [1])
       const { cards } = await ideasOf(post.id)
@@ -599,7 +599,7 @@ Run ${requestId}`,
       ok(await commands.writeSlides(ED, post.id, post.version))
       const after = await load(post.id)
       const drafts = after.current.drafts?.body
-      expect(drafts?.items).toHaveLength(3)
+      expect(drafts?.items).toHaveLength(1)
       for (const item of drafts?.items ?? []) {
         expect(item.template.id).toBe(cards[1].look)
         expect(item.structure.slides.map((s) => s.layout)).toEqual(
@@ -677,7 +677,7 @@ Run ${requestId}`,
 
       ok(await commands.writeSlides(ED, post.id, post.version))
       const items = (await load(post.id)).current.drafts?.body.items ?? []
-      expect(items).toHaveLength(3)
+      expect(items).toHaveLength(1)
       for (const item of items) {
         expect(item.structure.slides.map((s) => s.layout)).toEqual(
           (body?.slides ?? []).map((s) => s.layout),
@@ -823,7 +823,7 @@ Run ${requestId}`,
   )
 
   test(
-    'while versions are drafted the draft step says how many: three for an idea, three per ticked template',
+    'while versions are drafted the draft step says how many: one for an idea, one per ticked template',
     async () => {
       // A source of its own, so no versions an earlier test drafted answer from the cache.
       const post = await atIdeas({
@@ -860,7 +860,7 @@ Cc drafting count paragraph.`,
         running: ['draft'],
         progress: { draft: { done: 0, total } },
       })
-      expect(seen).toEqual([drafting(3), drafting(6), drafting(6)])
+      expect(seen).toEqual([drafting(1), drafting(2), drafting(2)])
     },
     SLOW,
   )
@@ -877,7 +877,7 @@ Cc drafting count paragraph.`,
       expect(after.current.outline?.body.ideas).toEqual([cards[3], cards[0]])
       expect(outlineData.slice(outlines)).toMatchObject([{ idea: { combine: true } }])
       const drafts = after.current.drafts?.body
-      expect(drafts?.items.map((i) => i.template.id)).toEqual(Array(3).fill(cards[3].look))
+      expect(drafts?.items.map((i) => i.template.id)).toEqual([cards[3].look])
       expect(drafts?.idea).toEqual({ cards: [cards[3], cards[0]] })
       const [sent] = draftData.slice(before) as { idea: { combine: boolean; cards: object[] } }[]
       expect(sent.idea.combine).toBe(true)
@@ -927,7 +927,7 @@ Cc drafting count paragraph.`,
       // "Try again" writes the same outline at the same version.
       ok(await commands.writeSlides(ED, post.id, failed.version))
       const drafts = (await load(post.id)).current.drafts?.body
-      expect(drafts?.items).toHaveLength(3)
+      expect(drafts?.items).toHaveLength(1)
       expect(drafts?.idea).toEqual({ cards: [cards[2]] })
       expect(drafts?.items.every((i) => i.template.id === cards[2].look)).toBe(true)
       expect(await steps.failedSteps(post.id)).toEqual([])
@@ -1067,7 +1067,7 @@ Cc drafting count paragraph.`,
       })
       expect(post.current.source?.body.paragraphs).toHaveLength(5)
       post = await drafted(requestId)
-      expect(post.current.drafts?.body.items).toHaveLength(3)
+      expect(post.current.drafts?.body.items).toHaveLength(1)
 
       let version = post.version
       ;({ version } = ok(await commands.pickStructure(ED, requestId, version, 0)))
@@ -1484,7 +1484,7 @@ Cc drafting count paragraph.`,
       ;({ version } = ok(await commands.writeSlides(ED, post.id, version)))
       expect(draftData.at(-1)).toMatchObject({ language: nepali })
       const items = (await load(post.id)).current.drafts?.body.items ?? []
-      expect(items).toHaveLength(3)
+      expect(items).toHaveLength(1)
       for (const item of items) {
         const words = item.structure.slides.flatMap((s) =>
           Object.values(s.slots).map((x) => x.text),
@@ -1499,7 +1499,7 @@ Cc drafting count paragraph.`,
       expect(slideData.at(-1)).toMatchObject({ language: nepali })
       await settled()
       ;({ version } = await load(post.id))
-      ok(await commands.nudgeVersion(ED, post.id, version, { index: 1, nudge: 'simpler' }))
+      ok(await commands.nudgeVersion(ED, post.id, version, { index: 0, nudge: 'simpler' }))
       expect(draftData.at(-1)).toMatchObject({ language: nepali, nudge: expect.any(String) })
       await settled()
     },
@@ -1536,9 +1536,9 @@ Cc drafting count paragraph.`,
         text: `${paidWork.text}\n\nCc notes figure marker ${run}.`,
         notes: 'I worked 25 hours a week in first year.',
       } as typeof paidWork)
-      // The second version of every answer puts the notes' figure in its first, unfactual slot.
+      // Every answer puts the notes' figure in its version's first, unfactual slot.
       draftTweak = (answer) => {
-        answer.versions[1].slides[0].slots[0].text = 'Twenty-five hours a week'
+        answer.versions[0].slides[0].slots[0].text = 'Twenty-five hours a week'
         return answer
       }
       try {
@@ -1551,10 +1551,9 @@ Cc drafting count paragraph.`,
       // this post's own draft calls, whatever another post's drafting does meanwhile.
       expect((await modelCalls(post.id, 'draft')).length).toBeGreaterThan(1)
       const items = (await load(post.id)).current.drafts?.body.items ?? []
-      expect(items[1].problems).toEqual([
+      expect(items[0].problems).toEqual([
         'slides.0.slots.kicker: "Twenty-five hours a week" states a number no fact gives. Use only the facts\' numbers.',
       ])
-      expect(items[0].problems ?? []).toEqual([])
     },
     SLOW,
   )
@@ -1732,22 +1731,32 @@ Cc drafting count paragraph.`,
   )
 
   test(
-    'drafting picks version A and the brand’s first theme for the editor, and drafting again keeps what she chose',
+    'drafting writes one version and picks it with the brand’s first theme; each "Draft again" adds one beside them and keeps what she chose (18 Oct)',
     async () => {
       let { id, version } = await start(ED)
       ;({ version } = ok(await commands.tickTemplates(ED, id, version, ['the-line'])))
       ;({ version } = ok(await commands.draftPost(ED, id, version, false)))
-      expect((await load(id)).pointers).toMatchObject({ picked: 0, themeId: 'paper' })
-      ;({ version } = ok(await commands.pickStructure(ED, id, version, 2)))
+      const first = await load(id)
+      expect(first.current.drafts?.body.items).toHaveLength(1)
+      expect(first.pointers).toMatchObject({ picked: 0, themeId: 'paper' })
+      ;({ version } = ok(await commands.draftPost(ED, id, version, true)))
+      const again = (await load(id)).current.drafts?.body
+      expect(again?.items).toHaveLength(2)
+      // The first version stays as it was, the new one after it.
+      expect(again?.items[0]).toEqual(first.current.drafts?.body.items[0] as never)
+      expect(again?.attempt).toBe(2)
+      ;({ version } = ok(await commands.pickStructure(ED, id, version, 1)))
       ;({ version } = ok(await commands.chooseTheme(ED, id, version, 'ink')))
       ;({ version } = ok(await commands.draftPost(ED, id, version, true)))
-      expect((await load(id)).pointers).toMatchObject({ picked: 2, themeId: 'ink' })
+      const third = await load(id)
+      expect(third.current.drafts?.body.items).toHaveLength(3)
+      expect(third.pointers).toMatchObject({ picked: 1, themeId: 'ink' })
     },
     SLOW,
   )
 
   test(
-    'drafting stores three versions per ticked template, each with its angle; a version the ladder left with problems is kept, shown, and refused as the pick (97)',
+    'drafting stores one version per ticked template, each with its angle; a version the ladder left with problems is kept, shown, and refused as the pick, and "Draft again" adds one per template (97, 18 Oct)',
     async () => {
       // A source of its own: the answer cache is keyed by the prompt, and another test's clean
       // answer for the same source and template would stand in for the tweaked one.
@@ -1760,9 +1769,9 @@ Cc versions marker paragraph.`,
       ;({ version } = ok(
         await commands.tickTemplates(ED, id, version, ['the-line', 'the-question']),
       ))
-      // The second version of every template keeps a banned phrase through every rung.
+      // Every template's version keeps a banned phrase through every rung.
       draftTweak = (answer) => {
-        answer.versions[1].slides[0].slots[0].text = 'The best research'
+        answer.versions[0].slides[0].slots[0].text = 'The best research'
         return answer
       }
       try {
@@ -1770,32 +1779,34 @@ Cc versions marker paragraph.`,
       } finally {
         draftTweak = null
       }
-      const items = (await load(id)).current.drafts?.body.items ?? []
-      expect(items.map((i) => i.template.id)).toEqual([
-        'the-line',
-        'the-line',
-        'the-line',
-        'the-question',
-        'the-question',
-        'the-question',
+      let post = await load(id)
+      let items = post.current.drafts?.body.items ?? []
+      expect(items.map((i) => i.template.id)).toEqual(['the-line', 'the-question'])
+      expect(items.every((i) => (i.angle ?? '').length > 0)).toBe(true)
+      expect(items.map((i) => i.problems)).toEqual([
+        ['slides.0.slots.kicker: remove "best".'],
+        ['slides.0.slots.kicker: remove "best".'],
       ])
-      expect(new Set(items.slice(0, 3).map((i) => i.angle)).size).toBe(3)
-      expect(items.map((i) => (i.problems ?? []).length > 0)).toEqual([
-        false,
-        true,
-        false,
-        false,
-        true,
-        false,
-      ])
-      expect(items[1].problems).toEqual(['slides.0.slots.kicker: remove "best".'])
-
-      expect(await commands.pickStructure(ED, id, version, 1)).toEqual({
+      expect(post.pointers.picked).toBeNull()
+      expect(await commands.pickStructure(ED, id, version, 0)).toEqual({
         ok: false,
         error: 'This version has problems. Draft again.',
       })
-      ;({ version } = ok(await commands.pickStructure(ED, id, version, 2)))
-      expect((await load(id)).pointers.picked).toBe(2)
+
+      ;({ version } = ok(await commands.draftPost(ED, id, version, true)))
+      post = await load(id)
+      items = post.current.drafts?.body.items ?? []
+      expect(items.map((i) => i.template.id)).toEqual([
+        'the-line',
+        'the-question',
+        'the-line',
+        'the-question',
+      ])
+      expect(items.map((i) => (i.problems ?? []).length > 0)).toEqual([true, true, false, false])
+      // The first clean one is picked for her.
+      expect(post.pointers.picked).toBe(2)
+      ;({ version } = ok(await commands.pickStructure(ED, id, version, 3)))
+      expect((await load(id)).pointers.picked).toBe(3)
     },
     SLOW,
   )
@@ -2231,6 +2242,92 @@ Cc versions marker paragraph.`,
       const check = after.post.current.sourceCheck?.body
       expect(check?.draft?.draftsId).toBe(after.post.pointers.draftsId as string)
       expect(check?.claims.filter((c) => c.result === 'not_found')).toEqual([])
+    },
+    SLOW,
+  )
+
+  test(
+    "Mark as editor's opinion on the Text step's checks: the flagged sentence counts as opinion, the version has nothing left from it, and review is not blocked by it (42, 43)",
+    async () => {
+      let { id, version } = await picked(ED, 'the-line')
+      await settled()
+      const before = await pickedVersion(id)
+      const claims = before.post.current.sourceCheck?.body.claims ?? []
+      const index = claims.findIndex((c) => c.text === PLANTED)
+      expect(claims[index].result).toBe('not_found')
+      // Nothing to mark on a sentence the check found.
+      const found = claims.findIndex((c) => c.result === 'found')
+      expect(await commands.markOpinion(ED, id, version, found)).toEqual({
+        ok: false,
+        error: errors.movedOn,
+      })
+
+      ;({ version } = ok(await commands.markOpinion(ED, id, version, index)))
+      const after = await pickedVersion(id)
+      expect(after.post.stage).toBe('structures')
+      const check = after.post.current.sourceCheck?.body
+      expect(check?.draft).toEqual({ draftsId: after.post.pointers.draftsId as string, index: 0 })
+      expect(check?.claims[index].result).toBe('opinion')
+      const { versionStatus } = await import('../lib/version-status')
+      const facts = after.post.current.facts?.body.facts ?? []
+      const notFound = (claimsNow: typeof claims) =>
+        versionStatus(after.item, [], facts, claimsNow)
+          .problems.filter((p) => p.what === 'Not found in the source')
+          .map((p) => p.evidence?.[0])
+      expect(notFound(claims)).toContain(`“${PLANTED}”`)
+      expect(notFound(check?.claims ?? [])).not.toContain(`“${PLANTED}”`)
+
+      // Approved, rendered and set, it goes to review with no mark at Settings.
+      ;({ version } = ok(await commands.approveStructure(ED, id, version)))
+      await settled()
+      ;({ version } = await done(commands.renderPost(ED, id, (await load(id)).version)))
+      ;({ version } = ok(await commands.saveSettings(ED, id, version, GENERAL)))
+      const rendered = (await load(id)).current.sourceCheck?.body
+      expect(rendered?.revisionId).toBe((await load(id)).pointers.revisionId as string)
+      expect(rendered?.claims.find((c) => c.text === PLANTED)?.result).toBe('opinion')
+      ;({ version } = ok(await commands.sendToReview(ED, id, version)))
+      expect((await load(id)).stage).toBe('in_review')
+    },
+    SLOW,
+  )
+
+  test(
+    "Mark as editor's opinion on a post just moved back to its text waits for the picked version's check, never marking the approved revision's, then marks that one (GD28)",
+    async () => {
+      let { id, version } = await rendered(ED)
+      const claims = (await load(id)).current.sourceCheck?.body.claims ?? []
+      const index = claims.findIndex((c) => c.text === PLANTED)
+      expect(claims[index].result).toBe('not_found')
+      // The check of the picked version waits, as it would while the page shows the move.
+      const held: (() => Promise<unknown>)[] = []
+      after.scheduleWith((task) => {
+        held.push(task)
+      })
+      try {
+        ;({ version } = ok(await commands.goBack(ED, id, version, 'structures')))
+        const moved = await load(id)
+        expect(moved.stage).toBe('structures')
+        expect(moved.current.sourceCheck).toBeNull()
+        expect(await commands.markOpinion(ED, id, version, index)).toEqual({
+          ok: false,
+          error: errors.checkFirst,
+        })
+        expect((await load(id)).pointers).toEqual(moved.pointers)
+      } finally {
+        after.scheduleWith(runAtOnce)
+      }
+      for (const task of held) background.push(task())
+      await settled()
+      const checked = await load(id)
+      const at = (checked.current.sourceCheck?.body.claims ?? []).findIndex(
+        (c) => c.text === PLANTED,
+      )
+      expect(checked.current.sourceCheck?.body.claims[at].result).toBe('not_found')
+      ok(await commands.markOpinion(ED, id, checked.version, at))
+      const post = await load(id)
+      const check = post.current.sourceCheck?.body
+      expect(check?.draft?.draftsId).toBe(post.pointers.draftsId as string)
+      expect(check?.claims[at].result).toBe('opinion')
     },
     SLOW,
   )
@@ -3856,10 +3953,14 @@ Cc overflow marker paragraph.`,
       await settled()
       let { version } = ok(await commands.choosePage(ED, id, (await load(id)).version, 'cerebral'))
       ;({ version } = ok(await commands.chooseTheme(ED, id, version, 'ink')))
-      ;({ version } = ok(await commands.pickStructure(ED, id, version, 2)))
+      // A second version to pick: "Draft again" adds it beside the published one.
+      ;({ version } = ok(await commands.draftPost(ED, id, version, true)))
+      await settled()
+      ;({ version } = await load(id))
+      ;({ version } = ok(await commands.pickStructure(ED, id, version, 1)))
       await settled()
       const edited = await load(id)
-      expect(edited.pointers).toMatchObject({ pageBrandId: 'cerebral', themeId: 'ink', picked: 2 })
+      expect(edited.pointers).toMatchObject({ pageBrandId: 'cerebral', themeId: 'ink', picked: 1 })
       expect(edited.pointers.factsId).toBe(live.pointers.factsId as string)
 
       ok(await commands.discardChanges(ED, id, edited.version))
@@ -3868,7 +3969,12 @@ Cc overflow marker paragraph.`,
       expect(back.pointers.themeId).toBe(live.pointers.themeId as string)
       expect(back.pointers.pageBrandId).toBeNull()
       expect(back.pointers.picked).toBe(live.pointers.picked as number)
-      expect(back.pointers.draftsId).toBe(live.pointers.draftsId as string)
+      // The drafts on the same facts stay, the one "Draft again" added too; the pick is the
+      // published version in them.
+      const at = live.pointers.picked as number
+      expect(back.current.drafts?.body.items[at]?.structure).toEqual(
+        live.current.drafts?.body.items[at]?.structure as never,
+      )
     },
     SLOW,
   )
@@ -4113,11 +4219,7 @@ Cc overflow marker paragraph.`,
       expect(post.current.source?.body.text).toBe(text)
       expect(post.current.source?.body.title).toBe(before.current.source?.body.title as string)
       expect(post.current.facts?.body.facts.length).toBeGreaterThan(0)
-      expect(post.current.drafts?.body.items.map((i) => i.template.id)).toEqual([
-        'the-line',
-        'the-line',
-        'the-line',
-      ])
+      expect(post.current.drafts?.body.items.map((i) => i.template.id)).toEqual(['the-line'])
       expect(post.current.drafts?.id).not.toBe(old.draftsId as string)
       expect(await recordIds(id)).toEqual(expect.arrayContaining(records))
       const history = await store.listHistory(id)
@@ -4166,7 +4268,7 @@ Cc overflow marker paragraph.`,
         url: LINK,
         site: 'campustimes.example',
       })
-      expect(post.current.drafts?.body.items).toHaveLength(3)
+      expect(post.current.drafts?.body.items).toHaveLength(1)
 
       // A link that cannot be read moves nothing.
       ok(await commands.goBack(ED, post.id, post.version, 'source'))
@@ -4254,7 +4356,7 @@ Cc overflow marker paragraph.`,
 
       ok(await commands.draftPost(ED, id, post.version, false))
       post = await load(id)
-      expect(post.current.drafts?.body.items).toHaveLength(3)
+      expect(post.current.drafts?.body.items).toHaveLength(1)
       expect(await steps.failedSteps(id)).not.toContain('draft')
     },
     SLOW,
@@ -4287,7 +4389,7 @@ Cc overflow marker paragraph.`,
   )
 
   test(
-    'continueWithSource on a post from before ideas, with facts and no versions, drafts three versions from those facts and lands at structures (113, 93)',
+    'continueWithSource on a post from before ideas, with facts and no versions, drafts a version from those facts and lands at structures (113, 93)',
     async () => {
       const started = await start(ED, { ...paidWork, text: changedText() })
       const requestId = started.id
@@ -4309,11 +4411,7 @@ Cc overflow marker paragraph.`,
       expect(post.pointers.sourceId).toBe(before.pointers.sourceId)
       expect(post.pointers.factsId).toBe(before.pointers.factsId)
       expect(post.current.drafts?.body.factsId).toBe(before.pointers.factsId as string)
-      expect(post.current.drafts?.body.items.map((i) => i.template.id)).toEqual([
-        firstTemplate,
-        firstTemplate,
-        firstTemplate,
-      ])
+      expect(post.current.drafts?.body.items.map((i) => i.template.id)).toEqual([firstTemplate])
       expect(post.pointers.ideasId).toBeNull()
       expect(await steps.failedSteps(requestId)).not.toContain('draft')
     },
@@ -4423,7 +4521,7 @@ Cc overflow marker paragraph.`,
       const drafts = (await load(made.id)).current.drafts?.body
       expect(drafts?.attempt).toBe(2)
       expect(drafts?.idea).toEqual({ cards: [cards[1]] })
-      expect(drafts?.items.map((i) => i.template.id)).toEqual(Array(3).fill(cards[1].look))
+      expect(drafts?.items.map((i) => i.template.id)).toEqual([cards[1].look, cards[1].look])
     },
     SLOW,
   )
@@ -4696,7 +4794,7 @@ Cc overflow marker paragraph.`,
     'setPreset Subdued draws the preview on Subdued surfaces, and the fit rows and the approved layout check contrast on them (GD9)',
     async () => {
       const { presetThemes } = await import('../brands/guideline')
-      const { slideSpec } = await import('../templates')
+      const { surfaceRhythm } = await import('../layout/engine')
       const { Resvg } = await import('@resvg/resvg-js')
       let { id, version } = await pickedLook()
       expect(await commands.setPreset(ED, id, version, { preset: 'paper' as 'pop' })).toEqual({
@@ -4724,7 +4822,8 @@ Cc overflow marker paragraph.`,
       const pixels = new Resvg(
         `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350"><image width="1080" height="1350" href="${uri}"/></svg>`,
       ).render().pixels
-      const surface = slideSpec(item.template, item.structure.slides[last - 1]).surface
+      // A look lays its slides on the rhythm, not its template's surfaces.
+      const surface = surfaceRhythm(item.structure.slides.map((s) => s.kind))[last - 1]
       const bg = presetThemes('subdued')[surface].bg
       const rgb = [1, 3, 5].map((i) => Number.parseInt(bg.slice(i, i + 2), 16))
       const at = (8 * 1080 + 8) * 4
@@ -4817,9 +4916,13 @@ Cc overflow marker paragraph.`,
       const { textNudge } = await import('../nudges')
       let { id, version } = await picked(ED, 'the-line')
       await settled()
+      // A second version beside the picked one, as "Draft again" adds it.
+      ;({ version } = ok(await commands.draftPost(ED, id, (await load(id)).version, true)))
+      await settled()
       ;({ version } = await load(id))
       const before = await pickedVersion(id)
       const items = before.drafts.body.items
+      expect(items).toHaveLength(2)
       const sent = draftData.length
 
       ;({ version } = ok(
@@ -4833,7 +4936,7 @@ Cc overflow marker paragraph.`,
       expect(calls[0].base.angle).toBe(items[1].angle as string)
 
       const now = after.drafts.body.items
-      expect(JSON.stringify([now[0], now[2]])).toBe(JSON.stringify([items[0], items[2]]))
+      expect(JSON.stringify(now[0])).toBe(JSON.stringify(items[0]))
       expect(now[1].angle).toBe(items[1].angle)
       expect(now[1].template).toEqual(items[1].template)
       const slides = (item: (typeof items)[number]) => item.structure.slides

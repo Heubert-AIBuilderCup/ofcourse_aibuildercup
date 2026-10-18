@@ -130,7 +130,7 @@ test.afterAll(async () => {
 
 const post = (page: Page, id: string) => page.goto(`/admin/posts/${id}`)
 const source = (page: Page) => page.getByRole('complementary', { name: 'Source' })
-/** The first version of a template's drafts: the fake's three versions share its planted traits. */
+/** The first version of a template's drafts: each the fake writes shares its planted traits. */
 const draftCard = (page: Page, name: string) => page.getByRole('article', { name }).first()
 /**
  * "Use this version" on a template's version. The drafting picks the first Ready one for the

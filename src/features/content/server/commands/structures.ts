@@ -102,7 +102,12 @@ function draftError(post: LoadedPost, emotion: string | null): string | null {
   return source && facts ? null : WORKFLOW_ERRORS.movedOn
 }
 
-/** Three versions of each ticked template (for the idea the versions serve, when they serve one), saved as a new drafts record; run under the draft step's lock. */
+/**
+ * One version of each ticked template (for the idea the versions serve, when they serve one),
+ * saved as a new drafts record; run under the draft step's lock. "Draft again" adds them after the
+ * versions there are, which stay as they were, so each press is one more to pick from (18 Oct);
+ * the first draft, or a draft with none to keep, starts the list.
+ */
 async function draftVersions(
   post: LoadedPost,
   version: number,
@@ -138,8 +143,10 @@ async function draftVersions(
     outline: outlined,
   })
   if (!drafted.ok) return fail(drafted.error)
+  const kept = again && drafts ? drafts.body : null
+  const items = [...(kept?.items ?? []), ...drafted.items]
   // Version A and the first colours are chosen for her; her own choices stay while they fit.
-  const chosen = draftChoices(post.pointers, drafted.items)
+  const chosen = draftChoices(post.pointers, items)
   const saved = await save(post, version, actor, async (tx) => {
     const draftsId = await putArtifact(tx, {
       kind: 'drafts',
@@ -148,10 +155,11 @@ async function draftVersions(
       body: {
         factsId: facts.id,
         attempt: attemptNo,
-        items: drafted.items,
-        replays: drafted.replays,
+        items,
+        replays: [...(kept?.replays ?? []), ...drafted.replays],
         emotion,
         note: attemptNo > 1 ? 'Drafted again' : 'Drafted',
+
         ...(idea ? { idea } : {}),
       },
     })

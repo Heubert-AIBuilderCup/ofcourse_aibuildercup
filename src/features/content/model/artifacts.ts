@@ -141,9 +141,11 @@ export const BODIES = {
     factsId: id,
     attempt: z.number().int().positive(),
     /**
-     * The versions, flattened: three per ticked template in template order (criterion 97); the
-     * post's `picked` pointer is an index into this list. Rows before 9 Oct 2026 hold one per
+     * The versions, flattened: one per ticked template in template order for each draft, those of
+     * a "Draft again" after the ones before (criterion 97; three per template before 18 Oct 2026);
+     * the post's `picked` pointer is an index into this list. Rows before 9 Oct 2026 hold one per
      * template with no angle or problems: read `angle ?? ''` and `problems ?? []`.
+
      */
     items: z.array(
       z.object({

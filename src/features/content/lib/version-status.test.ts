@@ -180,7 +180,7 @@ describe('versionStatus', () => {
     })
   })
 
-  it('names a sentence the source check could not find', () => {
+  it("names a sentence the source check could not find, fixed by its place in the check: with no source sentence to use, it can still be marked the editor's opinion", () => {
     const claim: ClaimResult = {
       text: FACT.text,
       slide: 2,
@@ -189,12 +189,14 @@ describe('versionStatus', () => {
       ref: null,
     }
     const found: ClaimResult = { ...claim, result: 'found', ref: '¶3' }
-    expect(versionStatus(READY, [], [FACT], [claim, found]).problems).toEqual([
+    const opinion: ClaimResult = { ...claim, result: 'opinion' }
+    expect(versionStatus(READY, [], [FACT], [found, claim, opinion]).problems).toEqual([
       {
         text: `Slide 2 body was not found in the source: “${FACT.text}”`,
         where: 'Slide 2 · Body',
         what: 'Not found in the source',
         evidence: [`“${FACT.text}”`],
+        fix: { kind: 'wording', claim: 1 },
       },
     ])
   })

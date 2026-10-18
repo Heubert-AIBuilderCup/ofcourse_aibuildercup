@@ -97,6 +97,12 @@ export async function applySourceWording(
   })
 }
 
+/**
+ * "Mark as editor's opinion" (criteria 42, 43): a sentence the check could not find counts as
+ * the editor's opinion, in the Text step's Checks before approval or at Settings once rendered.
+ * The checks after keep the mark on the same text (ai/source-check.ts), so a mark made on the
+ * Text step stands on the approved revision's check, and review is not blocked by it.
+ */
 export async function markOpinion(
   actor: Actor,
   id: string,
@@ -104,6 +110,9 @@ export async function markOpinion(
   claim: number,
 ): Promise<Saved> {
   return command('markOpinion', 'markOpinion', actor, id, version, async (post) => {
+    // The check that counts: the picked version's on the Text step, the revision's once rendered.
+    // The mark never moves the post back, so no check is left over from a move here; after one,
+    // the revision's check no longer counts, and the mark waits for the picked version's.
     const check = post.current.sourceCheck
     if (!check) return fail(WORKFLOW_ERRORS.checkFirst)
     if (check.body.claims[claim]?.result !== 'not_found') return fail(WORKFLOW_ERRORS.movedOn)

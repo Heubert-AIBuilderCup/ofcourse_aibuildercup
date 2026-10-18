@@ -12,6 +12,7 @@ import {
   layoutStructure,
   SEARCH_LINE,
   SOURCE_LINE,
+  surfaceRhythm,
 } from './engine'
 import { lookStructure } from './fixtures'
 import { fontPath, measure, SCRIPT_FONTS } from './measure'
@@ -202,15 +203,13 @@ describe('svgSlides for a look (GD6, GD9)', () => {
     const { svgs } = lookSvgs('data-desk', 'subdued')
     const bg = (svg: string) =>
       svg.match(/<rect x="0" y="0" width="1080" height="1350" fill="([^"]+)"/)?.[1]
-    // Data Desk: number and picture on block, cover and takeaway on deep, the rest on base.
-    expect(bg(svgs[2])).toBe(subdued.block.bg)
-    expect(bg(svgs[1])).toBe(subdued.block.bg)
-    expect(bg(svgs[3])).toBe(subdued.base.bg)
-    expect(bg(svgs[0])).toBe(subdued.deep.bg)
+    // Every look on the rhythm: cover deep, then base, block, deep, the takeaway deep.
+    const rhythm = surfaceRhythm(lookStructure('data-desk').slides.map((s) => s.kind))
+    expect(svgs.map(bg)).toEqual(rhythm.map((s) => subdued[s].bg))
     expect(lookSvgs('data-desk', 'pop').svgs[2]).toContain(`fill="${presetThemes('pop').block.bg}"`)
   })
 
-  it("draws a highlighted word on Pop's deep blue as a yellow chip with ink text, and keeps every other surface's ink", () => {
+  it("draws a highlighted word on Pop's deep blue as a yellow chip with ink text, on Subdued's dark sepia as an ochre one with sepia ink, and keeps every other surface's ink", () => {
     const word = (surface: 'base' | 'block' | 'deep') => ({
       kind: 'cover' as const,
       lines: [
@@ -245,12 +244,12 @@ describe('svgSlides for a look (GD6, GD9)', () => {
     }
     const hex = (name: string) => GUIDELINE.palette.find((c) => c.name === name)?.hex
     expect(drawn('pop', 'deep')).toEqual({ chip: hex('yellow'), text: hex('ink') })
+    expect(drawn('subdued', 'deep')).toEqual({ chip: hex('ochre'), text: hex('sepia ink') })
     for (const [preset, surface] of [
       ['pop', 'base'],
       ['pop', 'block'],
       ['subdued', 'base'],
       ['subdued', 'block'],
-      ['subdued', 'deep'],
     ] as const) {
       const t = presetThemes(preset)[surface]
       expect(drawn(preset, surface)).toEqual({ chip: t.highlight, text: t.ink })
@@ -261,7 +260,9 @@ describe('svgSlides for a look (GD6, GD9)', () => {
     const barsSvg = (valueA: string, valueB: string) => {
       const s = lookStructure('data-desk')
       const bars = s.slides[3]
+      // After the cover, as the last slide, so the bars sit on base.
       const slides: Slide[] = [
+        s.slides[0],
         {
           ...bars,
           slots: {
@@ -280,7 +281,7 @@ describe('svgSlides for a look (GD6, GD9)', () => {
       })
       const pop = presetThemes('pop')
       return {
-        svg: svgSlides({ layout, theme: PAPER, brand: FEED_BRAND, art: null, surfaces: pop })[0],
+        svg: svgSlides({ layout, theme: PAPER, brand: FEED_BRAND, art: null, surfaces: pop })[1],
         base: pop.base,
       }
     }
@@ -293,6 +294,45 @@ describe('svgSlides for a look (GD6, GD9)', () => {
     const none = barsSvg('Most', '76%').svg
     expect(none).not.toContain('data-bar="a"')
     expect(none).toContain('data-bar="b"')
+  })
+
+  it('draws the second bar in the preset’s own deep colour, never the brand blue on Subdued', () => {
+    const value = (slot: string, y: number) => ({
+      slot,
+      text: slot === 'valueA' ? '78%' : '67%',
+      x: 96,
+      y,
+      fontPx: 96,
+      font: 'heading' as const,
+      mark: 'none' as const,
+      width: 160,
+    })
+    const second = (preset: Preset, surface: 'base' | 'block' | 'deep') => {
+      const [svg] = svgSlides({
+        layout: [
+          {
+            kind: 'body',
+            lines: [value('valueA', 580), value('valueB', 900)],
+            artBox: null,
+            sourceLine: null,
+            searchLine: null,
+            surface,
+          },
+        ],
+        theme: PAPER,
+        brand: FEED_BRAND,
+        art: null,
+        surfaces: presetThemes(preset),
+      })
+      return svg.match(/<rect data-bar="b"[^>]*fill="([^"]+)"/)?.[1]
+    }
+    const subdued = presetThemes('subdued')
+    const pop = presetThemes('pop')
+    expect(second('subdued', 'base')).toBe(subdued.deep.bg)
+    expect(second('subdued', 'block')).toBe(subdued.deep.bg)
+    expect(second('subdued', 'deep')).toBe(subdued.deep.highlight)
+    expect(second('pop', 'base')).toBe(pop.deep.bg)
+    expect(second('pop', 'deep')).toBe(pop.deep.highlight)
   })
 
   it('draws both comparison bars at 3:1 or more against the surface, apart from each other, on every surface of both presets', () => {
@@ -338,13 +378,23 @@ describe('svgSlides for a look (GD6, GD9)', () => {
     }
   })
 
-  it('lays a white card under the slots of a panel layout, and none elsewhere', () => {
-    const postcard = lookSvgs('postcard', 'pop')
-    const panel = postcard.layout[1].panel
-    expect(panel).toBeDefined()
-    expect(postcard.svgs[1]).toContain(
-      `<rect x="${panel?.x}" y="${panel?.y}" width="${panel?.w}" height="${panel?.h}" rx="14" fill="#FFFFFF" fill-opacity="0.9"/>`,
-    )
+  it('lays a card in the slide’s surface colour under the slots of a panel layout, and none elsewhere', () => {
+    for (const preset of PRESETS) {
+      const postcard = lookSvgs('postcard', preset)
+      const surfaces = presetThemes(preset)
+      expect(postcard.layout.map((l) => l.surface)).toContain('deep')
+      postcard.layout.forEach((laid, i) => {
+        const panel = laid.panel
+        expect(panel).toBeDefined()
+        expect({
+          preset,
+          slide: i + 1,
+          card: postcard.svgs[i].includes(
+            `<rect x="${panel?.x}" y="${panel?.y}" width="${panel?.w}" height="${panel?.h}" rx="14" fill="${surfaces[laid.surface ?? 'base'].bg}" fill-opacity="0.9"/>`,
+          ),
+        }).toEqual({ preset, slide: i + 1, card: true })
+      })
+    }
     expect(lookSvgs('field-notes', 'pop').svgs[1]).not.toContain('rx="14"')
   })
 })
@@ -552,7 +602,7 @@ describe('svgSlides for the bullets layout (GD34)', () => {
     marks.forEach(([, cx, cy, fill], i) => {
       expect(Number(cx)).toBeLessThan(firsts[i].x)
       expect(Number(cy)).toBeLessThan(firsts[i].y)
-      expect(fill).toBe(pop.base.ink)
+      expect(fill).toBe(pop[layout[0].surface ?? 'base'].ink)
     })
     // The PNG is what every screen and the export show: a bullets slide must draw.
     expect(() => toPng(svg, FEED_BRAND, 108)).not.toThrow()
@@ -605,7 +655,7 @@ describe('svgSlides for the checklist layout', () => {
     ticks.forEach(([, x, y, stroke], i) => {
       expect(Number(x)).toBeLessThan(firsts[i].x)
       expect(Number(y)).toBeLessThan(firsts[i].y)
-      expect(stroke).toBe(pop.base.ink)
+      expect(stroke).toBe(pop[layout[0].surface ?? 'base'].ink)
     })
     // The PNG is what every screen and the export show: the ticked slide must draw.
     expect(() => toPng(svg, FEED_BRAND, 108)).not.toThrow()

@@ -72,7 +72,7 @@ type Check = (op: OutlineOp) => string | null
 /**
  * The picked idea's outline (GD32): a row per slide with its job, layout and point, each changed
  * in place, moved, or removed, a slide added before the takeaway, and beside them the look, the
- * format and the idea, then "Write the slides", which drafts three versions to the outline. The
+ * format and the idea, then "Write the slides", which drafts a version to the outline. The
  * format is one of the ten, the model's top three first and marked "Recommended", with its
  * description; choosing another outlines the idea again in it (GD33). A change the look would not
  * take is disabled, with why said once below the rows. While the slides are written or the
@@ -313,7 +313,7 @@ export function OutlineStep({ view, viewer, actions }: OutlineStepProps) {
             {writeGate.shown && (
               <StepAction>
                 {pressed('write') && (
-                  <Working words="Writing three text versions of the slides · this can take a minute" />
+                  <Working words="Writing the slides' text · this can take a minute" />
                 )}
                 <Control reason={writeGate.reason}>
                   <Button disabled={blocked || writeGate.reason !== null} onClick={write}>

@@ -1,7 +1,8 @@
 import 'server-only'
-// G3, facts to structures. One call per ticked template returns three versions, each a different
-// angle (criterion 97); code checks each version's slot keys, slide counts, fact ids, art prompt,
-// banned phrases and every number in a factual slot, and that the angles differ. A factual slot
+// G3, facts to structures. One call per ticked template returns one version, from one angle
+// (criterion 97; one, not three, since 18 Oct: "Draft again" adds more); code checks its slot
+// keys, slide counts, fact ids, art prompt, banned phrases and every number in a factual slot,
+// and that it names its angle. A factual slot
 // with no fact bound is not the model's problem: it reaches the editor as "No source". Slot
 // lengths are left to the measured fit checks.
 
@@ -52,8 +53,9 @@ export type DraftIdea = { cards: IdeaCard[] }
 /** The outline the versions follow (GD32): its slides in order, each with its job, layout and point, and its format. */
 export type DraftOutline = { format: string | null; slides: OutlineSlide[] }
 
-export const VERSIONS_PER_TEMPLATE = 3
-const COUNT_PROBLEM = 'versions: return exactly three versions.'
+/** The versions one draft call writes for a template: one, since three in one answer was too slow (18 Oct). */
+export const VERSIONS_PER_TEMPLATE = 1
+const COUNT_PROBLEM = 'versions: return exactly one version.'
 
 const BRAND_NAMES = ['OfCourse', FEED_BRAND.name, ...PAGE_BRANDS.map((b) => b.name)]
 const BRAND = new RegExp(
@@ -250,7 +252,7 @@ function outlineDeparture(version: Pick<DraftVersion, 'slides'>, outline: DraftO
 
 /**
  * Each version's problems, by its position: its own, where it departs from the outline when there
- * is one, plus an empty angle or one an earlier version took.
+ * is one, plus an empty angle.
  */
 function versionProblems(
   template: Template,
@@ -260,20 +262,11 @@ function versionProblems(
   outline: DraftOutline | null,
   language: Language,
 ): string[][] {
-  const taken = new Map<string, number>()
-  return answer.versions.map((version, i) => {
+  return answer.versions.map((version) => {
     const problems = problemsIn(template, version, facts, notes, language)
     if (outline) problems.push(...outlineDeparture(version, outline))
-    const angle = version.angle.trim().toLowerCase()
-    const earlier = taken.get(angle)
-    if (angle === '') {
+    if (version.angle.trim() === '') {
       problems.push('angle: name this version’s angle in a few words.')
-    } else if (earlier !== undefined) {
-      problems.push(
-        `angle: "${version.angle}" is version ${earlier + 1}'s angle; give this one its own.`,
-      )
-    } else {
-      taken.set(angle, i)
     }
     return problems
   })
@@ -371,10 +364,10 @@ export async function draftStructures(input: {
       // Frozen now: the item keeps the template it was drafted against.
       const frozen = structuredClone(template)
       const step = `draft:${template.id}:${attempt}`
-      // The last answer the ladder checked, with each version's problems. When no rung fixes every
-      // version, the three still reach the editor, each with its problems beside it, rather than
-      // nothing (criterion 97). An answer with problems is never cached (client.ts), so this is the
-      // only way it is kept.
+      // The last answer the ladder checked, with its version's problems. When no rung fixes the
+      // version, it still reaches the editor, its problems beside it, rather than nothing
+      // (criterion 97). An answer with problems is never cached (client.ts), so this is the only
+      // way it is kept.
       const seen: { last: { answer: DraftAnswer; perVersion: string[][] } | null } = { last: null }
       const verify = (answer: DraftAnswer) => {
         const perVersion = versionProblems(
@@ -425,7 +418,7 @@ export async function draftStructures(input: {
         answer = res.value
         perVersion = answer.versions.map(() => [])
       } else {
-        // Three versions that each convert stand, marked; fewer, or none at all, is a failed step.
+        // The one version, if it converts, stands, marked; none, or more than one, is a failed step.
         const last = seen.last
         if (!last || last.answer.versions.length !== VERSIONS_PER_TEMPLATE) return res
         answer = last.answer
@@ -622,8 +615,6 @@ export async function redraftSlide(input: {
 
 // ── A whole version in a nudge's direction (GD10) ──────────────────────────────────────────────
 
-const ONE_VERSION = 'versions: return exactly one version.'
-
 /** One version as DATA.base carries it: the answer's own shape, each slide's slots in its spec's order. */
 function baseData(item: DraftItem): DraftVersion {
   const { structure, template } = item
@@ -682,7 +673,8 @@ export async function redraftVersion(input: {
     nudge: input.nudge,
   }
   const verify = (answer: DraftAnswer) => {
-    const problems = answer.versions.length === 1 ? [] : [ONE_VERSION]
+    const problems = answer.versions.length === 1 ? [] : [COUNT_PROBLEM]
+
     const [version] = answer.versions
     if (version) {
       for (const problem of problemsIn(item.template, version, supported, null, language)) {

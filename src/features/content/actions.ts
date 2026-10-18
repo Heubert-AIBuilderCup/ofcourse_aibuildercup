@@ -655,7 +655,8 @@ export async function outlineFormatAction(
   })
 }
 
-/** "Write the slides" (GD32), and the failed draft's "Try again": three versions to the outline. */
+/** "Write the slides" (GD32), and the failed draft's "Try again": a version to the outline. */
+
 export async function writeSlidesAction(id: unknown, at: unknown): Promise<Saved> {
   return onPost(id, at, writeSlides)
 }

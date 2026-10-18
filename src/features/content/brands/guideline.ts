@@ -33,9 +33,10 @@ export const GuidelineSchema = z
   .object({
     palette: z.array(z.object({ name: Name, hex: Hex, role: z.string() })).min(1),
     presets: z.object({ pop: PresetSchema, subdued: PresetSchema }),
+    /** Each preset's duotone: a picture's darks in `shadow`, its lights in `light`. */
     tint: z.object({
       pop: z.object({ shadow: Name, light: Name }),
-      subdued: z.object({ wash: Name, strength: z.number().min(0).max(1) }),
+      subdued: z.object({ shadow: Name, light: Name }),
     }),
     art: z.object({
       style: z.string(),
@@ -59,9 +60,10 @@ export const GuidelineSchema = z
         }
       }
     }
-    need(g.tint.pop.shadow, ['tint', 'pop', 'shadow'])
-    need(g.tint.pop.light, ['tint', 'pop', 'light'])
-    need(g.tint.subdued.wash, ['tint', 'subdued', 'wash'])
+    for (const preset of PRESETS) {
+      need(g.tint[preset].shadow, ['tint', preset, 'shadow'])
+      need(g.tint[preset].light, ['tint', preset, 'light'])
+    }
   })
 
 export type Guideline = z.infer<typeof GuidelineSchema>

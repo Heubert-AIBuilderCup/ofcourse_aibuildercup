@@ -48,8 +48,8 @@ export type CheckResultsProps = {
  * The picked version's checks, in the Text step's last tab, "Checks" (17 Oct), in three sections:
  * "To fix" first, one card per problem saying where it is ("Slide 3 · Body"), what is wrong, its
  * evidence (the length against its limit, the sentence at fault, the source's paragraph it should
- * match) and its fix where one exists ("Shorten it", "Fix unbound claim", the source's wording,
- * or the tab where colours and versions are chosen);
+ * match) and its fix where one exists ("Shorten it", "Fix unbound claim", the source's wording
+ * and "Mark as editor's opinion", or the tab where colours and versions are chosen);
  * then the source check in one line, its sentences not found being in To fix already; then the
  * fit table, slide by slide. With nothing to fix it says every check passes.
  */
@@ -96,6 +96,45 @@ export function CheckResults(props: CheckResultsProps) {
   )
 }
 
+/**
+ * "Use the source's wording" on a sentence not found, when the check found a source sentence for
+ * it and the viewer may use it; on a post in another script than the source's, how to edit the
+ * slide instead.
+ */
+function SourceWording({ claim, ...props }: CheckResultsProps & { claim: number }) {
+  const suggestion = props.claims[claim]?.suggestion
+  const gate = props.check.wordingGate
+  // The source's sentence itself is the card's evidence.
+  if (!suggestion || !gate.shown) return null
+  // Not in the post's script (an English source on a Thai post): she edits the slide instead.
+  const refused = sourceWordingRefusal(suggestion.text, props.language)
+  const slide = props.claims[claim]?.slide
+  if (refused) {
+    return (
+      <div className="flex flex-col items-start gap-2">
+        <p className={reasonText}>{refused}</p>
+        {slide !== undefined && (
+          <Button variant="outline" size="sm" onClick={() => props.onEditSlide(slide)}>
+            Edit the slide
+          </Button>
+        )}
+      </div>
+    )
+  }
+  return (
+    <Control reason={gate.reason}>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={props.pending || gate.reason !== null}
+        onClick={() => props.check.onUseWording(claim)}
+      >
+        Use the source&apos;s wording
+      </Button>
+    </Control>
+  )
+}
+
 /** The press that fixes one problem, by its kind, or nothing when it has none or the viewer may not. */
 function ProblemFixControl({ problem, ...props }: CheckResultsProps & { problem: VersionProblem }) {
   const fix = problem.fix
@@ -124,36 +163,23 @@ function ProblemFixControl({ problem, ...props }: CheckResultsProps & { problem:
     )
   }
   if (fix.kind === 'wording') {
-    const suggestion = props.claims[fix.claim]?.suggestion
-    const gate = props.check.wordingGate
-    // The source's sentence itself is the card's evidence.
-    if (!suggestion || !gate.shown) return null
-    // Not in the post's script (an English source on a Thai post): she edits the slide instead.
-    const refused = sourceWordingRefusal(suggestion.text, props.language)
-    const slide = props.claims[fix.claim]?.slide
-    if (refused) {
-      return (
-        <div className="flex flex-col items-start gap-2">
-          <p className={reasonText}>{refused}</p>
-          {slide !== undefined && (
-            <Button variant="outline" size="sm" onClick={() => props.onEditSlide(slide)}>
-              Edit the slide
-            </Button>
-          )}
-        </div>
-      )
-    }
+    const opinion = props.check.opinionGate
     return (
-      <Control reason={gate.reason}>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={props.pending || gate.reason !== null}
-          onClick={() => props.check.onUseWording(fix.claim)}
-        >
-          Use the source&apos;s wording
-        </Button>
-      </Control>
+      <div className="flex flex-wrap items-start gap-2">
+        <SourceWording {...props} claim={fix.claim} />
+        {opinion.shown && (
+          <Control reason={opinion.reason}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={props.pending || opinion.reason !== null}
+              onClick={() => props.check.onMarkOpinion(fix.claim)}
+            >
+              Mark as editor&apos;s opinion
+            </Button>
+          </Control>
+        )}
+      </div>
     )
   }
   if (!props.nudgeGate.shown) return null

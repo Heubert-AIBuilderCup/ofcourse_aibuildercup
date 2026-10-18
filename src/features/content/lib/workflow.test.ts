@@ -286,6 +286,18 @@ describe('actionError', () => {
     }
   })
 
+  it("lets only an editor mark a sentence not found as opinion on the Text step's checks and the rendered post, and remove it only from the rendered post", () => {
+    const reviewer = { role: 'user', reviewer: true }
+    for (const stage of ['structures', 'rendered'] as const) {
+      expect(actionError('markOpinion', editor, stage)).toBeNull()
+      expect(actionError('markOpinion', reviewer, stage)).toBe(NOT_AUTHORISED)
+      expect(actionError('markOpinion', { role: 'admin' }, stage)).toBe(NOT_AUTHORISED)
+    }
+    expect(actionError('markOpinion', editor, 'approved')).toBe(WORKFLOW_ERRORS.movedOn)
+    expect(actionError('removeClaim', editor, 'structures')).toBe(WORKFLOW_ERRORS.movedOn)
+    expect(actionError('removeClaim', editor, 'rendered')).toBeNull()
+  })
+
   it('lets an editor try a failed source check again wherever its results show (98)', () => {
     expect(actionError('sourceCheck', editor, 'structures')).toBeNull()
     expect(actionError('sourceCheck', editor, 'rendered')).toBeNull()
