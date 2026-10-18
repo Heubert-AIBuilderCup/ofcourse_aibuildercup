@@ -157,4 +157,4 @@ gcloud run services update ofcourse --project applyims --region asia-southeast1 
 
 Unset, `AI_DAILY_CAP_IMAGE` and `AI_DAILY_CAP_PRO` refuse every call (a cap of 0) and `AI_DAILY_CAP_SEARCH` allows 20.
 
-`DB_POOL_MAX` (default 5, a whole number from 1 to 20) is each instance's database pool: instances × pool must stay under the database's connection limit, with room for the migrate and seed jobs; db-f1-micro has about 25.
+`DB_POOL_MAX` (default 5, a whole number from 1 to 20) is each instance's database pool: instances × pool must stay under the database's connection limit, with room for the migrate and seed jobs; production (`db-custom-1-3840`, since 18 Oct) has about 100.

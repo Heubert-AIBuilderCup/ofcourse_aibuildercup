@@ -24,6 +24,7 @@ OfCourse helps international students decide where and what to study abroad, sta
 - [Tests](#tests)
 - [Decision register](#decision-register)
 - [How it was built](#how-it-was-built)
+- [Thanks](#thanks)
 - [Third-party code](#third-party-code)
 - [Licence](#licence)
 
@@ -197,6 +198,10 @@ Every product and technical decision is recorded in [docs/decisions/](docs/decis
 
 OfCourse was started on 5 Oct 2026 from Heubert's Next.js starter: Google sign-in, roles, a users admin and the Drizzle setup are that scaffolding; everything else was built for the AI Builder Cup. The history shows each step from that first commit.
 
+## Thanks
+
+Thank you to Nirvana Lama, Pranay Lama Pakhrin, Aashish Dhakal, Nitesh Tuladhar, Sameer Bimali, Utsav Sitaula and Roshumi Timsina.
+
 ## Third-party code
 
 Outside code enters as a dependency or as an idea written in our own code, never as a copied application (ADR-119).
@@ -264,6 +269,7 @@ Not part of the running app: `@biomejs/biome` (MIT OR Apache-2.0), `@happy-dom/g
 - **Barlow and Barlow Condensed** (SIL Open Font License 1.1, copyright 2017 The Barlow Project Authors): the slide fonts in `src/features/content/assets/fonts/` with the licence beside them in [`OFL.txt`](src/features/content/assets/fonts/OFL.txt), and the web fonts of the Industry design system, self-hosted through `next/font/google`.
 - **Noto Sans Devanagari and Noto Sans Thai**, Regular and Bold (SIL Open Font License 1.1, copyright 2022 The Noto Project Authors): the slide fonts for Nepali, Hindi and Thai text, in `src/features/content/assets/fonts/`, unmodified from the official release builds (notofonts/devanagari `NotoSansDevanagari-v2.007`, notofonts/thai `NotoSansThai-v2.002`, the `full/ttf` files), with their licences beside them in [`OFL-NotoSansDevanagari.txt`](src/features/content/assets/fonts/OFL-NotoSansDevanagari.txt) and [`OFL-NotoSansThai.txt`](src/features/content/assets/fonts/OFL-NotoSansThai.txt).
 - **Art library images** (`src/features/content/assets/library/open-book.png`, `new-head.png`): the team's own work, from its admin design files, under this repository's licence.
+- **Illustration ideas** for two feed posts ("You can do anything, but not everything" and "Balance is a process. Not a destination."): @pjmilani, credited inside each picture. The pictures themselves are drawn for OfCourse, in `scripts/posts/art/`.
 - **The duck** (`public/brand/duck.png`) and **the splash video** (`public/brand/quack.mp4`): the team's own work, from its student design assets, under this repository's licence.
 
 ## Licence
