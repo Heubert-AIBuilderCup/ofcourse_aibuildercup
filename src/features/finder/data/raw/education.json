@@ -1,0 +1,85 @@
+[
+  {
+    "name": "Master of Teaching (Secondary)",
+    "campusId": "ecu-joondalup",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 29,
+    "field": "education",
+    "graphField": "education",
+    "niche": false,
+    "placements": true,
+    "description": "This degree prepares graduates of another discipline to teach it in high school. You study how teenagers learn, how to plan a unit and how to manage a classroom, then teach two of your subject areas on supervised school placements in each year. A final project looks at a question from your own practice.",
+    "majors": ["Mathematics", "Science", "English", "Humanities and Social Sciences"],
+    "units": [
+      "Adolescent Learning and Development",
+      "Curriculum and Pedagogy in Your Teaching Areas",
+      "Classroom Management",
+      "Assessment and Reporting",
+      "Inclusive Education",
+      "Professional Experience"
+    ]
+  },
+  {
+    "name": "Master of Teaching (Early Childhood)",
+    "campusId": "ecu-joondalup",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 28,
+    "field": "education",
+    "graphField": "education",
+    "niche": false,
+    "placements": true,
+    "description": "Learn to teach children from birth to eight, in early learning centres, kindergartens and the first years of school. Units on play-based learning, early literacy and numeracy and working with families sit beside placements in both settings. Much of the reading is tested against what you see children do.",
+    "majors": ["Early Childhood"],
+    "units": [
+      "Play-Based Learning",
+      "Early Literacy",
+      "Early Numeracy",
+      "Child Development Birth to Eight",
+      "Working with Families and Communities",
+      "Professional Experience in Early Learning"
+    ]
+  },
+  {
+    "name": "Master of Teaching (Secondary)",
+    "campusId": "monash-clayton",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 38,
+    "field": "education",
+    "graphField": "education",
+    "niche": false,
+    "placements": true,
+    "description": "Already hold a degree in a school subject? Here you turn it into two teaching specialisms, with long blocks in Victorian secondary schools where a mentor teacher watches you plan, teach and reflect. Seminars cover research on learning, assessment and teaching students with a disability.",
+    "majors": ["STEM Teaching", "Languages", "English and Literature", "Visual Arts"],
+    "units": [
+      "Learning and Teaching in Secondary Schools",
+      "Teaching Specialism Methods",
+      "Assessment for Learning",
+      "Diverse Learners",
+      "Research in Education",
+      "School Placement"
+    ]
+  },
+  {
+    "name": "Diploma of Early Childhood Education and Care",
+    "campusId": "tafe-perth",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 16,
+    "field": "education",
+    "graphField": "education",
+    "niche": false,
+    "placements": true,
+    "description": "A practical year for people who want to lead a room in a childcare centre. You plan play and learning experiences, keep children safe and healthy, and write the observations families and assessors read. Placement days in a centre run through the year.",
+    "majors": ["Early Childhood Education and Care"],
+    "units": [
+      "Plan Children's Learning Through Play",
+      "Child Health, Safety and Wellbeing",
+      "Observe and Document Learning",
+      "Work with Families",
+      "Lead a Team in a Children's Service"
+    ]
+  }
+]

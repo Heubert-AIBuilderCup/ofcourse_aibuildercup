@@ -17,9 +17,12 @@ const COVER = { width: 1600, height: 900 } as const
 export function BlogFeedCard({
   blog,
   href,
+  priority = false,
 }: {
   blog: Extract<FeedCard, { kind: 'blog' }>
   href: string
+  /** The feed's first screen: its cover loads at once; any other waits until near. */
+  priority?: boolean
 }) {
   return (
     <Blueprint className="flex w-full flex-col gap-3 p-3 wrap-anywhere">
@@ -32,6 +35,9 @@ export function BlogFeedCard({
           src={blogAssetPath(blog.cover.assetId)}
           alt={blog.cover.alt}
           {...COVER}
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : undefined}
+          decoding="async"
           className="block h-auto w-full border"
         />
       )}

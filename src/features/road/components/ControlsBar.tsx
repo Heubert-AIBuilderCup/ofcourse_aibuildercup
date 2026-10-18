@@ -13,7 +13,7 @@ const COLUMNS = { 2: 'grid-cols-2', 3: 'grid-cols-3' } as const
 
 /**
  * Below 64rem the board's controls sit in a bar along its foot: Feed, Your answers, Weights (her
- * weights as bars). Weights does nothing this round.
+ * weights as bars, shown, not a button: adjusting them is not built).
  */
 export function ControlsBar({
   weights,
@@ -44,7 +44,12 @@ export function ControlsBar({
           Your answers
         </Button>
       ) : null}
-      <Button type="button" variant="ghost" className={cn(CONTROL, 'border-l')}>
+      {/* Her weights, shown, not pressed: adjusting them is not built (18 Oct). */}
+      <div
+        role="img"
+        aria-label={`What you're weighing: ${weights.map((w) => `${w.name} ${w.weight} of 3`).join(', ')}`}
+        className={cn(CONTROL, 'flex items-center justify-center border-l')}
+      >
         <span aria-hidden="true" className="inline-flex h-5 items-end gap-0.5">
           {weights.map((w) => (
             <i
@@ -54,8 +59,8 @@ export function ControlsBar({
             />
           ))}
         </span>
-        Weights
-      </Button>
+        <span aria-hidden="true">Weights</span>
+      </div>
     </nav>
   )
 }

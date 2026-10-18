@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import type { StoredAnswers } from '@/shared/types/student'
-import { profileFromAnswers } from './profile-from-answers'
+import { feedRoadmapOf, profileFromAnswers, profileFromRoadmaps } from './profile-from-answers'
 
 const stated = (value: string) => ({ value, state: 'stated' as const })
 
@@ -31,5 +31,50 @@ describe('profileFromAnswers', () => {
   it('never has an age band', () => {
     const answers: StoredAnswers = { where: stated('Nepal'), dest: stated('Australia') }
     expect(profileFromAnswers(answers).ageBand).toBeNull()
+  })
+})
+
+type Made = Parameters<typeof feedRoadmapOf>[0]
+const roadmap = (over: Partial<Made> = {}): Made => ({
+  name: null,
+  answers: {},
+  choices: {},
+  ...over,
+})
+
+describe('feedRoadmapOf (a roadmap as the feed links posts to it)', () => {
+  it('is in Australia when she chose it, or when it is pinned to a course in a catalogue city', () => {
+    expect(feedRoadmapOf(roadmap({ answers: { dest: stated('Australia') } })).destinations).toEqual(
+      ['AU'],
+    )
+    const pinned = roadmap({ choices: { pinned: { courseId: 'c1', cityId: 'sydney' } } })
+    expect(feedRoadmapOf(pinned).destinations).toEqual(['AU'])
+    expect(
+      feedRoadmapOf(roadmap({ answers: { dest: stated('Open to others') } })).destinations,
+    ).toEqual([])
+  })
+
+  it('is named by her own name, else by its city and the field she stated, else "Your roadmap"', () => {
+    const answers: StoredAnswers = { field: stated('Data science') }
+    const choices = { pinned: { courseId: 'c1', cityId: 'sydney' } }
+    expect(feedRoadmapOf(roadmap({ name: 'Plan A', answers, choices })).name).toBe('Plan A')
+    expect(feedRoadmapOf(roadmap({ answers, choices })).name).toBe('Sydney · Data science')
+    expect(feedRoadmapOf(roadmap({ answers })).name).toBe('Data science')
+    expect(feedRoadmapOf(roadmap()).name).toBe('Your roadmap')
+  })
+})
+
+describe('profileFromRoadmaps (the chips her roadmaps preset)', () => {
+  it('takes the home country from the first (opened last) and every destination across them all', () => {
+    const profile = profileFromRoadmaps([
+      roadmap({ answers: { where: stated('India'), dest: stated('Open to others') } }),
+      roadmap({ answers: { where: stated('Nepal'), dest: stated('Australia') } }),
+      roadmap({ choices: { pinned: { courseId: 'c1', cityId: 'perth' } } }),
+    ])
+    expect(profile).toEqual({ homeMarket: 'IN', destinations: ['AU'], ageBand: null })
+  })
+
+  it('is null with no roadmap', () => {
+    expect(profileFromRoadmaps([])).toBeNull()
   })
 })

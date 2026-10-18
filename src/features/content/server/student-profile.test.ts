@@ -46,11 +46,11 @@ describe.skipIf(!enabled)('loadStudentProfile against the database', () => {
     await cleanUp()
   })
 
-  test('comes from the roadmap opened last', async () => {
+  test('takes the home country from the roadmap opened last, destinations from them all', async () => {
     const uid = `${P}a`
     await add(uid, answers('Nepal', 'Australia'), { finished: true, opened: '2026-03-01' })
     await add(uid, answers('India', 'Open to others'), { finished: true, opened: '2026-05-01' })
-    expect(await load(uid)).toEqual({ homeMarket: 'IN', destinations: [], ageBand: null })
+    expect(await load(uid)).toEqual({ homeMarket: 'IN', destinations: ['AU'], ageBand: null })
   })
 
   test('comes from the draft when it is all she has', async () => {

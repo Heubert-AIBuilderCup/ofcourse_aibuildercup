@@ -4,8 +4,10 @@ import { useId } from 'react'
 import { Button } from '@/shared/components/ui/button'
 import { Spin, Working } from '@/shared/components/Working'
 import { cn } from '@/shared/lib/utils'
+import type { LanguageId } from '../../../languages'
 import type { VersionProblem, VersionStatus } from '../../../lib/version-status'
 import type { ClaimResult, Fact, FitCheck } from '../../../model/types'
+import { sourceWordingRefusal } from '../../../text/script'
 import { Control, reasonText } from '../../parts'
 import { type CheckState, type Gate, type Item, slideStep } from './shared'
 import { CheckStatus, FitChecks, FixUnbound } from './VersionDetails'
@@ -36,6 +38,10 @@ export type CheckResultsProps = {
   onFix: (slide: number, slot: string, factId: string) => void
   /** Opens another of the Text step's tabs: Style for colours too faint, Versions for text too small. */
   onOpenTab: (tab: string) => void
+  /** The post's language: the source's wording is offered only in its script. */
+  language?: LanguageId
+  /** Opens Your version at a slide, to edit a sentence the source's wording cannot replace. */
+  onEditSlide: (slide: number) => void
 }
 
 /**
@@ -122,6 +128,21 @@ function ProblemFixControl({ problem, ...props }: CheckResultsProps & { problem:
     const gate = props.check.wordingGate
     // The source's sentence itself is the card's evidence.
     if (!suggestion || !gate.shown) return null
+    // Not in the post's script (an English source on a Thai post): she edits the slide instead.
+    const refused = sourceWordingRefusal(suggestion.text, props.language)
+    const slide = props.claims[fix.claim]?.slide
+    if (refused) {
+      return (
+        <div className="flex flex-col items-start gap-2">
+          <p className={reasonText}>{refused}</p>
+          {slide !== undefined && (
+            <Button variant="outline" size="sm" onClick={() => props.onEditSlide(slide)}>
+              Edit the slide
+            </Button>
+          )}
+        </div>
+      )
+    }
     return (
       <Control reason={gate.reason}>
         <Button

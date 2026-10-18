@@ -3,7 +3,7 @@
 // visas kept as they are, so a text passes with most of its letters in the script. Numbers are
 // Western digits in every language, so the number checks read them unchanged. Pure.
 
-import type { Language } from '../languages'
+import { type Language, type LanguageId, languageById } from '../languages'
 
 export type Script = Language['script']
 
@@ -26,6 +26,24 @@ export function scriptShare(text: string, script: Script): number {
   const letters = text.match(LETTER) ?? []
   if (letters.length === 0) return 1
   return letters.filter((l) => IN_SCRIPT[script].test(l)).length / letters.length
+}
+
+/**
+ * Why "Use the source's wording" may not put this source sentence on a post written in `language`
+ * (English when none), or null when it may: only a sentence in the post's own script goes on it,
+ * so an English source's sentence never lands on a Thai, Nepali or Hindi slide, nor a Thai one on
+ * an English slide. The workbench hides the press with this reason, the command refuses with it,
+ * and scripts/make-posts.ts marks such a claim opinion instead.
+ */
+export function sourceWordingRefusal(
+  sentence: string,
+  language: LanguageId | null | undefined,
+): string | null {
+  const post = languageById(language ?? 'en')
+  if (!post || scriptShare(sentence, post.script) >= MIN_SCRIPT_SHARE) return null
+  const english = scriptShare(sentence, 'latin') >= MIN_SCRIPT_SHARE
+  const source = english && post.script !== 'latin' ? 'in English' : `not in ${post.label}`
+  return `The source is ${source}; edit the slide in ${post.label} instead.`
 }
 
 /** Each digit in the text that is not 0–9, in order. */

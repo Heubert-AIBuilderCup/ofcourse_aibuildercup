@@ -11,9 +11,9 @@ export type Stop = (typeof STOPS)[number]
 
 /** Each stop's name on the zoom control. */
 export const STOP_NAMES: Readonly<Record<Stop, string>> = {
-  whole: 'Whole road',
-  level: 'Level',
-  tile: 'Tile',
+  whole: 'Journey',
+  level: 'Stage',
+  tile: 'Step',
 }
 
 /** junction: the small tile where the road forks after the 485 · job: a job the course leads to. */

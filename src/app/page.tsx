@@ -7,7 +7,7 @@ import { judgeStudentSignInAction } from '@/features/judge/actions'
 import { signedInLanding } from '@/features/opening'
 import { getProfile } from '@/features/opening/server/profile'
 import { ICONS } from '@/features/road'
-import { JUDGE_STORIES } from '@/features/roads'
+import { OFFERED_JUDGE_STORIES } from '@/features/roads'
 import motion from '@/shared/components/motion.module.css'
 import { ThemeToggle } from '@/shared/components/ThemeToggle'
 import { isStudent } from '@/shared/lib/auth/access'
@@ -36,8 +36,8 @@ const CELLS: PanelCells = [
   { label: 'Goal', paths: ICONS.flag },
 ]
 
-// The judges' stories as their cards show them: never their answers, which stay on the server.
-const JUDGE_CARDS: JudgeStoryCard[] = JUDGE_STORIES.map(({ id, name, country, line }) => ({
+// The judges' one story as its card shows it: never her answers, which stay on the server.
+const JUDGE_CARDS: JudgeStoryCard[] = OFFERED_JUDGE_STORIES.map(({ id, name, country, line }) => ({
   id,
   name,
   country,
@@ -91,7 +91,11 @@ export default async function SignInPage({ searchParams }: PageProps<'/'>) {
 
           {/* Only while JUDGE_PASSCODE is set: the AI Builder Cup judges' way in (features/judge). */}
           {judgeAccessOn(process.env) ? (
-            <JudgeAccess action={judgeStudentSignInAction} stories={JUDGE_CARDS} />
+            <JudgeAccess
+              action={judgeStudentSignInAction}
+              stories={JUDGE_CARDS}
+              passcode={process.env.JUDGE_PASSCODE?.trim()}
+            />
           ) : null}
 
           <div

@@ -248,6 +248,34 @@ async function drawOne(
 }
 
 /**
+ * The art cache key of one image call: the image model, the prompt, the shape, which image of the
+ * post it is (`set`, `option`), the attempt, and a page's reference images by asset id (left out
+ * when there are none, so the key is the one a page without a design language always had).
+ * coverArt looks every image up under it; scripts/make-posts-art.ts keeps its own pictures there.
+ */
+export function artCacheKey(input: {
+  prompt: string
+  aspectRatio: ImageAspect
+  set: number
+  option: number
+  attempt: number
+  references: readonly string[]
+}): string {
+  const { prompt, aspectRatio, set, option, attempt, references } = input
+  return sha256Hex(
+    canonicalJson({
+      model: process.env.GEMINI_IMAGE_MODEL ?? '',
+      prompt,
+      aspectRatio,
+      set,
+      option,
+      attempt,
+      ...(references.length > 0 && { references }),
+    }),
+  )
+}
+
+/**
  * One cover image. Refuses a prompt the guard refuses before any call. Otherwise never fails: an
  * image with text in it is replaced once (criterion 103); a failed, slow or capped one, or a
  * second with text, falls back, labelled. `set` and `option` name the image among a post's cover
@@ -276,17 +304,14 @@ export async function coverArt(
 
   let drawn: Drawn = { ok: false, reason: 'failed' }
   for (const attempt of [1, 2]) {
-    const key = sha256Hex(
-      canonicalJson({
-        model: process.env.GEMINI_IMAGE_MODEL ?? '',
-        prompt,
-        aspectRatio,
-        set: input.set ?? 0,
-        option: input.option ?? 0,
-        attempt,
-        ...(references.length > 0 && { references: references.map((r) => r.assetId) }),
-      }),
-    )
+    const key = artCacheKey({
+      prompt,
+      aspectRatio,
+      set: input.set ?? 0,
+      option: input.option ?? 0,
+      attempt,
+      references: references.map((r) => r.assetId),
+    })
     drawn = await drawOne(prompt, aspectRatio, key, postId, references, deps)
     // Only an image with text is drawn again; a failed or capped call is not.
     if (drawn.ok || drawn.reason !== 'text') break

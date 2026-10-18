@@ -1,0 +1,106 @@
+[
+  {
+    "name": "Master of Social Work (Qualifying)",
+    "campusId": "curtin-bentley",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 30,
+    "field": "social-work",
+    "graphField": "social-work",
+    "niche": false,
+    "placements": true,
+    "description": "A qualifying degree for graduates of another field who want to practise as social workers. You learn to assess a person's situation, plan support with them and work within child protection, mental health and justice systems. Two long field placements, supervised by a qualified social worker, are part of the course.",
+    "majors": ["Social Work Practice"],
+    "units": [
+      "Social Work Theory and Practice",
+      "Human Development and Social Context",
+      "Child and Family Practice",
+      "Mental Health and Social Work",
+      "Social Policy and Advocacy",
+      "Field Education"
+    ]
+  },
+  {
+    "name": "Master of Social Work (Qualifying)",
+    "campusId": "unisa-city-west",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 29,
+    "field": "social-work",
+    "graphField": "social-work",
+    "niche": false,
+    "placements": true,
+    "description": "Built around case work, this course has you practise interviews, risk assessments and case notes in small groups before you meet clients on placement. Units on trauma, disability and Aboriginal and Torres Strait Islander perspectives shape how you work with people in hospitals, councils and community agencies.",
+    "majors": ["Community and Health Social Work"],
+    "units": [
+      "Interviewing and Case Work",
+      "Trauma-Informed Practice",
+      "Disability and Inclusion",
+      "Working with Aboriginal and Torres Strait Islander Communities",
+      "Ethics and Professional Practice",
+      "Field Placement"
+    ]
+  },
+  {
+    "name": "Master of Social Work (Qualifying)",
+    "campusId": "monash-clayton",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 40,
+    "field": "social-work",
+    "graphField": "social-work",
+    "niche": false,
+    "placements": true,
+    "description": "How do families, laws and services shape a person's life, and where can a social worker step in? Teaching combines seminars on policy and research with skills workshops, and you complete supervised placements in settings such as hospitals, family services and housing.",
+    "majors": ["Social Work"],
+    "units": [
+      "Foundations of Social Work",
+      "Family Violence and Child Wellbeing",
+      "Health Social Work",
+      "Social Work Research",
+      "Policy, Law and Practice",
+      "Supervised Field Education"
+    ]
+  },
+  {
+    "name": "Master of Social Work (Qualifying)",
+    "campusId": "utas-sandy-bay",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 29,
+    "field": "social-work",
+    "graphField": "social-work",
+    "niche": false,
+    "placements": true,
+    "description": "Small classes in Hobart and a focus on rural and regional practice, where one social worker often covers many roles. You learn community development alongside case work and crisis response. Placements may take you into smaller towns as well as the city.",
+    "majors": ["Rural and Regional Social Work"],
+    "units": [
+      "Social Work in Rural Communities",
+      "Community Development",
+      "Crisis and Case Work",
+      "Mental Health Practice",
+      "Social Justice and Human Rights",
+      "Field Education"
+    ]
+  },
+  {
+    "name": "Diploma of Community Services",
+    "campusId": "tafe-perth",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 15,
+    "field": "social-work",
+    "graphField": "social-work",
+    "niche": false,
+    "placements": true,
+    "description": "Trains case workers and support workers for community organisations. You learn to work with people facing hardship, coordinate services around them and keep clear records, with a work placement in a community service during the year.",
+    "majors": ["Case Management"],
+    "units": [
+      "Case Management Practice",
+      "Work with Diverse People",
+      "Respond to Clients at Risk",
+      "Advocacy and Referral",
+      "Community Service Records"
+    ]
+  }
+]

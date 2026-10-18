@@ -171,14 +171,14 @@ describe('the map', () => {
   it('at Whole road, a press opens the tile in the card and the camera stays at Whole road', () => {
     query = 'zoom=whole'
     board()
-    expect(within(zoom()).getByRole('button', { name: 'Whole road' })).toHaveAttribute(
+    expect(within(zoom()).getByRole('button', { name: 'Journey' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
 
     press(tile('Adelaide, not visited. Open in the card'))
 
-    expect(within(zoom()).getByRole('button', { name: 'Whole road' })).toHaveAttribute(
+    expect(within(zoom()).getByRole('button', { name: 'Journey' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -286,22 +286,22 @@ describe('zoom', () => {
   it('is a group with the current stop pressed, and says each change in the live region', () => {
     board()
     const group = zoom()
-    expect(within(group).getByRole('button', { name: 'Level' })).toHaveAttribute(
+    expect(within(group).getByRole('button', { name: 'Stage' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
 
-    press(within(group).getByRole('button', { name: 'Tile' }))
+    press(within(group).getByRole('button', { name: 'Step' }))
 
-    expect(within(group).getByRole('button', { name: 'Tile' })).toHaveAttribute(
+    expect(within(group).getByRole('button', { name: 'Step' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
-    expect(within(group).getByRole('button', { name: 'Level' })).toHaveAttribute(
+    expect(within(group).getByRole('button', { name: 'Stage' })).toHaveAttribute(
       'aria-pressed',
       'false',
     )
-    expect(screen.getByText('Zoom: Tile')).toHaveAttribute('aria-live', 'polite')
+    expect(screen.getByText('Zoom: Step')).toHaveAttribute('aria-live', 'polite')
     expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?zoom=tile`)
   })
 
@@ -309,7 +309,7 @@ describe('zoom', () => {
     board()
     const out = within(zoom()).getByRole('button', { name: 'Zoom out' })
     press(out)
-    expect(screen.getByText('Zoom: Whole road')).toBeInTheDocument()
+    expect(screen.getByText('Zoom: Journey')).toBeInTheDocument()
     expect(out).toHaveAttribute('aria-disabled', 'true')
   })
 })
@@ -383,6 +383,19 @@ const ADD_TOAST =
 const READ_TOAST = 'Lesson read. The Master’s years now show as looked at.'
 
 describe('the card’s actions', () => {
+  it('draws no course action with nothing behind it: no "What it asks for", no "More"', () => {
+    for (const tileId of ['data-science-uwa-perth', 'information-systems-curtin-perth']) {
+      query = `tile=${tileId}`
+      const view = board()
+      const dead = screen
+        .queryAllByRole('button')
+        .map((b) => b.textContent)
+        .filter((text) => text === 'What it asks for' || text === 'More')
+      expect(`${tileId}: ${dead.join(', ')}`).toBe(`${tileId}: `)
+      view.unmount()
+    }
+  })
+
   it('swaps the alternative onto her road, says so with Undo, and Undo puts it back', () => {
     reduceMotion()
     query = 'tile=data-science-uwa-perth'
@@ -398,6 +411,19 @@ describe('the card’s actions', () => {
     press(button('Undo'))
     expect(tile('Cyber Security, you are here. Open in the card')).toBeInTheDocument()
     expect(screen.queryByText(SWAP_TOAST)).not.toBeInTheDocument()
+  })
+
+  it('draws no Swap that would do nothing: another city, or a course put on from the stack, with no new roadmap to start', () => {
+    query = 'tile=adelaide'
+    board()
+    expect(screen.queryAllByRole('button', { name: 'Swap onto your roadmap' }).length).toBe(0)
+    expect(screen.queryAllByRole('button', { name: 'Cancel' }).length).toBe(1)
+
+    cleanup()
+    query = 'tile=information-systems-curtin-perth'
+    board(null, { choices: { added: true } })
+    expect(screen.getByText('Added · from your stack · Course')).toBeInTheDocument()
+    expect(screen.queryAllByRole('button', { name: 'Swap onto your roadmap' }).length).toBe(0)
   })
 
   it('moves the two tiles on the arc with the tag, then settles; under reduced motion it jumps', () => {
@@ -569,6 +595,25 @@ describe('the stack', () => {
     expect(screen.queryByText('Information Systems')).not.toBeInTheDocument()
   })
 
+  it('draws no button with nothing behind it: "Put on my board" only on a row with a tile, no "More"', () => {
+    query = 'tile=more-courses-perth&open=list'
+    board()
+    const rows = screen.getAllByRole('listitem').map((li) => {
+      const name = li.querySelector('.font-heading')?.textContent
+      const buttons = within(li)
+        .queryAllByRole('button')
+        .map((b) => b.textContent)
+      return `${name}: ${buttons.join(', ')}`
+    })
+    expect(rows).toEqual([
+      'Information Systems: Put on my board',
+      'Business Analytics: ',
+      'Computer Science: ',
+      'Accounting: ',
+      'Master of Nursing: ',
+    ])
+  })
+
   it('puts a course on her board, says so with Undo, and Undo takes it off', () => {
     query = 'tile=more-courses-perth&open=list'
     board()
@@ -623,7 +668,7 @@ describe('the lesson', () => {
 
   it('a zoom over it leaves the lesson for /road at that stop, never writing onto the lesson’s path', () => {
     lesson()
-    press(within(zoom()).getByRole('button', { name: 'Tile' }))
+    press(within(zoom()).getByRole('button', { name: 'Step' }))
     expect(router.replace).toHaveBeenCalledWith(`${BOARD}?zoom=tile`)
     expect(replace).not.toHaveBeenCalled()
   })
@@ -644,7 +689,7 @@ describe('Whole road', () => {
       screen.getByRole('heading', { name: 'You’ve looked at 3 of 11 routes' }),
     ).toBeInTheDocument()
     press(button('Close overview'))
-    expect(within(zoom()).getByRole('button', { name: 'Level' })).toHaveAttribute(
+    expect(within(zoom()).getByRole('button', { name: 'Stage' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -699,7 +744,7 @@ describe('Feed', () => {
       expect(within(place).queryByRole('button', { name: 'Ask · 1' })).toBeNull()
       expect(within(place).queryByRole('button', { name: 'Compare' })).toBeNull()
     }
-    expect(controlNames()).toEqual(['Feed', 'Your answers', 'Weights'])
+    expect(controlNames()).toEqual(['Feed', 'Your answers'])
   })
 })
 
@@ -741,14 +786,14 @@ describe('Find courses', () => {
     board()
     for (const name of ['Find courses', 'Find', FIND])
       expect(screen.queryAllByRole('button', { name }).length).toBe(0)
-    expect(controlNames()).toEqual(['Feed', 'Your answers', 'Weights'])
+    expect(controlNames()).toEqual(['Feed', 'Your answers'])
   })
 
   it('is offered only in the course stack’s list, never over the board', () => {
     withFinder()
     for (const name of ['Find courses', 'Find', FIND])
       expect(screen.queryAllByRole('button', { name }).length).toBe(0)
-    expect(controlNames()).toEqual(['Feed', 'Your answers', 'Weights'])
+    expect(controlNames()).toEqual(['Feed', 'Your answers'])
     cleanup()
     query = LIST
     withFinder()
@@ -908,7 +953,7 @@ describe('the first arrival', () => {
 
   it('a zoom press ends the hint too, saving her spot as a tile press does', async () => {
     board(null, { firstVisit: true })
-    press(within(zoom()).getByRole('button', { name: 'Tile' }))
+    press(within(zoom()).getByRole('button', { name: 'Step' }))
     expect(screen.queryByText('Tap Perth to see its courses.')).not.toBeInTheDocument()
     await settle()
     expect(saveChoicesAction.mock.calls).toEqual([['rm-1', { ...NOTHING_CHOSEN, country: true }]])
@@ -939,6 +984,22 @@ describe('an empty road', () => {
     expect(button('Pick a destination')).toBeInTheDocument()
     expect(tile('Point A, you are here. Open your answers')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Zoom' })).not.toBeInTheDocument()
+  })
+
+  it('Pick a destination opens her answers at the destination question', () => {
+    render(
+      <Providers initialChoice="light" systemTheme={null}>
+        <RoadBoard road={{ ...road, tiles: [] }} {...props}>
+          {null}
+        </RoadBoard>
+      </Providers>,
+    )
+    press(button('Pick a destination'))
+    expect(push).toHaveBeenLastCalledWith(null, '', `${BOARD}?open=answers`)
+    const answers = screen.getByRole('complementary', { name: 'Your answers' })
+    const destination = within(answers).getByRole('button', { name: /^Destination/ })
+    expect(destination.getAttribute('aria-expanded')).toBe('true')
+    expect(document.activeElement === destination).toBe(true)
   })
 })
 
@@ -998,7 +1059,7 @@ describe('on a phone', () => {
     expect(within(here).getByRole('heading', { level: 1 })).toHaveTextContent('Cyber Security')
     expect(within(here).getByText('You are here · Course')).toBeInTheDocument()
     expect(within(here).getByText('Also in Perth')).toBeInTheDocument()
-    expect(controlNames()).toEqual(['Feed', 'Your answers', 'Weights'])
+    expect(controlNames()).toEqual(['Feed', 'Your answers'])
   })
 
   it('asks why her tile is on her roadmap from the card where she is (criterion 15)', async () => {
@@ -1429,7 +1490,7 @@ describe('a new roadmap’s draft', () => {
 
   it('keeps Feed, Your answers (to open the draft again once closed) and Weights in the controls bar', () => {
     draftBoard()
-    expect(controlNames()).toEqual(['Feed', 'Your answers', 'Weights'])
+    expect(controlNames()).toEqual(['Feed', 'Your answers'])
   })
 
   it('while drafting, a pressed tile waits and says why', () => {
@@ -1448,7 +1509,7 @@ describe('a new roadmap’s draft', () => {
   it('a zoom keeps the draft’s source in the URL', () => {
     query = 'from=rm-1'
     draftBoard()
-    press(within(zoom()).getByRole('button', { name: 'Tile' }))
+    press(within(zoom()).getByRole('button', { name: 'Step' }))
     expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?from=rm-1&zoom=tile`)
   })
 
@@ -1873,5 +1934,13 @@ describe('switching roadmaps', () => {
     cleanup()
     board()
     expect(switchButtons().length).toBe(0)
+  })
+})
+
+describe('the weighing (18 Oct: no button with nothing behind it)', () => {
+  it('shows her weights as a picture, not a button that does nothing', () => {
+    board()
+    expect(screen.queryByRole('button', { name: /weights|weighing/i })).toBeNull()
+    expect(screen.getAllByRole('img', { name: /^What you're weighing:/ }).length).toBeGreaterThan(0)
   })
 })

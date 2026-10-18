@@ -89,6 +89,29 @@ describe('the finder catalogue', () => {
     expect(off).toEqual([])
   })
 
+  test('every broad field has courses, the three new areas too', () => {
+    const fields = new Set(FINDER_COURSES.map((c) => c.field))
+    const empty = Object.keys(FIELD_OCCUPATIONS).filter((f) => !fields.has(f as FieldId))
+    expect(empty).toEqual([])
+  })
+
+  test('each road course in teaching, social work and hospitality is in the finder too', () => {
+    const NEW_AREAS: readonly FieldId[] = ['education', 'social-work', 'hospitality']
+    const road = EXTRA_COURSES.filter((c) => NEW_AREAS.includes(c.field))
+    expect(road.length).toBe(9)
+    const missing = road.flatMap((r) => {
+      const twin = FINDER_COURSES.find((c) => c.name === r.name && c.campusId === r.campusId)
+      const same =
+        twin &&
+        twin.field === r.field &&
+        twin.level === r.level &&
+        twin.years === r.years &&
+        twin.feeK === r.feeK
+      return same ? [] : [r.id]
+    })
+    expect(missing).toEqual([])
+  })
+
   test('ids are unique and none collides with the road catalogue', () => {
     const ids = FINDER_COURSES.map((c) => c.id)
     expect(new Set(ids).size).toBe(ids.length)

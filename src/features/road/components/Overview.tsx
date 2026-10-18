@@ -7,7 +7,7 @@ export function Overview({ overview, onBack }: { overview: OverviewData; onBack:
   const { looked, total } = overview
   return (
     <section aria-label="Overview" className="flex flex-col gap-4">
-      <PanelHead kicker="Overview · Whole road" title={overview.title} />
+      <PanelHead kicker="Overview · Journey" title={overview.title} />
       <div
         role="img"
         aria-label={`${looked} of ${total} routes looked at`}

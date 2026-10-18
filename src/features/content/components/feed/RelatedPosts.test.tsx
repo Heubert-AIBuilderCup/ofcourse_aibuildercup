@@ -9,10 +9,10 @@ import { RelatedPosts } from './RelatedPosts'
 afterEach(cleanup)
 
 const F = (over: Partial<Filters> = {}): Filters => ({
-  destination: null,
+  destination: [],
   home: null,
-  theme: null,
-  age: null,
+  theme: [],
+  age: [],
   q: '',
   ...over,
 })
@@ -48,7 +48,9 @@ const RELATED: Related[] = [
 
 describe('RelatedPosts (criterion 91)', () => {
   it('shows a Related heading, a link per post that keeps the filters, and the why line of each', () => {
-    render(<RelatedPosts related={RELATED} filters={F({ home: 'NP', theme: 'work-study-life' })} />)
+    render(
+      <RelatedPosts related={RELATED} filters={F({ home: 'NP', theme: ['work-study-life'] })} />,
+    )
     expect(screen.getByRole('heading', { name: 'Related' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Rent in Sydney' })).toHaveAttribute(
       'href',

@@ -292,8 +292,9 @@ describe('the road home (criterion 59)', () => {
   const MELBOURNE_HOME = roadById('melbourne-home')!
 
   it('claims no way to stay after the 485 on any road home', () => {
-    // 48: the 22 courses added so each course has two neighbours in its field add a road home each.
-    expect(HOMES.length).toBe(48)
+    // 57: the 22 courses added so each course has two neighbours in its field, and the 9 for
+    // teaching, social work and hospitality, add a road home each.
+    expect(HOMES.length).toBe(57)
     for (const p of HOMES) {
       const spec = specOf(p)
       const text = strings(AFTER_485.map((s) => spec.slots[s])).join(' ')
@@ -510,5 +511,16 @@ describe('workRightsLine: the work rights after any course', () => {
     expect(workRightsLine('perth', "Master's", 1)).toBe(
       'One year of study alone does not open the Temporary Graduate visa (485)',
     )
+  })
+})
+
+describe('the courses for teaching, social work and hospitality', () => {
+  it('each field has courses in at least two road cities, each composing a road, staying or home', () => {
+    for (const field of ['education', 'social-work', 'hospitality']) {
+      const picks = ALL_PICKS.filter((p) => courseById(p.courseId)?.field === field)
+      const cities = new Set(picks.map((p) => p.cityId))
+      expect(`${field}: ${cities.size >= 2}`).toBe(`${field}: true`)
+      for (const p of picks) expect(specOf(p).courseId).toBe(p.courseId)
+    }
   })
 })

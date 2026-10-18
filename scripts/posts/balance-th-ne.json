@@ -1,0 +1,73 @@
+[
+  {
+    "id": "96a1ff1b-45e0-4c46-a038-241031a65e8b",
+    "title": "สมดุลคือกระบวนการ ไม่ใช่จุดหมายปลายทาง",
+    "idea": "For students abroad, study, part-time work and life never split the same way two weeks running. Some weeks are all study, some are mostly life. Balance is something you keep adjusting, not a place you arrive.",
+    "kind": "feed",
+    "look": "pop",
+    "template": "field-notes",
+    "tags": {
+      "theme": ["work-study-life"],
+      "home": "TH"
+    },
+    "language": "th",
+    "edits": [
+      {
+        "slide": 1,
+        "text": {
+          "heading": "สมดุลคือกระบวนการ ไม่ใช่จุดหมายปลายทาง"
+        }
+      }
+    ],
+    "art": [
+      {
+        "slide": 1,
+        "svg": "art/balance-grid-th.svg",
+        "scene": "Flat grid of nine square tiles, each splitting work and life a different way, in two tones, labelled in Thai"
+      },
+      {
+        "slide": 2,
+        "svg": "art/balance-row-1-th.svg",
+        "scene": "Flat row of three square tiles splitting work and life, the first row of the grid, in two tones, labelled in Thai"
+      }
+    ]
+  },
+  {
+    "id": "e54100b2-f6f4-4be0-91a3-9ff153d9d69c",
+    "title": "सन्तुलन एउटा प्रक्रिया हो, गन्तव्य होइन",
+    "idea": "For students abroad, study, part-time work and life never split the same way two weeks running. Some weeks are all study, some are mostly life. Balance is something you keep adjusting, not a place you arrive.",
+    "kind": "feed",
+    "look": "pop",
+    "template": "field-notes",
+    "tags": {
+      "theme": ["work-study-life"],
+      "home": "NP"
+    },
+    "language": "ne",
+    "edits": [
+      {
+        "slide": 1,
+        "text": {
+          "heading": "सन्तुलन एउटा प्रक्रिया हो, गन्तव्य होइन।"
+        }
+      }
+    ],
+    "art": [
+      {
+        "slide": 1,
+        "svg": "art/balance-grid-ne.svg",
+        "scene": "Flat grid of nine square tiles, each splitting work and life a different way, in two tones, labelled in Nepali"
+      },
+      {
+        "slide": 2,
+        "svg": "art/balance-row-1-ne.svg",
+        "scene": "Flat row of three square tiles splitting work and life, the first row of the grid, in two tones, labelled in Nepali"
+      },
+      {
+        "slide": 4,
+        "svg": "art/balance-row-2-ne.svg",
+        "scene": "Flat row of three square tiles splitting work and life, the middle row of the grid, in two tones, labelled in Nepali"
+      }
+    ]
+  }
+]

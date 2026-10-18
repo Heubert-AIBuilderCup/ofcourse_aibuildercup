@@ -8,10 +8,10 @@ import { FeedChips } from './FeedChips'
 afterEach(cleanup)
 
 const F = (over: Partial<Filters> = {}): Filters => ({
-  destination: null,
+  destination: [],
   home: null,
-  theme: null,
-  age: null,
+  theme: [],
+  age: [],
   q: '',
   ...over,
 })
@@ -67,5 +67,23 @@ describe('FeedChips (81, 82)', () => {
         name: 'Clear',
       }),
     ).toBe(clears[0])
+  })
+
+  it('adds a chip to its row’s choices, or takes a chosen one away, so a row can hold several', () => {
+    render(<FeedChips pathname="/feed" filters={F({ destination: ['AU'] })} />)
+    expect(screen.getByRole('link', { name: 'United Kingdom' })).toHaveAttribute(
+      'href',
+      '/feed?destination=AU&destination=UK',
+    )
+    expect(screen.getByRole('link', { name: 'Australia' })).toHaveAttribute('href', '/feed?q=')
+    cleanup()
+
+    render(<FeedChips pathname="/feed" filters={F({ destination: ['AU', 'UK'] })} />)
+    for (const name of ['Australia', 'United Kingdom'])
+      expect(screen.getByRole('link', { name })).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByRole('link', { name: 'Australia' })).toHaveAttribute(
+      'href',
+      '/feed?destination=UK',
+    )
   })
 })

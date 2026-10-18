@@ -798,6 +798,24 @@ describe('StructuresStep', () => {
       expect(within(checksTab()).queryByText(`“${SUGGESTION}”`)).toBeNull()
     })
 
+    it('on a Thai post, an English source sentence is not offered as the wording: the card says to edit the slide in Thai, and Edit opens Your version', () => {
+      const thai = checked([FOUND, FLAGGED])
+      if (!thai.source) throw new Error('no source')
+      thai.source.body.language = 'th'
+      view({ current: thai })
+      const row = fixCard(`Source ¶3: ${SUGGESTION}`)
+      expect(
+        within(row).queryAllByRole('button', { name: "Use the source's wording" }).length,
+      ).toBe(0)
+      expect(row.textContent).toContain('The source is in English; edit the slide in Thai instead.')
+      fireEvent.click(within(row).getByRole('button', { name: 'Edit the slide' }))
+      expect(isOpen('Your version')).toBe('true')
+      // At the flagged sentence's slide.
+      expect(within(large()).queryAllByRole('button', { name: 'Edit Slide 3 · Body' }).length).toBe(
+        1,
+      )
+    })
+
     it('sums the source check in one line and lists the sentences not found only in To fix', () => {
       view({ current: checked([FOUND, FLAGGED]) })
       const panel = checksTab()

@@ -134,6 +134,7 @@ export function QuestionScreen({
   saveAnswersAction,
   saveRelativeAction,
   englishScores,
+  borrowedAreas,
   readOwnWordsAction,
 }: {
   step: QuestionStep
@@ -144,6 +145,8 @@ export function QuestionScreen({
   saveRelativeAction?: SaveRelative
   /** Each course's English score, from the roads' catalogue: step 01's English line counts them. */
   englishScores: EnglishScores
+  /** Step 02: the areas no road teaches a course in, each noted as borrowing the nearest field. */
+  borrowedAreas?: readonly string[]
   /** Reads her own words on the step; without it, no box is offered. */
   readOwnWordsAction?: ReadOwnWords
 }) {
@@ -304,7 +307,7 @@ export function QuestionScreen({
   const notes = notesFor(question)
 
   return (
-    <div ref={root} className="mx-auto flex w-full max-w-2xl flex-col gap-5 @max-xl:gap-4">
+    <div ref={root} className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 @max-xl:gap-4">
       <div className={cn(motion.rise, motion.d2, 'flex min-h-11 items-center')}>
         <StepKicker detail={`${index + 1} of ${asked.length}`}>{title}</StepKicker>
       </div>
@@ -324,6 +327,7 @@ export function QuestionScreen({
               labelledBy={headingId}
               answer={answers[question.key]}
               onAnswer={(raw) => answer(question.key, raw)}
+              borrowed={borrowedAreas}
             />
           ) : (
             <AnswerCards

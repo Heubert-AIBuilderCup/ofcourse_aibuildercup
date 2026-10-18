@@ -1,6 +1,7 @@
 // One press = one meaning: a press opens the tile in the card, and the card's buttons act. A press
 // leaves the zoom where she put it.
 
+import type { QuestionKey } from '@/shared/types/student'
 import type { BadgeId, Road, Tile, TileKind } from './road-data'
 import type { RoadState } from './road-url'
 import type { Scene } from './scene'
@@ -88,11 +89,19 @@ export function cardFor(road: Road, scene: Scene, tileId: string | null): Card {
     ...card,
     kind: tile.kind as Exclude<CardKind, 'here' | 'look'>,
     kicker: copy.kicker ?? '',
-    primary: copy.primary,
+    primary: tile.id === scene.courseLine[0] ? ownCourse(road, scene, tile) : copy.primary,
     // A job is only looked at: its card closes. A course beside the study step can only start one.
     secondary: tile.kind === 'job' ? 'Close' : 'Cancel',
     ...(tile.beside && copy.primary && { starts: true }),
   }
+}
+
+/**
+ * The primary of her road's own course, pressed while she stands elsewhere: it is already on her
+ * roadmap, so never a swap; next on her road, it walks her on to it, else it has none.
+ */
+function ownCourse(road: Road, scene: Scene, tile: Tile): string | undefined {
+  return primaryAction(road, scene, tile.id)?.kind === 'walk' ? `Walk to ${tile.name}` : undefined
 }
 
 /** What compare's pin lets a card start. */
@@ -100,25 +109,31 @@ const START = 'Start a new roadmap from it'
 
 /**
  * A card as the board shows it, given whether its tile can start a new roadmap (compare's pin):
- * then its primary says so; else a primary that could only start one is not drawn.
+ * then its primary says so; else a primary that could only start one is not drawn, and nor is one
+ * the board has no action for (`acts`, its primaryAction), so no button does nothing. A route
+ * step's primary is its link, which needs no action; the card where she is keeps its own.
  */
-export function withStart(card: Card, canStart: boolean): Card {
+export function withStart(card: Card, canStart: boolean, acts = true): Card {
   if (canStart && card.primary && card.kind !== 'here') return { ...card, primary: START }
   if (!canStart && card.starts) return { ...card, primary: undefined }
+  if (!acts && card.kind !== 'look' && card.kind !== 'here') return { ...card, primary: undefined }
   return card
 }
 
 /**
  * What a card's primary does. look: open the next step's card · swap: the alternative beside her
  * onto her road, or back · list: the course stack's list · walk: back to her country or her city,
- * or on to her course. null where this round's data has no road for it (another city, the cities'
- * stack, a course put on the board from the stack): the button is drawn and does nothing.
+ * or on to her course · answers: her answers, opened at a question (Point A on an empty road: Pick a
+ * destination opens them at the destination). null where this round's data has no road for it (another city, the cities'
+ * stack, a course put on the board from the stack): unless compare's pin starts a new roadmap from
+ * it, the board draws no primary (withStart).
  */
 export type CardAction =
   | { kind: 'look'; tileId: string }
   | { kind: 'swap'; tileId: string }
   | { kind: 'list' }
   | { kind: 'walk'; to: 'country' | 'city' | 'course' }
+  | { kind: 'answers'; at: QuestionKey }
   | null
 
 export function primaryAction(road: Road, scene: Scene, tileId: string | null): CardAction {
@@ -126,6 +141,7 @@ export function primaryAction(road: Road, scene: Scene, tileId: string | null): 
   const here = byId(scene.here)
   const next = byId(scene.next[scene.next.length - 1])
   if (!tileId || tileId === scene.here) {
+    if (here?.kind === 'point') return { kind: 'answers', at: 'dest' }
     if (here?.kind === 'course' && next) return { kind: 'look', tileId: next.id }
     if (here?.kind === 'place' && next?.kind === 'course') return { kind: 'walk', to: 'course' }
     if (here?.kind === 'place' && next?.kind === 'place') return { kind: 'walk', to: 'city' }

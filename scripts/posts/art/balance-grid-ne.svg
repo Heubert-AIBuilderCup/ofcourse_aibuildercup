@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="780" viewBox="0 0 1080 780">
+  <title>Nine tiles, each splitting work and life a different way</title>
+  <!-- Balance is a process. Not a destination: nine splits of work (blue) and life (yellow). -->
+  <rect width="1080" height="780" fill="#FFFFFF"/>
+  <g transform="translate(190 30) scale(2.2)">
+    <rect width="100" height="100" fill="#16191B"/>
+    <rect x="76" width="24" height="100" fill="#FFFFFF"/>
+    <text x="38" y="54" font-family="Noto Sans Devanagari" font-weight="400" font-size="11" fill="#FFFFFF" text-anchor="middle">का<tspan dx="2.85">म</tspan></text>
+    <text x="88" y="54" font-family="Noto Sans Devanagari" font-weight="400" font-size="7" fill="#16191B" text-anchor="middle">जी<tspan dx="1.81">व</tspan>न</text>
+    <rect width="100" height="100" fill="none" stroke="#16191B" stroke-width="1.8181818181818181"/>
+  </g>
+  <g transform="translate(430 30) scale(2.2)">
+    <rect width="100" height="100" fill="#FFFFFF"/>
+    <path d="M0 100 L0 92 C28 92 34 14 50 14 C66 14 72 92 100 92 L100 100 Z" fill="#16191B"/>
+    <text x="50" y="72" font-family="Noto Sans Devanagari" font-weight="400" font-size="11" fill="#FFFFFF" text-anchor="middle">का<tspan dx="2.85">म</tspan></text>
+    <text x="15" y="40" font-family="Noto Sans Devanagari" font-weight="400" font-size="11" fill="#16191B" text-anchor="middle">जी<tspan dx="2.85">व</tspan>न</text>
+    <text x="85" y="40" font-family="Noto Sans Devanagari" font-weight="400" font-size="11" fill="#16191B" text-anchor="middle">जी<tspan dx="2.85">व</tspan>न</text>
+    <rect width="100" height="100" fill="none" stroke="#16191B" stroke-width="1.8181818181818181"/>
+  </g>
+  <g transform="translate(670 30) scale(2.2)">
+    <rect width="100" height="100" fill="#16191B"/>
+    <rect width="30" height="30" fill="#FFFFFF"/>
+    <rect x="70" width="30" height="30" fill="#FFFFFF"/>
+    <rect y="70" width="30" height="30" fill="#FFFFFF"/>
+    <rect x="70" y="70" width="30" height="30" fill="#FFFFFF"/>
+    <text x="50" y="54" font-family="Noto Sans Devanagari" font-weight="400" font-size="11" fill="#FFFFFF" text-anchor="middle">का<tspan dx="2.85">म</tspan></text>
+    <text x="15" y="19" font-family="Noto Sans Devanagari" font-weight="400" font-size="11" fill="#16191B" text-anchor="middle">जी<tspan dx="2.85">व</tspan>न</text>
+    <rect width="100" height="100" fill="none" stroke="#16191B" stroke-width="1.8181818181818181"/>
+  </g>
+  <g transform="translate(190 270) scale(2.2)">
+    <rect width="100" height="100" fill="#FFFFFF"/>
+    <circle cx="18" cy="18" r="8" fill="#16191B"/>
+    <circle cx="50" cy="14" r="8" fill="#16191B"/>
+    <circle cx="84" cy="20" r="8" fill="#16191B"/>
+    <circle cx="16" cy="82" r="8" fill="#16191B"/>
+    <circle cx="46" cy="86" r="8" fill="#16191B"/>
+    <circle cx="76" cy="74" r="19" fill="#16191B"/>
+    <text x="76" y="78" font-family="Noto Sans Devanagari" font-weight="400" font-size="11" fill="#FFFFFF" text-anchor="middle">का<tspan dx="2.85">म</tspan></text>
+    <text x="36" y="52" font-family="Noto Sans Devanagari" font-weight="400" font-size="11" fill="#16191B" text-anchor="middle">जी<tspan dx="2.85">व</tspan>न</text>
+    <rect width="100" height="100" fill="none" stroke="#16191B" stroke-width="1.8181818181818181"/>
+  </g>
+  <g transform="translate(430 270) scale(2.2)">
+    <rect width="100" height="100" fill="#16191B"/>
+    <path d="M0 40 L12.5 30 L25 40 L37.5 30 L50 40 L62.5 30 L75 40 L87.5 30 L100 40 L100 68 L87.5 58 L75 68 L62.5 58 L50 68 L37.5 58 L25 68 L12.5 58 L0 68 Z" fill="#FFFFFF"/>
+    <text x="50" y="53" font-family="Noto Sans Devanagari" font-weight="400" font-size="11" fill="#16191B" text-anchor="middle">जी<tspan dx="2.85">व</tspan>न</text>
+    <text x="50" y="20" font-family="Noto Sans Devanagari" font-weight="400" font-size="11" fill="#FFFFFF" text-anchor="middle">का<tspan dx="2.85">म</tspan></text>
+    <text x="50" y="88" font-family="Noto Sans Devanagari" font-weight="400" font-size="11" fill="#FFFFFF" text-anchor="middle">का<tspan dx="2.85">म</tspan></text>
+    <rect width="100" height="100" fill="none" stroke="#16191B" stroke-width="1.8181818181818181"/>
+  </g>
+  <g transform="translate(670 270) scale(2.2)">
+    <rect width="100" height="100" fill="#FFFFFF"/>
+    <path d="M100 25 L100 100 L25 100 L25 75 L50 75 L50 50 L75 50 L75 25 Z" fill="#16191B"/>
+    <text x="24" y="32" font-family="Noto Sans Devanagari" font-weight="400" font-size="11" fill="#16191B" text-anchor="middle">जी<tspan dx="2.85">व</tspan>न</text>
+    <text x="74" y="84" font-family="Noto Sans Devanagari" font-weight="400" font-size="11" fill="#FFFFFF" text-anchor="middle">का<tspan dx="2.85">म</tspan></text>
+    <rect width="100" height="100" fill="none" stroke="#16191B" stroke-width="1.8181818181818181"/>
+  </g>
+  <g transform="translate(190 510) scale(2.2)">
+    <rect width="100" height="100" fill="#16191B"/>
+    <path d="M100 58 L100 100 L58 100 Z" fill="#FFFFFF"/>
+    <text x="42" y="46" font-family="Noto Sans Devanagari" font-weight="400" font-size="11" fill="#FFFFFF" text-anchor="middle">का<tspan dx="2.85">म</tspan></text>
+    <text x="87" y="94" font-family="Noto Sans Devanagari" font-weight="400" font-size="8" fill="#16191B" text-anchor="middle">जी<tspan dx="2.07">व</tspan>न</text>
+    <rect width="100" height="100" fill="none" stroke="#16191B" stroke-width="1.8181818181818181"/>
+  </g>
+  <g transform="translate(430 510) scale(2.2)">
+    <rect width="100" height="100" fill="#16191B"/>
+    <path d="M14 100 L14 46 A36 36 0 0 1 86 46 L86 100 Z" fill="#FFFFFF"/>
+    <path d="M36 100 L36 64 A14 14 0 0 1 64 64 L64 100 Z" fill="#16191B"/>
+    <text x="50" y="36" font-family="Noto Sans Devanagari" font-weight="400" font-size="11" fill="#16191B" text-anchor="middle">जी<tspan dx="2.85">व</tspan>न</text>
+    <text x="50" y="88" font-family="Noto Sans Devanagari" font-weight="400" font-size="11" fill="#FFFFFF" text-anchor="middle">का<tspan dx="2.85">म</tspan></text>
+    <rect width="100" height="100" fill="none" stroke="#16191B" stroke-width="1.8181818181818181"/>
+  </g>
+  <g transform="translate(670 510) scale(2.2)">
+    <rect width="100" height="50" fill="#FFFFFF"/>
+    <rect y="50" width="100" height="50" fill="#16191B"/>
+    <text x="50" y="30" font-family="Noto Sans Devanagari" font-weight="400" font-size="11" fill="#16191B" text-anchor="middle">जी<tspan dx="2.85">व</tspan>न</text>
+    <text x="50" y="80" font-family="Noto Sans Devanagari" font-weight="400" font-size="11" fill="#FFFFFF" text-anchor="middle">का<tspan dx="2.85">म</tspan></text>
+    <rect width="100" height="100" fill="none" stroke="#16191B" stroke-width="1.8181818181818181"/>
+  </g>
+  <text x="1060" y="764" font-family="Barlow" font-weight="400" font-size="20" fill="#5F5D58" text-anchor="end">Illustration idea: @pjmilani</text>
+</svg>

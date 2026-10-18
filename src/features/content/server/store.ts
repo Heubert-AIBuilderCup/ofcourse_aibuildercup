@@ -831,7 +831,39 @@ type LiveRead = {
  * the newest; not yet filtered by expiry or pinned by layer (lib/feed.ts does both).
  */
 export async function listLive(): Promise<FeedPost[]> {
-  return (await readLive(liveFeedPosts(), FEED_LIMIT)).map((r) => r.post)
+  return withShares((await readLive(liveFeedPosts(), FEED_LIMIT)).map((r) => r.post))
+}
+
+/** Posts with the Instagram accounts each was shared to, in one query: every live read agrees. */
+async function withShares(posts: FeedPost[]): Promise<FeedPost[]> {
+  if (posts.length === 0) return posts
+  const shared = await instagramShares(posts.map((p) => p.id))
+  return posts.map((p) => ({ ...p, sharedTo: shared.get(p.id) ?? [] }))
+}
+
+/** The most accounts one share names on a network (model/artifacts.ts, the share body). */
+const SHARE_ACCOUNTS_MAX = 20
+
+/**
+ * The Instagram accounts each post was shared to (criteria 9–11), by account id, each once: one
+ * query over the posts' share records (no pointer names them, so they are read by kind, on the
+ * post id index), at most SHARE_ACCOUNTS_MAX per post. A body whose instagram is not a list
+ * reads as none rather than fail the feed.
+ */
+async function instagramShares(postIds: string[]): Promise<Map<string, string[]>> {
+  const found = new Map<string, string[]>()
+  if (postIds.length === 0) return found
+  const accounts = sql`case when jsonb_typeof(${contentArtifact.body}->'instagram') = 'array' then ${contentArtifact.body}->'instagram' else '[]'::jsonb end`
+  const rows = await db
+    .selectDistinct({
+      postId: contentArtifact.postId,
+      account: sql<string>`jsonb_array_elements_text(${accounts})`,
+    })
+    .from(contentArtifact)
+    .where(and(eq(contentArtifact.kind, 'share'), inArray(contentArtifact.postId, postIds)))
+    .limit(postIds.length * SHARE_ACCOUNTS_MAX)
+  for (const { postId, account } of rows) found.set(postId, [...(found.get(postId) ?? []), account])
+  return found
 }
 
 /**
@@ -840,7 +872,9 @@ export async function listLive(): Promise<FeedPost[]> {
  */
 export async function liveById(id: string, now: Date = new Date()): Promise<FeedPost | null> {
   const [found] = await readLive(and(liveFeedPosts(), eq(contentPost.id, id)), 1, now)
-  return found && isLive(found.post, now) ? found.post : null
+  if (!found || !isLive(found.post, now)) return null
+  const [post] = await withShares([found.post])
+  return post ?? null
 }
 
 /**
@@ -969,7 +1003,7 @@ export async function relatedCandidates(
     RELATED_LIMIT,
     now,
   )
-  return read.map((r) => r.post).filter((p) => isLive(p, now))
+  return withShares(read.map((r) => r.post).filter((p) => isLive(p, now)))
 }
 
 /** The approval students see, as readLive joins it: a `where` given to readLive may name its columns. */

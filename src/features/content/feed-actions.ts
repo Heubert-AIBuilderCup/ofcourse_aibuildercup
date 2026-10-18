@@ -34,9 +34,9 @@ export async function loadFeedPageAction(
   if (!parsed.success) return fail('Unknown page.')
   const { query, offset } = parsed.data
   try {
-    const { filters, ordered } = await readFeedPage(session.user.id, query)
+    const { filters, ordered, roadmaps } = await readFeedPage(session.user.id, query)
     const cards = feedPage(ordered, filters, offset, FEED_PAGE_SIZE).map((item) =>
-      feedCardOf(item, filters.home),
+      feedCardOf(item, filters.home, roadmaps),
     )
     return { ok: true, cards }
   } catch (error) {

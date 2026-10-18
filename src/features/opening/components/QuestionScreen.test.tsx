@@ -325,19 +325,19 @@ it('offers up to three areas as checkboxes, and clears them when she removes the
   studyAt('areas', know("A few areas I'm drawn to"))
   expect(screen.getByText("A few areas I'm drawn to")).toBeInTheDocument()
   const areas = screen.getByRole('group', { name: 'Pick up to three' })
-  expect(within(areas).getAllByRole('checkbox')).toHaveLength(7)
+  expect(within(areas).getAllByRole('checkbox')).toHaveLength(9)
   expect(screen.getByText(AREAS_IDLE)).toBeInTheDocument()
   expect(screen.getByText('Pick up to three areas.')).toBeInTheDocument()
 
-  await check('Data')
+  await check('Social work')
   await waitFor(() => expect(screen.getByText(AREAS_SAVED)).toBeInTheDocument())
-  expect(saveAnswersAction).toHaveBeenLastCalledWith({ areas: ['Data'] })
+  expect(saveAnswersAction).toHaveBeenLastCalledWith({ areas: ['Social work'] })
   expect(
-    screen.getByText('Data: your road is matched to a course in one of them.'),
+    screen.getByText('Social work: your road is matched to a course in one of them.'),
   ).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
 
-  await check('Data')
+  await check('Social work')
   await waitFor(() => expect(saveAnswersAction).toHaveBeenLastCalledWith({ areas: null }))
   expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument()
   expect(screen.getByText('0 of 3 chosen')).toBeInTheDocument()

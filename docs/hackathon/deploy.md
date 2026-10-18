@@ -78,6 +78,7 @@ Never set `DEV_LOGIN_SECRET` here. `--no-cpu-throttling` (instance-based billing
 - `OTEL_ENABLED=1` turns the tracer on: every Gemini attempt becomes a `gen_ai <use case>` span in Cloud Trace (the exporter authenticates as the runtime account, hence `roles/cloudtrace.agent` in section 3). Unset, nothing loads.
 - `GEMINI_LITE_MODEL` is the lite tier (the source check, the art check, captions, market rewording, the design-language description). Unset, the lite tier uses the Flash model.
 - `TRUSTED_PROXY_HOPS` is not set: the public pages' rate limit keys on the right-most `X-Forwarded-For` entry, the address Cloud Run's front end appended (default 1). Put a load balancer in front of the service and set `TRUSTED_PROXY_HOPS=2`, so the limiter reads the entry the balancer appended rather than the balancer's own address.
+- `@resvg/resvg-js` stays pinned to exactly `2.6.2` in package.json. The slides' Devanagari text is shifted (`dx`, `src/features/content/layout/svg.ts`) to make up for 2.6.2 dropping a spacing vowel sign's width; a resvg that fixes this would double the gap after every sign on Nepali and Hindi slides. Bump it only together with removing that shift: `svg.test.ts` renders नेपाल and fails when the renderer changes.
 
 On a service that is already deployed, the two new variables go on without a rebuild:
 

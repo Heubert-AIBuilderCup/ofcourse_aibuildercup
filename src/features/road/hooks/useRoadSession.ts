@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { NOT_TAKEN } from '@/features/opening/model/english'
 import type { ActionResult } from '@/shared/types/action-result'
-import type { RoadmapChoices, StoredAnswers } from '@/shared/types/student'
+import type { QuestionKey, RoadmapChoices, StoredAnswers } from '@/shared/types/student'
 import type { RoadFocus } from '../components/PhoneRoad'
 import type { BoardRoadmap } from '../components/RoadBoard'
 import { pressTile, primaryAction } from '../model/press'
@@ -110,6 +110,7 @@ export function useRoadSession(
   const scene = useMemo(() => buildScene(road, session, answers), [road, session, answers])
   const { state, setState } = useRoadUrl(scene.tiles)
   const [draftOpen, setDraftOpen] = useState(true)
+  const [answersAt, setAnswersAt] = useState<QuestionKey | null>(null)
   const answering = (draft && draftOpen) || state.open === 'answers'
   // Her answers closed under the board (Back): what they previewed goes with them.
   if (!answering && session.preview) setSession({ ...session, preview: undefined })
@@ -255,6 +256,7 @@ export function useRoadSession(
   function primary() {
     const action = primaryAction(road, scene, state.tile)
     if (!action) return
+    if (action.kind === 'answers') return openAnswers(action.at)
     if (action.kind === 'look') return press(action.tileId)
     if (action.kind === 'list') {
       listPushed.current = true
@@ -341,9 +343,13 @@ export function useRoadSession(
     leaveLesson()
   }
 
-  /** Her answers over the board, pushed so Back closes them; on a phone, over the Map view. */
-  function openAnswers() {
+  /**
+   * Her answers over the board, pushed so Back closes them; on a phone, over the Map view. `at`:
+   * the question they open at (Pick a destination's), else none open.
+   */
+  function openAnswers(at: QuestionKey | null = null) {
     if (answering || leaving.current) return
+    setAnswersAt(at)
     if (draft) return setDraftOpen(true)
     answersPushed.current = !panel
     go({ ...state, tile: null, open: 'answers', view: phone ? 'map' : state.view })
@@ -383,7 +389,10 @@ export function useRoadSession(
     scene,
     answers,
     answering,
-    openAnswers,
+    /** Her answers, opened with no question open (a click's event is never taken for one). */
+    openAnswers: () => openAnswers(),
+    /** The question her answers opened at, if any. */
+    answersAt,
     closeAnswers,
     saveAnswers,
     /** What a pick not saved would change, drawn on the map until it is saved or dropped. */

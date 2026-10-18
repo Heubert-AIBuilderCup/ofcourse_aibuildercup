@@ -14,7 +14,6 @@ import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { cn } from '@/shared/lib/utils'
 import type { ActionResult } from '@/shared/types/action-result'
-import { FRESH_START } from '../model/accounts'
 
 /** What a story's card shows. */
 export type JudgeStoryCard = { id: string; name: string; country: string; line: string }
@@ -22,8 +21,13 @@ export type JudgeStoryCard = { id: string; name: string; country: string; line: 
 type Props = {
   /** The judge sign-in action: on success it redirects, so only a refusal comes back. */
   action: (previous: ActionResult | null, form: FormData) => Promise<ActionResult>
-  /** The student page's stories; without them, the admin page's form, with no choice. */
+  /** The student page's story (one today); without it, the admin page's form, with no choice. */
   stories?: readonly JudgeStoryCard[]
+  /**
+   * The passcode, said in the dialog and filled in (18 Oct), on the student form only: the admin
+   * judge edits and publishes, so its form never shows it, even when handed one.
+   */
+  passcode?: string
 }
 
 // The sign-in form's field: a small label that takes the accent while the field has focus.
@@ -36,12 +40,11 @@ const CHOICE =
 
 /**
  * "Judge access" under a sign-in form: a small text action that opens the passcode dialog. On the
- * admin page the passcode signs in to the shared admin judge; on the student page it comes with a
- * choice of stories, each card a way in as a new student with that story, or "Start from the
- * beginning" as a new student who goes through onboarding. The action answers a wrong passcode,
- * too many tries or a failed sign-in, said in the dialog; a sign-in redirects.
+ * admin page the passcode signs in to the shared admin judge; on the student page it comes with the
+ * story offered, its card a way in as a new student with that story. The action answers a wrong
+ * passcode, too many tries or a failed sign-in, said in the dialog; a sign-in redirects.
  */
-export function JudgeAccess({ action, stories }: Props) {
+export function JudgeAccess({ action, stories, passcode }: Props) {
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -50,14 +53,14 @@ export function JudgeAccess({ action, stories }: Props) {
         </Button>
       </DialogTrigger>
       <DialogContent className={cn(stories && 'max-h-dvh max-w-2xl overflow-y-auto')}>
-        <JudgeForm action={action} stories={stories} />
+        <JudgeForm action={action} stories={stories} passcode={stories ? passcode : undefined} />
       </DialogContent>
     </Dialog>
   )
 }
 
 /** Inside the dialog's content, so each opening starts with an empty passcode and no message. */
-function JudgeForm({ action, stories }: Props) {
+function JudgeForm({ action, stories, passcode }: Props) {
   const id = useId()
   const [state, formAction, pending] = useActionState(action, null)
   const error = state && !state.ok ? state.error : null
@@ -74,9 +77,15 @@ function JudgeForm({ action, stories }: Props) {
         </DialogTitle>
         <DialogDescription className="m-0">
           {stories
-            ? 'Enter the passcode from the submission notes, then pick a student. Each choice makes a new account, so nothing carries over.'
+            ? 'Enter the passcode from the submission notes, then open her roadmap. Each sign-in makes a new account, so nothing carries over.'
             : 'Enter the passcode from the submission notes. The judge account edits and reviews posts; users and models stay closed.'}
         </DialogDescription>
+        {passcode ? (
+          <p className="m-0 text-caption">
+            The passcode is <strong className="font-semibold">{passcode}</strong>; it is filled in
+            for you.
+          </p>
+        ) : null}
       </div>
 
       <div className="group flex flex-col gap-1.5">
@@ -86,7 +95,8 @@ function JudgeForm({ action, stories }: Props) {
         <Input
           id={`${id}-passcode`}
           name="passcode"
-          type="password"
+          type={passcode ? 'text' : 'password'}
+          defaultValue={passcode}
           autoComplete="off"
           maxLength={200}
           aria-invalid={error ? true : undefined}
@@ -112,7 +122,7 @@ function JudgeForm({ action, stories }: Props) {
 
       {stories ? (
         <fieldset className="m-0 flex flex-col gap-3 border-0 p-0" disabled={pending}>
-          <legend className="mb-3 p-0 text-sm font-medium">Choose a student</legend>
+          <legend className="mb-3 p-0 text-sm font-medium">Sign in as</legend>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-3">
             {stories.map((s) => (
               <button key={s.id} type="submit" name="story" value={s.id} className={CHOICE}>
@@ -122,10 +132,6 @@ function JudgeForm({ action, stories }: Props) {
               </button>
             ))}
           </div>
-          <Button type="submit" name="story" value={FRESH_START} variant="outline">
-            Start from the beginning
-            <ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-icon-sm" />
-          </Button>
         </fieldset>
       ) : (
         <Button type="submit" disabled={pending}>

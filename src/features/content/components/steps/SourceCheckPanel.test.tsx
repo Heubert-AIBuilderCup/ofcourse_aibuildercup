@@ -146,6 +146,41 @@ describe('SourceCheckPanel', () => {
     expect(actions.applySourceWordingAction).toHaveBeenCalledWith('p1', 9, 1)
   })
 
+  it('on a Thai post, an English source sentence is not offered: Remove and opinion are, with the reason (104)', () => {
+    const suggestion = {
+      ref: '¶4',
+      text: 'The authors note the study shows association, not cause.',
+    }
+    const current = checked([FOUND, { ...NOT_FOUND, suggestion }])
+    view({
+      current: {
+        ...current,
+        source: {
+          id: 'src1',
+          body: {
+            title: 'Paid work',
+            kind: 'research summary',
+            text: suggestion.text,
+            paragraphs: [{ ref: '¶4', text: suggestion.text }],
+            demoKey: null,
+            language: 'th',
+          },
+        },
+      },
+    })
+    const row = rowOf(NOT_FOUND.text)
+    expect(within(row).queryAllByRole('button', { name: "Use the source's wording" }).length).toBe(
+      0,
+    )
+    expect(within(row).getByRole('button', { name: 'Remove' })).toBeInTheDocument()
+    expect(
+      within(row).getByRole('button', { name: 'Mark as editorial opinion' }),
+    ).toBeInTheDocument()
+    expect(
+      within(row).getByText('The source is in English; edit the slide in Thai instead.'),
+    ).toBeInTheDocument()
+  })
+
   it('shows a found claim with its paragraph', () => {
     view({ current: checked([FOUND, NOT_FOUND]) })
     openAll()

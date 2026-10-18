@@ -11,6 +11,7 @@ import type { Body, SendBackStep } from '../../model/artifacts'
 import { wordingCheck } from '../../model/current'
 import { type FeedSettings, FeedSettingsSchema, type SourcesAt } from '../../model/types'
 import { isLook } from '../../templates'
+import { sourceWordingRefusal } from '../../text/script'
 import { runStep } from '../steps'
 import { getAsset, type LoadedPost, publishApproval, putArtifact } from '../store'
 import { CHECK_STEP, checkNow, checkTarget } from './check'
@@ -79,6 +80,9 @@ export async function applySourceWording(
     const target = check.body.claims[claim]
     const wording = target?.result === 'not_found' ? target.suggestion?.text : undefined
     if (!target || wording === undefined) return fail(WORKFLOW_ERRORS.movedOn)
+    // Only a sentence in the post's own script: a stale page may still offer it.
+    const refused = sourceWordingRefusal(wording, post.current.source?.body.language)
+    if (refused) return fail(refused)
     if (post.stage === 'structures') {
       return editPickedSlot(
         post,

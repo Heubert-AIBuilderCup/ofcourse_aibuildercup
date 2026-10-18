@@ -11,7 +11,7 @@ import 'server-only'
 import { cosineDistance, desc, sql } from 'drizzle-orm'
 import type { FieldId, Level } from '@/features/engine/types'
 import { DRAWN_TO_AREAS, PARTICULAR } from '@/features/opening/model/questions'
-import { AREA_FIELDS, FIELD_OF_OPTION, FIELDS } from '@/features/roads/data/fields'
+import { areaFields, FIELD_OF_OPTION, FIELDS } from '@/features/roads/data/fields'
 import { db } from '@/shared/lib/db'
 import { courseDoc } from '@/shared/lib/db/schema'
 import type { QuestionKey, StoredAnswers } from '@/shared/types/student'
@@ -57,7 +57,7 @@ function interestsOf(answers: StoredAnswers): (readonly string[])[] {
   const know = stated(answers, 'know')
   if (know === DRAWN_TO_AREAS) {
     const areas = stated(answers, 'areas')
-    return Array.isArray(areas) ? areas.map((area) => AREA_FIELDS[area] ?? []) : []
+    return Array.isArray(areas) ? areas.map(areaFields) : []
   }
   if (know === PARTICULAR) {
     const field = stated(answers, 'field')

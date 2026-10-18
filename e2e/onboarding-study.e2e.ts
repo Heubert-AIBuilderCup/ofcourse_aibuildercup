@@ -86,7 +86,7 @@ test('the areas: up to three, a fourth refused, the last one removed clears her 
     await expect(page).toHaveURL(/\/onboarding\/study\/areas$/)
     await expect(heading(page, AREAS)).toBeVisible()
 
-    const chosen = ['IT and computing', 'Data', 'Health']
+    const chosen = ['IT and computing', 'Social work', 'Health']
     for (const area of chosen) await areaCheck(page, area).click()
     await expect(page.getByText('3 of 3 chosen', { exact: true })).toBeVisible()
     await expect

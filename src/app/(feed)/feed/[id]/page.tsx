@@ -39,7 +39,7 @@ export default async function FeedPostPage({ params, searchParams }: PageProps<'
   // Only the live, unexpired posts sharing its source or a tag are read (criteria 73, 91, SR10).
   const related = relatedTo(post, await relatedCandidates(post))
   return (
-    <div className="flex flex-col gap-block">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-block px-gutter py-section">
       <FeedChips pathname={`${FEED_PATH}/${encodeURIComponent(id)}`} filters={filters} />
       <FeedPostView post={post} filters={filters} related={related} />
       <FollowPages />

@@ -2,12 +2,13 @@ import 'server-only'
 import { type FeedItem, type Filters, feedOrder, parseFilters } from '../lib/feed'
 import { chipsFromProfile } from '../lib/profile-contract'
 import { feedBlogOf } from '../lib/public-blog'
+import type { FeedRoadmap } from '../lib/roadmap-lines'
 import { keptFor } from './kept-for'
 import { listLive, liveBlogs } from './store'
-import { loadStudentProfile } from './student-profile'
+import { loadFeedStudent } from './student-profile'
 
 type Query = Record<string, string | string[] | undefined>
-type Feed = { filters: Filters; ordered: FeedItem[] }
+type Feed = { filters: Filters; ordered: FeedItem[]; roadmaps: FeedRoadmap[] }
 
 /**
  * Every live post and blog, before ordering. Each page of the infinite scroll slices this whole
@@ -23,14 +24,15 @@ const live = keptFor(30_000, async (now): Promise<FeedItem[]> => {
 })
 
 async function feedOf(items: Promise<FeedItem[]>, userId: string, query: Query, now: Date) {
-  const [all, profile] = await Promise.all([items, loadStudentProfile(userId)])
+  const [all, { profile, roadmaps }] = await Promise.all([items, loadFeedStudent(userId)])
   const filters = chipsFromProfile(profile, parseFilters(query))
-  return { filters, ordered: feedOrder(all, now) }
+  return { filters, ordered: feedOrder(all, now), roadmaps }
 }
 
 /**
  * One account's feed for a URL's query: its filters (the URL's, else her profile's, criterion
- * 84) and every live post and blog in feed order (criteria 71, 72, BR11), before the filters.
+ * 84), every live post and blog in feed order (criteria 71, 72, BR11), before the filters, and
+ * her roadmaps, which each card's lines on them read.
  * The feed page reads its first page from it, always from the store; loadFeedPageAction reads
  * each next one through readFeedPage, so both slice the same list.
  */

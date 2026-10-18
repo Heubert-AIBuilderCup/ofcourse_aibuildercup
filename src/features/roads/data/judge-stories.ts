@@ -216,6 +216,16 @@ export const JUDGE_STORIES: readonly JudgeStory[] = [
   },
 ]
 
+/**
+ * The one story the student sign-in page offers the judges: Priya, whose board shows every action
+ * working (each city and course beside her road starts a new roadmap, "What changes" differs in
+ * money, work rights, PR and jobs, her stack lists courses of her field). The others stay for the
+ * tests that pin their roads.
+ */
+export const OFFERED_JUDGE_STORIES: readonly JudgeStory[] = JUDGE_STORIES.filter(
+  (s) => s.id === 'priya',
+)
+
 /** The story with this id, or undefined. */
 export const judgeStoryById = (id: string): JudgeStory | undefined =>
   JUDGE_STORIES.find((s) => s.id === id)

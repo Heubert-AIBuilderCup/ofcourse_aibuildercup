@@ -14,7 +14,7 @@ import {
 } from '@/features/opening/model/questions'
 import type { QuestionKey, Relative, RoadmapTag, StoredAnswers } from '@/shared/types/student'
 import { courseById } from '../data/courses'
-import { AREA_FIELDS, FIELDS, relatedFields } from '../data/fields'
+import { areaFields, FIELDS, relatedFields } from '../data/fields'
 import { CITY_STATE, occupationsFor } from '../data/occupations'
 import { opportunitiesIn } from '../data/opportunities'
 import type {
@@ -320,7 +320,7 @@ function fieldReason(spec: RoadSpec, answers: StoredAnswers, differs: ReadonlySe
   const areas = said(answers, 'areas')
   const area =
     said(answers, 'know') === DRAWN_TO_AREAS && Array.isArray(areas)
-      ? areas.find((a) => AREA_FIELDS[a]?.includes(spec.field))
+      ? areas.find((a) => areaFields(a).includes(spec.field))
       : undefined
   return [`you picked ${area ?? String(said(answers, 'field'))}`]
 }

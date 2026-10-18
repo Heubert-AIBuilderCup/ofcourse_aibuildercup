@@ -7,7 +7,12 @@
 // The browser imports ./client instead.
 
 export { englishScores } from './data/entry'
-export { JUDGE_STORIES, type JudgeStory, judgeStoryById } from './data/judge-stories'
+export {
+  JUDGE_STORIES,
+  type JudgeStory,
+  judgeStoryById,
+  OFFERED_JUDGE_STORIES,
+} from './data/judge-stories'
 export { ROADS, roadById } from './data/roads'
 export {
   PRIYA_SLOT,
@@ -22,7 +27,7 @@ export { buildRoad, type RoadContext, slotOf } from './model/build'
 export { specById } from './model/compose'
 export { DEMO_PROFILES } from './model/demo-profiles'
 export { detailsByTile } from './model/details'
-export { type Difference, type Match, matchRoad } from './model/match'
+export { areasWithoutRoads, type Difference, type Match, matchRoad } from './model/match'
 export { type RoadFor, roadFor } from './model/road-for'
 export { herCountry, type TilePost, tilePosts } from './model/tile-posts'
 export { studentAiOff, studentRoadsOff } from './switch'

@@ -217,6 +217,26 @@ export async function listRoadmaps(userId: string): Promise<Roadmap[]> {
   return rows.map(toRoadmap)
 }
 
+/**
+ * Her finished roadmaps as listRoadmaps orders and bounds them, only their name, answers and
+ * choices: what the feed reads of each, on every page she scrolls.
+ */
+export async function listRoadmapSummaries(
+  userId: string,
+): Promise<Pick<Roadmap, 'name' | 'answers' | 'choices'>[]> {
+  const rows = await db
+    .select({ name: roadmap.name, answers: roadmap.answers, choices: roadmap.choices })
+    .from(roadmap)
+    .where(and(eq(roadmap.userId, userId), finished, alive))
+    .orderBy(...lastOpenedFirst)
+    .limit(LIST_MAX)
+  return rows.map((row) => ({
+    name: row.name,
+    answers: storedAnswersSchema.safeParse(row.answers).data ?? {},
+    choices: roadmapChoicesSchema.safeParse(row.choices).data ?? {},
+  }))
+}
+
 /** The answers of the roadmap listRoadmaps puts first (archived ones count), or null: one row. */
 export async function lastOpenedAnswers(userId: string): Promise<StoredAnswers | null> {
   const [row] = await db
