@@ -6,8 +6,6 @@ import type { Guideline, Preset } from '../brands/guideline'
 
 /** Rec. 709 luminance weights. */
 const LUMA = '0.2126 0.7152 0.0722 0 0'
-/** How far Subdued keeps an image's colour. */
-const SUBDUED_SATURATION = 0.4
 
 const r4 = (v: number) => String(Math.round(v * 10000) / 10000)
 
@@ -24,35 +22,19 @@ function channels(guideline: Guideline, name: string): [number, number, number] 
 }
 
 /**
- * The `<filter id="tint">` for a preset. Pop: a duotone, luminance mapped from the tint's shadow
- * (dark) to its light. Subdued: desaturated to 40%, then the wash laid over at the guideline's
- * strength (each channel c becomes c·(1 − s) + wash·s).
+ * The `<filter id="tint">` for a preset: a duotone, luminance mapped from the preset's shadow
+ * (dark) to its light. Pop: deep blue to yellow; Subdued: dark sepia to the sepia page.
  */
 export function tintFilter(preset: Preset, guideline: Guideline): string {
-  const open = '<filter id="tint" color-interpolation-filters="sRGB">'
-  const funcs = (each: (channel: 'R' | 'G' | 'B', i: number) => string) =>
-    `<feComponentTransfer>${(['R', 'G', 'B'] as const).map(each).join('')}</feComponentTransfer>`
-
-  if (preset === 'pop') {
-    const shadow = channels(guideline, guideline.tint.pop.shadow)
-    const light = channels(guideline, guideline.tint.pop.light)
-    return [
-      open,
-      `<feColorMatrix type="matrix" values="${LUMA} ${LUMA} ${LUMA} 0 0 0 1 0"/>`,
-      funcs((c, i) => `<feFunc${c} type="table" tableValues="${r4(shadow[i])} ${r4(light[i])}"/>`),
-      '</filter>',
-    ].join('')
-  }
-
-  const { wash, strength } = guideline.tint.subdued
-  const tone = channels(guideline, wash)
+  const shadow = channels(guideline, guideline.tint[preset].shadow)
+  const light = channels(guideline, guideline.tint[preset].light)
+  const funcs = (['R', 'G', 'B'] as const)
+    .map((c, i) => `<feFunc${c} type="table" tableValues="${r4(shadow[i])} ${r4(light[i])}"/>`)
+    .join('')
   return [
-    open,
-    `<feColorMatrix type="saturate" values="${SUBDUED_SATURATION}"/>`,
-    funcs(
-      (c, i) =>
-        `<feFunc${c} type="linear" slope="${r4(1 - strength)}" intercept="${r4(tone[i] * strength)}"/>`,
-    ),
+    '<filter id="tint" color-interpolation-filters="sRGB">',
+    `<feColorMatrix type="matrix" values="${LUMA} ${LUMA} ${LUMA} 0 0 0 1 0"/>`,
+    `<feComponentTransfer>${funcs}</feComponentTransfer>`,
     '</filter>',
   ].join('')
 }

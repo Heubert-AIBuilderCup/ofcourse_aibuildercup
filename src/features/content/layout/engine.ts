@@ -2,6 +2,7 @@
 // Draft previews, fit checks, the render and the export all read this layout, so what an editor
 // approves is what is drawn. Pure given `measure`: the same input always gives the same layout.
 
+import type { Surface } from '../brands/guideline'
 import { type LanguageId, linesOf, SEARCH_PHRASE } from '../languages'
 import { type PostSource, sourceLabel, sourceNames } from '../lib/sites'
 import {
@@ -20,7 +21,7 @@ import {
   type Structure,
   type Template,
 } from '../model/types'
-import { isLook, slideSpec, templateById } from '../templates'
+import { isLook, LOOKS, slideSpec, templateById } from '../templates'
 import { measure, wrap } from './measure'
 
 export { paragraphSite, paragraphSites } from '../lib/sites'
@@ -80,6 +81,36 @@ function sourcesSlide(spec: SlideSpec, sources: readonly PostSource[], heading: 
       rows: slot(sources.slice(0, SOURCES_MAX).map(sourceLabel).join('\n')),
     },
   }
+}
+
+/** The surfaces a look's slides between its cover and its takeaway cycle through, in slide order. */
+const CYCLE: readonly Surface[] = ['base', 'block', 'deep']
+
+/**
+ * The surface of each slide of a look post, in both presets, so a post mixes its colours before
+ * any picture is drawn (Pop: white, yellow, blue): the cover on deep; the slides after it cycling
+ * base, block, deep in slide order; the takeaway (the last `take`) on deep; a slide after it (the
+ * sources slide), or a last slide that is no takeaway, on base. Never two deep slides together: a
+ * deep slide in the cycle just before the takeaway goes to base, and a takeaway right after the
+ * cover to block.
+ */
+export function surfaceRhythm(kinds: readonly Slide['kind'][]): Surface[] {
+  const take = kinds.lastIndexOf('take')
+  const last = kinds.length - 1
+  const surfaces: Surface[] = []
+  kinds.forEach((_, i) => {
+    const before = surfaces[i - 1]
+    let surface: Surface
+    if (i === 0) surface = 'deep'
+    else if (i === take) surface = before === 'deep' ? 'block' : 'deep'
+    else if (i === last || (take >= 0 && i > take)) surface = 'base'
+    else {
+      surface = CYCLE[(i - 1) % CYCLE.length]
+      if (surface === 'deep' && (before === 'deep' || i + 1 === take)) surface = 'base'
+    }
+    surfaces.push(surface)
+  })
+  return surfaces
 }
 
 /** The source line's baseline on a slide whose search line takes `searchRows` rows. */
@@ -278,6 +309,10 @@ export function layoutStructure(input: {
   if (sourcesSpec)
     planned.push({ slide: sourcesSlide(sourcesSpec, sources, fixed.sources), spec: sourcesSpec })
   const total = planned.length
+  // The three looks lay their slides on the rhythm; the comic keeps its template's surfaces.
+  const rhythm = LOOKS.some((t) => t.id === template.id)
+    ? surfaceRhythm(planned.map((p) => p.slide.kind))
+    : null
   // A look starts each line break on a new line (a checklist's items); old templates never did.
   // A points slot's lines are its points (GD34): each starts after a bullet, its rows indented.
   // A look's checklist items are laid out the same, each after a tick.
@@ -451,7 +486,7 @@ export function layoutStructure(input: {
       ...laid,
       lines: placed,
       ...(shift > 0 ? { shift } : {}),
-      surface: spec.surface,
+      surface: rhythm?.[index] ?? spec.surface,
       // Only a cue not in English stores its words, so an English layout is as before.
       frame: {
         slide: number,

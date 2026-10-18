@@ -4696,7 +4696,7 @@ Cc overflow marker paragraph.`,
     'setPreset Subdued draws the preview on Subdued surfaces, and the fit rows and the approved layout check contrast on them (GD9)',
     async () => {
       const { presetThemes } = await import('../brands/guideline')
-      const { slideSpec } = await import('../templates')
+      const { surfaceRhythm } = await import('../layout/engine')
       const { Resvg } = await import('@resvg/resvg-js')
       let { id, version } = await pickedLook()
       expect(await commands.setPreset(ED, id, version, { preset: 'paper' as 'pop' })).toEqual({
@@ -4724,7 +4724,8 @@ Cc overflow marker paragraph.`,
       const pixels = new Resvg(
         `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350"><image width="1080" height="1350" href="${uri}"/></svg>`,
       ).render().pixels
-      const surface = slideSpec(item.template, item.structure.slides[last - 1]).surface
+      // A look lays its slides on the rhythm, not its template's surfaces.
+      const surface = surfaceRhythm(item.structure.slides.map((s) => s.kind))[last - 1]
       const bg = presetThemes('subdued')[surface].bg
       const rgb = [1, 3, 5].map((i) => Number.parseInt(bg.slice(i, i + 2), 16))
       const at = (8 * 1080 + 8) * 4

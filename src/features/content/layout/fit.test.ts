@@ -272,12 +272,28 @@ describe('fitChecks on a look (GD9, GD17)', () => {
       'Contrast · Pop deep · OK',
       'Contrast · Pop deep muted · OK',
       'Contrast · Pop deep highlight · OK',
-      'Contrast · Pop block · OK',
-      'Contrast · Pop block muted · OK',
       'Contrast · Pop base · OK',
       'Contrast · Pop base muted · OK',
-      'Contrast · Pop base highlight · OK',
+      'Contrast · Pop block · OK',
+      'Contrast · Pop block muted · OK',
     ])
+  })
+
+  it('checks the surfaces the rhythm lays out, all three, in every look, and passes them in both presets', () => {
+    for (const id of ['field-notes', 'data-desk', 'postcard']) {
+      for (const preset of PRESETS) {
+        const rows = lookChecks(id, presetThemes(preset)).filter((r) => r.check === 'contrast')
+        const name = preset === 'pop' ? 'Pop' : 'Subdued'
+        const checked = new Set(rows.map((r) => r.label.split(' ')[3]))
+        expect({
+          id,
+          preset,
+          checked: [...checked].sort(),
+          named: rows.every((r) => r.label.startsWith(`Contrast · ${name} `)),
+          failing: rows.filter((r) => !r.pass).map((r) => r.label),
+        }).toEqual({ id, preset, checked: ['base', 'block', 'deep'], named: true, failing: [] })
+      }
+    }
   })
 
   it('reads the words on the highlight in their own colour: ink on yellow passes on Pop deep, white on it fails', () => {
@@ -309,7 +325,6 @@ describe('fitChecks on a look (GD9, GD17)', () => {
       'Contrast · Pop deep highlight · Too low',
       'Contrast · Pop block · Too low',
       'Contrast · Pop block muted · Too low',
-      'Contrast · Pop base highlight · Too low',
     ])
   })
 })

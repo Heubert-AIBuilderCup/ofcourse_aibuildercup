@@ -28,6 +28,7 @@ import {
   SOURCES_MAX,
   slideSpec,
   sourceLineY,
+  surfaceRhythm,
 } from './engine'
 import { lookStructure } from './fixtures'
 
@@ -858,5 +859,112 @@ describe('the lines code writes, in the post’s language (GD39)', () => {
     for (const slide of layLook('en', 'sources_slide').slides) {
       expect(slide.frame && Object.keys(slide.frame)).toEqual(['slide', 'total'])
     }
+  })
+})
+
+describe('the surface rhythm of a look (Pop and Subdued mix)', () => {
+  const kinds = (bodies: number, sources: boolean): Slide['kind'][] => [
+    'cover',
+    ...Array.from({ length: bodies }, () => 'body' as const),
+    'take',
+    ...(sources ? (['body'] as const) : []),
+  ]
+
+  it('runs cover deep, then base, block, deep in slide order, the takeaway deep', () => {
+    expect(surfaceRhythm(kinds(1, false))).toEqual(['deep', 'base', 'deep'])
+    expect(surfaceRhythm(kinds(3, false))).toEqual(['deep', 'base', 'block', 'base', 'deep'])
+    expect(surfaceRhythm(kinds(5, false))).toEqual([
+      'deep',
+      'base',
+      'block',
+      'deep',
+      'base',
+      'block',
+      'deep',
+    ])
+  })
+
+  it('keeps cover deep, no two deep in a row, the takeaway deep, and a sources slide after it base, for 3, 5 and 7 slides', () => {
+    const cases = [
+      ...[3, 5, 7].map((total) => ({ total, sources: false })),
+      ...[5, 7].map((total) => ({ total, sources: true })),
+    ]
+    for (const { total, sources } of cases) {
+      const k = kinds(total - 2 - (sources ? 1 : 0), sources)
+      const rhythm = surfaceRhythm(k)
+      expect({
+        total,
+        sources,
+        length: rhythm.length,
+        cover: rhythm[0],
+        adjacent: rhythm.some((s, i) => s === 'deep' && rhythm[i + 1] === 'deep'),
+        take: rhythm[k.lastIndexOf('take')],
+        last: sources ? rhythm.at(-1) : 'base',
+      }).toEqual({
+        total,
+        sources,
+        length: total,
+        cover: 'deep',
+        adjacent: false,
+        take: 'deep',
+        last: 'base',
+      })
+    }
+  })
+
+  it('puts a three-slide post with a sources slide on deep, block, base: the takeaway yields to the cover', () => {
+    expect(surfaceRhythm(['cover', 'take', 'body'])).toEqual(['deep', 'block', 'base'])
+  })
+
+  it('lays a Postcard post out on the rhythm, no longer all base', () => {
+    const s = lookStructure('postcard')
+    const { slides } = layoutStructure({
+      structure: s,
+      template: templateById('postcard') as Template,
+      brand: FEED_BRAND,
+      sourceTitle: 'Hours of paid work and first-year results',
+      facts: [],
+      sourcesAt: 'sources_slide',
+    })
+    expect(slides.map((l) => l.surface)).toEqual(
+      surfaceRhythm([...s.slides.map((slide) => slide.kind), 'body']),
+    )
+    expect(new Set(slides.map((l) => l.surface))).toEqual(new Set(['base', 'block', 'deep']))
+    expect(slides.at(-1)?.surface).toBe('base')
+  })
+
+  it('lays every look on the rhythm, and leaves the comic on its template surfaces', () => {
+    for (const id of ['field-notes', 'data-desk', 'postcard']) {
+      const s = lookStructure(id)
+      const { slides } = layoutStructure({
+        structure: s,
+        template: templateById(id) as Template,
+        brand: FEED_BRAND,
+        sourceTitle: 'Hours of paid work',
+        facts: [],
+      })
+      expect({ id, surfaces: slides.map((l) => l.surface) }).toEqual({
+        id,
+        surfaces: surfaceRhythm(s.slides.map((slide) => slide.kind)),
+      })
+    }
+    const caption = (text: string) => ({ caption: { text, factIds: [], factual: false } })
+    const comic: Structure = {
+      templateId: 'comic',
+      artPrompt: 'A student at a desk.',
+      slides: [
+        { kind: 'cover', slots: caption('Week one') },
+        { kind: 'body', layout: null, slots: caption('The first lecture') },
+        { kind: 'body', layout: null, slots: caption('The first essay') },
+      ],
+    }
+    const { slides } = layoutStructure({
+      structure: comic,
+      template: templateById('comic') as Template,
+      brand: FEED_BRAND,
+      sourceTitle: 'Week one',
+      facts: [],
+    })
+    expect(slides.map((l) => l.surface)).toEqual(['base', 'base', 'base'])
   })
 })

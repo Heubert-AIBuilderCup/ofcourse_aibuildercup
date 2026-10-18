@@ -128,15 +128,16 @@ export function fitChecks(input: {
   }
 
   if (surfaces && isLook(template)) {
-    // Each surface once, in the order the slides first use it: ink, and the muted foot row (source
-    // line, search line, frame) every look slide carries; the highlight ink (the surface's ink
-    // unless it names one) on the highlight where a slot on that surface is marked (the highlight
-    // is drawn under the words, the underline beside them).
+    // Each surface once, in the order the laid-out slides first use it (the rhythm, a sources
+    // slide included): ink, and the muted foot row (source line, search line, frame) every look
+    // slide carries; the highlight ink (the surface's ink unless it names one) on the highlight
+    // where words on that surface are marked (the highlight is drawn under the words, the
+    // underline beside them).
     const used = new Map<Surface, boolean>()
-    for (const slide of structure.slides) {
-      const spec = slideSpec(template, slide)
-      const marked = spec.slots.some((s) => s.mark !== 'none')
-      used.set(spec.surface, (used.get(spec.surface) ?? false) || marked)
+    for (const slide of layout.slides) {
+      if (!slide.surface) continue
+      const marked = slide.lines.some((l) => l.mark !== 'none')
+      used.set(slide.surface, (used.get(slide.surface) ?? false) || marked)
     }
     for (const [surface, marked] of used) {
       const t = surfaces[surface]
