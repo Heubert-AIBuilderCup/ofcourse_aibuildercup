@@ -1440,8 +1440,9 @@ describe('the JSON timeout, by tier', () => {
     expect(jsonTimeoutMs('pro')).toBe(60_000)
     expect(jsonTimeoutMs('flash')).toBe(30_000)
     expect(jsonTimeoutMs('lite')).toBe(30_000)
-    // The draft writes three versions in one answer: on 18 Oct in production Flash took over 30 s
-    // and Pro over 60 s, so a slow but good draft was abandoned. It alone waits longer.
+    // The draft is the longest answer: on 18 Oct in production, three versions in one, Flash took
+    // over 30 s and Pro over 60 s, so a slow but good draft was abandoned. It alone waits longer.
+
     expect(jsonTimeoutMs('flash', 'draft')).toBe(75_000)
     expect(jsonTimeoutMs('lite', 'draft')).toBe(75_000)
     expect(jsonTimeoutMs('pro', 'draft')).toBe(120_000)

@@ -213,7 +213,8 @@ export const ACTION_STAGES: Record<PostAction, readonly Stage[]> = {
   retryArt: ['rendered'],
   // The check runs by itself after each text change; this is its "Try again" where it shows.
   sourceCheck: ['structures', 'rendered'],
-  markOpinion: ['rendered'],
+  // A sentence the check could not find marked opinion: in the Text step's Checks and at Settings.
+  markOpinion: ['structures', 'rendered'],
   removeClaim: ['rendered'],
   settings: ['rendered'],
   sendToReview: ['rendered'],

@@ -167,9 +167,11 @@ const JSON_TIMEOUT_MS = 30_000
 // Pro is the slow rung, and its drafts run after the response (18 Oct: a Pro draft timed out at
 // 30 s), so it waits a minute.
 const PRO_JSON_TIMEOUT_MS = 60_000
-// The draft writes three versions in one answer, the longest we ask for: on 18 Oct in production
-// Flash took over 30 s and Pro over 60 s, so a slow but good draft was abandoned. It waits longer;
-// it runs after the response, inside Cloud Run's 300 s request time.
+// The draft is the longest answer we ask for: on 18 Oct in production, writing three versions in
+// one answer, Flash took over 30 s and Pro over 60 s, so a slow but good draft was abandoned. It
+// writes one now, about a third of the size, and still waits longer; it runs after the response,
+// inside Cloud Run's 300 s request time.
+
 const DRAFT_TIMEOUT_MS = 75_000
 const PRO_DRAFT_TIMEOUT_MS = 120_000
 /** How long one JSON attempt on this tier waits for the model, unless the caller sets its own. */

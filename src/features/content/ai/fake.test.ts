@@ -155,7 +155,7 @@ describe('the fake answers for idea cards and looks (GD1, GD4, GD7)', () => {
     const { versions } = JSON.parse(await makeFake().json(req('draft', data))) as {
       versions: { slides: { kind: string; layout: string; slots: { key: string }[] }[] }[]
     }
-    expect(versions).toHaveLength(3)
+    expect(versions).toHaveLength(1)
     for (const { slides } of versions) {
       expect(slides.map((s) => s.layout)).toEqual([
         'cover',

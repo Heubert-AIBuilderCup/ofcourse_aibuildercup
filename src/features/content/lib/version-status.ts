@@ -15,8 +15,9 @@ type Shaped = Pick<Item, 'structure' | 'template'>
 
 /**
  * The press that fixes a problem: the shorter chip on one slide (GD10), for words that do not fit;
- * a supported fact bound in an unbound slot's place (criterion 28); the source's wording in place
- * of a sentence the check could not find, by its place in the check (criterion 104); or, for what
+ * a supported fact bound in an unbound slot's place (criterion 28); for a sentence the check could
+ * not find, by its place in the check, the source's wording in its place where the check found
+ * one (criterion 104), or the editor's opinion mark (criteria 42, 43); or, for what
  * no change to the words fixes, the Text tab where it is chosen (18 Oct): the colours on Style,
  * the template's smallest text by another version.
  */
@@ -207,7 +208,7 @@ export function versionStatus(
                 `“${c.text}”`,
                 ...(c.suggestion ? [`Source ${c.suggestion.ref}: ${c.suggestion.text}`] : []),
               ],
-              ...(c.suggestion ? { fix: { kind: 'wording' as const, claim } } : {}),
+              fix: { kind: 'wording', claim },
             },
           ]
         : [],

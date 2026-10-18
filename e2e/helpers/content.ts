@@ -152,16 +152,16 @@ export const stepActions = (page: Page): Locator =>
   page.getByRole('region', { name: 'Step actions', exact: true })
 
 /**
- * Wait on the Text step until the versions are drafted (criterion 93): drafting picks the first
- * Ready version for the editor itself (GD29), so "Your version" is a tab, the others in
- * "Versions".
+ * Wait on the Text step until the version is drafted (criterion 93): a draft writes one and picks
+ * it for the editor itself when Ready (GD29), so "Your version" is a tab; "Versions" counts it, and
+ * holds the others "Draft again" adds.
  */
 export async function versionsDrafted(page: Page): Promise<void> {
   await expect(tab(page, 'Your version')).toBeVisible({ timeout: 90_000 })
   await expect(tab(page, 'Versions')).toBeVisible()
 }
 
-/** Open "Versions" on the Text step, where the versions not picked wait. */
+/** Open "Versions" on the Text step, where the versions not picked wait ("Draft again" adds them). */
 export async function openOtherVersions(page: Page): Promise<void> {
   await openTab(page, 'Versions')
 }
@@ -174,7 +174,7 @@ export async function writeSlides(page: Page): Promise<void> {
 
 /**
  * On the Ideas step, "Use this idea" on card `n` (0-based): it opens the idea's Outline, and
- * "Write the slides" there drafts its versions on Text.
+ * "Write the slides" there drafts its version on Text.
  */
 export async function pickIdea(page: Page, n = 0): Promise<void> {
   await page.getByRole('button', { name: 'Use this idea' }).nth(n).click()
@@ -183,7 +183,8 @@ export async function pickIdea(page: Page, n = 0): Promise<void> {
   await versionsDrafted(page)
 }
 
-/** Make the post and use its first idea: the post is on Text with three versions drafted. */
+/** Make the post and use its first idea: the post is on Text with its one version drafted. */
+
 export async function draftedPost(page: Page, source: Source): Promise<string> {
   const id = await makePost(page, source)
   await pickIdea(page)

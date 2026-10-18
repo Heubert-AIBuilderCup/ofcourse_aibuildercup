@@ -15,7 +15,7 @@ import { type Actor, command, fail, type Saved, save } from './shared'
 
 // A picked idea's outline (GD32), made by ./ideas.ts pickIdeas: the editor reorders, adds,
 // removes or changes its slides, or changes its format (GD33), then "Write the slides" drafts
-// three versions that follow it. A change to the outline sets aside the versions written to the
+// a version that follows it. A change to the outline sets aside the versions written to the
 // one before, so the post is back at its outline (GD28).
 
 /** The history's line for an outline change. */
@@ -117,11 +117,11 @@ export async function setOutlineFormat(
 }
 
 /**
- * "Write the slides" (GD32): three versions drafted in the outline's look for its idea, each
- * following the outline, its slides in order with their layouts and points (ai/draft.ts refuses
- * a version that departs from it). The drafts record keeps the idea, so each version shows the
- * idea it serves. Nothing is picked yet. A failed draft saves nothing, and the draft step shows
- * failed.
+ * "Write the slides" (GD32): a version drafted in the outline's look for its idea, following the
+ * outline, its slides in order with their layouts and points (ai/draft.ts refuses a version that
+ * departs from it); "Draft again" adds more. The drafts record keeps the idea, so each version
+ * shows the idea it serves. A failed draft saves nothing, and the draft step shows failed.
+
  */
 export async function writeSlides(actor: Actor, id: string, version: number): Promise<Saved> {
   return command('writeSlides', 'writeSlides', actor, id, version, async (post) => {

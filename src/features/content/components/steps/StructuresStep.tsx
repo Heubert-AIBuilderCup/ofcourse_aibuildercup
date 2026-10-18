@@ -74,6 +74,7 @@ export type StructuresStepProps = {
     | 'setLookAction'
     | 'setPresetAction'
     | 'applySourceWordingAction'
+    | 'markOpinionAction'
     | 'checkSourceAction'
     | 'approveStructureAction'
     | 'choosePageAction'
@@ -307,12 +308,20 @@ export function StructuresStep({
     running: checking,
     failed: view.failed?.includes(CHECK_STEP) ?? false,
     wordingGate: gate('sourceWording'),
+    opinionGate: gate('markOpinion'),
     retryGate: gate('sourceCheck'),
     onUseWording: (claim) =>
       act(
         'sourceWording',
         () => actions.applySourceWordingAction(view.id, view.version, claim),
         "Source's wording used",
+      ),
+    // The words Settings says it in (SourceCheckPanel).
+    onMarkOpinion: (claim) =>
+      act(
+        'markOpinion',
+        () => actions.markOpinionAction(view.id, view.version, claim),
+        'Marked as editorial opinion',
       ),
     onTryAgain: () =>
       act(
@@ -705,12 +714,18 @@ export function StructuresStep({
   // The actions area's groups, one tab each (StepTabs): the picked version's editor, the versions,
   // the page and colours, the drafting, and last the checks. Before any versions, drafting comes first.
   const yours: ActionTab | null = chosenEditor ? { name: 'Your version', body: chosenEditor } : null
+  // Every version counts on the tab, the picked one too, whose card gives way to its editor. A
+  // draft writes one; each "Draft again" adds another (18 Oct).
   const versions: ActionTab = {
     name: 'Versions',
-    badge: { text: String(rows.reduce((n, row) => n + row.cards.length, 0)) },
+    badge: { text: String(rows.reduce((n, row) => n + row.cards.length, chosen ? 1 : 0)) },
     body:
       rows.length === 0 ? (
-        <p className="text-muted-foreground">No versions drafted yet.</p>
+        <p className="text-muted-foreground">
+          {chosen
+            ? 'Your version is the only one so far. Draft again, in Redraft, adds another.'
+            : 'No versions drafted yet.'}
+        </p>
       ) : (
         <div className="flex flex-col gap-8">{versionRows}</div>
       ),

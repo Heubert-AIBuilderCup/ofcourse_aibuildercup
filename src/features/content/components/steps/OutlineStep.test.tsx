@@ -245,7 +245,7 @@ it('while "Write the slides" drafts, says so beside it, the pressed button waiti
   })
   try {
     expect(screen.queryAllByRole('status').map((s) => s.textContent)).toEqual([
-      'Writing three text versions of the slides · this can take a minute',
+      "Writing the slides' text · this can take a minute",
     ])
     expect(
       screen

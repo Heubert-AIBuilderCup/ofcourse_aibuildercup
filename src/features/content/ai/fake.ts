@@ -126,12 +126,9 @@ function scriptOfClaim(claim: string): Script {
 
 const FAKE_MARKER = /\[fake:[^\]]*\]/g
 const LIMIT_LINE = 'First year is the worst time to find out where your limit is.'
-/** The three versions' angles and the body heading each uses (criterion 97). */
-const FAKE_ANGLES: [angle: string, heading: string][] = [
-  ['The surprising number', 'Finding'],
-  ['The practical advice', 'In practice'],
-  ['The question to ask', 'Ask this'],
-]
+/** The version's angle and the body heading it uses (criterion 97). */
+const FAKE_ANGLE = 'The surprising number'
+const FAKE_HEADING = 'Finding'
 const words = (text: string) => text.split(/\s+/).filter(Boolean)
 /** The idea cards the fake offers, in order, each angle with its hook: no number, no banned phrase. */
 const FAKE_IDEAS: [angle: string, hook: string, audience: string][] = [
@@ -450,9 +447,8 @@ export const FAKE_ANSWERS: FakeAnswers = {
     }
   },
   /**
-   * Three versions, each `repeat.min` of each slide, or the outline's slides when DATA.outline is
-   * given (GD32), bodies bound one fact each, with each template's planted trait in every version;
-   * the versions differ by angle and body heading.
+   * One version, `repeat.min` of each slide, or the outline's slides when DATA.outline is given
+   * (GD32), bodies bound one fact each, with each template's planted trait.
    */
   draft(data) {
     const { template, facts, paragraphs, base, outline } = data as DraftData
@@ -548,11 +544,7 @@ export const FAKE_ANSWERS: FakeAnswers = {
       ...markers,
     ].join(' ')
     return {
-      versions: FAKE_ANGLES.map(([angle, heading]) => ({
-        angle,
-        slides: slidesOf(heading),
-        art_prompt,
-      })),
+      versions: [{ angle: FAKE_ANGLE, slides: slidesOf(FAKE_HEADING), art_prompt }],
     }
   },
   /**

@@ -230,6 +230,7 @@ const actions = {
   })),
   redraftSlideAction: mock(async (_id: unknown, _at: unknown, _slide: unknown) => saved(5)()),
   applySourceWordingAction: mock(async (_id: unknown, _at: unknown, _claim: unknown) => saved(5)()),
+  markOpinionAction: mock(async (_id: unknown, _at: unknown, _claim: unknown) => saved(5)()),
   checkSourceAction: mock(async (_id: unknown, _at: unknown) => saved(5)()),
   approveStructureAction: mock(async (_id: unknown, _at: unknown) => saved(5)()),
   backAction: mock(async (_id: unknown, _at: unknown, _to: unknown) => saved(5)()),
@@ -798,6 +799,32 @@ describe('StructuresStep', () => {
       expect(within(checksTab()).queryByText(`“${SUGGESTION}”`)).toBeNull()
     })
 
+    it("marks a sentence not found as the editor's opinion from its card in Checks, beside the source's wording, with the post's usual toast", async () => {
+      const NO_SUGGESTION: ClaimResult = { ...FLAGGED, slide: 2, suggestion: undefined }
+      view({ current: checked([FOUND, FLAGGED, NO_SUGGESTION]) })
+      const row = fixCard(`Source ¶3: ${SUGGESTION}`)
+      expect(
+        within(row)
+          .getAllByRole('button')
+          .map((b) => b.textContent),
+      ).toEqual(["Use the source's wording", "Mark as editor's opinion"])
+      await act(async () => {
+        fireEvent.click(within(row).getByRole('button', { name: "Mark as editor's opinion" }))
+      })
+      expect(actions.markOpinionAction).toHaveBeenCalledWith('p1', 4, 1)
+      expect(success).toHaveBeenCalledWith('Marked as editorial opinion')
+      // A sentence with no source sentence to use is still offered as opinion, by its own place.
+      const bare = within(checksTab())
+        .getAllByText('Not found in the source')
+        .map((what) => what.closest('li'))
+        .find((li) => li?.textContent?.includes('Slide 2 · Body'))
+      if (!bare) throw new Error('no card for the bare sentence')
+      await act(async () => {
+        fireEvent.click(within(bare).getByRole('button', { name: "Mark as editor's opinion" }))
+      })
+      expect(actions.markOpinionAction).toHaveBeenLastCalledWith('p1', 4, 2)
+    })
+
     it('on a Thai post, an English source sentence is not offered as the wording: the card says to edit the slide in Thai, and Edit opens Your version', () => {
       const thai = checked([FOUND, FLAGGED])
       if (!thai.source) throw new Error('no source')
@@ -808,6 +835,10 @@ describe('StructuresStep', () => {
         within(row).queryAllByRole('button', { name: "Use the source's wording" }).length,
       ).toBe(0)
       expect(row.textContent).toContain('The source is in English; edit the slide in Thai instead.')
+      // Opinion is not a matter of the post's language.
+      expect(
+        within(row).queryAllByRole('button', { name: "Mark as editor's opinion" }).length,
+      ).toBe(1)
       fireEvent.click(within(row).getByRole('button', { name: 'Edit the slide' }))
       expect(isOpen('Your version')).toBe('true')
       // At the flagged sentence's slide.
@@ -1305,13 +1336,13 @@ describe('StructuresStep for a look post (GD2, GD4, GD5, GD9–GD11)', () => {
     expect(isOpen('Checks')).toBe('false')
   })
 
-  it('keeps the other versions in the Versions tab, counted on it, once one is picked, and opens on them before (no fold-out)', () => {
+  it('keeps the other versions in the Versions tab, every version counted on it, once one is picked, and opens on them before (no fold-out)', () => {
     view(LOOK)
     expect(screen.queryByRole('group', { name: 'Choose another version' }) === null).toBe(true)
     expect(document.querySelector('details') === null).toBe(true)
     expect(screen.queryAllByRole('article')).toHaveLength(0)
     openTab('Versions')
-    expect(screen.getByRole('tab', { name: 'Versions · 2' }).getAttribute('aria-selected')).toBe(
+    expect(screen.getByRole('tab', { name: 'Versions · 3' }).getAttribute('aria-selected')).toBe(
       'true',
     )
     expect(screen.getAllByRole('article').map((a) => a.getAttribute('aria-label'))).toEqual([
@@ -1326,6 +1357,39 @@ describe('StructuresStep for a look post (GD2, GD4, GD5, GD9–GD11)', () => {
       'true',
     )
     expect(card('Where the line is').textContent).toContain('Where the line is')
+  })
+
+  it('works with the one version a draft writes: Versions counts it and says a redraft adds another, and "Approve text" goes on to the images', async () => {
+    const drafted = (n: number): Partial<Props['view']> => ({
+      ...LOOK,
+      current: current({
+        drafts: { id: 'd1', body: { ...LOOK_DRAFTS, items: LOOK_DRAFTS.items.slice(0, n) } },
+        ideas: { id: 'ideas1', body: { factsId: 'facts1', cards: [IDEA], rounds: 1 } },
+      }),
+      draftChecks: LOOK_DRAFTS.items.slice(0, n).map(() => [CONTRAST]),
+    })
+    view(drafted(1))
+    openTab('Versions')
+    expect(isOpen('Versions · 1')).toBe('true')
+    const panel = screen.getByRole('tabpanel', { name: /^Versions/ })
+    expect(panel.textContent).toBe(
+      'Your version is the only one so far. Draft again, in Redraft, adds another.',
+    )
+    const approve = screen.getByRole('button', { name: 'Approve text → Images' })
+    expect(approve).toBeEnabled()
+    await act(async () => {
+      fireEvent.click(approve)
+    })
+    expect(actions.approveStructureAction).toHaveBeenCalledWith('p1', 4)
+    expect(push.mock.calls.at(-1)?.[0]).toBe('/admin/posts/p1/images')
+    cleanup()
+    // A redraft added one: both counted, the other one listed to pick.
+    view(drafted(2))
+    openTab('Versions')
+    expect(isOpen('Versions · 2')).toBe('true')
+    expect(screen.getAllByRole('article').map((a) => a.getAttribute('aria-label'))).toEqual([
+      'Field Notes · What it costs',
+    ])
   })
 
   it('opens the tab held above it (a save keeps it), and tells it which one opens next', () => {

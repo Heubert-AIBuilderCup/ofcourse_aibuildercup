@@ -21,8 +21,11 @@ export type CheckState = {
   running: boolean
   failed: boolean
   wordingGate: Gate
+  /** "Mark as editor's opinion" on a sentence not found (criteria 42, 43). */
+  opinionGate: Gate
   retryGate: Gate
   onUseWording: (claim: number) => void
+  onMarkOpinion: (claim: number) => void
   onTryAgain: () => void
 }
 

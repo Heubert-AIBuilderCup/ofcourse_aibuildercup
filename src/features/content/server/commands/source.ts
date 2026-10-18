@@ -387,7 +387,8 @@ async function putExtracted(
  * "Save and remake" at the source step (criterion 113; GD18): the same fields as "Make post", the
  * changed text or the pages at the changed links, extracted as a new source and facts, then, for
  * a post made through the idea cards, new cards for those facts, as "Make post" makes them (GD1);
- * for a post from before them, three versions of each ticked template after the response
+ * for a post from before them, a version of each ticked template after the response
+
  * (criteria 93, 94). It lands at structures. The old source, facts and versions stay in the
  * history. A failed extraction moves nothing; a failed ideas or draft step keeps the new source and
  * facts, and the step shows "Try again".
