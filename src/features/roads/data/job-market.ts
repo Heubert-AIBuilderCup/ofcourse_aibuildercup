@@ -167,6 +167,34 @@ export const JOB_MARKET: readonly JobMarketRow[] = [
   { code: '133611', cityId: 'adelaide', openings: 112, payLowK: 94, payHighK: 130 },
   { code: '133611', cityId: 'geelong', openings: 48, payLowK: 92, payHighK: 128 },
   { code: '133611', cityId: 'hobart', openings: 34, payLowK: 91, payHighK: 127 },
+  // Secondary teacher
+  { code: '241411', cityId: 'sydney', openings: 900, payLowK: 80, payHighK: 110 },
+  { code: '241411', cityId: 'melbourne', openings: 828, payLowK: 78, payHighK: 108 },
+  { code: '241411', cityId: 'perth', openings: 450, payLowK: 79, payHighK: 109 },
+  { code: '241411', cityId: 'adelaide', openings: 360, payLowK: 76, payHighK: 106 },
+  { code: '241411', cityId: 'geelong', openings: 153, payLowK: 74, payHighK: 104 },
+  { code: '241411', cityId: 'hobart', openings: 108, payLowK: 73, payHighK: 103 },
+  // Early childhood teacher
+  { code: '241111', cityId: 'sydney', openings: 600, payLowK: 76, payHighK: 102 },
+  { code: '241111', cityId: 'melbourne', openings: 552, payLowK: 74, payHighK: 100 },
+  { code: '241111', cityId: 'perth', openings: 300, payLowK: 75, payHighK: 101 },
+  { code: '241111', cityId: 'adelaide', openings: 240, payLowK: 72, payHighK: 98 },
+  { code: '241111', cityId: 'geelong', openings: 102, payLowK: 70, payHighK: 96 },
+  { code: '241111', cityId: 'hobart', openings: 72, payLowK: 69, payHighK: 95 },
+  // Social worker
+  { code: '272511', cityId: 'sydney', openings: 700, payLowK: 78, payHighK: 106 },
+  { code: '272511', cityId: 'melbourne', openings: 644, payLowK: 76, payHighK: 104 },
+  { code: '272511', cityId: 'perth', openings: 350, payLowK: 77, payHighK: 105 },
+  { code: '272511', cityId: 'adelaide', openings: 280, payLowK: 74, payHighK: 102 },
+  { code: '272511', cityId: 'geelong', openings: 119, payLowK: 72, payHighK: 100 },
+  { code: '272511', cityId: 'hobart', openings: 84, payLowK: 71, payHighK: 99 },
+  // Hotel or motel manager
+  { code: '141311', cityId: 'sydney', openings: 380, payLowK: 68, payHighK: 96 },
+  { code: '141311', cityId: 'melbourne', openings: 350, payLowK: 66, payHighK: 94 },
+  { code: '141311', cityId: 'perth', openings: 190, payLowK: 67, payHighK: 95 },
+  { code: '141311', cityId: 'adelaide', openings: 152, payLowK: 64, payHighK: 92 },
+  { code: '141311', cityId: 'geelong', openings: 65, payLowK: 62, payHighK: 90 },
+  { code: '141311', cityId: 'hobart', openings: 46, payLowK: 61, payHighK: 89 },
 ]
 
 const BY_KEY = new Map(JOB_MARKET.map((r) => [`${r.code}:${r.cityId}`, r]))

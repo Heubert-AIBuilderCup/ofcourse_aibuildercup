@@ -27,6 +27,9 @@ export const FIELD_OCCUPATIONS: Readonly<Record<FieldId, readonly string[]>> = {
   health: codesOf('health'),
   engineering: codesOf('engineering'),
   design: codesOf('design'),
+  education: codesOf('education'),
+  'social-work': codesOf('social-work'),
+  hospitality: codesOf('hospitality'),
 }
 
 /**

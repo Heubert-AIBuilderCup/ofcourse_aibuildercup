@@ -18,7 +18,7 @@ export const JUDGE_ADMIN = {
 
 /**
  * A new student judge's address: `judge-<10 random hex characters>@judges.ofcourse.app`, from Web
- * Crypto, so this module stays loadable in the browser (the dialog reads FRESH_START from it).
+ * Crypto, so this module stays loadable in the browser.
  */
 export function judgeStudentEmail(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(5))
@@ -38,5 +38,8 @@ export const judgeStudentLanding = (roadmapId: string | null): string =>
 export const isJudgeEmail = (email: string): boolean =>
   email.trim().toLowerCase().endsWith(`@${JUDGE_DOMAIN}`)
 
-/** The student form's choice for a new student with no story, who starts from the beginning. */
+/**
+ * A new student with no story, who starts from the beginning: the action still takes it, though
+ * the dialog offers only the story (OFFERED_JUDGE_STORIES).
+ */
 export const FRESH_START = 'fresh'

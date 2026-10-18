@@ -637,7 +637,9 @@ describe('svgSlides in Nepali and Thai (GD38)', () => {
 
   it("writes each Devanagari or Thai run in its Noto family inside the brand font's line", () => {
     const nepali = svgFor('काम 20 घण्टा')
-    expect(nepali).toContain('<tspan font-family="Noto Sans Devanagari">काम </tspan>20 ')
+    expect(nepali).toMatch(
+      /<tspan font-family="Noto Sans Devanagari">का<tspan dx="[\d.]+">म<\/tspan> <\/tspan>20 /,
+    )
     expect(nepali).toContain('<tspan font-family="Noto Sans Devanagari">घण्टा</tspan>')
     expect(nepali).toContain('font-family="Barlow Condensed"')
     expect(svgFor('ทำงาน 20 ชั่วโมง')).toContain(
@@ -645,6 +647,23 @@ describe('svgSlides in Nepali and Thai (GD38)', () => {
     )
     // A line in the brand's script alone is written as before, with no run of its own.
     expect(svgFor('Work less')).not.toContain('<tspan')
+  })
+
+  it('moves the letter after a spacing vowel sign on by its width, which resvg drops (GD38)', () => {
+    // resvg 2.6.2 draws the letter after ा, ी, ो… over the sign: नेपाल came out as नेपल.
+    const nepali = svgFor('नेपाल जीवन')
+    const shifts = [...nepali.matchAll(/<tspan dx="([\d.]+)">([^<]+)<\/tspan>/g)]
+    expect(shifts.map((m) => m[2]).join('|')).toBe('ल|व')
+    // The width of the sign at the line's size and weight: ा and ी are as wide as each other here.
+    const widths = shifts.map((m) => Number(m[1]))
+    expect(widths[0] > 10 && Math.abs(widths[0] - widths[1]) < 0.5).toBe(true)
+    // ि is drawn before its letter and loses its width the same way: निरन्तर, not न्रिन्तर.
+    const before = [...svgFor('नि र').matchAll(/<tspan dx="([\d.]+)">([^<]+)<\/tspan>/g)]
+    expect(before.map((m) => m[2]).join('|')).toBe(' ')
+    // A run that ends on a sign moves the next run on too: the comma after हो in the brand font.
+    expect(svgFor('हो, गन्तव्य')).toMatch(/हो<\/tspan><tspan dx="[\d.]+">,<\/tspan> /)
+    // Thai has no spacing sign that loses its width: written as before.
+    expect(svgFor('ชีวิตการทำงาน')).not.toContain('dx=')
   })
 })
 

@@ -1,6 +1,6 @@
 /// <reference lib="dom" />
-// The "Judge access" dialog: it sends the passcode with the choice made (a story, or a fresh start
-// from the beginning; the admin's has no choice), and says what the action answers.
+// The "Judge access" dialog: it sends the passcode with the story chosen (the admin's has no
+// choice), offers no fresh start, and says what the action answers.
 
 import { afterEach, describe, expect, it, mock } from 'bun:test'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -43,13 +43,14 @@ describe('JudgeAccess for students', () => {
     expect((await screen.findByRole('alert')).textContent).toBe("That passcode isn't right.")
   })
 
-  it('"Start from the beginning" sends no story but a fresh start', async () => {
-    const action = refused("That passcode isn't right.")
-    render(<JudgeAccess action={action} stories={STORIES} />)
+  it('offers only the stories given, with no fresh start', () => {
+    render(<JudgeAccess action={refused('')} stories={STORIES.slice(0, 1)} />)
     openAndType('cup-2026')
-    fireEvent.click(screen.getByRole('button', { name: /Start from the beginning/ }))
-    await waitFor(() => expect(action).toHaveBeenCalledTimes(1))
-    expect(sent(action)).toEqual(['passcode=cup-2026', 'story=fresh'])
+    const choices = screen
+      .getAllByRole('button')
+      .filter((b) => b.getAttribute('type') === 'submit')
+      .map((b) => `${b.getAttribute('name')}=${b.getAttribute('value')}`)
+    expect(choices).toEqual(['story=priya'])
   })
 })
 

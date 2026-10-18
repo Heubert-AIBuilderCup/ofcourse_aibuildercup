@@ -3,12 +3,13 @@
 // hint a slide's picture takes. No database, no model: the script does the rest.
 
 import { z } from 'zod'
-import type { LanguageId } from '../src/features/content/languages'
+import { LANGUAGE_IDS, type LanguageId } from '../src/features/content/languages'
 import { defaultSettings } from '../src/features/content/lib/settings-defaults'
 import type { VersionProblem } from '../src/features/content/lib/version-status'
 import { type Fact, type FeedSettings, LAYOUT_IDS } from '../src/features/content/model/types'
 import { TAG_GROUPS, type TagGroup, tagById } from '../src/features/content/tags'
 import { LOOKS } from '../src/features/content/templates'
+import { MIN_SCRIPT_SHARE, type Script, scriptShare } from '../src/features/content/text/script'
 import { canEdit, canReview } from '../src/shared/lib/auth/access'
 
 /** The looks a spec may name: the presets a look post draws in, and the feed brand's themes. */
@@ -49,7 +50,7 @@ const PostSchema = z
       })
       .strict()
       .optional(),
-    language: z.enum(['en']).default('en'),
+    language: z.enum(LANGUAGE_IDS).default('en'),
     featured: z.boolean().default(false),
     title: z.string().trim().min(1).max(200).optional(),
     /**
@@ -289,4 +290,13 @@ export function closestFact(text: string, facts: readonly Fact[]): Fact | null {
     }
   }
   return best
+}
+
+/**
+ * Whether "Use the source's wording" may put a source sentence on the post: only when it is in
+ * the post's script (text/script.ts), so an English idea's sentence never lands on a Thai or
+ * Nepali slide, nor a Thai page's on an English one. Otherwise the claim is marked opinion.
+ */
+export function wordingFits(sentence: string, script: Script): boolean {
+  return scriptShare(sentence, script) >= MIN_SCRIPT_SHARE
 }

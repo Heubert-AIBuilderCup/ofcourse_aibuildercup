@@ -74,6 +74,15 @@ const IELTS: Readonly<Record<string, number>> = {
   'utas-infosys': 6.5,
   'utas-computing': 6.5,
   'utas-mph': 6.5,
+  'ecu-teaching-secondary': 7.5,
+  'ecu-teaching-early': 7.5,
+  'monash-teaching': 7.5,
+  'curtin-social-work': 7,
+  'unisa-social-work': 7,
+  'monash-social-work': 7,
+  'utas-social-work': 7,
+  'uts-tourism': 6.5,
+  'deakin-tourism': 6.5,
 }
 
 /** A finder course's ("f-…") typical overall IELTS by level, for a course with no score of its own. */

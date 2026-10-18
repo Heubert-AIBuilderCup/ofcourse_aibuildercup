@@ -304,7 +304,7 @@ export function QuestionScreen({
   const notes = notesFor(question)
 
   return (
-    <div ref={root} className="mx-auto flex w-full max-w-2xl flex-col gap-5 @max-xl:gap-4">
+    <div ref={root} className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 @max-xl:gap-4">
       <div className={cn(motion.rise, motion.d2, 'flex min-h-11 items-center')}>
         <StepKicker detail={`${index + 1} of ${asked.length}`}>{title}</StepKicker>
       </div>

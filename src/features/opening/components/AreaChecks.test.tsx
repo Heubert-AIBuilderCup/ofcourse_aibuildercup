@@ -14,11 +14,13 @@ afterEach(() => onAnswer.mockClear())
 const AREAS = [
   'IT and computing',
   'Business',
-  'Data',
   'Health',
   'Engineering',
   'Design',
   'Psychology',
+  'Education / Teaching',
+  'Social work',
+  'Hospitality & tourism',
 ]
 const REFUSAL = "Three is the most for now. Tap one you've chosen to make room."
 const NOTE = 'Nearest field used for now'
@@ -43,12 +45,12 @@ function renderChecks(answer?: StoredAnswer) {
 const box = (area: string) =>
   screen.getAllByRole('checkbox').find((b) => b.textContent?.startsWith(area)) as HTMLElement
 
-it('is a group named by its question, with the seven areas as checkboxes in model order', () => {
+it('is a group named by its question, with the nine areas as checkboxes in model order', () => {
   renderChecks()
   expect(screen.getByRole('group', { name: 'Pick up to three' })).toBeInTheDocument()
   const boxes = screen.getAllByRole('checkbox')
   expect(boxes.map((b) => b.textContent?.replace(NOTE, ''))).toEqual(AREAS)
-  expect(boxes.map((b) => b.tabIndex)).toEqual([0, 0, 0, 0, 0, 0, 0])
+  expect(boxes.map((b) => b.tabIndex)).toEqual(AREAS.map(() => 0))
   expect(screen.queryByText('Not sure')).toBeNull()
 })
 
@@ -56,7 +58,7 @@ it('reads nothing chosen when nothing is stored, or when the stored value is not
   const first = renderChecks()
   expect(screen.getByText('0 of 3 chosen')).toBeInTheDocument()
   first.unmount()
-  for (const value of ['Data', ['IT and computing', 'Business', 'Data', 'Health']]) {
+  for (const value of ['Psychology', ['IT and computing', 'Business', 'Psychology', 'Health']]) {
     const view = renderChecks(stated(value))
     expect(screen.getByText('0 of 3 chosen')).toBeInTheDocument()
     for (const b of screen.getAllByRole('checkbox')) {
@@ -67,9 +69,9 @@ it('reads nothing chosen when nothing is stored, or when the stored value is not
 })
 
 it('checks the stored areas and counts them, the count describing the group', () => {
-  renderChecks(stated(['IT and computing', 'Data']))
+  renderChecks(stated(['IT and computing', 'Psychology']))
   expect(box('IT and computing')).toHaveAttribute('aria-checked', 'true')
-  expect(box('Data')).toHaveAttribute('aria-checked', 'true')
+  expect(box('Psychology')).toHaveAttribute('aria-checked', 'true')
   expect(box('Business')).toHaveAttribute('aria-checked', 'false')
   const count = screen.getByText('2 of 3 chosen')
   expect(count.closest('[aria-live="polite"]')).not.toBeNull()
@@ -77,35 +79,35 @@ it('checks the stored areas and counts them, the count describing the group', ()
 })
 
 it('adds a tapped area at the end', () => {
-  renderChecks(stated(['IT and computing', 'Data']))
+  renderChecks(stated(['IT and computing', 'Psychology']))
   fireEvent.click(box('Business'))
   expect(onAnswer).toHaveBeenCalledTimes(1)
-  expect(onAnswer).toHaveBeenCalledWith(['IT and computing', 'Data', 'Business'])
+  expect(onAnswer).toHaveBeenCalledWith(['IT and computing', 'Psychology', 'Business'])
 })
 
 it('removes a tapped area that is checked', () => {
-  renderChecks(stated(['IT and computing', 'Data']))
-  fireEvent.click(box('Data'))
+  renderChecks(stated(['IT and computing', 'Psychology']))
+  fireEvent.click(box('Psychology'))
   expect(onAnswer).toHaveBeenCalledTimes(1)
   expect(onAnswer).toHaveBeenCalledWith(['IT and computing'])
 })
 
 it('reports a clear when she removes the last area', () => {
-  renderChecks(stated(['Data']))
-  fireEvent.click(box('Data'))
+  renderChecks(stated(['Psychology']))
+  fireEvent.click(box('Psychology'))
   expect(onAnswer).toHaveBeenCalledTimes(1)
   expect(onAnswer).toHaveBeenCalledWith(null)
 })
 
 it('refuses a fourth area calmly, marks the rest full, and lets go when she makes room', () => {
-  renderChecks(stated(['IT and computing', 'Data', 'Health']))
+  renderChecks(stated(['IT and computing', 'Psychology', 'Health']))
   expect(screen.getByText('3 of 3 chosen')).toBeInTheDocument()
   expect(screen.queryByText(REFUSAL)).toBeNull()
   for (const area of ['Business', 'Engineering', 'Design']) {
     expect(box(area)).toHaveAttribute('data-full')
     expect(box(area)).not.toBeDisabled()
   }
-  expect(box('Data')).not.toHaveAttribute('data-full')
+  expect(box('Psychology')).not.toHaveAttribute('data-full')
 
   // The live region is on the page before the refusal, so a screen reader hears the text arrive.
   const live = screen.getByRole('status')
@@ -118,17 +120,23 @@ it('refuses a fourth area calmly, marks the rest full, and lets go when she make
   expect(screen.getByRole('status')).toBe(live)
   expect(live).toHaveTextContent(REFUSAL)
 
-  fireEvent.click(box('Data'))
+  fireEvent.click(box('Psychology'))
   expect(onAnswer).toHaveBeenCalledTimes(1)
   expect(onAnswer).toHaveBeenCalledWith(['IT and computing', 'Health'])
   expect(screen.queryByText(REFUSAL)).toBeNull()
   expect(live).toBeEmptyDOMElement()
 })
 
-it('notes the areas that borrow the nearest field, and only those', () => {
+it('notes the areas that borrow the nearest field, and only those: never the three new ones', () => {
   renderChecks()
   for (const area of ['Health', 'Engineering', 'Design']) expect(box(area)).toHaveTextContent(NOTE)
-  for (const area of ['IT and computing', 'Business', 'Data', 'Psychology']) {
-    expect(box(area)).not.toHaveTextContent(NOTE)
-  }
+  const plain = [
+    'IT and computing',
+    'Business',
+    'Psychology',
+    'Education / Teaching',
+    'Social work',
+    'Hospitality & tourism',
+  ]
+  expect(plain.filter((area) => box(area).textContent?.includes(NOTE))).toEqual([])
 })

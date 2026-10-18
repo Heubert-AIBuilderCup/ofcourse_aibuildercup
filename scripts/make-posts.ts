@@ -29,6 +29,7 @@ import {
   runOrder,
   scenesFor,
   settingsFor,
+  wordingFits,
 } from './make-posts-plan'
 
 const args = process.argv.slice(2)
@@ -99,7 +100,8 @@ const { unboundSlots } = await import('../src/features/content/lib/claims')
 const { searchTitleOf } = await import('../src/features/content/lib/comic-rules')
 const { IDEA_KIND } = await import('../src/features/content/model/artifacts')
 const { PRESETS } = await import('../src/features/content/brands/guideline')
-const { artDeps } = await import('../src/features/content/server/commands/shared')
+const { languageById } = await import('../src/features/content/languages')
+const { artDeps, imagesOf } = await import('../src/features/content/server/commands/shared')
 const { imageAspect } = await import('../src/features/content/ai/art')
 const { artKey, svgToPng } = await import('./make-posts-art')
 
@@ -202,9 +204,14 @@ async function ensureCheck(id: string, actor: Actor): Promise<LoadedPost> {
 
 /**
  * The picked version made ready: the shorter chip on a slide that does not fit, or the next
- * version. With the spec's own words on it (`edited`), neither: a problem stops the post, named.
+ * version. With the spec's own words on some slides (`edited`), the version stays, and a problem
+ * on one of those slides stops the post, named: our words are never reworded.
  */
-async function readyText(id: string, actor: Actor, edited: boolean): Promise<LoadedPost> {
+async function readyText(
+  id: string,
+  actor: Actor,
+  edited: ReadonlySet<number>,
+): Promise<LoadedPost> {
   const tried = new Set<string>()
   const versionsTried = new Set<number>()
   let post = await load(id)
@@ -240,7 +247,7 @@ async function readyText(id: string, actor: Actor, edited: boolean): Promise<Loa
     const { problems } = versionStatus(item, checks, facts.body.facts, [])
     const fix = nextFix(problems, tried)
     if (fix.kind === 'ready') return post
-    if (edited) {
+    if (edited.size > 0 && (fix.kind === 'next' || edited.has(fix.slide))) {
       throw new StepFailed(
         'text',
         `Our words do not fit: ${problems.map((p) => p.text).join('; ')}`,
@@ -282,7 +289,10 @@ function slideText(post: LoadedPost, slide: number): string {
     : ''
 }
 
-/** Each sentence the rendered post's check could not find: the source's wording, else editorial opinion. */
+/**
+ * Each sentence the rendered post's check could not find: the source's wording when it is in the
+ * post's script (wordingFits), else editorial opinion.
+ */
 async function settleClaims(id: string, actor: Actor): Promise<LoadedPost> {
   let post = await ensureCheck(id, actor)
   const worded = new Set<string>()
@@ -291,7 +301,8 @@ async function settleClaims(id: string, actor: Actor): Promise<LoadedPost> {
     const at = claims.findIndex((c) => c.result === 'not_found')
     if (at < 0) return post
     const claim = claims[at]
-    if (claim.suggestion && !worded.has(claim.text)) {
+    const script = languageById(post.current.source?.body.language ?? 'en')?.script ?? 'latin'
+    if (claim.suggestion && wordingFits(claim.suggestion.text, script) && !worded.has(claim.text)) {
       worded.add(claim.text)
       const res = await commands.applySourceWording(actor, id, post.version, at)
       await drain()
@@ -418,9 +429,16 @@ const pngHeight = (png: Uint8Array) => Buffer.from(png).readUInt32BE(20)
 
 /**
  * Our own pictures, one for every slide the plan pictures: each slide's scene named as the spec
- * says, then its SVG drawn at its art box and kept under the key Draw images reads for it.
+ * says, then its SVG drawn at its art box and kept under the key Draw images reads for it. The
+ * key names no post, and a key kept before is not replaced (ai/cache.ts), so a scene worded as
+ * another post's draws that post's picture: `pngs` lets the draw be checked.
  */
-async function ownArt(post: LoadedPost, spec: PostSpec, maker: Actor): Promise<LoadedPost> {
+async function ownArt(
+  post: LoadedPost,
+  spec: PostSpec,
+  maker: Actor,
+): Promise<{ post: LoadedPost; pngs: Map<number, Uint8Array> }> {
+  const pngs = new Map<number, Uint8Array>()
   const { id } = post
   const planned = post.current.artPlan?.body.scenes ?? []
   const bare = planned.filter((p) => !spec.art.some((a) => a.slide === p.slide))
@@ -431,10 +449,14 @@ async function ownArt(post: LoadedPost, spec: PostSpec, maker: Actor): Promise<L
       `No picture given for slide ${slides}; nothing is left for the model.`,
     )
   }
+  const unplanned = spec.art.filter((a) => !planned.some((p) => p.slide === a.slide))
+  if (unplanned.length > 0) {
+    const slides = unplanned.map((a) => a.slide).join(', ')
+    throw new StepFailed('art', `Slide ${slides} has no picture in this look.`)
+  }
   for (const art of spec.art) {
     const was = planned.find((p) => p.slide === art.slide)
-    if (!was) throw new StepFailed('art', `Slide ${art.slide} has no picture in this look.`)
-    if (was.scene === art.scene) continue
+    if (was?.scene === art.scene) continue
     post = await step(id, `scene for slide ${art.slide}`, (v) =>
       commands.editImageScene(maker, id, v, { slide: art.slide, text: art.scene }),
     )
@@ -462,13 +484,29 @@ async function ownArt(post: LoadedPost, spec: PostSpec, maker: Actor): Promise<L
       slide: art.slide,
     })
     await artDeps.remember(key, png)
+    pngs.set(art.slide, png)
     if (pngDir) {
       mkdirSync(pngDir, { recursive: true })
       writeFileSync(join(pngDir, `${id}-slide-${art.slide}.png`), png)
     }
     line(post, `picture for slide ${art.slide} from ${art.svg}`)
   }
-  return post
+  return { post, pngs }
+}
+
+/** Each of our pictures as the render drew it: refused when a slide shows any other. */
+async function checkOwnArt(post: LoadedPost, pngs: Map<number, Uint8Array>): Promise<void> {
+  const render = post.current.render
+  const drawn = render ? ((await imagesOf(render.body))?.slideArt ?? []) : []
+  for (const [slide, png] of pngs) {
+    const bytes = drawn.find((a) => a.slide === slide)?.bytes
+    if (!bytes || !Buffer.from(bytes).equals(Buffer.from(png))) {
+      throw new StepFailed(
+        'art',
+        `Slide ${slide} shows a picture kept for another post under the same scene; word this post's scene its own way.`,
+      )
+    }
+  }
 }
 
 /** How many images the model was asked for on the post. */
@@ -501,7 +539,7 @@ async function makeOne(spec: PostSpec, maker: Actor, reviewer: Actor): Promise<s
   } else line(post, `look ${look}`)
 
   if (spec.template || spec.edits.length > 0) post = await shapeText(post, spec, maker)
-  post = await readyText(id, maker, spec.edits.length > 0)
+  post = await readyText(id, maker, new Set(spec.edits.map((e) => e.slide)))
   post = await step(id, 'approve text', (v) => commands.approveStructure(maker, id, v))
 
   // Images: planned by themselves after approval; planned again when that failed.
@@ -509,7 +547,8 @@ async function makeOne(spec: PostSpec, maker: Actor, reviewer: Actor): Promise<s
     post = await step(id, 'plan images', (v) => commands.planImages(maker, id, v), MODEL_TRIES)
   }
   const asked = await artCalls(id)
-  if (spec.art.length > 0) post = await ownArt(post, spec, maker)
+  let pngs = new Map<number, Uint8Array>()
+  if (spec.art.length > 0) ({ post, pngs } = await ownArt(post, spec, maker))
   const planned = spec.art.length > 0 ? [] : (post.current.artPlan?.body.scenes ?? [])
   const hinted = scenesFor(
     planned.map((p) => ({ slide: p.slide, text: slideText(post, p.slide) })),
@@ -534,6 +573,7 @@ async function makeOne(spec: PostSpec, maker: Actor, reviewer: Actor): Promise<s
     )
   }
   if (post.stage !== 'rendered') throw new StepFailed('draw images', 'No slide could be drawn.')
+  await checkOwnArt(post, pngs)
   const more = (await artCalls(id)) - asked
   if (spec.art.length > 0 && more > 0) {
     console.log(`${label} ${id} · WARNING: the image model was asked ${more} times`)

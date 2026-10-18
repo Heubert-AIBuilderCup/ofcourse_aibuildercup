@@ -17,7 +17,7 @@ import { isLook } from '../templates'
 import { contrastRatio } from '../text/contrast'
 import { numbersIn } from '../text/numbers'
 import { BULLET, CANVAS, FRAME, LEGIBILITY_FLOOR_PX, SOURCE_LINE, sourceLineY } from './engine'
-import { runs, SCRIPT_FONTS, wrap } from './measure'
+import { measure, runs, SCRIPT_FONTS, wrap } from './measure'
 import { tintFilter } from './tint'
 
 /** The card under a panel layout's slots: white at 90%, so the art shows through a little. */
@@ -43,18 +43,64 @@ export function escapeXml(text: string): string {
     .replace(/'/g, '&apos;')
 }
 
+/** Devanagari's spacing vowel signs: ा ि ी ॉ ॊ ो ौ and the visarga ः (ि is drawn before its letter). */
+const SPACING_SIGN = /[\u093E-\u0940\u0949-\u094C\u0903]/gu
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+
+/** The text with its first letter cluster moved on by `shift`, when there is one to move. */
+function shifted(text: string, shift: number): string {
+  if (shift <= 0) return escapeXml(text)
+  const [first] = GRAPHEMES.segment(text)
+  if (!first) return ''
+  const rest = text.slice(first.segment.length)
+  return `<tspan dx="${n(shift)}">${escapeXml(first.segment)}</tspan>${escapeXml(rest)}`
+}
+
+/**
+ * A Devanagari run with each letter cluster after one that carries a spacing vowel sign moved on
+ * by the sign's width (`dx`): resvg 2.6.2 draws the next cluster over the sign, so नेपाल came out
+ * as नेपल. The width is the sign's in the Noto file of the line's weight, at its size; after a
+ * conjunct the font may draw a wider ि, so there it can come out a little tight. `shift`
+ * is what the run's last cluster leaves for the run after it.
+ */
+function devanagariXml(
+  text: string,
+  weight: 400 | 700,
+  px: number,
+  carried: number,
+): { xml: string; shift: number } {
+  const file = SCRIPT_FONTS.devanagari[weight === 700 ? 'bold' : 'regular']
+  let shift = carried
+  let xml = ''
+  for (const { segment } of GRAPHEMES.segment(text)) {
+    xml += shifted(segment, shift)
+    const signs = segment.match(SPACING_SIGN) ?? []
+    shift = signs.reduce((sum, sign) => sum + measure(sign, file, px), 0)
+  }
+  return { xml, shift }
+}
+
 /**
  * A line's content, each Devanagari or Thai run in a <tspan> of its Noto family (GD38), the rest
  * in the line's brand font. The weight is the line's, so resvg picks the Noto file the engine
- * measured.
+ * measured; text after a Devanagari vowel sign is placed past the width resvg drops, in its run
+ * or the next.
  */
-function runsXml(content: string): string {
+function runsXml(content: string, weight: 400 | 700, px: number): string {
+  let shift = 0
   return runs(content)
-    .map((r) =>
-      r.script === 'latin'
-        ? escapeXml(r.text)
-        : `<tspan font-family="${SCRIPT_FONTS[r.script].family}">${escapeXml(r.text)}</tspan>`,
-    )
+    .map((r) => {
+      if (r.script === 'devanagari') {
+        const run = devanagariXml(r.text, weight, px, shift)
+        shift = run.shift
+        return `<tspan font-family="${SCRIPT_FONTS.devanagari.family}">${run.xml}</tspan>`
+      }
+      const inner = shifted(r.text, shift)
+      shift = 0
+      return r.script === 'latin'
+        ? inner
+        : `<tspan font-family="${SCRIPT_FONTS[r.script].family}">${inner}</tspan>`
+    })
     .join('')
 }
 
@@ -67,7 +113,7 @@ function text(input: {
   fill: string
   content: string
 }): string {
-  return `<text x="${n(input.x)}" y="${n(input.y)}" font-family="${escapeXml(input.family)}" font-weight="${input.weight}" font-size="${n(input.px)}" fill="${input.fill}" xml:space="preserve">${runsXml(input.content)}</text>`
+  return `<text x="${n(input.x)}" y="${n(input.y)}" font-family="${escapeXml(input.family)}" font-weight="${input.weight}" font-size="${n(input.px)}" fill="${input.fill}" xml:space="preserve">${runsXml(input.content, input.weight, input.px)}</text>`
 }
 
 /** A checklist tick, as fractions of its line's size: its width and its stroke. */
@@ -201,7 +247,7 @@ function frame(
     const head = 8
     parts.push(
       `<path d="M${n(start)} ${n(cy)}H${n(end)}M${n(end - head)} ${n(cy - head)}L${n(end)} ${n(cy)}L${n(end - head)} ${n(cy + head)}" fill="none" stroke="${theme.ink}" stroke-width="4"/>`,
-      `<text x="${n(start - FRAME.arrowGap)}" y="${n(SOURCE_LINE.y)}" font-family="${escapeXml(brand.fonts.heading.family)}" font-weight="700" font-size="${n(FRAME.swipePx)}" fill="${theme.ink}" text-anchor="end" xml:space="preserve">${runsXml(f.swipe ?? FRAME.label)}</text>`,
+      `<text x="${n(start - FRAME.arrowGap)}" y="${n(SOURCE_LINE.y)}" font-family="${escapeXml(brand.fonts.heading.family)}" font-weight="700" font-size="${n(FRAME.swipePx)}" fill="${theme.ink}" text-anchor="end" xml:space="preserve">${runsXml(f.swipe ?? FRAME.label, 700, FRAME.swipePx)}</text>`,
     )
   }
   return parts.join('')

@@ -42,6 +42,7 @@ const BESIDE = [
   'utas-infosys',
   'utas-computing',
   'utas-mph',
+  'ecu-teaching-early',
 ]
 /** The picks no answer can reach, so matching leaves them out. */
 const UNREACHABLE = [
@@ -405,16 +406,33 @@ describe('matchRoad: the city hint', () => {
 
 describe('matchRoad: what it reads', () => {
   it('reads the areas when she is drawn to areas', () => {
-    const data = matchRoad(drawn(['Data'], { stay: 'Yes' }), null)
-    expect(data.spec.field).toBe('data')
-    expect(data.exact).toBe(true)
+    const business = matchRoad(drawn(['Business'], { stay: 'Yes' }), null)
+    expect(business.spec.field).toBe('business')
+    expect(business.exact).toBe(true)
   })
 
-  it('lets IT and computing reach either an IT or a cyber road', () => {
+  it('lets IT and computing reach an IT, a cyber or a data road', () => {
     const m = matchRoad(drawn(['IT and computing'], { stay: 'Yes' }), null)
-    expect(['it', 'cyber']).toContain(m.spec.field)
+    expect(['it', 'cyber', 'data']).toContain(m.spec.field)
     expect(m.exact).toBe(true)
   })
+
+  it('reads a Data-era answer as IT and computing', () => {
+    const it = matchRoad(drawn(['IT and computing'], { stay: 'Yes' }), null)
+    expect(matchRoad(drawn(['Data'], { stay: 'Yes' }), null)).toEqual(it)
+  })
+
+  for (const [area, field] of [
+    ['Education / Teaching', 'education'],
+    ['Social work', 'social-work'],
+    ['Hospitality & tourism', 'hospitality'],
+  ]) {
+    it(`matches ${area} to a road on a course in ${field}`, () => {
+      const m = matchRoad(drawn([area], { stay: 'Yes', level: "Master's" }), null)
+      const course = courseById(m.spec.courseId)
+      expect(`${m.spec.field} ${course?.field} ${m.exact}`).toBe(`${field} ${field} true`)
+    })
+  }
 
   it('ignores the field when she asked to be suggested one', () => {
     const m = matchRoad(a({ stay: 'Yes', know: 'Suggest me', field: 'Data science' }), null)
@@ -470,11 +488,13 @@ describe('the matching sweep (criterion 86)', () => {
     ...[
       'IT and computing',
       'Business',
-      'Data',
       'Health',
       'Engineering',
       'Design',
       'Psychology',
+      'Education / Teaching',
+      'Social work',
+      'Hospitality & tourism',
     ].map((area) => ({
       know: DRAWN,
       areas: [area],
@@ -507,7 +527,7 @@ describe('the matching sweep (criterion 86)', () => {
     return null
   }
 
-  it('matches at least half of the matchable answer sets exactly and reaches every candidate (full product: 80,640 combinations)', () => {
+  it('matches at least half of the matchable answer sets exactly and reaches every candidate (full product: 94,080 combinations)', () => {
     let total = 0
     let matchable = 0
     let exactAll = 0
@@ -552,7 +572,7 @@ describe('the matching sweep (criterion 86)', () => {
     )
     const unreached = ROAD_CANDIDATES.map((c) => c.id).filter((id) => !reached.has(id))
     console.log(`unreached candidates: ${unreached.join(', ') || 'none'}`)
-    expect(total).toBe(80_640)
+    expect(total).toBe(94_080)
     expect(exactMatchable / matchable).toBeGreaterThanOrEqual(0.5)
     expect(unreached).toEqual([])
   }, 120_000)
@@ -565,7 +585,13 @@ describe('pickedFields: the fields she picked, as matching reads them', () => {
   })
 
   it('reads the areas she is drawn to, Health, Engineering and Design among them', () => {
-    expect(pickedFields(drawn(['IT and computing']))).toEqual(['it', 'cyber'])
+    expect(pickedFields(drawn(['IT and computing']))).toEqual(['it', 'cyber', 'data'])
+    expect(pickedFields(drawn(['Data']))).toEqual(['it', 'cyber', 'data'])
+    expect(pickedFields(drawn(['Education / Teaching']))).toEqual(['education'])
+    expect(pickedFields(drawn(['Social work', 'Hospitality & tourism']))).toEqual([
+      'social-work',
+      'hospitality',
+    ])
     expect(pickedFields(drawn(['Health']))).toEqual(['health'])
     expect(pickedFields(drawn(['Engineering', 'Design']))).toEqual(['engineering', 'design'])
     expect(pickedFields(drawn(['Psychology']))).toEqual(['psych'])

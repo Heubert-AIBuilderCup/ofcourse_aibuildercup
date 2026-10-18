@@ -33,6 +33,9 @@ export type FieldId =
   | 'health'
   | 'engineering'
   | 'design'
+  | 'education'
+  | 'social-work'
+  | 'hospitality'
 export type Level = 'Diploma' | "Bachelor's" | "Master's"
 export type Point = { lat: number; lng: number }
 export type City = Point & {

@@ -1,3 +1,4 @@
+import { RETIRED_AREAS } from '@/features/opening/model/questions'
 import type { Field, FieldEdge } from './types'
 
 export const FIELDS: readonly Field[] = [
@@ -124,6 +125,27 @@ export const FIELDS: readonly Field[] = [
     name: 'Design',
     definition:
       'Shaping how products and services look and work for the people who use them, from research to the final screen.',
+    niche: false,
+  },
+  {
+    id: 'education',
+    name: 'Education and teaching',
+    definition:
+      'Planning lessons, teaching classes and helping children or teenagers learn, at school or before it.',
+    niche: false,
+  },
+  {
+    id: 'social-work',
+    name: 'Social work',
+    definition:
+      'Supporting people and families through hardship, and linking them with the services and rights they need.',
+    niche: false,
+  },
+  {
+    id: 'hospitality',
+    name: 'Hospitality and tourism',
+    definition:
+      'Running hotels, restaurants, events and travel experiences, and the business side that keeps them going.',
     niche: false,
   },
   {
@@ -274,6 +296,11 @@ export const FIELD_EDGES: readonly FieldEdge[] = [
   { from: 'psych', to: 'health', kind: 'related' },
   { from: 'engineering', to: 'it', kind: 'related' },
   { from: 'design', to: 'it', kind: 'related' },
+  { from: 'education', to: 'psych', kind: 'related' },
+  { from: 'social-work', to: 'psych', kind: 'related' },
+  { from: 'social-work', to: 'health', kind: 'related' },
+  { from: 'social-work', to: 'education', kind: 'related' },
+  { from: 'hospitality', to: 'business', kind: 'related' },
   { from: 'ot-security', to: 'cyber', kind: 'is-a' },
   { from: 'ot-security', to: 'engineering', kind: 'related' },
   { from: 'ot-security', to: 'networks', kind: 'related' },
@@ -334,15 +361,23 @@ export const FIELD_OF_OPTION: Readonly<Record<string, string>> = {
   Psychology: 'psych',
 }
 
-/** The fields each area of study reaches. */
+/** The fields each area of study reaches. Data went into IT and computing. */
 export const AREA_FIELDS: Readonly<Record<string, readonly string[]>> = {
-  'IT and computing': ['it', 'cyber'],
+  'IT and computing': ['it', 'cyber', 'data'],
   Business: ['business'],
-  Data: ['data'],
   Health: ['health'],
   Engineering: ['engineering'],
   Design: ['design'],
   Psychology: ['psych'],
+  'Education / Teaching': ['education'],
+  'Social work': ['social-work'],
+  'Hospitality & tourism': ['hospitality'],
+}
+
+/** The fields an area reaches; one an earlier onboarding offered reads as the area that took it in. */
+export function areaFields(area: string): readonly string[] {
+  const today = Object.hasOwn(RETIRED_AREAS, area) ? RETIRED_AREAS[area] : area
+  return Object.hasOwn(AREA_FIELDS, today) ? AREA_FIELDS[today] : []
 }
 
 /** Every field an answer can name, through a field option or an area. */

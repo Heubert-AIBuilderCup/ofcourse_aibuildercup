@@ -471,6 +471,135 @@ export const SUBJECTS: readonly CourseSubjects[] = [
     conditions: ['A bachelor degree in any field'],
     source: handbook('UTAS'),
   },
+  {
+    courseId: 'ecu-teaching-secondary',
+    majors: ['Mathematics teaching', 'Science teaching'],
+    units: [
+      'Curriculum and pedagogy',
+      'Classroom management',
+      'Teaching diverse learners',
+      'Professional experience',
+    ],
+    conditions: [
+      'A bachelor degree with study in one or two school teaching areas',
+      'A Working with Children Check before your first school placement',
+    ],
+    source: handbook('ECU'),
+  },
+  {
+    courseId: 'ecu-teaching-early',
+    majors: ['Early learning', 'Play-based pedagogy'],
+    units: [
+      'Child development',
+      'Early literacy and numeracy',
+      'Play-based learning',
+      'Professional experience',
+    ],
+    conditions: [
+      'A bachelor degree in any field',
+      'A Working with Children Check before your first school placement',
+    ],
+    source: handbook('ECU'),
+  },
+  {
+    courseId: 'monash-teaching',
+    majors: ['English teaching', 'Mathematics teaching'],
+    units: [
+      'Curriculum and pedagogy',
+      'Assessment for learning',
+      'Inclusive education',
+      'Professional experience',
+    ],
+    conditions: [
+      'A bachelor degree with study in one or two school teaching areas',
+      'A Working with Children Check before your first school placement',
+    ],
+    source: handbook('Monash'),
+  },
+  {
+    courseId: 'curtin-social-work',
+    majors: ['Children and young people', 'Mental health practice'],
+    units: [
+      'Social work theory and practice',
+      'Human rights and social justice',
+      'Mental health and wellbeing',
+      'Field education',
+    ],
+    conditions: [
+      'A bachelor degree in any field, with some study in the social sciences',
+      'A police check before field placements',
+    ],
+    source: handbook('Curtin'),
+  },
+  {
+    courseId: 'unisa-social-work',
+    majors: ['Children and young people', 'Mental health practice'],
+    units: [
+      'Social work theory and practice',
+      'Human rights and social justice',
+      'Mental health and wellbeing',
+      'Field education',
+    ],
+    conditions: [
+      'A bachelor degree in any field, with some study in the social sciences',
+      'A police check before field placements',
+    ],
+    source: handbook('UniSA'),
+  },
+  {
+    courseId: 'monash-social-work',
+    majors: ['Children and young people', 'Mental health practice'],
+    units: [
+      'Social work theory and practice',
+      'Human rights and social justice',
+      'Mental health and wellbeing',
+      'Field education',
+    ],
+    conditions: [
+      'A bachelor degree in any field, with some study in the social sciences',
+      'A police check before field placements',
+    ],
+    source: handbook('Monash'),
+  },
+  {
+    courseId: 'utas-social-work',
+    majors: ['Children and young people', 'Mental health practice'],
+    units: [
+      'Social work theory and practice',
+      'Human rights and social justice',
+      'Mental health and wellbeing',
+      'Field education',
+    ],
+    conditions: [
+      'A bachelor degree in any field, with some study in the social sciences',
+      'A police check before field placements',
+    ],
+    source: handbook('UTAS'),
+  },
+  {
+    courseId: 'uts-tourism',
+    majors: ['Hotel management', 'Events and destinations'],
+    units: [
+      'Hospitality operations',
+      'Tourism marketing',
+      'Revenue management',
+      'Industry placement',
+    ],
+    conditions: ['A bachelor degree in any field'],
+    source: handbook('UTS'),
+  },
+  {
+    courseId: 'deakin-tourism',
+    majors: ['Hospitality management', 'Regional tourism'],
+    units: [
+      'Hospitality operations',
+      'Destination management',
+      'Revenue management',
+      'Industry placement',
+    ],
+    conditions: ['A bachelor degree in any field'],
+    source: handbook('Deakin'),
+  },
 ]
 
 const SUBJECTS_BY_COURSE = new Map(SUBJECTS.map((s) => [s.courseId, s]))

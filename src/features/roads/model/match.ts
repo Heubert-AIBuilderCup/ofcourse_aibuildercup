@@ -14,7 +14,7 @@ import { DRAWN_TO_AREAS, PARTICULAR, SUGGEST_ME } from '@/features/opening/model
 import type { QuestionKey, Relative, StoredAnswers } from '@/shared/types/student'
 import { ROAD_CANDIDATES } from '../data/candidates'
 import { openEntry } from '../data/entry'
-import { AREA_FIELDS, FIELD_OF_OPTION, FIELDS } from '../data/fields'
+import { areaFields, FIELD_OF_OPTION, FIELDS } from '../data/fields'
 import { stayingRoute } from '../data/occupations'
 import type { RoadKey } from '../data/types'
 import { eligibleRoads, levelsOpenTo } from './eligibility'
@@ -96,7 +96,7 @@ function fieldPick(answers: StoredAnswers): FieldPick | null {
     const value = said(answers, 'areas')
     const areas = Array.isArray(value) ? value : []
     if (areas.length === 0) return null
-    const fields = [...new Set(areas.flatMap((area) => AREA_FIELDS[area] ?? []))]
+    const fields = [...new Set(areas.flatMap(areaFields))]
     return { key: 'areas', yours: areas.join(', '), fields }
   }
   if (know !== null && know !== PARTICULAR) return null

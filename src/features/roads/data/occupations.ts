@@ -219,6 +219,61 @@ export const OCCUPATIONS: readonly Occupation[] = [
     employerSponsored: true,
     source: SOURCE,
   },
+  {
+    code: '241411',
+    name: 'Secondary School Teacher',
+    courseIds: ['ecu-teaching-secondary', 'monash-teaching'],
+    lists: {
+      WA: ['190', '491'],
+      SA: ['190', '491'],
+      NSW: ['491'],
+      VIC: ['190', '491'],
+      TAS: ['190', '491'],
+    },
+    employerSponsored: true,
+    source: SOURCE,
+  },
+  {
+    code: '241111',
+    name: 'Early Childhood (Pre-primary School) Teacher',
+    courseIds: ['ecu-teaching-early'],
+    lists: {
+      WA: ['190', '491'],
+      SA: ['190', '491'],
+      NSW: ['491'],
+      VIC: ['190', '491'],
+      TAS: ['190', '491'],
+    },
+    employerSponsored: true,
+    source: SOURCE,
+  },
+  {
+    code: '272511',
+    name: 'Social Worker',
+    courseIds: [
+      'curtin-social-work',
+      'unisa-social-work',
+      'monash-social-work',
+      'utas-social-work',
+    ],
+    lists: {
+      WA: ['190', '491'],
+      SA: ['190', '491'],
+      NSW: ['491'],
+      VIC: ['491'],
+      TAS: ['190', '491'],
+    },
+    employerSponsored: true,
+    source: SOURCE,
+  },
+  {
+    code: '141311',
+    name: 'Hotel or Motel Manager',
+    courseIds: ['uts-tourism', 'deakin-tourism'],
+    lists: { NSW: ['491'], VIC: ['491'], TAS: ['491'] },
+    employerSponsored: true,
+    source: SOURCE,
+  },
 ]
 
 /** The occupations a course leads to; for a course the lists do not name, any the server registered. */
