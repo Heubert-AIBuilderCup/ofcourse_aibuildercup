@@ -302,17 +302,14 @@ export function RoadMap({
         </span>
       )}
 
-      <Button
-        type="button"
-        variant="square"
+      {/* Her weights, shown: adjusting them is not built, so this is a picture, not a button (18 Oct). */}
+      <div
+        role="img"
         data-map-control
-        aria-label="Weighing. Adjust weights"
-        className="absolute bottom-4 left-4 z-30 h-auto w-50 flex-col items-stretch gap-2.5 bg-background p-3 font-sans text-foreground shadow-md hover:bg-background @max-5xl:hidden"
+        aria-label={`What you're weighing: ${road.weights.map((w) => `${w.name} ${w.weight} of 3`).join(', ')}`}
+        className="absolute bottom-4 left-4 z-30 flex w-50 flex-col items-stretch gap-2.5 border bg-background p-3 font-sans text-foreground shadow-md @max-5xl:hidden"
       >
-        <span className="flex items-baseline justify-between text-micro uppercase">
-          <span className="text-muted-foreground">Weighing</span>
-          <span className="font-semibold text-brand-hover">Adjust</span>
-        </span>
+        <span className="text-micro text-muted-foreground uppercase">Weighing</span>
         <span className="grid h-15 grid-cols-6 gap-1">
           {road.weights.map((w) => (
             <span key={w.name} className="flex min-w-0 flex-col items-center justify-end gap-1">
@@ -326,7 +323,7 @@ export function RoadMap({
             </span>
           ))}
         </span>
-      </Button>
+      </div>
 
       {scene.ruler.ticks.length ? (
         <p className="absolute bottom-5 left-60 z-30 m-0 flex items-center gap-1.5 text-caption @max-5xl:left-4 @max-xl:hidden">

@@ -1,7 +1,7 @@
 'use client'
 
 import { Check } from 'lucide-react'
-import { type KeyboardEvent, useRef, useState } from 'react'
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import {
   type AnswerGroup,
   type AnswerRow,
@@ -120,6 +120,7 @@ export function AnswersPanel({
   place = 'column',
   tags = [],
   rematch,
+  openAt = null,
   onPreview,
   ...ends
 }: {
@@ -133,9 +134,15 @@ export function AnswersPanel({
   tags?: RoadmapTag[]
   /** The board draws the road her answers match: its rule, so a pick says when it would change it. */
   rematch?: RoadChangeOf
+  /** The question it opens at (Pick a destination's): that row open, with focus. */
+  openAt?: QuestionKey | null
   onPreview: (prev: Record<string, string>) => void
 } & Ends) {
-  const [openKey, setOpenKey] = useState<RowKey | null>(null)
+  const [openKey, setOpenKey] = useState<RowKey | null>(openAt)
+  const rootRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (openAt) rootRef.current?.querySelector<HTMLElement>('[aria-expanded="true"]')?.focus()
+  }, [openAt])
   const [pending, setPending] = useState<Pending>({})
   const [asking, setAsking] = useState(false)
   const [done, setDone] = useState<Done[]>([])
@@ -234,6 +241,7 @@ export function AnswersPanel({
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: Escape from anywhere inside closes it as Close does
     <div
+      ref={rootRef}
       className="flex flex-col gap-3"
       onKeyDown={(e: KeyboardEvent) => {
         if (e.key !== 'Escape' || asking) return

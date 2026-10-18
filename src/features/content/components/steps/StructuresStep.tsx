@@ -693,6 +693,11 @@ export function StructuresStep({
               onNudge={nudgeSlide}
               onFix={fixUnbound}
               onOpenTab={tab.onOpen}
+              language={current.source?.body.language}
+              onEditSlide={(n) => {
+                selection.onSelect(n)
+                tab.onOpen('Your version')
+              }}
             />
           ),
         }

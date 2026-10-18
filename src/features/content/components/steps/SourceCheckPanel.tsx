@@ -6,9 +6,11 @@ import { Working } from '@/shared/components/Working'
 import type { Staff } from '@/shared/lib/auth/access'
 import { cn } from '@/shared/lib/utils'
 import type { SupportingSource } from '../../ai/search'
+import type { LanguageId } from '../../languages'
 import { actionError, editWaitError, type PostAction, WORKFLOW_ERRORS } from '../../lib/workflow'
 import type { ClaimResult } from '../../model/types'
 import type { Researched, Saved } from '../../server/commands'
+import { sourceWordingRefusal } from '../../text/script'
 import { Control, movesWait, reasonText, tag } from '../parts'
 import { SideDrawer } from '../stage'
 import { usePostAction } from '../usePostAction'
@@ -167,6 +169,8 @@ function Research({
 type ClaimControl = { shown: boolean; reason: string | null; run: (claim: number) => void }
 type ClaimControls = {
   pending: boolean
+  /** The post's language: the source's wording is offered only in its script. */
+  language?: LanguageId
   wording: ClaimControl
   remove: ClaimControl
   opinion: ClaimControl
@@ -191,6 +195,9 @@ export function ClaimRows({
   controls?: ClaimControls
   only?: (claim: ClaimResult) => boolean
 }) {
+  // The source's wording only in the post's script; else why not, beside the other fixes.
+  const refusedOf = (c: ClaimResult) =>
+    c.suggestion ? sourceWordingRefusal(c.suggestion.text, controls?.language) : null
   // The recommended fix, the source's wording, is the filled one; the others are outlined.
   const button = (control: ClaimControl, claim: number, label: string, filled = false) =>
     controls &&
@@ -240,10 +247,15 @@ export function ClaimRows({
             )}
             {controls && c.result === 'not_found' && (
               <div className="flex flex-wrap items-center gap-2">
-                {c.suggestion && button(controls.wording, i, "Use the source's wording", true)}
+                {c.suggestion &&
+                  !refusedOf(c) &&
+                  button(controls.wording, i, "Use the source's wording", true)}
                 {button(controls.remove, i, 'Remove')}
                 {button(controls.opinion, i, 'Mark as editorial opinion')}
               </div>
+            )}
+            {controls?.wording.shown && c.result === 'not_found' && refusedOf(c) && (
+              <p className={reasonText}>{refusedOf(c)}</p>
             )}
             {controls?.refused?.claim === i && (
               <p role="alert" className="text-caption text-destructive">
@@ -324,6 +336,7 @@ export function SourceCheckPanel({ view, viewer, actions }: SourceCheckPanelProp
 
   const controls: ClaimControls = {
     pending,
+    language: view.current.source?.body.language,
     wording: control(
       'sourceWording',
       (claim) => actions.applySourceWordingAction(view.id, view.version, claim),

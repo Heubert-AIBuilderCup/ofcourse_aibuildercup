@@ -264,6 +264,7 @@ function Board({
     answers,
     answering,
     openAnswers,
+    answersAt,
     closeAnswers,
     saveAnswers,
     preview,
@@ -431,6 +432,7 @@ function Board({
         answers={answers}
         road={road}
         place={place}
+        openAt={answersAt}
         onPreview={preview}
         onCreate={setCreating}
         onCancel={closeAnswers}
@@ -441,6 +443,7 @@ function Board({
         answers={answers}
         road={road}
         place={place}
+        openAt={answersAt}
         onPreview={preview}
         tags={roadmap.tags}
         rematch={roadChangeOf}

@@ -158,7 +158,8 @@ export function expectSound(road: Road, spec: RoadSpec): void {
   for (const [score] of JSON.stringify(road).matchAll(/IELTS \d\.\d/g)) {
     expect(score).toBe(`IELTS ${ielts}`)
   }
+  // "leading Teams" is a unit's name the copy quotes ("units such as … leading Teams"), not a rank.
   expect(JSON.stringify(spec)).not.toMatch(
-    /\b(biggest|highest|largest|lowest|cheapest|best|top|most|leading|number one|fastest)\b/i,
+    /\b([Bb]iggest|[Hh]ighest|[Ll]argest|[Ll]owest|[Cc]heapest|[Bb]est|[Tt]op|[Mm]ost|[Ll]eading(?! [A-Z])|[Nn]umber one|[Ff]astest)\b/,
   )
 }

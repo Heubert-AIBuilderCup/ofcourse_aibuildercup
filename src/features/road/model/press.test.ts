@@ -186,6 +186,12 @@ describe('primaryAction: what the card’s primary does', () => {
     const added = buildScene(road, { ...NEW_SESSION, added: true })
     expect(primaryAction(road, added, 'information-systems-curtin-perth')).toBeNull()
   })
+
+  it('at Point A on an empty road, Pick a destination opens her answers at the destination', () => {
+    const empty = { ...road, tiles: [] }
+    const start = buildScene(empty, NEW_SESSION)
+    expect(primaryAction(empty, start, null)).toEqual({ kind: 'answers', at: 'dest' })
+  })
 })
 
 describe('withStart: a card’s primary with what compare can start', () => {

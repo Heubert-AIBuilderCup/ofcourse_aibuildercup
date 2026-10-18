@@ -2236,6 +2236,42 @@ Cc versions marker paragraph.`,
   )
 
   test(
+    "Use the source's wording is refused on a Thai post whose source sentence is English, as a stale page would press it (104)",
+    async () => {
+      // A Thai post from an English source, its sentences not found: the source sentence the
+      // check suggests beside each is English.
+      const { id } = await atIdeas({ ...paidWork, language: 'th' } as typeof paidWork)
+      const { version: drafted } = await outlined(id)
+      ok(await commands.writeSlides(ED, id, drafted))
+      await forgetCheckAnswers()
+      judgeAnswer = () => ({ supported: false, ref: null, why: 'No.' })
+      try {
+        ok(await commands.pickStructure(ED, id, (await load(id)).version, 0))
+        await settled()
+      } finally {
+        judgeAnswer = null
+      }
+      const { post, item } = await pickedVersion(id)
+      expect(post.current.source?.body.language).toBe('th')
+      const claims = post.current.sourceCheck?.body.claims ?? []
+      const index = claims.findIndex((c) => c.result === 'not_found' && c.suggestion)
+      const { slide, slot, suggestion } = claims[index]
+      expect(suggestion?.text).toBeTruthy()
+      const { version } = post
+      expect(await commands.applySourceWording(ED, id, version, index)).toEqual({
+        ok: false,
+        error: 'The source is in English; edit the slide in Thai instead.',
+      })
+      const after = await pickedVersion(id)
+      expect(after.post.version).toBe(version)
+      expect(after.item.structure.slides[slide - 1].slots[slot].text).toBe(
+        item.structure.slides[slide - 1].slots[slot].text,
+      )
+    },
+    SLOW,
+  )
+
+  test(
     'measureSlot gives the fit rows a slot would have with the typed text and saves nothing; a reviewer and an admin are refused (98)',
     async () => {
       const { id, version } = await picked(ED, 'the-line')

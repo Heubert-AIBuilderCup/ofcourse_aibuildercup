@@ -373,7 +373,7 @@ describe('compareCourseAction (criterion 27)', () => {
   it('compares the longest real catalogue course id, and refuses one past 80 characters', async () => {
     found = roadmap({ answers })
     const longest = [...FINDER_COURSES].sort((a, b) => b.id.length - a.id.length)[0]
-    expect(longest.id.length).toBe(74)
+    expect(longest.id.length).toBe(79)
     expect(await compareCourseAction('rm-1', longest.id)).toMatchObject({ ok: true })
     expect(await compareCourseAction('rm-1', 'x'.repeat(81))).toEqual({
       ok: false,

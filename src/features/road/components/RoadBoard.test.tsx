@@ -744,7 +744,7 @@ describe('Feed', () => {
       expect(within(place).queryByRole('button', { name: 'Ask · 1' })).toBeNull()
       expect(within(place).queryByRole('button', { name: 'Compare' })).toBeNull()
     }
-    expect(controlNames()).toEqual(['Feed', 'Your answers', 'Weights'])
+    expect(controlNames()).toEqual(['Feed', 'Your answers'])
   })
 })
 
@@ -786,14 +786,14 @@ describe('Find courses', () => {
     board()
     for (const name of ['Find courses', 'Find', FIND])
       expect(screen.queryAllByRole('button', { name }).length).toBe(0)
-    expect(controlNames()).toEqual(['Feed', 'Your answers', 'Weights'])
+    expect(controlNames()).toEqual(['Feed', 'Your answers'])
   })
 
   it('is offered only in the course stack’s list, never over the board', () => {
     withFinder()
     for (const name of ['Find courses', 'Find', FIND])
       expect(screen.queryAllByRole('button', { name }).length).toBe(0)
-    expect(controlNames()).toEqual(['Feed', 'Your answers', 'Weights'])
+    expect(controlNames()).toEqual(['Feed', 'Your answers'])
     cleanup()
     query = LIST
     withFinder()
@@ -985,6 +985,22 @@ describe('an empty road', () => {
     expect(tile('Point A, you are here. Open your answers')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Zoom' })).not.toBeInTheDocument()
   })
+
+  it('Pick a destination opens her answers at the destination question', () => {
+    render(
+      <Providers initialChoice="light" systemTheme={null}>
+        <RoadBoard road={{ ...road, tiles: [] }} {...props}>
+          {null}
+        </RoadBoard>
+      </Providers>,
+    )
+    press(button('Pick a destination'))
+    expect(push).toHaveBeenLastCalledWith(null, '', `${BOARD}?open=answers`)
+    const answers = screen.getByRole('complementary', { name: 'Your answers' })
+    const destination = within(answers).getByRole('button', { name: /^Destination/ })
+    expect(destination.getAttribute('aria-expanded')).toBe('true')
+    expect(document.activeElement === destination).toBe(true)
+  })
 })
 
 describe('on a phone', () => {
@@ -1043,7 +1059,7 @@ describe('on a phone', () => {
     expect(within(here).getByRole('heading', { level: 1 })).toHaveTextContent('Cyber Security')
     expect(within(here).getByText('You are here · Course')).toBeInTheDocument()
     expect(within(here).getByText('Also in Perth')).toBeInTheDocument()
-    expect(controlNames()).toEqual(['Feed', 'Your answers', 'Weights'])
+    expect(controlNames()).toEqual(['Feed', 'Your answers'])
   })
 
   it('asks why her tile is on her roadmap from the card where she is (criterion 15)', async () => {
@@ -1474,7 +1490,7 @@ describe('a new roadmap’s draft', () => {
 
   it('keeps Feed, Your answers (to open the draft again once closed) and Weights in the controls bar', () => {
     draftBoard()
-    expect(controlNames()).toEqual(['Feed', 'Your answers', 'Weights'])
+    expect(controlNames()).toEqual(['Feed', 'Your answers'])
   })
 
   it('while drafting, a pressed tile waits and says why', () => {
@@ -1918,5 +1934,13 @@ describe('switching roadmaps', () => {
     cleanup()
     board()
     expect(switchButtons().length).toBe(0)
+  })
+})
+
+describe('the weighing (18 Oct: no button with nothing behind it)', () => {
+  it('shows her weights as a picture, not a button that does nothing', () => {
+    board()
+    expect(screen.queryByRole('button', { name: /weights|weighing/i })).toBeNull()
+    expect(screen.getAllByRole('img', { name: /^What you're weighing:/ }).length).toBeGreaterThan(0)
   })
 })

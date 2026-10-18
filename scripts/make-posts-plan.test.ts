@@ -8,7 +8,6 @@ import {
   runOrder,
   scenesFor,
   settingsFor,
-  wordingFits,
 } from './make-posts-plan'
 
 const IDEA = 'You can do anything, but not everything.'
@@ -258,14 +257,5 @@ describe('closestFact', () => {
 
   it('is none when no supported fact shares a word', () => {
     expect(closestFact('Nothing alike here', facts as never)).toBeNull()
-  })
-})
-
-describe('wordingFits', () => {
-  it("takes the source's wording only when it is in the post's script", () => {
-    expect(wordingFits('Balance is something you keep adjusting.', 'latin')).toBe(true)
-    expect(wordingFits('Balance is something you keep adjusting.', 'thai')).toBe(false)
-    expect(wordingFits('สมดุลคือกระบวนการ', 'thai')).toBe(true)
-    expect(wordingFits('สมดุลคือกระบวนการ', 'latin')).toBe(false)
   })
 })

@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { CAMPUSES, COURSES } from '@/features/engine/catalogue'
 import { EXTRA_COURSES } from '@/features/roads/data/courses'
 import { FIELDS } from '@/features/roads/data/fields'
+import { FIELD_OCCUPATIONS } from './field-occupations'
 import { FINDER_CAMPUSES, FINDER_CITIES, rawCourseSchema } from './schema'
 
 const RAW = join(import.meta.dir, 'raw')
@@ -54,6 +55,10 @@ describe('the raw course schema', () => {
 })
 
 describe('the raw catalogue', () => {
+  test('its fields are every broad field, the three new areas included', () => {
+    expect(FIELD_IDS.map(String).sort()).toEqual(Object.keys(FIELD_OCCUPATIONS).sort())
+  })
+
   test('there is one raw file per broad field', () => {
     const missing = FIELD_IDS.filter((field) => !existsSync(join(RAW, `${field}.json`)))
     expect(missing).toEqual([])
@@ -75,7 +80,7 @@ describe('the raw catalogue', () => {
 
   const all = () => FIELD_IDS.flatMap((field) => rowsOf(field))
 
-  test('the eight files hold 400 to 1,000 rows', () => {
+  test('the eleven files hold 400 to 1,000 rows', () => {
     const count = all().length
     expect(count).toBeGreaterThanOrEqual(400)
     expect(count).toBeLessThanOrEqual(1000)

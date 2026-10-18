@@ -33,6 +33,9 @@ const FIELD_IDS = [
   'health',
   'engineering',
   'design',
+  'education',
+  'social-work',
+  'hospitality',
 ] as const satisfies readonly FieldId[]
 
 const sentences = (text: string) => text.match(/[.!?](\s|$)/g)?.length ?? 0

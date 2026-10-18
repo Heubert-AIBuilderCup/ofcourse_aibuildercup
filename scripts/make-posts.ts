@@ -29,7 +29,6 @@ import {
   runOrder,
   scenesFor,
   settingsFor,
-  wordingFits,
 } from './make-posts-plan'
 
 const args = process.argv.slice(2)
@@ -100,7 +99,7 @@ const { unboundSlots } = await import('../src/features/content/lib/claims')
 const { searchTitleOf } = await import('../src/features/content/lib/comic-rules')
 const { IDEA_KIND } = await import('../src/features/content/model/artifacts')
 const { PRESETS } = await import('../src/features/content/brands/guideline')
-const { languageById } = await import('../src/features/content/languages')
+const { sourceWordingRefusal } = await import('../src/features/content/text/script')
 const { artDeps, imagesOf } = await import('../src/features/content/server/commands/shared')
 const { imageAspect } = await import('../src/features/content/ai/art')
 const { artKey, svgToPng } = await import('./make-posts-art')
@@ -291,7 +290,7 @@ function slideText(post: LoadedPost, slide: number): string {
 
 /**
  * Each sentence the rendered post's check could not find: the source's wording when it is in the
- * post's script (wordingFits), else editorial opinion.
+ * post's script (sourceWordingRefusal), else editorial opinion.
  */
 async function settleClaims(id: string, actor: Actor): Promise<LoadedPost> {
   let post = await ensureCheck(id, actor)
@@ -301,8 +300,10 @@ async function settleClaims(id: string, actor: Actor): Promise<LoadedPost> {
     const at = claims.findIndex((c) => c.result === 'not_found')
     if (at < 0) return post
     const claim = claims[at]
-    const script = languageById(post.current.source?.body.language ?? 'en')?.script ?? 'latin'
-    if (claim.suggestion && wordingFits(claim.suggestion.text, script) && !worded.has(claim.text)) {
+    const fits =
+      claim.suggestion &&
+      sourceWordingRefusal(claim.suggestion.text, post.current.source?.body.language) === null
+    if (fits && !worded.has(claim.text)) {
       worded.add(claim.text)
       const res = await commands.applySourceWording(actor, id, post.version, at)
       await drain()

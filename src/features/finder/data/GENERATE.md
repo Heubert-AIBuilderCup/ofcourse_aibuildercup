@@ -12,6 +12,8 @@ A sample catalogue for a demo. The courses are illustrative, not real offerings 
 - At the campuses listed in `FINDER_CAMPUSES` (src/features/finder/data/schema.ts), as a Diploma or a Master's, one or two years long.
 - Fees typical for the level, in thousands of Australian dollars a year (`feeK`): Diploma 12–28, Master's 26–60.
 
+- Teaching, social work and hospitality (`education.json`, `social-work.json`, `hospitality.json`, 18 Oct) hold each road course in those areas (src/features/roads/data/courses.ts: the same name, campus, level, length and fee) and one TAFE Perth Diploma each. Their rows were appended after the kept courses by the rules alone, with no near-duplicate pass; the four Master of Social Work rows share a name, so their descriptions differ in voice and content.
+
 ## Descriptions
 
 - Say what the course teaches and how, in plain words.
