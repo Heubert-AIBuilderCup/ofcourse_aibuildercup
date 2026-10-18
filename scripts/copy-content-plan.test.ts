@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   assetCandidates,
   type CopyArgs,
+  checkedUpdate,
   mappedUserColumns,
   maskUrl,
   parseArgs,
@@ -32,7 +33,7 @@ describe('parseArgs', () => {
     const args = parsed([...BASE, '--posts', ' p1, p2 ,p1,', '--updates', 'all-live'])
     expect(args.posts.join('|')).toBe('p1|p2')
     expect(args.updates).toEqual({ all: true })
-    expect(args.dryRun).toBe(false)
+    expect(args.dryRun).toBe(true)
     expect(args.yesRemote).toBe(false)
     expect(args.as).toBe('nikhil@heubert.com')
   })
@@ -68,6 +69,27 @@ describe('parseArgs', () => {
     const errors = errorsOf(['--from', 'mysql://u:hunter2@h/db', '--to', PROD, '--as', 'a@b.c'])
     expect(errors).toContain('--from')
     expect(errors).not.toContain('hunter2')
+  })
+
+  it('is a dry run unless --write is passed', () => {
+    expect(parsed([...BASE, '--posts', 'p1']).dryRun).toBe(true)
+    expect(parsed([...BASE, '--posts', 'p1', '--dry-run']).dryRun).toBe(true)
+    expect(parsed([...BASE, '--posts', 'p1', '--write', '--target', 'ofcourse']).dryRun).toBe(false)
+    expect(
+      errorsOf([...BASE, '--posts', 'p1', '--write', '--dry-run', '--target', 'ofcourse']),
+    ).toContain('--write')
+  })
+
+  it('writes only to the database --target names, the --to URL’s own, never echoing the URL', () => {
+    const write = [...BASE, '--posts', 'p1', '--write']
+    expect(errorsOf(write)).toContain('--target')
+    const wrong = errorsOf([...write, '--target', 'app'])
+    expect(wrong).toContain('--target')
+    expect(wrong).not.toContain('prod-secret')
+    expect(errorsOf([...write, '--target', 'ofcourse'])).toBe('')
+    // A dry run writes nothing for good, but a --target given is still checked.
+    expect(errorsOf([...BASE, '--posts', 'p1', '--target', 'app'])).toContain('--target')
+    expect(errorsOf([...BASE, '--posts', 'p1'])).toBe('')
   })
 
   it('refuses copying a database onto itself', () => {
@@ -215,5 +237,38 @@ describe('withPresentBlogs', () => {
     expect(unlinked.length).toBe(1)
     expect(unlinked[0]).toContain('p2')
     expect(unlinked[0]).toContain('b-missing')
+  })
+})
+
+describe('checkedUpdate', () => {
+  const row = {
+    id: 'u-1',
+    kind: 'opportunity',
+    category: 'Scholarship',
+    institution: 'ECU',
+    title: '  ECU scholarship (mock)  ',
+    body: '20% off tuition (mock).',
+    applyBy: '2026-11-30',
+    sourceTitle: 'ECU scholarships page (mock)',
+    sourceCheckedAt: '2026-10-01',
+    audience: { institution: 'ECU', homeCountry: null },
+    status: 'live',
+    createdByUserId: 'u',
+  }
+
+  it('passes an update the form would take, as the form keeps it, its other columns as they are', () => {
+    const checked = checkedUpdate(row)
+    if (!checked.ok) throw new Error(checked.error)
+    expect(checked.row.title).toBe('ECU scholarship (mock)')
+    expect(checked.row.audience.topic).toBe('All topics')
+    expect(`${checked.row.id} ${checked.row.status} ${checked.row.createdByUserId}`).toBe(
+      'u-1 live u',
+    )
+  })
+
+  it('refuses one the form would refuse, naming the update', () => {
+    const checked = checkedUpdate({ ...row, kind: 'gossip' })
+    expect(checked.ok ? '' : checked.error).toContain('u-1')
+    expect(checkedUpdate({ ...row, body: 'x'.repeat(601) }).ok).toBe(false)
   })
 })

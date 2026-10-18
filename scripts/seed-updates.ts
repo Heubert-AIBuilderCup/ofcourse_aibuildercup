@@ -4,7 +4,9 @@
 // superadmin, or editor and reviewer, or the one --as names). Idempotent: an update is matched on
 // its title, so one already live is kept, one left half way is finished, and none is added twice.
 // Every title and source says "(mock)". Prints one line per update.
-//   bun --conditions react-server scripts/seed-updates.ts [--as <email>]
+//   bun --conditions react-server scripts/seed-updates.ts [--as <email>] [--allow-remote]
+// Only the local dev database unless --allow-remote is passed (as make-posts.ts): a shell with a
+// production DATABASE_URL exported would otherwise put mock updates live.
 // (react-server lets the server modules' `server-only` import load outside Next; Bun reads
 // DATABASE_URL from .env.local and resolves `@/` from tsconfig.json, as for finder-seed.ts.)
 
@@ -71,12 +73,31 @@ export function pickActor(
     : { ok: false, error: 'No account may both write and approve updates: pass --as <email>.' }
 }
 
+const LOCAL_HOSTS = ['127.0.0.1', 'localhost', '::1', '[::1]']
+
+/** Why the database is refused (not this machine, and no --allow-remote), or null: its host only. */
+export function remoteRefusal(databaseUrl: string, allowRemote: boolean): string | null {
+  let host: string
+  try {
+    host = new URL(databaseUrl).hostname
+  } catch {
+    return 'DATABASE_URL is not a URL.'
+  }
+  if (LOCAL_HOSTS.includes(host) || allowRemote) return null
+  return `Refusing ${host}: not a local database (pass --allow-remote to mean it).`
+}
+
 /** The most accounts read when looking for the publisher. */
 const USERS_LIMIT = 50
 
 async function main(): Promise<number> {
   if (!process.env.DATABASE_URL) {
     console.error('DATABASE_URL is not set.')
+    return 1
+  }
+  const refusal = remoteRefusal(process.env.DATABASE_URL, process.argv.includes('--allow-remote'))
+  if (refusal) {
+    console.error(refusal)
     return 1
   }
   const at = process.argv.indexOf('--as')

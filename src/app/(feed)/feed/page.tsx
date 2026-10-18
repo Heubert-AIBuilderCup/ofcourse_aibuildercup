@@ -42,16 +42,21 @@ export default async function FeedPage({ searchParams }: PageProps<'/feed'>) {
     // One screen under the bar (the layout grows it to fill, data-feed-shell): from 64rem the title
     // and the filters in a side column that stays put beside the posts; below, a slim bar with the
     // title and a Filters button for the sheet. Only the posts scroll, their scrollbar at the window's
-    // right edge, each post centred in its own frame.
-    <div data-feed-shell className="flex min-h-0 w-full flex-1 flex-col @5xl:flex-row @5xl:gap-8">
+    // right edge, each post centred in its own frame. --feed-side is the side column's whole share,
+    // the gap to the posts (its right padding) included: FeedPostCard reads it to centre a slide
+    // on the window, so the two never drift apart.
+    <div
+      data-feed-shell
+      className="flex min-h-0 w-full flex-1 flex-col [--feed-side:20rem] @5xl:flex-row"
+    >
       <aside
         aria-label="Filters"
-        className="flex w-72 min-w-0 shrink-0 flex-col gap-stack overflow-x-hidden overflow-y-auto py-6 pl-gutter @max-5xl:hidden"
+        className="flex w-(--feed-side) min-w-0 shrink-0 flex-col gap-stack overflow-x-hidden overflow-y-auto py-stack pr-stack pl-gutter @max-5xl:hidden"
       >
         <h1 className="text-h2 font-semibold tracking-tight">Feed</h1>
         <FeedFilters pathname={FEED_PATH} filters={filters} updateCount={updates.length} />
       </aside>
-      <div className="flex items-center justify-between gap-4 px-gutter py-3 @5xl:hidden">
+      <div className="flex items-center justify-between gap-stack px-gutter py-stack @5xl:hidden">
         <h1 className="text-h3 font-semibold tracking-tight">Feed</h1>
         <FeedFiltersSheet pathname={FEED_PATH} filters={filters} updateCount={updates.length} />
       </div>

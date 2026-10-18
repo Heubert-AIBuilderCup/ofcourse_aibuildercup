@@ -88,13 +88,9 @@ export default async function AdminSignInPage({ searchParams }: PageProps<'/admi
             <GoogleSignIn next={next} surface="admin" errorCallbackURL={ADMIN_SIGNIN_ERROR_PATH} />
           </Blueprint>
 
-          {/* Only while JUDGE_PASSCODE is set: the AI Builder Cup judges' way in (features/judge). */}
-          {judgeAccessOn(process.env) ? (
-            <JudgeAccess
-              action={judgeAdminSignInAction}
-              passcode={process.env.JUDGE_PASSCODE?.trim()}
-            />
-          ) : null}
+          {/* Only while JUDGE_PASSCODE is set: the AI Builder Cup judges' way in (features/judge).
+              The passcode is asked for, never shown: the admin judge edits and publishes. */}
+          {judgeAccessOn(process.env) ? <JudgeAccess action={judgeAdminSignInAction} /> : null}
 
           <div
             className={cn(

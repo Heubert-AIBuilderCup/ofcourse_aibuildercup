@@ -43,6 +43,12 @@ export function escapeXml(text: string): string {
     .replace(/'/g, '&apos;')
 }
 
+// RESVG PIN: package.json pins @resvg/resvg-js to exactly 2.6.2 (JSON carries no comment, so it
+// is said here and in docs/hackathon/deploy.md). The dx shift below makes up for 2.6.2 dropping a
+// Devanagari spacing sign's width. A resvg that draws that width itself would double the gap after
+// every sign on Nepali and Hindi slides: svg.test.ts renders नेपाल and fails on such a bump, so
+// the shift (devanagariXml) comes out with it.
+
 /** Devanagari's spacing vowel signs: ा ि ी ॉ ॊ ो ौ and the visarga ः (ि is drawn before its letter). */
 const SPACING_SIGN = /[\u093E-\u0940\u0949-\u094C\u0903]/gu
 const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: 'grapheme' })

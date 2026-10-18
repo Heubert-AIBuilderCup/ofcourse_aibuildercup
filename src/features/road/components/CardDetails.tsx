@@ -20,15 +20,19 @@ const DEMAND = { low: 'low demand', moderate: 'moderate demand', high: 'high dem
 
 const LIST = 'm-0 flex list-none flex-col gap-1.5 p-0'
 
+const PREVIEW = 'OfCourse preview data'
 const SAMPLE = 'OfCourse sample data'
+
+/** The fields close to a course's a card lists before "and N more". */
+const FIELDS_SHOWN = 3
 
 /** The level a section title is drawn at: h2 on the board, one under the card title elsewhere. */
 export type HeadingLevel = 'h2' | 'h3' | 'h4'
 
-/** A block of the card: its title, its lines, and the source line with the mock tag beside it. */
-function Section({
+/** A block of the card: its title, its lines, and one source line with the mock tag beside it. */
+export function Section({
   title,
-  source = 'OfCourse preview data',
+  source = PREVIEW,
   headingLevel: Heading = 'h2',
   children,
 }: {
@@ -120,15 +124,40 @@ export function FieldsNearSection({
 }
 
 /**
- * What a card adds under its guide (criteria 29 to 33): a course's majors, units and conditions
- * (entry and course ones alike, so not called "to get in"); the work beside it; the graduate jobs
- * and occupations after it; whether its occupation is on the state's list; on the stack and the
- * alternative, the field next to hers its course is in, defined; and, with the course detail on,
- * each course card's job market per occupation and the fields close to its own (sample data). On a
- * step that is a visa, the visa's facts, conditions and where it leads. On a job beside the 485,
- * its code, its sample starting pay and openings in her city, its state lists and its way to PR. With
- * compare on, the other-city and other-course cards open on "What changes". A section with
- * nothing in it is not drawn. Nothing is ranked: the catalogue's order.
+ * The fields close to a course's, on its card: the first three, each defined, then how many more.
+ * The finder's detail lists them all (FieldsNearSection).
+ */
+function RelatedFields({ fields }: { fields: FieldNear[] }) {
+  const more = fields.length - FIELDS_SHOWN
+  return (
+    <Section title="Related fields" source={SAMPLE}>
+      <ul className={LIST}>
+        {fields.slice(0, FIELDS_SHOWN).map((f) => (
+          <li key={f.name}>
+            <span className="font-medium">{f.name}</span>
+            <span className="block text-caption text-muted-foreground">{f.definition}</span>
+          </li>
+        ))}
+        {more > 0 ? (
+          <li className="text-caption text-muted-foreground">{`and ${more} more`}</li>
+        ) : null}
+      </ul>
+    </Section>
+  )
+}
+
+/**
+ * What a card adds under its guide (criteria 29 to 33), grouped, each group with one source line:
+ * Study, a course's majors and units (and its conditions where the card does not draw them
+ * itself: RoadCard puts them with its condition badges); the work beside it; the graduate jobs
+ * after it; Careers, the occupations it leads to, each with its sample job market in the course's
+ * city when the course detail is on; Related fields, the first three fields close to its own;
+ * whether its occupation is on the state's list; on the stack and the alternative, the field next
+ * to hers its course is in, defined. On a step that is a visa, the visa's facts, conditions and
+ * where it leads. On a job beside the 485, its code, its sample starting pay and openings in her
+ * city, its state lists and its way to PR. With compare on, the other-city and other-course cards
+ * open on "What changes". A section with nothing in it is not drawn. Nothing is ranked: the
+ * catalogue's order.
  */
 export function CardDetails({ details }: { details: Details }) {
   const {
@@ -143,7 +172,7 @@ export function CardDetails({ details }: { details: Details }) {
     visa,
     job,
   } = details
-  const markets = occupations?.filter((o) => o.market) ?? []
+  const withMarket = occupations?.some((o) => o.market) ?? false
   return (
     <div className="flex flex-col gap-4">
       {/* A board card offers the new roadmap as its own primary. */}
@@ -190,8 +219,9 @@ export function CardDetails({ details }: { details: Details }) {
         </>
       ) : null}
 
-      {subjects ? (
-        <Section title="What you would study">
+      {subjects &&
+      (subjects.majors.length || subjects.units.length || subjects.conditions.length) ? (
+        <Section title="Study">
           <Line label="Majors" items={subjects.majors} />
           <Line label="Units" items={subjects.units} />
           <Line label="Conditions" items={subjects.conditions} />
@@ -226,20 +256,27 @@ export function CardDetails({ details }: { details: Details }) {
       ) : null}
 
       {occupations?.length ? (
-        <Section title="Occupations it leads to">
+        <Section
+          title="Careers"
+          source={withMarket ? `${PREVIEW}; job market: ${SAMPLE}` : PREVIEW}
+        >
           <ul className={LIST}>
             {occupations.map((o) => (
               <li key={o.code}>
-                {o.name} <span className="text-caption text-muted-foreground">ANZSCO {o.code}</span>
+                <span className="font-medium">{o.name}</span>{' '}
+                <span className="text-caption text-muted-foreground">ANZSCO {o.code}</span>
+                {withMarket ? (
+                  <span className="block text-caption text-muted-foreground">
+                    {o.market ? marketLine(o.market) : 'No sample figures for this city'}
+                  </span>
+                ) : null}
               </li>
             ))}
           </ul>
         </Section>
       ) : null}
 
-      {markets.length ? <JobMarketSection jobs={markets} /> : null}
-
-      {fieldsNear?.length ? <FieldsNearSection fields={fieldsNear} /> : null}
+      {fieldsNear?.length ? <RelatedFields fields={fieldsNear} /> : null}
 
       {listStatus ? (
         <Section title="On the state's list?">

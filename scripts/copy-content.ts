@@ -3,7 +3,8 @@
 // again and no model is called. The target's account --as becomes the owner and approver of all
 // of it: every user id, in a column or inside a record's JSON, is mapped to it.
 //   bun --conditions react-server scripts/copy-content.ts [--from <url>] --to <url> --as <email>
-//     [--posts <id,…>] [--updates <all-live|title-or-id,…>] [--dry-run] [--yes-remote]
+//     [--posts <id,…>] [--updates <all-live|title-or-id,…>] [--write --target <database>]
+//     [--yes-remote]
 // --from left out: the DATABASE_URL Bun loads from .env.local, the dev database. A title holding
 // a comma is given by its id.
 //
@@ -18,10 +19,21 @@
 // editors' Ideas queue, keyed by idea), and a linked blog the copy does not hold (unlinked,
 // reported). An update takes only its row: its only references are users.
 //
+// Ids are kept as they are. A record's id is the hash of its kind, post and body
+// (store.ts artifactId), and its body is rewritten here (user ids and names mapped), so in the
+// target a record's id no longer hashes its body. That is on purpose: the post's pointers, its
+// published approval and other records name these ids, and nothing reads an id back to check it
+// against its body (the hash only lets a write skip a body already stored). Rehashing would mean
+// rewriting every reference to it. An asset's id is the hash of its bytes, which are copied as
+// they are, so it still holds.
+//
 // Safety: the source is read in one read-only transaction; the target is written in one
 // transaction, all or nothing. A post or update whose id the target has is skipped. Slugs are
-// checked before writing. --dry-run writes everything, reports, then rolls back. A target that is
-// not this machine is refused without --yes-remote. URLs are printed as host:port/name only.
+// checked before writing, and every update by the updates form's own rules (parseUpdateInput).
+// A run is a dry run unless --write is passed: it writes everything, reports, then rolls back.
+// --write needs --target naming the database --to points at (the proxy puts production on
+// 127.0.0.1 too, so the host alone cannot tell it from the dev database). A target that is not
+// this machine is refused without --yes-remote. URLs are printed as host:port/name only.
 
 import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
@@ -32,6 +44,7 @@ import * as schema from '../src/shared/lib/db/schema'
 import {
   assetCandidates,
   type CopyArgs,
+  checkedUpdate,
   mappedUserColumns,
   maskUrl,
   parseArgs,
@@ -89,7 +102,7 @@ const parsed = parseArgs(process.argv.slice(2))
 if (!parsed.ok) {
   for (const e of parsed.errors) console.error(e)
   console.error(
-    'Usage: bun --conditions react-server scripts/copy-content.ts [--from <url>] --to <url> --as <email> [--posts <id,…>] [--updates <all-live|title-or-id,…>] [--dry-run] [--yes-remote]',
+    'Usage: bun --conditions react-server scripts/copy-content.ts [--from <url>] --to <url> --as <email> [--posts <id,…>] [--updates <all-live|title-or-id,…>] [--write --target <database>] [--yes-remote]',
   )
   process.exit(1)
 }
@@ -389,10 +402,15 @@ async function writeTarget(read: Read): Promise<Report> {
     const artifactRows = mapRows(artifacts, ['createdByUserId'], map, (a) => `Record ${a.id}`).map(
       (a) => ({ ...a, body: remapJson(a.body, map) }),
     )
-    const updateRows = mapRows(updates, UPDATE_USERS, map, (u) => `Update ${u.id}`).map((u) => ({
-      ...u,
-      audience: remapJson(u.audience, map) as UpdateRow['audience'],
-    }))
+    // Each update as the form would keep it; one the form would refuse stops the copy.
+    const updateRows = mapRows(updates, UPDATE_USERS, map, (u) => `Update ${u.id}`).map((u) => {
+      const checked = checkedUpdate({
+        ...u,
+        audience: remapJson(u.audience, map) as UpdateRow['audience'],
+      })
+      if (!checked.ok) throw new Refused(checked.error)
+      return checked.row
+    })
 
     // Images the written records name; one the target has (same id, same bytes) stays as it is.
     const named = new Set(artifacts.flatMap((a) => assetCandidates(a.body)))
@@ -446,6 +464,7 @@ function print(read: Read, report: Report, dry: boolean): void {
   console.log(
     'Not copied: content_step (step locks), ai_call (call log), ai_cache (model answers), content_idea_decision (Ideas queue).',
   )
+  if (dry) console.log('To copy for good: --write --target <the database --to names>.')
 }
 
 try {

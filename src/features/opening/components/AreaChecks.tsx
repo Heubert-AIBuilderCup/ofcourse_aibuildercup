@@ -5,7 +5,7 @@ import { useId, useState } from 'react'
 import { Note } from '@/shared/components/Note'
 import { cn } from '@/shared/lib/utils'
 import { type AnswerValue, AREAS_MAX, type StoredAnswer } from '@/shared/types/student'
-import type { Question } from '../model/questions'
+import { currentAreas, type Question } from '../model/questions'
 
 const MARKS = [1, 2, 3] as const
 const REFUSAL = "Three is the most for now. Tap one you've chosen to make room."
@@ -36,7 +36,8 @@ export function AreaChecks({
 }) {
   const [refused, setRefused] = useState(false)
   const countId = useId()
-  const value = answer?.value
+  // A retired area (Data) reads as the area that took it in, so the count matches the cards.
+  const value = currentAreas(answer?.value)
   const chosen: readonly string[] = Array.isArray(value) && value.length <= AREAS_MAX ? value : []
   const full = chosen.length >= AREAS_MAX
 

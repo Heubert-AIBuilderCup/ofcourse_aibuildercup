@@ -59,6 +59,14 @@ describe('artKey', () => {
     expect(bytes === ours).toBe(true)
   })
 
+  it('is built by coverArt’s own key builder, not a copy of it', async () => {
+    const { artCacheKey, slidePrompt } = await import('../src/features/content/ai/art')
+    const prompt = slidePrompt({ scene: input.scene, emotion: null, nudge: null, artStyle: null })
+    expect(artKey({ ...input, aspectRatio: '4:5' })).toBe(
+      artCacheKey({ prompt, aspectRatio: '4:5', set: 1, option: 2, attempt: 1, references: [] }),
+    )
+  })
+
   it('names the shape, so a picture kept for one shape is not read for another', () => {
     expect(artKey({ ...input, aspectRatio: '1:1' })).not.toBe(
       artKey({ ...input, aspectRatio: '4:5' }),

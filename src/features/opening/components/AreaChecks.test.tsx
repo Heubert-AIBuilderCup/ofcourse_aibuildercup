@@ -79,6 +79,26 @@ it('checks the stored areas and counts them, the count describing the group', ()
   expect(screen.getByRole('group')).toHaveAccessibleDescription('2 of 3 chosen')
 })
 
+it('reads a stored retired area as the area that took it in, before counting (Data → IT)', () => {
+  renderChecks(stated(['Data', 'Business']))
+  expect(box('IT and computing').getAttribute('aria-checked')).toBe('true')
+  expect(box('Business').getAttribute('aria-checked')).toBe('true')
+  expect(screen.queryByText('2 of 3 chosen')?.textContent).toBe('2 of 3 chosen')
+})
+
+it('counts Data and IT and computing stored together as one area', () => {
+  renderChecks(stated(['Data', 'IT and computing']))
+  expect(screen.queryByText('1 of 3 chosen')?.textContent).toBe('1 of 3 chosen')
+})
+
+it('adds to the areas as read today, so a retired one is saved as its new area', () => {
+  renderChecks(stated(['Data']))
+  fireEvent.click(box('Business'))
+  expect(onAnswer.mock.calls.map(([raw]) => JSON.stringify(raw))).toEqual([
+    JSON.stringify(['IT and computing', 'Business']),
+  ])
+})
+
 it('adds a tapped area at the end', () => {
   renderChecks(stated(['IT and computing', 'Psychology']))
   fireEvent.click(box('Business'))

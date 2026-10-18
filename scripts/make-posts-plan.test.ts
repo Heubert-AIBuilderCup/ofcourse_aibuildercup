@@ -4,6 +4,8 @@ import {
   closestFact,
   ideaTitle,
   nextFix,
+  notFoundStep,
+  opinionLines,
   parseSpec,
   runOrder,
   scenesFor,
@@ -257,5 +259,36 @@ describe('closestFact', () => {
 
   it('is none when no supported fact shares a word', () => {
     expect(closestFact('Nothing alike here', facts as never)).toBeNull()
+  })
+})
+
+describe('notFoundStep: a sentence the source check could not find', () => {
+  it("takes the source's own wording when it fits the post's script, once", () => {
+    expect(notFoundStep({ fits: true, tried: false, acceptOpinion: false })).toBe('wording')
+    expect(notFoundStep({ fits: true, tried: false, acceptOpinion: true })).toBe('wording')
+  })
+
+  it('stops the post rather than call it opinion, unless --accept-opinion is passed', () => {
+    expect(notFoundStep({ fits: false, tried: false, acceptOpinion: false })).toBe('stop')
+    expect(notFoundStep({ fits: true, tried: true, acceptOpinion: false })).toBe('stop')
+    expect(notFoundStep({ fits: false, tried: false, acceptOpinion: true })).toBe('opinion')
+  })
+})
+
+describe('opinionLines: the sentences a post carries as opinion, for the summary', () => {
+  it('lists each, with its post and slide, and nothing else', () => {
+    const claim = (text: string, result: 'found' | 'not_found' | 'opinion', slide = 2) => ({
+      text,
+      slide,
+      slot: 'body',
+      result,
+      ref: null,
+    })
+    const lines = opinionLines('p-1', [
+      claim('Fees are AUD 30k.', 'found'),
+      claim('Most students love Perth.', 'opinion', 3),
+      claim('Rent is cheap.', 'not_found'),
+    ])
+    expect(lines).toEqual(['p-1 slide 3 (body): "Most students love Perth."'])
   })
 })

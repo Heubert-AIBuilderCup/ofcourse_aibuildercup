@@ -3,6 +3,7 @@
 // images, the source check, settings, review and approval, live. Every step is the server command
 // the workbench's action calls (src/features/content/server/commands); no row is written by hand.
 //   bun --conditions react-server scripts/make-posts.ts <spec.json> [--as <email>] [--png-dir <dir>]
+//     [--accept-opinion] [--allow-remote]
 // The spec is an array of posts (scripts/make-posts-plan.ts parseSpec). The last post is made
 // first, so the first, approved last, shows first in the feed (newest approval first). A post
 // given by `id` is published again in its place (Edit on the live post, then the same steps from
@@ -13,6 +14,10 @@
 // SVG is drawn to PNG and kept in the art cache under the key Draw images reads for its slide
 // (scripts/make-posts-art.ts), so Draw images uses it and the image model is never asked;
 // --png-dir writes each PNG there too.
+// A sentence the source check cannot find takes the source's own wording when it fits the post's
+// script; otherwise the post stops there, unless --accept-opinion is passed, when it is marked
+// editorial opinion. Either way the summary lists every sentence each post carries as opinion,
+// for a person to read before the post is copied anywhere.
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -24,6 +29,8 @@ import {
   closestFact,
   ideaTitle,
   nextFix,
+  notFoundStep,
+  opinionLines,
   type PostSpec,
   parseSpec,
   runOrder,
@@ -39,10 +46,11 @@ const option = (name: string) => {
 }
 const asEmail = option('--as')
 const pngDir = option('--png-dir')
+const acceptOpinion = args.includes('--accept-opinion')
 const specPath = args.find((a, i) => !a.startsWith('--') && !VALUED.includes(args[i - 1] ?? ''))
 if (!specPath) {
   console.error(
-    'Usage: bun --conditions react-server scripts/make-posts.ts <spec.json> [--as <email>] [--png-dir <dir>]',
+    'Usage: bun --conditions react-server scripts/make-posts.ts <spec.json> [--as <email>] [--png-dir <dir>] [--accept-opinion] [--allow-remote]',
   )
   process.exit(1)
 }
@@ -290,7 +298,8 @@ function slideText(post: LoadedPost, slide: number): string {
 
 /**
  * Each sentence the rendered post's check could not find: the source's wording when it is in the
- * post's script (sourceWordingRefusal), else editorial opinion.
+ * post's script (sourceWordingRefusal); else the post stops, named, unless --accept-opinion was
+ * passed, when it is marked editorial opinion (notFoundStep).
  */
 async function settleClaims(id: string, actor: Actor): Promise<LoadedPost> {
   let post = await ensureCheck(id, actor)
@@ -301,9 +310,10 @@ async function settleClaims(id: string, actor: Actor): Promise<LoadedPost> {
     if (at < 0) return post
     const claim = claims[at]
     const fits =
-      claim.suggestion &&
+      !!claim.suggestion &&
       sourceWordingRefusal(claim.suggestion.text, post.current.source?.body.language) === null
-    if (fits && !worded.has(claim.text)) {
+    let next = notFoundStep({ fits, tried: worded.has(claim.text), acceptOpinion })
+    if (next === 'wording') {
       worded.add(claim.text)
       const res = await commands.applySourceWording(actor, id, post.version, at)
       await drain()
@@ -314,7 +324,14 @@ async function settleClaims(id: string, actor: Actor): Promise<LoadedPost> {
           throw new StepFailed('source wording', 'The post left Images.')
         continue
       }
-      console.log(`${label} ${id} · source's wording refused (${res.error}), marking opinion`)
+      console.log(`${label} ${id} · source's wording refused (${res.error})`)
+      next = notFoundStep({ fits, tried: true, acceptOpinion })
+    }
+    if (next === 'stop') {
+      throw new StepFailed(
+        'source check',
+        `slide ${claim.slide} not found in the source: "${claim.text}" (read it; pass --accept-opinion to mark such sentences opinion)`,
+      )
     }
     post = await step(id, `opinion on slide ${claim.slide}`, (v) =>
       commands.markOpinion(actor, id, v, at),
@@ -630,11 +647,18 @@ try {
     console.log(`Making as ${chosen.maker.email}, approving as ${chosen.reviewer.email}`)
     const order = runOrder(spec.posts)
     const results: string[] = []
+    const opinions: string[] = []
+    /** The post's sentences marked opinion, for the summary; none when it is gone. */
+    const collectOpinions = async (id: string) => {
+      const post = await loadPost(id)
+      opinions.push(...opinionLines(id, post?.current.sourceCheck?.body.claims ?? []))
+    }
     for (const { at, post } of order) {
       label = `[${at}/${spec.posts.length}]`
       making = null
       try {
         const id = await makeOne(post, maker, reviewer)
+        await collectOpinions(id)
         const done = await load(id)
         results.push(
           `${label} ${id} ${done.stage} /admin/posts/${id} · calls: ${await callsOf(id)}`,
@@ -645,11 +669,15 @@ try {
         console.error(`${label} stopped at ${reason}`)
         const left = making ? ` (post ${making} left behind)` : ''
         results.push(`${label} failed: ${reason}${left}`)
+        if (making) await collectOpinions(making)
         exitCode = 1
       }
     }
     console.log('\nDone:')
     for (const r of results.reverse()) console.log(r)
+    // Always said, so the copy to production follows a person reading them.
+    console.log(`\nSentences marked opinion (${opinions.length}):`)
+    for (const o of opinions) console.log(`  ${o}`)
   }
 } finally {
   await drain()

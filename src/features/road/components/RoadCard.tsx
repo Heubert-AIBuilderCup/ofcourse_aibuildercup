@@ -20,7 +20,7 @@ import { type Card, siblingsOf } from '../model/press'
 import type { BadgeId, Road, Tile } from '../model/road-data'
 import { routePath } from '../model/routes'
 import type { Scene } from '../model/scene'
-import { CardDetails } from './CardDetails'
+import { CardDetails, Section } from './CardDetails'
 import { LessonLink } from './LessonLink'
 import { MockTag } from './MockTag'
 import { type AskAction, TileAsk } from './TileAsk'
@@ -76,9 +76,12 @@ export type CardAsk = {
  * without a box and its badges side by side. The name where she is and each
  * sibling carry their tile (`data-swap-id`), so a swap can move them. A tile her answers decided
  * says why it is there: the template at once, the model's words when `why` lets it ask. A city or
- * course card on a road built from her answers takes questions (`ask`). `details` (the road's own
- * catalogue facts for this tile) go under the guide when there are any. `posts`: the posts and
- * updates about its tile; none, no section.
+ * course card on a road built from her answers takes questions (`ask`). Under the guide, in this
+ * order: its conditions (the condition badges, over budget or an English score, with the course's
+ * own conditions from `details`); Ask, which answers from those same rows (roads/model/ask.ts:
+ * the course's fees, majors, units, entry conditions and her budget); then the rest of `details`
+ * (the road's own catalogue facts for this tile: Study, Careers, Related fields…); then its other
+ * badges (intakes, a fork ahead). `posts`: the posts and updates about its tile; none, no section.
  */
 export function RoadCard({
   road,
@@ -133,6 +136,15 @@ export function RoadCard({
       ? ['over' as const, ...card.badges]
       : card.badges
   const trade = card.gains && costs
+  // The condition badges and the course's own conditions are one block, right under the guide.
+  const isCondition = (id: BadgeId) => scene.badges[id]?.kind === 'Condition'
+  const conditionBadges = badges.filter(isCondition)
+  const otherBadges = badges.filter((id) => !isCondition(id))
+  const courseConditions = details?.subjects?.conditions ?? []
+  const rest: Details | undefined =
+    details?.subjects && courseConditions.length
+      ? { ...details, subjects: { ...details.subjects, conditions: [] } }
+      : details
 
   return (
     <>
@@ -164,9 +176,33 @@ export function RoadCard({
         </div>
       ) : null}
 
-      {details ? <CardDetails details={details} /> : null}
+      {conditionBadges.length || courseConditions.length ? (
+        <Section title="Conditions">
+          {conditionBadges.length ? (
+            <Badges ids={conditionBadges} badges={scene.badges} flat={flat} />
+          ) : null}
+          {courseConditions.length ? (
+            <ul className="m-0 flex list-disc flex-col gap-1 pl-5">
+              {courseConditions.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+          ) : null}
+        </Section>
+      ) : null}
 
-      {badges.length ? <Badges ids={badges} badges={scene.badges} flat={flat} /> : null}
+      {ask ? (
+        <TileAsk
+          roadmapId={ask.roadmapId}
+          tileId={ask.tileId}
+          asks={ask.asks}
+          action={ask.action}
+        />
+      ) : null}
+
+      {rest ? <CardDetails details={rest} /> : null}
+
+      {otherBadges.length ? <Badges ids={otherBadges} badges={scene.badges} flat={flat} /> : null}
 
       {card.why ? (
         <div className="flex flex-col gap-1" aria-busy={whyText.loading}>
@@ -184,15 +220,6 @@ export function RoadCard({
       </p>
 
       {card.lesson ? <LessonLink lessonId={card.lesson} onFollow={onLesson} /> : null}
-
-      {ask ? (
-        <TileAsk
-          roadmapId={ask.roadmapId}
-          tileId={ask.tileId}
-          asks={ask.asks}
-          action={ask.action}
-        />
-      ) : null}
 
       {posts?.length ? <TilePosts posts={posts} /> : null}
 

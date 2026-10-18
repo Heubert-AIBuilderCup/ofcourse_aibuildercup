@@ -3,15 +3,15 @@
 // the slide (ai/art.ts coverArt), so the picture is kept under it the way a drawn one is
 // (commands/shared.ts artDeps.remember) and the image model is never asked.
 
-import { type ImageAspect, slidePrompt } from '../src/features/content/ai/art'
+import { artCacheKey, type ImageAspect, slidePrompt } from '../src/features/content/ai/art'
 import { FEED_BRAND } from '../src/features/content/brands'
 import { toPng } from '../src/features/content/layout/png'
-import { canonicalJson, sha256Hex } from '../src/features/content/server/hash'
 
 /**
  * The cache key coverArt looks a slide's first attempt up under, as commands/images.ts drawScene
- * calls it for a post with no page design language and no character sheet: the image model's
- * name, the prompt from the planned scene, the shape, the art version (`set`) and the slide.
+ * calls it for a post with no page design language and no character sheet, built by coverArt's
+ * own artCacheKey: the prompt from the planned scene, the shape, the art version (`set`) and the
+ * slide, first attempt, no reference images.
  */
 export function artKey(input: {
   scene: string
@@ -27,16 +27,14 @@ export function artKey(input: {
     artStyle: null,
     character: false,
   })
-  return sha256Hex(
-    canonicalJson({
-      model: process.env.GEMINI_IMAGE_MODEL ?? '',
-      prompt,
-      aspectRatio: input.aspectRatio,
-      set: input.set,
-      option: input.slide,
-      attempt: 1,
-    }),
-  )
+  return artCacheKey({
+    prompt,
+    aspectRatio: input.aspectRatio,
+    set: input.set,
+    option: input.slide,
+    attempt: 1,
+    references: [],
+  })
 }
 
 /** The SVG as a PNG `width` wide, drawn with the feed brand's font files only. */

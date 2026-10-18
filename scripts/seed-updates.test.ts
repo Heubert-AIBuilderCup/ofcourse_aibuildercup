@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { type FeedRoadmap, feedUpdates } from '../src/features/updates/lib/feed-updates'
 import samplesFile from './updates/samples.json'
 
-const { parseSamples, pickActor, stepsFor } = await import('./seed-updates')
+const { parseSamples, pickActor, remoteRefusal, stepsFor } = await import('./seed-updates')
 
 const samples = parseSamples(samplesFile)
 
@@ -116,5 +116,20 @@ describe('pickActor (who publishes them)', () => {
     expect(pickActor(users, 'admin@x.test').ok).toBe(false)
     expect(pickActor(users, 'nobody@x.test').ok).toBe(false)
     expect(pickActor([users[0]], null).ok).toBe(false)
+  })
+})
+
+describe('remoteRefusal: only the local dev database unless asked', () => {
+  it('lets this machine through, by name or address', () => {
+    expect(remoteRefusal('postgres://app:dev@127.0.0.1:5433/app', false)).toBe(null)
+    expect(remoteRefusal('postgres://app:dev@localhost:5433/app', false)).toBe(null)
+  })
+
+  it('refuses another host unless --allow-remote, naming the host and never the password', () => {
+    const refusal = remoteRefusal('postgres://u:secret@db.example.com:5432/x', false)
+    expect(refusal).toContain('db.example.com')
+    expect(refusal).toContain('--allow-remote')
+    expect(refusal).not.toContain('secret')
+    expect(remoteRefusal('postgres://u:secret@db.example.com:5432/x', true)).toBe(null)
   })
 })

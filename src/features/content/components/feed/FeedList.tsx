@@ -8,7 +8,7 @@ import type { ActionResult } from '@/shared/types/action-result'
 import { FEED_PAGE_SIZE, type FeedCard, type Filters, filterHref, shows } from '../../lib/feed'
 import { BlogFeedCard } from './BlogFeedCard'
 import { FeedPostCard } from './FeedPostCard'
-import { wheelGate } from './wheel'
+import { nestedScroll, wheelGate } from './wheel'
 
 /** A post's page in the feed, with every filter kept (criterion 81). */
 export function postHref(id: string, filters: Filters): string {
@@ -47,10 +47,10 @@ const keyOf = (card: FeedCard) => `${card.kind}-${card.id}`
 
 /** A screen of the feed: exactly as tall as the scroller, where its scroll comes to rest. */
 const SCREEN = 'h-full snap-start snap-always'
-/** A screen of the feed that is not a post (the pages to follow): its words centred, scrolling inside it when long. */
+/** A screen of the feed that is not a post (the empty line under her updates): its words centred, scrolling inside it when long. */
 const TEXT_SCREEN = cn(
   SCREEN,
-  'mx-auto flex w-full max-w-7xl flex-col overflow-y-auto px-gutter py-6',
+  'mx-auto flex w-full max-w-7xl flex-col overflow-y-auto px-gutter py-stack',
 )
 
 /** One of her updates, drawn by the page (UpdateCard), for a screen of its own. */
@@ -75,11 +75,11 @@ function emptyLine(f: Filters, liveCount: number, updateCount: number): string |
  * server's first page, then a page at a time as the end comes into view (`loadPage`), until one
  * comes back short. The list is its own scroller, filling the space it is given, that snaps one
  * screen at a time and never past one (wheel, trackpad, a swipe, and Page Down, Space and the
- * arrow keys once it has focus, which it takes on load), smoothly only when she allows motion:
- * her updates always first, a screen each (none once Updates is unticked), then each post or blog
- * the Show group leaves ticked one screen, and `after` (the pages to follow) the last, under the
- * loading line. A page that fails says so with Try again; new filters start again from their
- * first page, and a page asked for under the old ones is dropped. With nothing to show: "Nothing
+ * arrow keys once she tabs to it; it takes no focus on load), smoothly only when she allows motion;
+ * a long panel or update under the wheel scrolls first. Her updates always first, a screen each
+ * (none once Updates is unticked), then each post or blog the Show group leaves ticked one screen,
+ * the loading line last. A page that fails says so with Try again; new filters start again from
+ * their first page, and a page asked for under the old ones is dropped. With nothing to show: "Nothing
  * in the feed yet." when nothing is live, "No posts match." when the filters left none (criterion
  * 83), "No updates for your roadmaps right now." with only Updates ticked and none of hers.
  */
@@ -90,7 +90,6 @@ export function FeedList({
   liveCount,
   loadPage,
   updates = [],
-  after,
 }: {
   /** The first page, shaped by the server (feedCardOf). */
   cards: FeedCard[]
@@ -101,8 +100,6 @@ export function FeedList({
   loadPage: LoadFeedPage
   /** Her updates, newest first, already targeted: the chips and the words never narrow them. */
   updates?: UpdateScreen[]
-  /** The last screen, below the posts; none when absent. */
-  after?: ReactNode
 }) {
   // The filters as their URL: a new one is a new feed.
   const key = filterHref('', filters, {})
@@ -161,6 +158,8 @@ export function FeedList({
     const gate = wheelGate()
     const onWheel = (e: WheelEvent) => {
       if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
+      // A long panel or update under the pointer scrolls first; the feed moves once it is at its end.
+      if (nestedScroll(e.target, el, 'y', e.deltaY)) return
       e.preventDefault()
       const step = gate(e.timeStamp, e.deltaY)
       if (step === 0) return
@@ -176,20 +175,14 @@ export function FeedList({
     return () => el.removeEventListener('wheel', onWheel)
   }, [])
 
-  // Her keys move the posts from the start: the scroller takes focus, without scrolling the page.
-  useEffect(() => {
-    scroller.current?.focus({ preventScroll: true })
-  }, [])
-
   const shown = paging.cards.filter((c) => shows(filters, c.kind === 'blog' ? 'blogs' : 'posts'))
   const updateScreens = shows(filters, 'updates') ? updates : []
   const empty = shown.length > 0 ? null : emptyLine(filters, liveCount, updateScreens.length)
 
   if (shown.length === 0 && updateScreens.length === 0) {
     return (
-      <div className="flex h-full flex-col gap-block overflow-y-auto py-6">
+      <div className="flex h-full flex-col gap-block overflow-y-auto py-stack">
         <p className="text-muted-foreground">{empty}</p>
-        {after}
       </div>
     )
   }
@@ -212,13 +205,14 @@ export function FeedList({
   )
   return (
     // The scroller is the only thing that scrolls: one screen per post, never skipping one (wheel,
-    // trackpad, a swipe; Page Down, Space and the arrow keys once it has focus), held inside it.
+    // trackpad, a swipe; Page Down, Space and the arrow keys once she has tabbed to it), held
+    // inside it. Its ring shows on keyboard focus only (focus-visible), inset so it is not clipped.
     <section
       ref={scroller}
       aria-label="Posts"
       // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrolling region takes focus so the keys scroll it.
       tabIndex={0}
-      className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain outline-none motion-safe:scroll-smooth"
+      className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain outline-none focus-visible:inset-ring-2 focus-visible:inset-ring-ring motion-safe:scroll-smooth"
     >
       {/* No box of its own, so each item's h-full is the scroller's height, one post per screen. */}
       <ul className="contents">
@@ -244,12 +238,11 @@ export function FeedList({
         ))}
       </ul>
       {paging.status === 'more' && <div ref={sentinel} aria-hidden="true" />}
-      {after || empty ? (
+      {empty ? (
         <div className={TEXT_SCREEN}>
           <div className="my-auto flex flex-col gap-block">
             {status}
-            {empty && <p className="text-muted-foreground">{empty}</p>}
-            {after}
+            <p className="text-muted-foreground">{empty}</p>
           </div>
         </div>
       ) : (

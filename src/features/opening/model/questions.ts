@@ -282,7 +282,7 @@ const retired = (v: unknown): v is string =>
  * Her areas with each retired one read as the area that took it in, that area once; any other
  * value as it is (a repeated area stays repeated, for the question to refuse).
  */
-function currentAreas(value: unknown): unknown {
+export function currentAreas(value: unknown): unknown {
   return Array.isArray(value) && value.some(retired)
     ? [...new Set(value.map((v) => (retired(v) ? RETIRED_AREAS[v] : v)))]
     : value

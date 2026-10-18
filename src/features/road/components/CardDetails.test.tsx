@@ -31,7 +31,7 @@ describe('card section headings', () => {
         }}
       />,
     )
-    expect(titleTags(container)).toEqual(['H2', 'H2', 'H2', 'H2'])
+    expect(titleTags(container)).toEqual(['H2', 'H2', 'H2'])
   })
 })
 

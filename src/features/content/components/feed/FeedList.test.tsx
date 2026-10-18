@@ -390,3 +390,53 @@ describe('FeedList: the infinite scroll', () => {
     expect(loadPage).toHaveBeenLastCalledWith({ query: { theme: 'books-movies' }, offset: 8 })
   })
 })
+
+describe('FeedList: the wheel and the keys', () => {
+  /** The posts' scroller, `screens` screens of 500 tall, its scrollTo recorded. */
+  function feed(screens: number) {
+    const el = screen.getByRole('region', { name: 'Posts' })
+    Object.defineProperty(el, 'clientHeight', { value: 500, configurable: true })
+    Object.defineProperty(el, 'scrollHeight', { value: 500 * screens, configurable: true })
+    const scrollTo = mock((_options: ScrollToOptions) => {})
+    el.scrollTo = scrollTo as unknown as typeof el.scrollTo
+    return { el, scrollTo }
+  }
+  /** The first post's panel, its long caption 800 tall in a 200 box, scrolled to `at`. */
+  function longPanel(at: number) {
+    const caption = screen.getByText('a1 first line.')
+    const panel = caption.closest('.overflow-y-auto') as HTMLElement
+    panel.style.overflowY = 'auto'
+    Object.defineProperty(panel, 'clientHeight', { value: 200, configurable: true })
+    Object.defineProperty(panel, 'scrollHeight', { value: 800, configurable: true })
+    Object.defineProperty(panel, 'scrollTop', { value: at, configurable: true, writable: true })
+    return caption
+  }
+  const wheel = (target: Element, deltaY: number) => {
+    const event = new WheelEvent('wheel', { deltaY, bubbles: true, cancelable: true })
+    target.dispatchEvent(event)
+    return event
+  }
+
+  it('leaves the wheel to a long panel that can still scroll: the feed does not move', () => {
+    render(list({ cards: cards('a', 2) }))
+    const { scrollTo } = feed(2)
+    const event = wheel(longPanel(0), 100)
+    expect(event.defaultPrevented).toBe(false)
+    expect(scrollTo).toHaveBeenCalledTimes(0)
+  })
+
+  it('moves one post once the panel is at its end', () => {
+    render(list({ cards: cards('a', 2) }))
+    const { scrollTo } = feed(2)
+    const event = wheel(longPanel(600), 100)
+    expect(event.defaultPrevented).toBe(true)
+    expect(scrollTo.mock.calls.map(([o]) => o.top)).toEqual([500])
+  })
+
+  it('takes no focus on load, and stays reachable by Tab for the keys', () => {
+    render(list({ cards: cards('a', 2) }))
+    const posts = screen.getByRole('region', { name: 'Posts' })
+    expect(document.activeElement === posts).toBe(false)
+    expect(posts.getAttribute('tabindex')).toBe('0')
+  })
+})

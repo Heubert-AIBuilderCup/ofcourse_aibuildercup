@@ -1,21 +1,29 @@
-// The pure parts of scripts/copy-content.ts: its arguments read and checked, the target refused
-// when remote, URLs masked, the asset ids and user ids found in a record's JSON, the user ids
-// remapped to the target's account, and the checks run before anything is written. No database:
-// the script does the rest.
+// The pure parts of scripts/copy-content.ts: its arguments read and checked (a dry run unless
+// --write, a write only with --target naming the --to database), the target refused when
+// remote, URLs masked, the asset ids and user ids found in a record's JSON, the user ids
+// remapped to the target's account, each update checked by the form's rules, and the checks run
+// before anything is written. No database: the script does the rest.
 
-/** What a run copies, read from its arguments. `from` null: the DATABASE_URL Bun loaded. */
+import { parseUpdateInput, type UpdateInput } from '../src/features/updates/lib/update'
+
+/**
+ * What a run copies, read from its arguments. `from` null: the DATABASE_URL Bun loaded. A dry
+ * run unless --write is passed; a write names its target database (`target`, the --to URL's own),
+ * since the Cloud SQL proxy puts production on 127.0.0.1 too, where only the port tells it apart.
+ */
 export type CopyArgs = {
   from: string | null
   to: string
   as: string
   posts: string[]
   updates: { all: true } | { all: false; names: string[] } | null
+  target: string | null
   dryRun: boolean
   yesRemote: boolean
 }
 
-const VALUED = ['--from', '--to', '--as', '--posts', '--updates'] as const
-const FLAGS = ['--dry-run', '--yes-remote'] as const
+const VALUED = ['--from', '--to', '--as', '--posts', '--updates', '--target'] as const
+const FLAGS = ['--dry-run', '--write', '--yes-remote'] as const
 const LOCAL_HOSTS = ['127.0.0.1', 'localhost', '::1', '[::1]']
 /** Longer strings are text, never an id: the asset lookup leaves them out. */
 const ID_MAX = 128
@@ -46,6 +54,9 @@ export function maskUrl(value: string): string {
 }
 
 const sameDatabase = (a: string, b: string): boolean => maskUrl(a) === maskUrl(b)
+
+/** The database name a postgres URL ends with. */
+const databaseName = (url: URL): string => decodeURIComponent(url.pathname.slice(1))
 
 /** The arguments read and checked; every problem named, never a URL echoed. */
 export function parseArgs(
@@ -89,6 +100,16 @@ export function parseArgs(
   if (posts.length === 0 && updates === null && !errors.some((e) => e.startsWith('--posts')))
     errors.push('Nothing to copy: give --posts <id,…>, --updates <all-live|title,…> or both.')
 
+  // A dry run unless --write; a write names the database it writes to, checked against --to.
+  const write = flags.has('--write')
+  const target = values.get('--target')?.trim() || null
+  const toUrl = to === undefined ? null : postgresUrl(to)
+  if (write && flags.has('--dry-run')) errors.push('--write and --dry-run cannot both be given.')
+  if (write && target === null)
+    errors.push('--write needs --target <database name>, the database --to names.')
+  if (target !== null && toUrl && databaseName(toUrl) !== target)
+    errors.push(`--target ${target} is not the database --to names.`)
+
   if (errors.length > 0 || !to || !as) return { ok: false, errors }
   return {
     ok: true,
@@ -98,7 +119,8 @@ export function parseArgs(
       as,
       posts,
       updates,
-      dryRun: flags.has('--dry-run'),
+      target,
+      dryRun: !write,
       yesRemote: flags.has('--yes-remote'),
     },
   }
@@ -227,4 +249,17 @@ export function withPresentBlogs<P extends { id: string; blogId: string | null }
     return { ...p, blogId: null }
   })
   return { rows, unlinked }
+}
+
+/**
+ * An update row checked by the updates form's own rules (parseUpdateInput) before it crosses to
+ * the target: its fields as the form keeps them (trimmed, an audience from before topics read as
+ * all topics), its other columns (id, status, users, dates) as they are; refused, named, otherwise.
+ */
+export function checkedUpdate<R extends { id: string }>(
+  row: R,
+): { ok: true; row: R & UpdateInput } | { ok: false; error: string } {
+  const parsed = parseUpdateInput(row)
+  if (!parsed.ok) return { ok: false, error: `Update ${row.id}: ${parsed.error}` }
+  return { ok: true, row: { ...row, ...parsed.value } }
 }

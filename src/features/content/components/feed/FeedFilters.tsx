@@ -59,7 +59,7 @@ export function FeedFilters({
   const go: Go = (change) => router.push(filterHref(pathname, filters, change), { scroll: false })
   const any = TAG_GROUPS.some((g) => chosenIn(filters, g).length > 0) || filters.q !== ''
   return (
-    <div className="flex w-full min-w-0 flex-col gap-5">
+    <div className="flex w-full min-w-0 flex-col gap-stack">
       <fieldset className="flex min-w-0 flex-col gap-2">
         <legend className="mb-2 text-overline uppercase text-muted-foreground">Show</legend>
         {SHOW_KINDS.map((kind) => {

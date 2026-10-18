@@ -1,12 +1,18 @@
 // The pure parts of scripts/make-posts.ts: the spec file read and checked, the order the posts
-// are made in, who makes and who approves them, the settings each is saved with, and the scene
-// hint a slide's picture takes. No database, no model: the script does the rest.
+// are made in, who makes and who approves them, the settings each is saved with, the scene hint a
+// slide's picture takes, and what happens to a sentence the source check could not find. No
+// database, no model: the script does the rest.
 
 import { z } from 'zod'
 import { LANGUAGE_IDS, type LanguageId } from '../src/features/content/languages'
 import { defaultSettings } from '../src/features/content/lib/settings-defaults'
 import type { VersionProblem } from '../src/features/content/lib/version-status'
-import { type Fact, type FeedSettings, LAYOUT_IDS } from '../src/features/content/model/types'
+import {
+  type ClaimResult,
+  type Fact,
+  type FeedSettings,
+  LAYOUT_IDS,
+} from '../src/features/content/model/types'
 import { TAG_GROUPS, type TagGroup, tagById } from '../src/features/content/tags'
 import { LOOKS } from '../src/features/content/templates'
 import { canEdit, canReview } from '../src/shared/lib/auth/access'
@@ -289,4 +295,29 @@ export function closestFact(text: string, facts: readonly Fact[]): Fact | null {
     }
   }
   return best
+}
+
+/** What the script does with a sentence the source check could not find. */
+export type NotFoundStep = 'wording' | 'opinion' | 'stop'
+
+/**
+ * A sentence the source check could not find: the source's own wording when it fits the post's
+ * script and has not been tried on it; otherwise the post stops there, unless --accept-opinion
+ * was passed, when it is marked editorial opinion. The source check guards model-written claims
+ * (visas, fees), so calling one opinion is a person's decision, never the script's by default.
+ */
+export function notFoundStep(input: {
+  fits: boolean
+  tried: boolean
+  acceptOpinion: boolean
+}): NotFoundStep {
+  if (input.fits && !input.tried) return 'wording'
+  return input.acceptOpinion ? 'opinion' : 'stop'
+}
+
+/** Every sentence a post's source check carries as opinion, one line each, for the summary. */
+export function opinionLines(postId: string, claims: readonly ClaimResult[]): string[] {
+  return claims
+    .filter((c) => c.result === 'opinion')
+    .map((c) => `${postId} slide ${c.slide} (${c.slot}): "${c.text}"`)
 }

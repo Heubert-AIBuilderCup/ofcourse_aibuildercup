@@ -158,8 +158,15 @@ export function expectSound(road: Road, spec: RoadSpec): void {
   for (const [score] of JSON.stringify(road).matchAll(/IELTS \d\.\d/g)) {
     expect(score).toBe(`IELTS ${ielts}`)
   }
-  // "leading Teams" is a unit's name the copy quotes ("units such as … leading Teams"), not a rank.
-  expect(JSON.stringify(spec)).not.toMatch(
-    /\b([Bb]iggest|[Hh]ighest|[Ll]argest|[Ll]owest|[Cc]heapest|[Bb]est|[Tt]op|[Mm]ost|[Ll]eading(?! [A-Z])|[Nn]umber one|[Ff]astest)\b/,
-  )
+  expect(rankingWords(JSON.stringify(spec))).toEqual([])
+}
+
+/** Units a course's copy quotes by name ("units such as … Leading Teams"): names, not ranks. */
+const QUOTED_UNITS = /\b(Leading Teams|Leading People)\b/gi
+const RANKING =
+  /\b(biggest|highest|largest|lowest|cheapest|best|top|most|leading|number one|fastest)\b/gi
+
+/** Every ranking word in the text, in any case, once the quoted unit names are taken out. */
+export function rankingWords(text: string): string[] {
+  return [...text.replace(QUOTED_UNITS, '').matchAll(RANKING)].map((m) => m[0])
 }

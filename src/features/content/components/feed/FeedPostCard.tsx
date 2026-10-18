@@ -11,7 +11,7 @@ import type { FeedCard } from '../../lib/feed'
 import { tag } from '../classes'
 import { LAYER_TAGS, LanguageTag } from '../PhoneFeedCard'
 import { feedAssetHref } from './SlideStrip'
-import { wheelGate } from './wheel'
+import { nestedScroll, wheelGate } from './wheel'
 
 /** The 1080 × 1350 canvas every slide was drawn on, so each keeps its place while it loads. */
 const CANVAS_WIDTH = 1080
@@ -69,6 +69,7 @@ export function FeedPostCard({
     const gate = wheelGate()
     const onWheel = (e: WheelEvent) => {
       if (e.ctrlKey || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return
+      if (nestedScroll(e.target, el, 'x', e.deltaX)) return
       e.preventDefault()
       const step = gate(e.timeStamp, e.deltaX)
       if (step === 0) return
@@ -86,11 +87,11 @@ export function FeedPostCard({
   return (
     <article
       aria-labelledby={titleId}
-      className="flex h-full min-h-0 flex-col gap-3 wrap-anywhere @5xl/feed:grid @5xl/feed:grid-cols-[max(0rem,calc((100cqw-20rem)/2-min(55cqw,80cqh)/2))_auto_minmax(0,1fr)] @5xl/feed:items-center @5xl/feed:gap-0"
+      className="flex h-full min-h-0 flex-col gap-3 wrap-anywhere @5xl/feed:grid @5xl/feed:grid-cols-[max(0rem,calc((100cqw-var(--feed-side))/2-min(55cqw,80cqh)/2))_auto_minmax(0,1fr)] @5xl/feed:items-center @5xl/feed:gap-0"
     >
       {/* Wide: the slide is centred on the window, not on the posts' column. The first column is what
-          puts it there: half the posts' width less the side column's 20rem (page.tsx: w-72 and the
-          gap-8 beside it), less half the slide. The panel is centred in what is left, between the
+          puts it there: half the posts' width less the side column's share (--feed-side, set on the
+          page's data-feed-shell root: the column and its gap), less half the slide. The panel is centred in what is left, between the
           slide and the scrollbar.
           A size container, so the strip takes the largest 4:5 box that fits it. */}
       <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center @container-size/slides @5xl/feed:col-start-2 @5xl/feed:h-full @5xl/feed:w-[min(55cqw,80cqh)]">

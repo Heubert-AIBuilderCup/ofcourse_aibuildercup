@@ -23,7 +23,10 @@ type Props = {
   action: (previous: ActionResult | null, form: FormData) => Promise<ActionResult>
   /** The student page's story (one today); without it, the admin page's form, with no choice. */
   stories?: readonly JudgeStoryCard[]
-  /** The passcode, said in the dialog and filled in, when the developer chose to show it (18 Oct). */
+  /**
+   * The passcode, said in the dialog and filled in (18 Oct), on the student form only: the admin
+   * judge edits and publishes, so its form never shows it, even when handed one.
+   */
   passcode?: string
 }
 
@@ -50,7 +53,7 @@ export function JudgeAccess({ action, stories, passcode }: Props) {
         </Button>
       </DialogTrigger>
       <DialogContent className={cn(stories && 'max-h-dvh max-w-2xl overflow-y-auto')}>
-        <JudgeForm action={action} stories={stories} passcode={passcode} />
+        <JudgeForm action={action} stories={stories} passcode={stories ? passcode : undefined} />
       </DialogContent>
     </Dialog>
   )
@@ -78,7 +81,7 @@ function JudgeForm({ action, stories, passcode }: Props) {
             : 'Enter the passcode from the submission notes. The judge account edits and reviews posts; users and models stay closed.'}
         </DialogDescription>
         {passcode ? (
-          <p className="m-0 text-sm">
+          <p className="m-0 text-caption">
             The passcode is <strong className="font-semibold">{passcode}</strong>; it is filled in
             for you.
           </p>

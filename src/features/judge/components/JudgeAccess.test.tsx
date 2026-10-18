@@ -73,11 +73,19 @@ describe('JudgeAccess with the passcode shown (18 Oct: judges find it in the dia
     const action = refused('nope')
     render(<JudgeAccess action={action} stories={STORIES} passcode="ofcourse" />)
     fireEvent.click(screen.getByRole('button', { name: 'Judge access' }))
-    expect(screen.getByText('ofcourse').tagName).toBe('STRONG')
+    expect(document.body.textContent?.includes('The passcode is ofcourse')).toBe(true)
     expect((screen.getByLabelText('Passcode') as HTMLInputElement).value).toBe('ofcourse')
     fireEvent.click(screen.getByRole('button', { name: /Priya/ }))
     await waitFor(() => expect(action).toHaveBeenCalledTimes(1))
     expect(sent(action)).toEqual(['passcode=ofcourse', 'story=priya'])
+  })
+
+  it('never on the admin form, even when handed one: the admin judge edits and publishes', () => {
+    render(<JudgeAccess action={refused('nope')} passcode="ofcourse" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Judge access' }))
+    expect(document.body.textContent?.includes('ofcourse')).toBe(false)
+    const field = screen.getByLabelText('Passcode') as HTMLInputElement
+    expect(`${field.type}:${field.value}`).toBe('password:')
   })
 
   it('without it, says nothing of a passcode and leaves the field empty', () => {

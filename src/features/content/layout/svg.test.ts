@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'bun:test'
+import { Resvg } from '@resvg/resvg-js'
 import { FEED_BRAND } from '../brands'
 import { GUIDELINE, PRESETS, type Preset, presetThemes, SURFACES } from '../brands/guideline'
 import { SEARCH_SLOT, type Slide, type Structure, type Template, type Theme } from '../model/types'
 import { templateById } from '../templates'
 import { contrastRatio } from '../text/contrast'
-import { BULLET, LEGIBILITY_FLOOR_PX, layoutStructure, SEARCH_LINE, SOURCE_LINE } from './engine'
+import {
+  BULLET,
+  CANVAS,
+  LEGIBILITY_FLOOR_PX,
+  layoutStructure,
+  SEARCH_LINE,
+  SOURCE_LINE,
+} from './engine'
 import { lookStructure } from './fixtures'
+import { fontPath, measure, SCRIPT_FONTS } from './measure'
 import { toPng } from './png'
 import { escapeXml, slideColours, svgSlides } from './svg'
 import { tintFilter } from './tint'
@@ -664,6 +673,47 @@ describe('svgSlides in Nepali and Thai (GD38)', () => {
     expect(svgFor('हो, गन्तव्य')).toMatch(/हो<\/tspan><tspan dx="[\d.]+">,<\/tspan> /)
     // Thai has no spacing sign that loses its width: written as before.
     expect(svgFor('ชีวิตการทำงาน')).not.toContain('dx=')
+  })
+
+  it('draws नेपाल as wide as its letters, as resvg 2.6.2 renders it (GD38)', () => {
+    // A render, not the emitted SVG: the heading's <text> as svg.ts writes it, and the same word
+    // without the shift, drawn in black on white, measured by where the ink ends.
+    const heading = svgFor('नेपाल').match(
+      /<text [^>]*>(?:(?!<\/text>).)*नेपा(?:(?!<\/text>).)*<\/text>/,
+    )
+    const element = (heading?.[0] ?? '').replace(/fill="[^"]*"/, 'fill="#000000"')
+    const px = Number(element.match(/font-size="([\d.]+)"/)?.[1])
+    const bold = element.includes('font-weight="700"')
+    const file = SCRIPT_FONTS.devanagari[bold ? 'bold' : 'regular']
+    const raw = element.replace(/<tspan dx="[\d.]+">([^<]*)<\/tspan>/g, '$1')
+    const ink = (text: string) => {
+      const { width, height } = CANVAS
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="${width}" height="${height}" fill="#FFFFFF"/>${text}</svg>`
+      const fontFiles = [SCRIPT_FONTS.devanagari.regular, SCRIPT_FONTS.devanagari.bold].map(
+        fontPath,
+      )
+      const { pixels } = new Resvg(svg, { font: { fontFiles, loadSystemFonts: false } }).render()
+      let [left, right]: number[] = [width, -1]
+      for (let i = 0; i < pixels.length; i += 4) {
+        if (pixels[i] > 128) continue
+        const x = (i / 4) % width
+        left = Math.min(left, x)
+        right = Math.max(right, x)
+      }
+      return right - left
+    }
+    const letters = measure('नेपाल', file, px)
+    const sign = measure('ा', file, px)
+    expect(px > 0 && element.includes('dx=')).toBe(true)
+    // As svg.ts writes it, the word is as wide as its letters: the ा keeps its room.
+    expect(Math.abs(ink(element) - letters) < sign / 3).toBe(true)
+    // resvg 2.6.2 drops the sign's width, so the plain word comes out one sign short (नेपल). When
+    // this fails, the resvg in use draws the sign's width itself: take the dx shift out of svg.ts
+    // (devanagariXml), or every gap after a sign doubles.
+    expect(
+      Math.abs(ink(raw) - (letters - sign)) < sign / 3,
+      'resvg no longer drops a spacing sign’s width: remove the dx shift in svg.ts',
+    ).toBe(true)
   })
 })
 
