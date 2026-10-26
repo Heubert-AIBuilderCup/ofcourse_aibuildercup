@@ -6,12 +6,12 @@ import { STAGES, type Stage } from '@/shared/lib/db/content-shapes'
 export { STAGES, type Stage }
 
 export const COLUMNS = [
-  { id: 'structures', label: 'Structures', stages: ['source', 'structures'] },
-  { id: 'approved', label: 'Approved · to render', stages: ['approved'] },
-  { id: 'rendered', label: 'Rendered · edit & check', stages: ['rendered'] },
-  { id: 'in_review', label: 'In review', stages: ['in_review'] },
-  { id: 'ready', label: 'Ready · publish or export', stages: ['ready'] },
-  { id: 'live', label: 'Live in feed · exported', stages: ['live', 'exported'] },
+  { id: 'structures', label: 'Structures', sub: 'Pick one', stages: ['source', 'structures'] },
+  { id: 'approved', label: 'Approved', sub: 'To render', stages: ['approved'] },
+  { id: 'rendered', label: 'Rendered', sub: 'Edit and check', stages: ['rendered'] },
+  { id: 'in_review', label: 'In review', sub: 'A reviewer checks', stages: ['in_review'] },
+  { id: 'ready', label: 'Ready', sub: 'Publish or export', stages: ['ready'] },
+  { id: 'live', label: 'Live', sub: 'In the feed or exported', stages: ['live', 'exported'] },
 ] as const
 export type ColumnId = (typeof COLUMNS)[number]['id']
 

@@ -19,6 +19,7 @@ export default async function NewComicPage({ searchParams }: PageProps<'/admin/c
   return (
     <>
       <AdminPageHeader
+        kicker="Route comics"
         title="New comic"
         lede="Choose a path. Gemini drafts a storyboard of three to six panels from its catalogue facts."
       />

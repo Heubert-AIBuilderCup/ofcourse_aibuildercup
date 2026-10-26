@@ -22,6 +22,7 @@ export default async function AdminComicGapsPage() {
   return (
     <>
       <AdminPageHeader
+        kicker="Route comics"
         title="Comic gaps"
         lede="Paths students were shown in the last 30 days, counted once per student a day, with no names kept."
       />

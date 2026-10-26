@@ -4,15 +4,15 @@ import { formatWhen } from '@/shared/lib/site'
 import { brandById } from '../brands'
 import { LANGUAGE_IDS, type LanguageId } from '../languages'
 import { marketById } from '../markets'
-import { COLUMNS, type ColumnId, columnOf, STAGE_LABELS, type Stage } from '../model/stages'
+import { COLUMNS, type ColumnId, columnOf, type Stage } from '../model/stages'
 import type { BoardCard } from '../server/store'
 import { charCount } from '../text/script'
 import { postPath } from './steps'
 import { changedSincePublished } from './workflow'
 
-// The board's view of the posts, pure: which card sits in which column, the lines that link a
-// feed post to its market and social versions, the filters in its address, and the counts the
-// tabs show.
+// The board's view of the posts, pure: which card sits in which column, which feed post a social
+// version hangs under and how many each has, the filters in its address, and the counts the tabs
+// and the band show.
 
 export const BOARD_FILTERS = [
   { id: 'all', label: 'All' },
@@ -152,10 +152,10 @@ export type BoardItem = {
   href: string
   /** "Feed post · Main": what the card is (its kind, or a social version's platform) and its page. */
   overline: string
-  /** On a social version: '↳ from feed post "<title>"'. */
-  fromLine: string | null
-  /** On a feed post: "↳ <market> · market variant", "↳ Instagram · ready". */
-  linkedLines: string[]
+  /** On a social version: the feed post it hangs under, while that post is on the board. */
+  parentId: string | null
+  /** On a feed post: how many social versions it has ("2 versions"); 0 on every other card. */
+  versions: number
   /** "Changed by Maya R. · 5 Oct 2026, 09:12". */
   changedLine: string
   /** On a live post: "General · Everyone · Leaves the feed in 90 days". */
@@ -173,6 +173,13 @@ export type BoardItem = {
 }
 
 const PLATFORM_LABELS = { instagram: 'Instagram', linkedin: 'LinkedIn' } as const
+
+/** The id of a column's heading, which names its section (and the band brings into view). */
+export const columnHeadingId = (id: ColumnId) => `column-${id}`
+
+/** The columns where the band counts the viewer's own posts: someone has to act on them there. */
+export const MINE_COLUMNS = ['structures', 'in_review', 'ready'] as const satisfies ColumnId[]
+export type MineColumn = (typeof MINE_COLUMNS)[number]
 
 const changedLine = (card: BoardCard) =>
   `${card.updatedByName ? `Changed by ${card.updatedByName}` : 'Changed'} · ${formatWhen(card.updatedAt)}`
@@ -222,18 +229,21 @@ function matches(item: BoardItem, params: BoardParams, viewerId: string): boolea
 
 /**
  * The board under its filters: items by column, the count each tab shows under the other
- * filters, the pages the cards are made for (the Page filter's choices), and whether the filters
- * hide every card.
+ * filters, the viewer's own cards in the columns where they have to act (the band's numbers,
+ * whatever the filters), the pages the cards are made for (the Page filter's choices), whether the
+ * filters hide every card, and whether there is no post at all (the first run).
  */
 export function boardView(
   cards: BoardCard[],
   params: BoardParams,
   viewerId: string,
 ): {
-  columns: { id: ColumnId; label: string; items: BoardItem[] }[]
+  columns: { id: ColumnId; label: string; sub: string; items: BoardItem[] }[]
   counts: Record<BoardFilter, number>
+  mine: Record<MineColumn, number>
   pages: { id: string; name: string }[]
   empty: boolean
+  noPosts: boolean
 } {
   const feeds = new Set(cards.filter((c) => c.kind !== 'social').map((c) => c.id))
   const socialOf = new Map<string, BoardCard[]>()
@@ -261,13 +271,6 @@ export function boardView(
     }
     const children = socialOf.get(c.id) ?? []
     const market = c.market ? marketById(c.market) : null
-    const linkedLines = [
-      ...(market ? [`↳ ${market.name} · market variant`] : []),
-      ...children.map(
-        (s) =>
-          `↳ ${s.platform ? PLATFORM_LABELS[s.platform] : 'Social'} · ${STAGE_LABELS[s.stage].toLowerCase()}`,
-      ),
-    ]
     const type: BoardType = c.kind === 'blog' ? 'blog' : c.courseId ? 'comic' : 'feed'
     ordered.push({
       id: c.id,
@@ -277,8 +280,8 @@ export function boardView(
       overline: overlineOf(KIND_LABELS[type], c.pageId),
       stage: c.stage,
       href: href(postPath(c.id)),
-      fromLine: null,
-      linkedLines,
+      parentId: null,
+      versions: children.length,
       changedLine: changedLine(c),
       liveLine: c.liveLine,
       changedSincePublished: changedSincePublished(c.stage, c.publishedApprovalId),
@@ -295,8 +298,8 @@ export function boardView(
         overline: overlineOf(KIND_LABELS.market, c.pageId),
         stage: c.stage,
         href: href(postPath(c.id), market.id),
-        fromLine: null,
-        linkedLines: [],
+        parentId: null,
+        versions: 0,
         changedLine: changedLine(c),
         liveLine: null,
         changedSincePublished: false,
@@ -317,8 +320,8 @@ export function boardView(
       overline: overlineOf(s.platform ? PLATFORM_LABELS[s.platform] : 'Social version', s.pageId),
       stage: s.stage,
       href: href(postPath(s.id)),
-      fromLine: parent ? `↳ from feed post "${parent.title}"` : null,
-      linkedLines: [],
+      parentId: parent?.id ?? null,
+      versions: 0,
       changedLine: changedLine(s),
       liveLine: s.liveLine,
       changedSincePublished: false,
@@ -335,10 +338,12 @@ export function boardView(
     const brand = i.pageId ? brandById(i.pageId) : null
     if (brand) pages.set(brand.id, brand.name)
   }
+  const mine = ordered.filter((i) => i.assigneeId === viewerId)
   return {
     columns: COLUMNS.map((col) => ({
       id: col.id,
       label: col.label,
+      sub: col.sub,
       items: shown.filter((i) => columnOf(i.stage) === col.id),
     })),
     counts: {
@@ -347,9 +352,13 @@ export function boardView(
       social: filtered.filter((i) => inTab('social', i)).length,
       comics: filtered.filter((i) => inTab('comics', i)).length,
     },
+    mine: Object.fromEntries(
+      MINE_COLUMNS.map((id) => [id, mine.filter((i) => columnOf(i.stage) === id).length]),
+    ) as Record<MineColumn, number>,
     pages: [...pages]
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name)),
     empty: shown.length === 0 && boardQuery(params) !== '',
+    noPosts: ordered.length === 0,
   }
 }

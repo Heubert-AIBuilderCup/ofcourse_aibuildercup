@@ -73,12 +73,12 @@ describe('UpdatesScreen', () => {
     expect(screen.getAllByText('Mock').length).toBe(MOCK_UPDATES.length)
     expect(screen.getAllByText(EMPTY).length).toBe(1)
     expect(screen.queryAllByText('Create a targeted update').length).toBe(0)
-    expect(screen.queryAllByRole('button', { name: '+ New update' }).length).toBe(0)
+    expect(screen.queryAllByRole('button', { name: 'New update' }).length).toBe(0)
   })
 
   it('as the editor changes the rule, the reach and the preview follow it', () => {
     screenFor({ canWrite: true, canApprove: false })
-    fireEvent.click(screen.getByRole('button', { name: '+ New update' }))
+    fireEvent.click(screen.getByRole('button', { name: 'New update' }))
     const ecu = reach('ECU', null)
     expect(screen.getByText(`Reaches ${ecu.length} students (mock)`)).toBeInTheDocument()
     const preview = within(screen.getByRole('region', { name: /^Student preview/ }))
@@ -119,7 +119,7 @@ describe('UpdatesScreen', () => {
 
   it("saves the editor's draft through the action with the form's values", async () => {
     screenFor({ canWrite: true, canApprove: false })
-    fireEvent.click(screen.getByRole('button', { name: '+ New update' }))
+    fireEvent.click(screen.getByRole('button', { name: 'New update' }))
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
     })
@@ -178,7 +178,7 @@ describe('UpdatesScreen', () => {
 
   it('starts on All topics, and choosing a topic changes the reach and the preview why', () => {
     screenFor({ canWrite: true, canApprove: false })
-    fireEvent.click(screen.getByRole('button', { name: '+ New update' }))
+    fireEvent.click(screen.getByRole('button', { name: 'New update' }))
     const select = screen.getByLabelText('Topic') as HTMLSelectElement
     expect(select.value).toBe(ALL_TOPICS)
     expect([...select.options].map((o) => o.value)).toEqual([ALL_TOPICS, ...TOPIC_IDS])
@@ -226,7 +226,7 @@ describe('UpdatesScreen', () => {
 
   it('offers All institutions first in both institution selects', () => {
     screenFor({ canWrite: true, canApprove: false })
-    fireEvent.click(screen.getByRole('button', { name: '+ New update' }))
+    fireEvent.click(screen.getByRole('button', { name: 'New update' }))
     for (const label of ['Institution', 'Ranked a route at']) {
       const options = [...(screen.getByLabelText(label) as HTMLSelectElement).options]
       expect(options.map((o) => o.value)).toEqual([ALL_INSTITUTIONS, ...INSTITUTIONS])

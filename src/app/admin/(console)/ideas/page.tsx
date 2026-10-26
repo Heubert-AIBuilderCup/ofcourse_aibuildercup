@@ -16,6 +16,7 @@ export default async function AdminIdeasPage() {
   return (
     <>
       <AdminPageHeader
+        kicker="Queue"
         title="Ideas queue"
         lede="Topics to research, and workshops or services to offer, each with the evidence behind it. Suggestions never publish anything; dismissed ideas aren't suggested again."
       />

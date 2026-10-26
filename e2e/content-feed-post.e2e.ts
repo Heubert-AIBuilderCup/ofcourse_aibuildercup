@@ -280,13 +280,15 @@ test('er adds a selected sentence of the twin as a fact, word for word, and remo
 test('the board shows the post in its first column with who changed it, and ← Board keeps the filter', async () => {
   const { page } = er
   await page.goto('/admin/board')
+  // The band's title, then the six columns.
   expect(await page.getByRole('heading', { level: 2 }).allTextContents()).toEqual([
+    expect.stringMatching(/ of your posts needs? you$/),
     'Structures',
-    'Approved · to render',
-    'Rendered · edit & check',
+    'Approved',
+    'Rendered',
     'In review',
-    'Ready · publish or export',
-    'Live in feed · exported',
+    'Ready',
+    'Live',
   ])
   const column = page.getByRole('region', { name: 'Structures', exact: true })
   const card = column.getByRole('listitem').filter({

@@ -274,10 +274,7 @@ test('adapting the live post for Cerebral on Instagram gives a linked card with 
   )
 
   await page.goto('/admin/board')
-  const card = page
-    .getByRole('listitem')
-    .filter({ hasText: 'Instagram · Cerebral' })
-    .filter({ hasText: `↳ from feed post ${PLAIN.title}` })
+  const card = page.getByRole('listitem').filter({ hasText: 'Instagram · Cerebral' })
   await expect(card).toHaveCount(1)
   await card.getByRole('link', { name: 'Instagram · Cerebral' }).click()
   await expect(page).toHaveURL(/\/admin\/posts\/[0-9a-f-]{36}/)
@@ -320,7 +317,7 @@ test('quick approve and render give a caption with hashtags; an edit disables Ex
   await expect(exportButton).toBeEnabled({ timeout: 60_000 })
 })
 
-test('Export downloads the page_post_platform zip, and the card moves to Live in feed · exported (67)', async () => {
+test('Export downloads the page_post_platform zip, and the card moves to Live (67)', async () => {
   const { page } = ed
   await post(page, posts.social)
   const caption = section(page, 'Caption and hashtags')
@@ -331,9 +328,9 @@ test('Export downloads the page_post_platform zip, and the card moves to Live in
   expect(file.suggestedFilename()).toBe(exportName('Cerebral', PLAIN.title, 'instagram'))
 
   await page.goto('/admin/board')
-  await expect(
-    column(page, 'Live in feed · exported').locator(`a[href^="/admin/posts/${posts.social}"]`),
-  ).toHaveText('Instagram · Cerebral')
+  await expect(column(page, 'Live').locator(`a[href^="/admin/posts/${posts.social}"]`)).toHaveText(
+    'Instagram · Cerebral',
+  )
 })
 
 test('light edits: a new cover phrase redraws the cover only, and a reorder swaps body slides (40)', async () => {
@@ -507,7 +504,7 @@ test('Nepal: made at once with the money converted, a linked card on the board, 
   expect(money).toContain(RATE_LINE)
 
   await page.goto('/admin/board')
-  const card = column(page, 'Rendered · edit & check')
+  const card = column(page, 'Rendered')
     .getByRole('listitem')
     .filter({ has: page.locator(`a[href^="/admin/posts/${posts.money}?market=NP"]`) })
   await expect(card.getByRole('link')).toHaveText(`${MONEY.title} · Nepal`)
@@ -553,7 +550,7 @@ test('after approval both versions are live, and the Market cannot add one (60, 
   expect(await nepalSlides(posts.money)).toEqual(nepal)
 
   await page.goto('/admin/board')
-  const livePosts = column(page, 'Live in feed · exported')
+  const livePosts = column(page, 'Live')
   await expect(livePosts.locator(`a[href^="/admin/posts/${posts.money}?from"]`)).toBeVisible()
   await expect(livePosts.locator(`a[href^="/admin/posts/${posts.money}?market=NP"]`)).toHaveText(
     `${MONEY.title} · Nepal`,

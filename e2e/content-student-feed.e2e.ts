@@ -680,10 +680,7 @@ test('er adapts the General post for Instagram under the page the theme rule pic
   )
 
   await page.goto('/admin/board')
-  const boardCard = page
-    .getByRole('listitem')
-    .filter({ hasText: 'Instagram · Main' })
-    .filter({ hasText: `↳ from feed post ${GENERAL.title}` })
+  const boardCard = page.getByRole('listitem').filter({ hasText: 'Instagram · Main' })
   await expect(boardCard).toHaveCount(1)
   await boardCard.getByRole('link', { name: 'Instagram · Main' }).click()
   await expect(page).toHaveURL(/\/admin\/posts\/[0-9a-f-]{36}/)

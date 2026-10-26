@@ -84,7 +84,8 @@ test('an admin session is kept out of the student app and signs out to the admin
     await page.goto('/admin/sign-in')
     await expect(page).toHaveURL(/\/admin\/users$/)
 
-    await page.getByRole('button', { name: 'Sign out' }).click()
+    await page.getByRole('button', { name: /^Account/ }).click()
+    await page.getByRole('menuitem', { name: 'Sign out' }).click()
     await expect(page).toHaveURL(/\/admin\/sign-in$/)
   } finally {
     await deleteUsers([adm])

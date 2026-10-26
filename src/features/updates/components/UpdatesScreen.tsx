@@ -1,7 +1,9 @@
 'use client'
 
+import { Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { type ReactNode, useId, useRef, useState, useTransition } from 'react'
+import { AdminPageHeader } from '@/features/admin/components/AdminPageHeader'
 import { tag } from '@/shared/components/classes'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -156,20 +158,21 @@ export function UpdatesScreen({
 
   return (
     // The container query reads this wrapper: a grid cannot query its own width.
-    <div className="@container">
+    <div className="@container flex flex-col gap-6">
+      <AdminPageHeader
+        kicker="Students"
+        title="Updates"
+        lede="Rule changes and opportunities, published to the students they concern."
+      >
+        {canWrite && (
+          <Button className="h-11 px-5 @max-xl:flex-1" onClick={() => openNew(DEMO_DRAFT)}>
+            <Plus aria-hidden="true" strokeWidth={1.5} className="size-icon" />
+            New update
+          </Button>
+        )}
+      </AdminPageHeader>
       <div className="grid gap-8 @5xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)] @5xl:items-start">
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-h1 font-semibold tracking-tight">Updates</h1>
-            <p className="text-muted-foreground">
-              Rule changes and opportunities, published to the students they concern.
-            </p>
-            {canWrite && (
-              <Button className="self-start" onClick={() => openNew(DEMO_DRAFT)}>
-                + New update
-              </Button>
-            )}
-          </div>
           <ul aria-label="Updates" className="flex flex-col border-t">
             {updates.map((u) =>
               row(
