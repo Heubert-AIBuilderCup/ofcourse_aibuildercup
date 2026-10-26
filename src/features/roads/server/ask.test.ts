@@ -49,8 +49,11 @@ mock.module('@/features/content/ai/client', () => ({
 let found: Roadmap | null = null
 const getRoadmap = mock(async (_userId: string, _id: string) => found)
 const none = async () => null
-// Every export the module has, as Bun keeps one mock of a module for the whole run.
+// Every export the module has (its own, then these stubs), as Bun keeps one mock of a module
+// for the whole run.
+const roadmaps = { ...(await import('@/features/roadmaps/server/roadmaps')) }
 mock.module('@/features/roadmaps/server/roadmaps', () => ({
+  ...roadmaps,
   getRoadmap,
   getDraft: none,
   ensureDraft: none,

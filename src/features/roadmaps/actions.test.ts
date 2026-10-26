@@ -3,6 +3,7 @@
 // against the database in ./server/roadmaps.test.ts.
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from 'bun:test'
+import * as nextCache from 'next/cache'
 import { cityOf } from '@/features/engine/catalogue'
 import { FINDER_COURSES } from '@/features/finder/data/catalogue'
 import type { Roadmap } from '@/shared/types/student'
@@ -107,11 +108,21 @@ const writes = {
 /** The roadmap a copy is made from, as the repository reads it: null when not hers. */
 let source: Roadmap | null = roadmap({ finishedAt: new Date('2026-10-14T09:10:00Z') })
 const getRoadmap = mock(async (_userId: string, _id: string) => source)
-mock.module('./server/roadmaps', () => ({ ...writes, getDraft, getRoadmap, hasArchived }))
+// The repository's other exports kept: Bun keeps the export names of the first mock of a module
+// for the whole run, so a later test file that mocks it still finds them.
+const repository = { ...(await import('./server/roadmaps')) }
+mock.module('./server/roadmaps', () => ({
+  ...repository,
+  ...writes,
+  getDraft,
+  getRoadmap,
+  hasArchived,
+}))
 
-// Outside a request, Next's own would throw; here it only says it was asked.
+// Outside a request, Next's own would throw; here it only says it was asked. Next's other
+// exports kept, as above.
 const refresh = mock(() => {})
-mock.module('next/cache', () => ({ refresh }))
+mock.module('next/cache', () => ({ ...nextCache, refresh }))
 
 const {
   archiveRoadmapAction,

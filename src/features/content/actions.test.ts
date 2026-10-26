@@ -123,6 +123,15 @@ mock.module('./server/social', () => ({
 
 mock.module('./server/assign', () => ({ assignPost: record('assignPost') }))
 
+// The Ideas queue's record of the post an accepted idea made; its other exports kept, so a later
+// test file that mocks it still finds them.
+mock.module('server-only', () => ({}))
+const ideasQueue = { ...(await import('./server/ideas-queue')) }
+mock.module('./server/ideas-queue', () => ({
+  ...ideasQueue,
+  recordIdeaPost: record('recordIdeaPost'),
+}))
+
 const actions = await import('./actions')
 
 const SETTINGS = {

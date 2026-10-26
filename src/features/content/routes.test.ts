@@ -110,7 +110,12 @@ mock.module('@/shared/lib/auth/session', () => ({
     return session
   },
 }))
+mock.module('server-only', () => ({}))
+// The store's other exports kept: Bun keeps the export names of the first mock of a module for
+// the whole run, so a later test file that mocks it still finds them.
+const store = { ...(await import('@/features/content/server/store')) }
 mock.module('@/features/content/server/store', () => ({
+  ...store,
   getAsset: async (id: string) =>
     id === 'known' ? { mime: 'image/webp', bytes: BYTES } : id === 'drawing' ? ASSETS.svg1 : null,
   loadPost: async (id: string) => {

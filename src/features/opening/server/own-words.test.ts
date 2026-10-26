@@ -55,8 +55,11 @@ let draft: Roadmap | null = null
 const saveOwnWords = mock(async (_userId: string, _step: string, _text: string) => draft)
 const addTags = mock(async (_userId: string, _tags: RoadmapTag[]) => {})
 const none = async () => null
-// Every export the module has, as Bun keeps one mock of a module for the whole run.
+// Every export the module has (its own, then these stubs), as Bun keeps one mock of a module
+// for the whole run.
+const roadmaps = { ...(await import('@/features/roadmaps/server/roadmaps')) }
 mock.module('@/features/roadmaps/server/roadmaps', () => ({
+  ...roadmaps,
   saveOwnWords,
   addTags,
   getRoadmap: none,
