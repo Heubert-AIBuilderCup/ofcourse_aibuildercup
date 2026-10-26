@@ -20,7 +20,7 @@ import { type Card, siblingsOf } from '../model/press'
 import type { BadgeId, Road, Tile } from '../model/road-data'
 import { routePath } from '../model/routes'
 import type { Scene } from '../model/scene'
-import { CardDetails } from './CardDetails'
+import { CardDetails, Section } from './CardDetails'
 import { LessonLink } from './LessonLink'
 import { MockTag } from './MockTag'
 import { type AskAction, TileAsk } from './TileAsk'
@@ -71,14 +71,17 @@ export type CardAsk = {
  * The card column's card: where she is (no tile open), or the tile she pressed, per cardFor. Its
  * badges open their explanation; a sibling opens that tile; the primary does what the board says
  * (`onPrimary`; without one it is drawn and does nothing this round); route detail and the lesson
- * are links (they push, so Back returns); Cancel (or Back to where she is) closes the card. "What
- * it asks for" and "More" do nothing yet. `flat`: the card inside the phone's road, its guide
- * without a box, its badges side by side and no course actions. The name where she is and each
+ * are links (they push, so Back returns); Cancel (or Back to where she is) closes the card. No
+ * button is drawn with nothing behind it. `flat`: the card inside the phone's road, its guide
+ * without a box and its badges side by side. The name where she is and each
  * sibling carry their tile (`data-swap-id`), so a swap can move them. A tile her answers decided
  * says why it is there: the template at once, the model's words when `why` lets it ask. A city or
- * course card on a road built from her answers takes questions (`ask`). `details` (the road's own
- * catalogue facts for this tile) go under the guide when there are any. `posts`: the posts and
- * updates about its tile; none, no section.
+ * course card on a road built from her answers takes questions (`ask`). Under the guide, in this
+ * order: its conditions (the condition badges, over budget or an English score, with the course's
+ * own conditions from `details`); Ask, which answers from those same rows (roads/model/ask.ts:
+ * the course's fees, majors, units, entry conditions and her budget); then the rest of `details`
+ * (the road's own catalogue facts for this tile: Study, Careers, Related fields…); then its other
+ * badges (intakes, a fork ahead). `posts`: the posts and updates about its tile; none, no section.
  */
 export function RoadCard({
   road,
@@ -89,6 +92,7 @@ export function RoadCard({
   onPrimary,
   onLesson,
   flat = false,
+  stickyActions = false,
   why,
   ask,
   details,
@@ -103,6 +107,8 @@ export function RoadCard({
   /** A lesson link was followed from the board. */
   onLesson: () => void
   flat?: boolean
+  /** In the board's side column, which scrolls: its actions stay pinned to the column's foot. */
+  stickyActions?: boolean
   why?: CardWhy
   ask?: CardAsk
   /** What the card adds under its guide: subjects, work, jobs, the state list, the related mark. */
@@ -121,7 +127,6 @@ export function RoadCard({
   const siblings = here ? siblingsOf(scene) : []
   const board = useBoardPath()
   const hereTile = scene.tiles.find((t) => t.id === scene.here)
-  const course = here && hereTile?.kind === 'course' && !flat
   // Where she is, what her saved answers mark on her tile (applyAnswers): its cost line and the
   // over-budget badge. A pressed tile's card has its scene tile's badges already.
   const plain = road.tiles.find((t) => t.id === hereTile?.id)
@@ -131,6 +136,15 @@ export function RoadCard({
       ? ['over' as const, ...card.badges]
       : card.badges
   const trade = card.gains && costs
+  // The condition badges and the course's own conditions are one block, right under the guide.
+  const isCondition = (id: BadgeId) => scene.badges[id]?.kind === 'Condition'
+  const conditionBadges = badges.filter(isCondition)
+  const otherBadges = badges.filter((id) => !isCondition(id))
+  const courseConditions = details?.subjects?.conditions ?? []
+  const rest: Details | undefined =
+    details?.subjects && courseConditions.length
+      ? { ...details, subjects: { ...details.subjects, conditions: [] } }
+      : details
 
   return (
     <>
@@ -162,9 +176,33 @@ export function RoadCard({
         </div>
       ) : null}
 
-      {details ? <CardDetails details={details} /> : null}
+      {conditionBadges.length || courseConditions.length ? (
+        <Section title="Conditions">
+          {conditionBadges.length ? (
+            <Badges ids={conditionBadges} badges={scene.badges} flat={flat} />
+          ) : null}
+          {courseConditions.length ? (
+            <ul className="m-0 flex list-disc flex-col gap-1 pl-5">
+              {courseConditions.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+          ) : null}
+        </Section>
+      ) : null}
 
-      {badges.length ? <Badges ids={badges} badges={scene.badges} flat={flat} /> : null}
+      {ask ? (
+        <TileAsk
+          roadmapId={ask.roadmapId}
+          tileId={ask.tileId}
+          asks={ask.asks}
+          action={ask.action}
+        />
+      ) : null}
+
+      {rest ? <CardDetails details={rest} /> : null}
+
+      {otherBadges.length ? <Badges ids={otherBadges} badges={scene.badges} flat={flat} /> : null}
 
       {card.why ? (
         <div className="flex flex-col gap-1" aria-busy={whyText.loading}>
@@ -182,15 +220,6 @@ export function RoadCard({
       </p>
 
       {card.lesson ? <LessonLink lessonId={card.lesson} onFollow={onLesson} /> : null}
-
-      {ask ? (
-        <TileAsk
-          roadmapId={ask.roadmapId}
-          tileId={ask.tileId}
-          asks={ask.asks}
-          action={ask.action}
-        />
-      ) : null}
 
       {posts?.length ? <TilePosts posts={posts} /> : null}
 
@@ -230,18 +259,14 @@ export function RoadCard({
         </div>
       ) : null}
 
-      {course ? (
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="square" className="h-11 px-3.5 font-sans font-medium">
-            What it asks for
-          </Button>
-          <Button type="button" variant="square" className="h-11 px-3.5 font-sans font-medium">
-            More
-          </Button>
-        </div>
-      ) : null}
-
-      <div className="mt-auto flex flex-col gap-2 pt-2">
+      <div
+        className={cn(
+          'mt-auto flex flex-col gap-2 pt-2',
+          // The aside's own padding (p-6, @max-5xl:py-5) is cancelled, so the bar meets its edges.
+          stickyActions &&
+            'sticky -bottom-6 z-10 -mx-6 border-t bg-background px-6 pt-3 pb-6 @max-5xl:-bottom-5 @max-5xl:pb-5',
+        )}
+      >
         {card.primary && card.kind === 'look' && card.routeId ? (
           <Link
             href={routePath(board, card.routeId)}
@@ -268,7 +293,15 @@ export function RoadCard({
           </Link>
         ) : card.secondary && !here ? (
           <Button type="button" variant="outline" className={ACTION} onClick={onClose}>
-            {card.secondary}
+            {card.backTo ? (
+              // Her place is heard as part of its name: "Back to where you are, Cyber Security".
+              <>
+                <span aria-hidden="true">{card.secondary}</span>
+                <span className="sr-only">{`${card.secondary}, ${card.backTo}`}</span>
+              </>
+            ) : (
+              card.secondary
+            )}
           </Button>
         ) : null}
       </div>

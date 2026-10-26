@@ -39,6 +39,7 @@ export default async function AdminModelsPage() {
   return (
     <>
       <AdminPageHeader
+        kicker="AI"
         title="Models"
         lede="Which model each AI call runs on, whether it is healthy, and who changed it last."
       />

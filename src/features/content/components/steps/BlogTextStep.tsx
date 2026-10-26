@@ -4,6 +4,7 @@ import { X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useId, useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
+import { Working } from '@/shared/components/Working'
 import type { Staff } from '@/shared/lib/auth/access'
 import { cn } from '@/shared/lib/utils'
 import { BLOG_POINT_MAX, HEADING_MAX } from '../../lib/blog-outline'
@@ -25,7 +26,7 @@ import {
 } from '../../lib/workflow'
 import type { BlogTarget } from '../../model/types'
 import { FactNumber } from '../FactChip'
-import { Control, movesWait, reasonText, StepAction, StepAreas, Working } from '../parts'
+import { Control, movesWait, reasonText, StepAction, StepAreas } from '../parts'
 import { SlotField } from '../SlotField'
 import { usePostAction } from '../usePostAction'
 import type { WorkbenchActions, WorkbenchView } from '../Workbench'
@@ -228,7 +229,7 @@ export function BlogTextStep({ view, viewer, actions }: BlogTextStepProps) {
 
   return (
     <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-8">
-      <h2 id={`${ids}-heading`} className="text-h3">
+      <h2 id={`${ids}-heading`} className="sr-only">
         Text
       </h2>
       <StepAreas

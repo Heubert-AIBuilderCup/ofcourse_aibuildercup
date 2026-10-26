@@ -4,6 +4,7 @@
 // Every account here has an id starting `up-` and is deleted after, with the updates it wrote.
 
 import { afterAll, beforeAll, describe, expect, mock, test } from 'bun:test'
+import { ALL_TOPICS } from '../lib/audience'
 import { DEMO_DRAFT } from '../lib/update'
 
 mock.module('server-only', () => ({}))
@@ -119,6 +120,34 @@ describe.skipIf(!enabled)('targeted updates against the database', () => {
     const id = await draft()
     expect(await updates.sendUpdateToReview(REV, id)).toEqual({ ok: false, error: notAuthorised })
     expect((await statusOf(id))?.status).toBe('draft')
+  })
+
+  test('a topic is stored and read back, in the list and once live', async () => {
+    const res = await updates.createUpdate(ED, {
+      ...DEMO_DRAFT,
+      audience: { ...DEMO_DRAFT.audience, topic: 'data' },
+    })
+    if (!res.ok) throw new Error(res.error)
+    const listed = (await updates.listUpdates()).find((u) => u.id === res.id)
+    expect(listed?.audience.topic).toBe('data')
+    await updates.sendUpdateToReview(ED, res.id)
+    await updates.approveUpdate(REV, res.id)
+    const live = (await updates.listLiveUpdates()).find((u) => u.id === res.id)
+    expect(live?.audience.topic).toBe('data')
+  })
+
+  test('an audience stored before topics reads as all topics', async () => {
+    const id = `${P}${crypto.randomUUID()}`
+    const { audience: _audience, ...fields } = DEMO_DRAFT
+    await db.insert(schema.adminUpdate).values({
+      id,
+      ...fields,
+      audience: { institution: 'ECU', homeCountry: null },
+      status: 'draft',
+      createdByUserId: ED.id,
+    })
+    const listed = (await updates.listUpdates()).find((u) => u.id === id)
+    expect(listed?.audience).toEqual({ institution: 'ECU', homeCountry: null, topic: ALL_TOPICS })
   })
 
   test('an update with a field that breaks its rules is refused by name, and nothing is saved', async () => {

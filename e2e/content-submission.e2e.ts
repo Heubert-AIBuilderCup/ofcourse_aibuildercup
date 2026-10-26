@@ -3,17 +3,20 @@ import { exportName } from '../src/features/content/layout/zip'
 import { canonicalJson, sha256Hex } from '../src/features/content/server/hash'
 import {
   approvePublish,
-  feedSettings,
+  lastSettingsPanel,
   markNotFoundAsOpinion,
   nonDemo,
   onStep,
   openStep,
+  openTab,
   PAID_WORK,
   renderedLegacyPost,
   requireFakeProvider,
   type Source,
   sendToReview,
+  settingsPanel,
   settingsPost,
+  stageSlides,
 } from './helpers/content'
 import {
   cacheArt,
@@ -28,8 +31,9 @@ import { signInUser, type User } from './helpers/login'
 
 // The by-submission criteria in the browser, against the fake model provider, on the step screens
 // (/admin/posts/<id>/<step>): review and publish with no slide vision check (103, amending 39), a
-// social version from adapt to export (62–67), light edits (40), cover options and a new cover
-// (41, 102; on a post from before the looks), the preview in context (55) and the Nepal version
+// social version from adapt to export (62–67), light edits (40; the cover phrase on a post from
+// before the looks), cover options and a new cover (41, 102; on a post from before the looks), the
+// preview in context (55) and the Nepal version
 // (56–58, 60, 61). Criterion 59 (a Nepal number no fact has) is reachable only through the model's
 // reworded slots, so it is proven by the unit tests. The posts move through their steps, so the
 // tests run in order.
@@ -63,6 +67,11 @@ const LEGACY_SOURCE: Source = {
   title: 'Paid work, covers before the looks',
   text: nonDemo(PAID_WORK.text),
 }
+/** Paid work under a title of its own, as a post from before the looks, for its cover phrase. */
+const PHRASE_SOURCE: Source = {
+  title: 'Paid work, a phrase before the looks',
+  text: nonDemo(PAID_WORK.text),
+}
 /** Paid work under a title of its own, for the post that goes from its images straight to review. */
 const PLAIN: Source = {
   title: 'Paid work, straight to review',
@@ -76,7 +85,7 @@ const contexts: BrowserContext[] = []
 const cachedArt: { key: string; assetId: string }[] = []
 
 /** The posts the steps share. */
-const posts = { plain: '', money: '', noMoney: '', social: '', legacy: '' }
+const posts = { plain: '', money: '', noMoney: '', social: '', legacy: '', phrase: '' }
 
 test.beforeAll(async ({ browser }) => {
   const people: Person[] = []
@@ -126,9 +135,12 @@ async function press(page: Page, name: string, confirms: string | RegExp, scope?
 
 const ASSETS = '/admin/assets/'
 
-/** The stored asset each slide image in `scope` shows, in order; a layout preview shows as its path. */
+/**
+ * The stored asset each slide on the stage in `scope` shows, in order (its filmstrip); a layout
+ * preview shows as its path.
+ */
 function slideIds(scope: Locator): Promise<string[]> {
-  return scope.getByRole('img', { name: /^Slide \d+\b/ }).evaluateAll(
+  return stageSlides(scope).evaluateAll(
     (els, prefix) =>
       els.map((el) => {
         const path = decodeURIComponent(new URL((el as HTMLImageElement).src).pathname)
@@ -148,6 +160,16 @@ async function changedIds(scope: Locator, before: string[]): Promise<string[]> {
 async function images(page: Page, id: string): Promise<Locator> {
   await openStep(page, id, 'images')
   return region(page, 'Images')
+}
+
+/**
+ * A post's Settings step, where its preview and its market versions are: the page's main area,
+ * its "Market versions" panel open.
+ */
+async function settingsScreen(page: Page, id: string): Promise<Locator> {
+  await openStep(page, id, 'settings')
+  await settingsPanel(page, 'Market versions')
+  return page.getByRole('main')
 }
 
 /** Each slide's fact ids per slot, from the post's current revision, and the facts it rests on. */
@@ -193,7 +215,7 @@ async function slideText(page: Page, svgAssetId: string): Promise<string> {
     .join(' ')
 }
 
-/** Picks the market in the Images step's select and presses "Make market version" (criterion 85). */
+/** Picks the market in the Settings step's select and presses "Make market version" (criterion 85). */
 const makeMarketVersion = async (scope: Locator, name: string) => {
   await scope.getByRole('combobox', { name: 'For market' }).selectOption({ label: name })
   await scope.getByRole('button', { name: 'Make market version' }).click()
@@ -208,10 +230,12 @@ test('a drawn post goes to review and publishes with no vision check to run or o
   await expect(ed.page.getByRole('heading', { name: 'Adapt' })).toHaveCount(0)
   await expect(ed.page.getByRole('button', { name: 'Create social version' })).toHaveCount(0)
   await markNotFoundAsOpinion(ed.page)
-  const settings = feedSettings(ed.page)
+  let settings = await settingsPanel(ed.page, 'Expiry')
   await settings.getByRole('radio', { name: '90 days' }).check()
   // A tag: the social version's caption makes its hashtag from it (109).
+  settings = await settingsPanel(ed.page, 'Tags')
   await settings.getByRole('checkbox', { name: 'New Zealand', exact: true }).check()
+  settings = await lastSettingsPanel(ed.page)
   await press(ed.page, 'Save settings', 'Settings saved', settings)
   await sendToReview(ed.page)
 
@@ -239,6 +263,7 @@ test('adapting the live post for Cerebral on Instagram gives a linked card with 
   await post(page, posts.plain)
   await onStep(page, 'live')
   const live = region(page, 'Live in feed')
+  await openTab(live, 'Social versions')
   await live.getByLabel('Page brand').selectOption({ label: 'Cerebral' })
   await live.getByLabel('Platform').selectOption({ label: 'Instagram carousel' })
   await press(
@@ -249,10 +274,7 @@ test('adapting the live post for Cerebral on Instagram gives a linked card with 
   )
 
   await page.goto('/admin/board')
-  const card = page
-    .getByRole('listitem')
-    .filter({ hasText: 'Instagram · Cerebral' })
-    .filter({ hasText: `↳ from feed post ${PLAIN.title}` })
+  const card = page.getByRole('listitem').filter({ hasText: 'Instagram · Cerebral' })
   await expect(card).toHaveCount(1)
   await card.getByRole('link', { name: 'Instagram · Cerebral' }).click()
   await expect(page).toHaveURL(/\/admin\/posts\/[0-9a-f-]{36}/)
@@ -295,7 +317,7 @@ test('quick approve and render give a caption with hashtags; an edit disables Ex
   await expect(exportButton).toBeEnabled({ timeout: 60_000 })
 })
 
-test('Export downloads the page_post_platform zip, and the card moves to Live in feed · exported (67)', async () => {
+test('Export downloads the page_post_platform zip, and the card moves to Live (67)', async () => {
   const { page } = ed
   await post(page, posts.social)
   const caption = section(page, 'Caption and hashtags')
@@ -306,40 +328,50 @@ test('Export downloads the page_post_platform zip, and the card moves to Live in
   expect(file.suggestedFilename()).toBe(exportName('Cerebral', PLAIN.title, 'instagram'))
 
   await page.goto('/admin/board')
-  await expect(
-    column(page, 'Live in feed · exported').locator(`a[href^="/admin/posts/${posts.social}"]`),
-  ).toHaveText('Instagram · Cerebral')
+  await expect(column(page, 'Live').locator(`a[href^="/admin/posts/${posts.social}"]`)).toHaveText(
+    'Instagram · Cerebral',
+  )
 })
 
 test('light edits: a new cover phrase redraws the cover only, and a reorder swaps body slides (40)', async () => {
+  // The cover phrase is a slot of the legacy templates' cover, edited under "This slide" once
+  // rendered (RenderStep); a look's phrases are its slots, edited on Text. So the phrase is edited
+  // on a post from before the looks, and the reorder on the look post the Nepal tests below use.
+  test.setTimeout(300_000)
   const { page } = ed
-  posts.money = await settingsPost(page, MONEY)
-  const drawn = await images(page, posts.money)
-  const bound = await bindings(posts.money)
-  const first = await slideIds(drawn)
+  posts.phrase = await renderedLegacyPost(page, PHRASE_SOURCE)
+  // Rendered, its Images step shows "This slide" open on the cover.
+  const render = region(page, 'Images')
+  const bound = await bindings(posts.phrase)
+  const first = await slideIds(render)
 
-  await drawn.getByLabel('Phrase', { exact: true }).fill('Hour limit')
-  await press(page, 'Update phrase', 'Phrase updated', drawn)
-  const phrased = await changedIds(drawn, first)
+  await render.getByLabel('Phrase', { exact: true }).fill('Hour limit')
+  await press(page, 'Update phrase', 'Phrase updated', render)
+  const phrased = await changedIds(render, first)
   expect(phrased[0], 'the cover is redrawn').not.toBe(first[0])
   expect(phrased.slice(1), 'the other slides stay').toEqual(first.slice(1))
-  expect(await bindings(posts.money), 'no fact or binding changes').toEqual(bound)
+  expect(await bindings(posts.phrase), 'no fact or binding changes').toEqual(bound)
 
+  posts.money = await settingsPost(page, MONEY)
+  const drawn = await images(page, posts.money)
+  const placed = await bindings(posts.money)
+  const before = await slideIds(drawn)
+  await openTab(drawn, 'Order')
   await press(page, 'Move slide 2 down', 'Slides reordered', drawn)
-  const reordered = await changedIds(drawn, phrased)
+  const reordered = await changedIds(drawn, before)
   expect(reordered, 'body slides 2 and 3 swap their images').toEqual([
-    phrased[0],
-    phrased[2],
-    phrased[1],
-    ...phrased.slice(3),
+    before[0],
+    before[2],
+    before[1],
+    ...before.slice(3),
   ])
   const moved = await bindings(posts.money)
-  expect(moved.factsId).toBe(bound.factsId)
+  expect(moved.factsId).toBe(placed.factsId)
   expect(moved.slides, 'the bindings move with their slides').toEqual([
-    bound.slides[0],
-    bound.slides[2],
-    bound.slides[1],
-    ...bound.slides.slice(3),
+    placed.slides[0],
+    placed.slides[2],
+    placed.slides[1],
+    ...placed.slides.slice(3),
   ])
 })
 
@@ -351,11 +383,15 @@ test('"Make covers" draws three options, "Another set" three more, and "Use this
   const { page } = ed
   posts.legacy = await renderedLegacyPost(page, LEGACY_SOURCE)
   const render = await images(page, posts.legacy)
+  // The cover's version is under "This slide"; the covers in "Covers", which opens first.
+  await openTab(render, 'This slide')
   await expect(render.getByText('Version 1', { exact: true })).toBeVisible()
   await expect(render.getByLabel('Art prompt')).toHaveCount(0)
   const before = await slideIds(render)
   expect(before).toHaveLength(5)
 
+  await openTab(render, 'Covers')
+  await expect(render.getByLabel('Art prompt')).toHaveCount(0)
   await press(page, 'Make covers', 'Covers made', render)
   const options = render.getByRole('list', { name: 'Cover options' }).getByRole('listitem')
   await expect(options).toHaveCount(3)
@@ -390,10 +426,12 @@ test('"Make covers" draws three options, "Another set" three more, and "Use this
   await expect(use).toHaveCount(1)
   await expect(options.nth(4).getByRole('button', { name: 'Use this cover' })).toBeVisible()
   await press(page, 'Use this cover', 'Cover changed', render)
+  await openTab(render, 'This slide')
   await expect(render.getByText('Version 2', { exact: true })).toBeVisible()
   const after = await changedIds(render, before)
   expect(after[0], 'the cover has new art').not.toBe(before[0])
   expect(after.slice(1), 'every other slide stays').toEqual(before.slice(1))
+  await openTab(render, 'Covers')
   await expect(options.nth(4).getByText('In use', { exact: true })).toBeVisible()
 })
 
@@ -401,14 +439,18 @@ test('Preview in context shows the phone card with For you, the why line and the
   const { page } = ed
   await openStep(page, posts.money, 'settings')
   await markNotFoundAsOpinion(page)
-  const settings = feedSettings(page)
+  let settings = await settingsPanel(page, 'Who sees it')
   await settings.getByRole('radio', { name: 'Personal' }).check()
   await settings.getByLabel('Why line').fill(WHY)
+  settings = await settingsPanel(page, 'Expiry')
   await settings.getByRole('radio', { name: '90 days' }).check()
+  settings = await lastSettingsPanel(page)
   await press(page, 'Save settings', 'Settings saved', settings)
 
-  // A save remounts the steps on the new version, so the view is chosen on a fresh load.
-  const drawn = await images(page, posts.money)
+  // A save remounts the steps on the new version, so the view is chosen on a fresh load of the
+  // Settings step, whose preview beside the panels shows the post as it goes out.
+  await openStep(page, posts.money, 'settings')
+  const drawn = region(page, 'Preview')
   await drawn.getByRole('radio', { name: 'Preview in context', exact: true }).check()
   const card = drawn.getByRole('img', { name: `Cover of ${MONEY.title}` })
   await expect(card).toBeVisible()
@@ -421,7 +463,7 @@ test('Preview in context shows the phone card with For you, the why line and the
 
 test('Nepal: made at once with the money converted, a linked card on the board, and rewording as the optional extra (56, 57, 110)', async () => {
   const { page } = ed
-  const drawn = await images(page, posts.money)
+  const drawn = await settingsScreen(page, posts.money)
   await makeMarketVersion(drawn, 'Nepal')
   await expect(toast(page, 'Nepal version made · linked card on the board')).toBeVisible()
   await expect(page).toHaveURL(/[?&]market=NP/)
@@ -462,7 +504,7 @@ test('Nepal: made at once with the money converted, a linked card on the board, 
   expect(money).toContain(RATE_LINE)
 
   await page.goto('/admin/board')
-  const card = column(page, 'Rendered · edit & check')
+  const card = column(page, 'Rendered')
     .getByRole('listitem')
     .filter({ has: page.locator(`a[href^="/admin/posts/${posts.money}?market=NP"]`) })
   await expect(card.getByRole('link')).toHaveText(`${MONEY.title} · Nepal`)
@@ -471,7 +513,7 @@ test('Nepal: made at once with the money converted, a linked card on the board, 
 test('a source without money gets a Nepal version with no NPR anywhere (58)', async () => {
   const { page } = ed
   posts.noMoney = await settingsPost(page, NO_MONEY)
-  const drawn = await images(page, posts.noMoney)
+  const drawn = await settingsScreen(page, posts.noMoney)
   await makeMarketVersion(drawn, 'Nepal')
   await expect(toast(page, 'Nepal version made · linked card on the board')).toBeVisible()
   const nepal = await nepalSlides(posts.noMoney)
@@ -508,7 +550,7 @@ test('after approval both versions are live, and the Market cannot add one (60, 
   expect(await nepalSlides(posts.money)).toEqual(nepal)
 
   await page.goto('/admin/board')
-  const livePosts = column(page, 'Live in feed · exported')
+  const livePosts = column(page, 'Live')
   await expect(livePosts.locator(`a[href^="/admin/posts/${posts.money}?from"]`)).toBeVisible()
   await expect(livePosts.locator(`a[href^="/admin/posts/${posts.money}?market=NP"]`)).toHaveText(
     `${MONEY.title} · Nepal`,

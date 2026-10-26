@@ -1,12 +1,12 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import { SignOutButton } from '@/features/auth/components/SignOutButton'
-import { tag } from '@/shared/components/classes'
+import { Duck } from '@/shared/components/Duck'
 import { ThemeToggle } from '@/shared/components/ThemeToggle'
-import { canSeeBoard, type Staff } from '@/shared/lib/auth/access'
-import { ADMIN_SIGNIN_PATH, BOARD_PATH } from '@/shared/lib/auth/gate'
+import { canSeeBoard, isRole, type Staff } from '@/shared/lib/auth/access'
+import { BOARD_PATH } from '@/shared/lib/auth/gate'
 import { SITE_NAME } from '@/shared/lib/site'
-import { cn } from '@/shared/lib/utils'
+import { ROLE_LABELS } from '../lib/labels'
+import { AdminAccount } from './AdminAccount'
 import { AdminNav } from './AdminNav'
 
 /** The model provider the server's AI client was built with, and its Google Cloud project. */
@@ -18,48 +18,52 @@ function aiLabel({ provider, project }: AiInUse): string {
 }
 
 /**
- * The admin's frame: a top bar, the section nav this viewer may open, the page. Every staff
- * account gets Sign out (back to the admin sign-in page), as the student app refuses them all.
- * Staff who see the board also see which AI the server runs, since the server reads it once at
- * start and a changed .env does not show until it restarts.
+ * The admin's frame: one bar with the brand, the sections this viewer may open, the AI tag, the
+ * theme and the account button, then the page. Staff who see the board also see which AI the
+ * server runs, since the server reads it once at start and a changed .env does not show until it
+ * restarts. Below @5xl the AI tag and the account's name give the tabs room; below @xl the tabs
+ * drop to their own row, and the theme moves into the account menu.
  */
 export function AdminChrome({
   viewer,
   ai,
   children,
 }: {
-  viewer: Staff
+  viewer: Staff & { name: string }
   ai: AiInUse
   children: ReactNode
 }) {
   return (
-    <div className="flex min-h-dvh flex-col bg-background text-foreground">
+    <div className="@container flex min-h-dvh flex-col bg-background text-foreground">
       <header className="border-b">
-        <div className="mx-auto flex h-12 max-w-7xl items-center justify-between gap-4 px-gutter">
-          <Link href={BOARD_PATH} className="font-semibold">
-            {SITE_NAME} <span className="text-muted-foreground">Admin</span>
+        <div className="mx-auto flex min-h-16 max-w-cap items-stretch gap-x-8 px-6 @max-5xl:gap-x-5 @max-5xl:px-4 @max-xl:flex-wrap @max-xl:gap-x-3">
+          <Link
+            href={BOARD_PATH}
+            className="flex shrink-0 items-center gap-2 font-heading text-h4 font-semibold whitespace-nowrap no-underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring @max-xl:min-h-14"
+          >
+            <Duck size="1.75rem" eager className="size-7 object-contain @max-xl:size-6" />
+            <span>
+              {SITE_NAME} <span className="text-accent-700">Admin</span>
+            </span>
           </Link>
-          <div className="flex items-center gap-2">
+          <AdminNav viewer={viewer} />
+          <div className="ml-auto flex items-center gap-2">
             {canSeeBoard(viewer) && (
-              <span className={cn(tag, 'text-muted-foreground')}>{aiLabel(ai)}</span>
+              <span className="inline-flex min-h-7 items-center border border-dashed border-foreground/40 px-2.5 text-overline tracking-wider whitespace-nowrap text-muted-foreground uppercase @max-5xl:hidden">
+                {aiLabel(ai)}
+              </span>
             )}
-            <ThemeToggle />
-            <SignOutButton redirectTo={ADMIN_SIGNIN_PATH} />
+            <ThemeToggle className="@max-xl:hidden" />
+            <AdminAccount
+              name={viewer.name}
+              role={isRole(viewer.role) ? ROLE_LABELS[viewer.role] : null}
+            />
           </div>
         </div>
       </header>
-      <AdminNav viewer={viewer} />
-      <main className="mx-auto w-full max-w-7xl flex-1 px-gutter py-section">{children}</main>
-    </div>
-  )
-}
-
-/** A page's title and one line on what it is for. */
-export function AdminPageHeader({ title, lede }: { title: string; lede: string }) {
-  return (
-    <div className="mb-8">
-      <h1 className="text-h1 font-semibold tracking-tight">{title}</h1>
-      <p className="mt-2 max-w-prose text-muted-foreground">{lede}</p>
+      <main className="mx-auto flex w-full max-w-cap flex-1 flex-col gap-6 px-gutter py-section @max-xl:px-4 @max-xl:pt-5 @max-xl:pb-8">
+        {children}
+      </main>
     </div>
   )
 }

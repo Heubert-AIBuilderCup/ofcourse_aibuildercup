@@ -3,17 +3,19 @@ import { draftStructures, VERSIONS_PER_TEMPLATE } from '../../ai/draft'
 import { outlinePost } from '../../ai/outline'
 import { formatById } from '../../formats'
 import { editOutline, type OutlineOp } from '../../lib/outline'
+import { draftChoices } from '../../lib/version-status'
 import { WORKFLOW_ERRORS } from '../../lib/workflow'
 import { isLook, templateById } from '../../templates'
 import { pageStyleOf } from '../page-style'
 import { runStep } from '../steps'
 import { putArtifact } from '../store'
+import { checkAfter } from './check'
 import { OUTLINE_STEP } from './ideas'
 import { type Actor, command, fail, type Saved, save } from './shared'
 
 // A picked idea's outline (GD32), made by ./ideas.ts pickIdeas: the editor reorders, adds,
 // removes or changes its slides, or changes its format (GD33), then "Write the slides" drafts
-// three versions that follow it. A change to the outline sets aside the versions written to the
+// a version that follows it. A change to the outline sets aside the versions written to the
 // one before, so the post is back at its outline (GD28).
 
 /** The history's line for an outline change. */
@@ -115,11 +117,11 @@ export async function setOutlineFormat(
 }
 
 /**
- * "Write the slides" (GD32): three versions drafted in the outline's look for its idea, each
- * following the outline, its slides in order with their layouts and points (ai/draft.ts refuses
- * a version that departs from it). The drafts record keeps the idea, so each version shows the
- * idea it serves. Nothing is picked yet. A failed draft saves nothing, and the draft step shows
- * failed.
+ * "Write the slides" (GD32): a version drafted in the outline's look for its idea, following the
+ * outline, its slides in order with their layouts and points (ai/draft.ts refuses a version that
+ * departs from it); "Draft again" adds more. The drafts record keeps the idea, so each version
+ * shows the idea it serves. A failed draft saves nothing, and the draft step shows failed.
+
  */
 export async function writeSlides(actor: Actor, id: string, version: number): Promise<Saved> {
   return command('writeSlides', 'writeSlides', actor, id, version, async (post) => {
@@ -145,7 +147,9 @@ export async function writeSlides(actor: Actor, id: string, version: number): Pr
         outline: { format: outline.body.format, slides: outline.body.slides },
       })
       if (!drafted.ok) return fail(drafted.error)
-      return save(post, version, actor, async (tx) => {
+      // Version A and Pop are chosen for her; her own choices stay while they fit.
+      const chosen = draftChoices(post.pointers, drafted.items)
+      const saved = await save(post, version, actor, async (tx) => {
         const draftsId = await putArtifact(tx, {
           kind: 'drafts',
           postId: id,
@@ -161,9 +165,11 @@ export async function writeSlides(actor: Actor, id: string, version: number): Pr
           },
         })
         // "Draft again" drafts the same look.
-        const pointers = { ...post.pointers, draftsId, ticked: [look], picked: null, themeId: null }
+        const pointers = { ...post.pointers, draftsId, ticked: [look], ...chosen }
         return { stage: post.stage, pointers }
       })
+      // The version chosen for her is checked against the source, as a version she picks is.
+      return chosen.picked === null ? saved : checkAfter(id, actor, saved)
     })
   })
 }

@@ -44,22 +44,22 @@ test.describe('on a laptop', () => {
     const { email, board } = await finishedStudent(page, 'road-zoom')
     try {
       await page.goto(board)
-      await expect(stop(page, 'Level')).toHaveAttribute('aria-pressed', 'true')
+      await expect(stop(page, 'Stage')).toHaveAttribute('aria-pressed', 'true')
 
-      await stop(page, 'Tile').click()
-      await expect(stop(page, 'Tile')).toHaveAttribute('aria-pressed', 'true')
+      await stop(page, 'Step').click()
+      await expect(stop(page, 'Step')).toHaveAttribute('aria-pressed', 'true')
       await expect(page).toHaveURL(at(board, 'zoom=tile'))
 
       await zoom(page).getByRole('button', { name: 'Zoom out' }).click()
-      await expect(stop(page, 'Level')).toHaveAttribute('aria-pressed', 'true')
+      await expect(stop(page, 'Stage')).toHaveAttribute('aria-pressed', 'true')
       await expect(page).toHaveURL(at(board))
 
-      await stop(page, 'Whole road').click()
+      await stop(page, 'Journey').click()
       await expect(
         page.getByRole('heading', { name: 'You’ve looked at 3 of 11 routes' }),
       ).toBeVisible()
-      await card(page).getByRole('button', { name: 'Back to the walk' }).click()
-      await expect(stop(page, 'Level')).toHaveAttribute('aria-pressed', 'true')
+      await card(page).getByRole('button', { name: 'Close overview' }).click()
+      await expect(stop(page, 'Stage')).toHaveAttribute('aria-pressed', 'true')
 
       // The wheel: one stop per gesture, out for a scroll down, in for a scroll up.
       const map = page.getByRole('region', { name: 'Your roadmap, map' })
@@ -67,12 +67,12 @@ test.describe('on a laptop', () => {
       if (!box) throw new Error('The map has no box')
       await page.mouse.move(box.x + box.width * 0.15, box.y + box.height * 0.2)
       await page.mouse.wheel(0, 240)
-      await expect(stop(page, 'Whole road')).toHaveAttribute('aria-pressed', 'true')
+      await expect(stop(page, 'Journey')).toHaveAttribute('aria-pressed', 'true')
       await expect(page).toHaveURL(at(board, 'zoom=whole'))
       // A new gesture once the step's lock has passed.
       await page.waitForTimeout(700)
       await page.mouse.wheel(0, -240)
-      await expect(stop(page, 'Level')).toHaveAttribute('aria-pressed', 'true')
+      await expect(stop(page, 'Stage')).toHaveAttribute('aria-pressed', 'true')
     } finally {
       await deleteUsers([email])
     }

@@ -1,0 +1,3 @@
+ALTER TABLE "content_artifact" DROP CONSTRAINT "content_artifact_kind_check";--> statement-breakpoint
+ALTER TABLE "content_artifact" ADD CONSTRAINT "content_artifact_kind_check" CHECK ("content_artifact"."kind" in ('source', 'facts', 'drafts', 'revision', 'layout', 'render', 'source_check', 'vision', 'override', 'settings', 'send_back', 'approval', 'market', 'caption', 'export', 'social_link', 'covers', 'ideas', 'art_plan', 'post_outline', 'blog_outline', 'blog_text', 'blog_link', 'blog_images', 'share')) NOT VALID;--> statement-breakpoint
+ALTER TABLE "content_artifact" VALIDATE CONSTRAINT "content_artifact_kind_check";

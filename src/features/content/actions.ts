@@ -16,6 +16,7 @@ import { ASSIGN_ERRORS } from './lib/board'
 import { postPath, STEP_IDS, stepPath } from './lib/steps'
 import { BACK_TO, WORKFLOW_ERRORS } from './lib/workflow'
 import { SEND_BACK_STEPS, SOURCE_ERRORS } from './model/artifacts'
+import { SHARE_ERRORS } from './model/share'
 import { FeedSettingsSchema, FORMAT_IDS, LAYOUT_IDS, OUTLINE_JOBS } from './model/types'
 import { assignPost } from './server/assign'
 import {
@@ -81,9 +82,8 @@ import {
   setOutlineFormat,
   setPreset,
   setSlideLayout,
+  skipPictures,
   suggestSources,
-  // Biome reads a use* call as a React hook; this is the command, not a hook.
-  useSlide as takeSlide,
   tickTemplates,
   withdrawFromReview,
   writeBlog,
@@ -102,6 +102,7 @@ import {
   renderSocial,
   resetCaption,
   SOCIAL_ERRORS,
+  sharePost,
 } from './server/social'
 import { TAGS, tagById } from './tags'
 
@@ -208,14 +209,12 @@ const nudgeId = z.string().max(64)
 const SlideNudge = z.object({ slide: slideNo, nudge: nudgeId })
 /** A text chip on a whole version (GD10). */
 const VersionNudge = z.object({ index, nudge: nudgeId })
-/** A slide of another version to take into the picked one, by its version and place (GD11). */
-const SlideTake = z.object({ from: index, slide: slideNo })
 /** A planned scene in the editor's words (GD12); the command applies the length and the art prompt guard. */
 const SceneEdit = z.object({ slide: slideNo, text: z.string().max(10_000) })
 /** An image chip on one drawn slide (GD13), or none for "New picture"; the command matches it to a chip. */
 const ImageNudge = z.object({ slide: slideNo, nudge: nudgeId.nullable() })
-/** One idea card, or two to combine, by place (GD2); the command checks each is shown. */
-const IdeaPick = z.object({ cards: z.array(index).min(1).max(2) })
+/** One idea card, or up to four to combine, by place (GD2); the command checks each is shown. */
+const IdeaPick = z.object({ cards: z.array(index).min(1).max(4) })
 /** An outline slide's point; the command applies its length (lib/outline.ts). */
 const Point = z.string().max(10_000)
 /**
@@ -289,6 +288,11 @@ const Caption = z.object({
 })
 // The command applies the instagram.com rule; this only keeps the browser's value to text.
 const PostUrl = z.string().trim().max(2048)
+/** The accounts a share goes to, as two lists of ids; the command checks each is listed (9). */
+const ShareInput = z.object({
+  instagram: z.array(z.string().max(64)).max(20),
+  linkedin: z.array(z.string().max(64)).max(20),
+})
 
 /** A text record's id as server/hash.ts writes it: the kind, then 32 hex characters (criterion 101). */
 const TextRecordId = z.string().regex(/^(drafts|revision)_[0-9a-f]{32}$/)
@@ -495,15 +499,6 @@ export async function nudgeVersionAction(id: unknown, at: unknown, input: unknow
   })
 }
 
-/** "Use this slide in my version" (GD11): a slide of another version into the picked one at the same place. */
-export async function takeSlideAction(id: unknown, at: unknown, input: unknown): Promise<Saved> {
-  return onPost(id, at, async (actor, postId, v) => {
-    const parsed = SlideTake.safeParse(input)
-    if (!parsed.success) return fail(WORKFLOW_ERRORS.movedOn)
-    return takeSlide(actor, postId, v, parsed.data)
-  })
-}
-
 /** One slide of a version laid out in another layout (GD5); the command checks the slide can fill it. */
 export async function setSlideLayoutAction(
   id: unknown,
@@ -535,7 +530,7 @@ export async function setPresetAction(id: unknown, at: unknown, preset: unknown)
   })
 }
 
-/** "Use this idea", or two ticked and "Combine" (GD2): the cards by their place; the command checks they are shown. */
+/** "Use this idea", or two to four ticked and "Combine" (GD2): the cards by their place; the command checks they are shown. */
 export async function pickIdeasAction(id: unknown, at: unknown, pick: unknown): Promise<Saved> {
   return onPost(id, at, async (actor, postId, v) => {
     const parsed = IdeaPick.safeParse(pick)
@@ -660,7 +655,8 @@ export async function outlineFormatAction(
   })
 }
 
-/** "Write the slides" (GD32), and the failed draft's "Try again": three versions to the outline. */
+/** "Write the slides" (GD32), and the failed draft's "Try again": a version to the outline. */
+
 export async function writeSlidesAction(id: unknown, at: unknown): Promise<Saved> {
   return onPost(id, at, writeSlides)
 }
@@ -889,6 +885,11 @@ export async function drawImagesAction(id: unknown, at: unknown): Promise<Saved>
   return onPost(id, at, drawImages)
 }
 
+/** "Skip pictures": the slides saved as they look now, without drawing; the command checks who and when. */
+export async function skipPicturesAction(id: unknown, at: unknown): Promise<Saved> {
+  return onPost(id, at, skipPictures)
+}
+
 /** An image chip on one drawn slide (GD13); the command checks the chip. */
 export async function nudgeImageAction(id: unknown, at: unknown, input: unknown): Promise<Saved> {
   return onPost(id, at, async (actor, postId, v) => {
@@ -990,6 +991,15 @@ export async function recordPostUrlAction(id: unknown, at: unknown, url: unknown
     const parsed = PostUrl.safeParse(url)
     if (!parsed.success) return fail(SOCIAL_ERRORS.url)
     return recordPostUrl(actor, postId, v, parsed.data)
+  })
+}
+
+/** A live feed post shared to the pages' accounts: recorded, nothing posted (criteria 9–11). */
+export async function sharePostAction(id: unknown, at: unknown, accounts: unknown): Promise<Saved> {
+  return onPost(id, at, async (actor, postId, v) => {
+    const parsed = ShareInput.safeParse(accounts)
+    if (!parsed.success) return fail(SHARE_ERRORS.unknown)
+    return sharePost(actor, postId, v, parsed.data)
   })
 }
 

@@ -1,0 +1,1183 @@
+[
+  {
+    "name": "Master of Psychological Science",
+    "campusId": "ecu-joondalup",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 38,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "This two-year course builds on an undergraduate psychology base with advanced study of research design, assessment and the main theories of human behaviour. Students run their own research project under supervision and sit in on supervised practice sessions.",
+    "majors": ["Clinical Foundations", "Research Methods"],
+    "units": [
+      "Advanced Research Design",
+      "Psychological Assessment",
+      "Theories of Personality",
+      "Developmental Psychopathology",
+      "Applied Statistics",
+      "Professional Ethics",
+      "Research Project A",
+      "Research Project B"
+    ]
+  },
+  {
+    "name": "Master of Counselling",
+    "campusId": "ecu-joondalup",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 36,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "Learn to work with individuals and families through talk-based therapy. Classes combine case discussion, recorded role-plays and reflective journals, and the second year is spent largely in supervised placement. The course covers grief, trauma and relationship difficulties.",
+    "majors": ["Counselling Practice", "Family Therapy"],
+    "units": [
+      "Counselling Theories",
+      "Micro-skills Laboratory",
+      "Grief and Loss",
+      "Trauma-informed Practice",
+      "Couples and Family Work",
+      "Supervised Placement 1",
+      "Supervised Placement 2"
+    ]
+  },
+  {
+    "name": "Diploma of Counselling",
+    "campusId": "ecu-joondalup",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 18,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "A one-year entry course in helping skills. Students practise listening, questioning and goal setting in small groups, and learn how to keep case notes and work within professional boundaries. A short placement in a community service ends the year.",
+    "majors": ["Helping Skills"],
+    "units": [
+      "Introduction to Counselling",
+      "Communication Skills",
+      "Ethics and Boundaries",
+      "Mental Health Basics",
+      "Community Placement"
+    ]
+  },
+  {
+    "name": "Master of Organisational Psychology",
+    "campusId": "ecu-joondalup",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 42,
+    "field": "psych",
+    "graphField": "organisational-psychology",
+    "niche": true,
+    "placements": true,
+    "description": "Study how people behave at work and how organisations can be designed to suit them. Students learn to run staff surveys, analyse selection methods and design training, using real workplace problems as case projects. Supervised consulting placements fill the second year.",
+    "majors": ["Organisational Psychology", "Talent Assessment"],
+    "units": [
+      "Work and Organisational Behaviour",
+      "Personnel Selection",
+      "Learning and Development",
+      "Survey Design and Analysis",
+      "Leadership Psychology",
+      "Organisational Change",
+      "Consulting Placement"
+    ]
+  },
+  {
+    "name": "Master of Human Factors and Ergonomics",
+    "campusId": "ecu-joondalup",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 44,
+    "field": "psych",
+    "graphField": "human-factors",
+    "niche": true,
+    "placements": false,
+    "description": "Covers how people interact with tools, workplaces and systems, and how to design them to cut error and strain. Students observe real tasks, build usability tests and write design recommendations. Lab sessions use simulators and eye-tracking equipment.",
+    "majors": ["Human Factors", "Workplace Ergonomics"],
+    "units": [
+      "Human Performance",
+      "Cognitive Ergonomics",
+      "Physical Ergonomics",
+      "Usability Testing",
+      "Task Analysis",
+      "Safety and Error",
+      "Capstone Project"
+    ]
+  },
+  {
+    "name": "Diploma of Applied Psychology",
+    "campusId": "ecu-joondalup",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 19,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": false,
+    "description": "A one-year introduction to how the mind works and how psychologists study it. Lectures are paired with tutorials on simple experiments, reading research papers and writing short reports. It suits students who want a foundation before degree study.",
+    "majors": ["Applied Psychology"],
+    "units": [
+      "Foundations of Psychology",
+      "Research Skills",
+      "Social Behaviour",
+      "Lifespan Development",
+      "Academic Writing"
+    ]
+  },
+  {
+    "name": "Master of Forensic Psychology",
+    "campusId": "ecu-joondalup",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 46,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "Examines psychology within the legal system, from offender assessment to witness memory and risk. Students write mock reports, study court case files and learn how to give evidence clearly. Placements are arranged with justice-related services.",
+    "majors": ["Forensic Assessment"],
+    "units": [
+      "Psychology and the Law",
+      "Offender Assessment",
+      "Eyewitness Memory",
+      "Risk Evaluation",
+      "Report Writing for Courts",
+      "Forensic Placement"
+    ]
+  },
+
+  {
+    "name": "Master of Clinical Psychology",
+    "campusId": "curtin-bentley",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 52,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "A two-year professional course in diagnosing and treating mental health conditions. Teaching moves between seminars on evidence-based therapies and supervised work with clients in the on-campus clinic. Students also complete a research thesis.",
+    "majors": ["Clinical Psychology", "Adult Mental Health"],
+    "units": [
+      "Psychopathology",
+      "Cognitive Behavioural Therapy",
+      "Clinical Assessment",
+      "Neuropsychology Basics",
+      "Child and Adolescent Disorders",
+      "Clinical Placement 1",
+      "Clinical Placement 2",
+      "Thesis"
+    ]
+  },
+  {
+    "name": "Master of Counselling and Psychotherapy",
+    "campusId": "curtin-bentley",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 40,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "Prepares graduates for private and community counselling work. Students move from basic skills to longer-term psychotherapy approaches, practising on each other in class and then with clients under supervision. Reflection on one's own practice is assessed throughout.",
+    "majors": ["Psychotherapy", "Counselling"],
+    "units": [
+      "Foundations of Psychotherapy",
+      "Person-centred Practice",
+      "Psychodynamic Approaches",
+      "Addiction and Recovery",
+      "Supervised Practice 1",
+      "Supervised Practice 2"
+    ]
+  },
+  {
+    "name": "Diploma of Community Services (Counselling)",
+    "campusId": "curtin-bentley",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 16,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "A practical one-year course for people who want to support others in community settings. Learners practise interviews, crisis response and referral in simulated sessions. Time on placement puts those skills to work with a local support service.",
+    "majors": ["Community Counselling"],
+    "units": [
+      "Working with Clients",
+      "Crisis Response",
+      "Case Management",
+      "Cultural Awareness",
+      "Work Placement"
+    ]
+  },
+  {
+    "name": "Master of Organisational and Industrial Psychology",
+    "campusId": "curtin-bentley",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 43,
+    "field": "psych",
+    "graphField": "organisational-psychology",
+    "niche": true,
+    "placements": true,
+    "description": "Applies psychological research to hiring, motivation, teamwork and wellbeing at work. Students work in small consulting teams to diagnose a real organisation's issues and present their recommendations. Statistics and psychometrics are taught through the projects.",
+    "majors": ["Industrial Psychology", "Workplace Wellbeing"],
+    "units": [
+      "Psychometrics",
+      "Motivation and Engagement",
+      "Team Dynamics",
+      "Occupational Health Psychology",
+      "Organisational Diagnosis",
+      "Consulting Project"
+    ]
+  },
+  {
+    "name": "Diploma of Human Factors in Aviation and Mining",
+    "campusId": "curtin-bentley",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 24,
+    "field": "psych",
+    "graphField": "human-factors",
+    "niche": true,
+    "placements": false,
+    "description": "This one-year course looks at human error and fatigue in high-risk industries. Students analyse incident reports, learn how to design safer procedures and practise interviewing workers about their tasks. Case studies come from flight decks, control rooms and mine sites.",
+    "majors": ["Safety Human Factors"],
+    "units": [
+      "Human Error",
+      "Fatigue and Alertness",
+      "Incident Investigation",
+      "Procedure Design",
+      "Safety Culture"
+    ]
+  },
+  {
+    "name": "Master of Neuropsychology",
+    "campusId": "curtin-bentley",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 50,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "Focuses on how brain injury and disease change thinking and behaviour. Students learn to give and interpret cognitive tests, write assessment reports and plan rehabilitation with clients. Much of the teaching uses recorded case studies and supervised clinic sessions.",
+    "majors": ["Neuropsychology"],
+    "units": [
+      "Brain and Behaviour",
+      "Cognitive Testing",
+      "Dementia and Ageing",
+      "Acquired Brain Injury",
+      "Rehabilitation Planning",
+      "Neuropsychology Placement"
+    ]
+  },
+
+  {
+    "name": "Diploma of Counselling",
+    "campusId": "tafe-perth",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 14,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "A hands-on year in the skills of counselling. Classes are small and built around role-play, feedback and short written reflections. Students finish with a placement in a community agency where they sit in on sessions with a supervisor.",
+    "majors": ["Counselling Skills"],
+    "units": [
+      "Counselling Basics",
+      "Active Listening",
+      "Mental Health Awareness",
+      "Documentation and Privacy",
+      "Placement"
+    ]
+  },
+  {
+    "name": "Diploma of Mental Health",
+    "campusId": "tafe-perth",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 13,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "Prepares students for support roles in mental health services. They learn about common conditions, recovery-focused practice and how to work respectfully with clients and families. Practical sessions cover de-escalation and planning care with a person rather than for them.",
+    "majors": ["Mental Health Support"],
+    "units": [
+      "Understanding Mental Illness",
+      "Recovery-oriented Practice",
+      "De-escalation",
+      "Care Planning",
+      "Working with Families",
+      "Field Placement"
+    ]
+  },
+  {
+    "name": "Diploma of Alcohol and Other Drugs",
+    "campusId": "tafe-perth",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 15,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "Teaches how to support people affected by drug and alcohol use. Students practise brief interventions and motivational interviewing, and learn how services work together around a client. Placement hours are spent in a treatment or outreach service.",
+    "majors": ["Substance Use Support"],
+    "units": [
+      "Substance Use Basics",
+      "Motivational Interviewing",
+      "Brief Intervention",
+      "Harm Reduction",
+      "Service Coordination",
+      "Work Placement"
+    ]
+  },
+  {
+    "name": "Diploma of Youth Work",
+    "campusId": "tafe-perth",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 13,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "A practical year about supporting young people through study, family and wellbeing challenges. Students learn how teenagers develop, how to run group activities and how to respond when a young person is at risk. Part of the course is spent in a youth service.",
+    "majors": ["Youth Support"],
+    "units": [
+      "Adolescent Development",
+      "Group Work",
+      "Child Safety",
+      "Case Notes and Referral",
+      "Youth Placement"
+    ]
+  },
+  {
+    "name": "Diploma of Workplace Wellbeing and Safety Psychology",
+    "campusId": "tafe-perth",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 17,
+    "field": "psych",
+    "graphField": "organisational-psychology",
+    "niche": true,
+    "placements": false,
+    "description": "An introduction to how mental health and working conditions affect each other. Students learn to run wellbeing programs, spot stress and bullying risks and write simple policies. Assessment is based on workplace scenarios and short presentations.",
+    "majors": ["Workplace Wellbeing"],
+    "units": [
+      "Stress at Work",
+      "Bullying and Harassment",
+      "Wellbeing Programs",
+      "Return to Work",
+      "Policy Writing"
+    ]
+  },
+  {
+    "name": "Diploma of Applied Human Factors",
+    "campusId": "tafe-perth",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 18,
+    "field": "psych",
+    "graphField": "human-factors",
+    "niche": true,
+    "placements": false,
+    "description": "Explains how people and equipment fit together on the job. Students measure workstations, observe tasks and suggest changes that reduce strain and mistakes. Most work is done in the workshop and on site visits.",
+    "majors": ["Applied Ergonomics"],
+    "units": [
+      "Workstation Assessment",
+      "Manual Handling",
+      "Human Capabilities",
+      "Observation Methods",
+      "Improvement Reports"
+    ]
+  },
+
+  {
+    "name": "Master of Psychology (Clinical)",
+    "campusId": "uts-ultimo",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 54,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "A professional course that trains students to assess and treat anxiety, mood and personality conditions. Seminars are paired with weekly supervised client work and group case review. A research project is written up in the second year.",
+    "majors": ["Clinical Psychology"],
+    "units": [
+      "Adult Psychopathology",
+      "Evidence-based Therapy",
+      "Assessment and Diagnosis",
+      "Health Psychology",
+      "Group Interventions",
+      "Clinical Practicum 1",
+      "Clinical Practicum 2",
+      "Research Project"
+    ]
+  },
+  {
+    "name": "Master of Counselling",
+    "campusId": "uts-ultimo",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 38,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "A course for people moving into counselling from other careers. It blends theory with plenty of skills practice, and students keep a reflective portfolio over two years. Placements in the second year are in schools, clinics or community services.",
+    "majors": ["Counselling", "Career and Life Transitions"],
+    "units": [
+      "Foundations of Counselling",
+      "Lifespan Development",
+      "Counselling Skills Intensive",
+      "Working with Diversity",
+      "Professional Practice",
+      "Placement A",
+      "Placement B"
+    ]
+  },
+  {
+    "name": "Diploma of Psychological Studies",
+    "campusId": "uts-ultimo",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 22,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": false,
+    "description": "A pathway year covering the core areas of psychology: how people learn, remember, develop and relate. Students practise reading studies, collecting simple data and writing in the style the discipline expects.",
+    "majors": ["Psychological Studies"],
+    "units": [
+      "Introduction to Psychology",
+      "Cognition and Learning",
+      "Social Psychology",
+      "Data Skills",
+      "Writing for Science"
+    ]
+  },
+  {
+    "name": "Master of Organisational Psychology",
+    "campusId": "uts-ultimo",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 47,
+    "field": "psych",
+    "graphField": "organisational-psychology",
+    "niche": true,
+    "placements": true,
+    "description": "Teaches the psychology of hiring, leading and changing organisations. Students build selection tools, interpret engagement data and facilitate workshops. A placement with a working team lets them apply these skills under supervision.",
+    "majors": ["Organisational Psychology"],
+    "units": [
+      "Selection and Assessment",
+      "Leadership and Influence",
+      "Engagement and Culture",
+      "Training Design",
+      "Workplace Research Methods",
+      "Applied Placement"
+    ]
+  },
+  {
+    "name": "Master of Human Factors and Interaction Design",
+    "campusId": "uts-ultimo",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 45,
+    "field": "psych",
+    "graphField": "human-factors",
+    "niche": true,
+    "placements": false,
+    "description": "Brings the study of human perception and decision-making to the design of software, devices and public spaces. Students interview users, build prototypes and test them in the lab, then explain what the results mean for the design. Teamwork is central.",
+    "majors": ["Interaction Design", "Human Factors Research"],
+    "units": [
+      "Perception and Attention",
+      "User Research",
+      "Prototyping",
+      "Usability Evaluation",
+      "Decision-making Under Pressure",
+      "Studio Project"
+    ]
+  },
+  {
+    "name": "Master of Health Psychology",
+    "campusId": "uts-ultimo",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 44,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "Looks at how thoughts, habits and stress affect physical health and recovery. Students design behaviour-change programs, learn to counsel patients about long-term conditions and study chronic pain. Fieldwork takes place in health settings.",
+    "majors": ["Health Psychology"],
+    "units": [
+      "Stress and Coping",
+      "Behaviour Change",
+      "Chronic Illness",
+      "Pain Psychology",
+      "Program Evaluation",
+      "Health Placement"
+    ]
+  },
+
+  {
+    "name": "Master of Clinical Psychology",
+    "campusId": "swinburne-hawthorn",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 55,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "A two-year professional course in clinical assessment and therapy. Students learn several treatment models and then practise them with clients in the university clinic under close supervision. A research thesis sits alongside the practice units.",
+    "majors": ["Clinical Psychology", "Child and Family"],
+    "units": [
+      "Psychopathology and Diagnosis",
+      "Cognitive and Behavioural Therapies",
+      "Assessment Practice",
+      "Child and Family Therapy",
+      "Clinic Placement 1",
+      "Clinic Placement 2",
+      "Thesis A",
+      "Thesis B"
+    ]
+  },
+  {
+    "name": "Master of Applied Psychology",
+    "campusId": "swinburne-hawthorn",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 41,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "A broad course for graduates who want to use psychology in schools, services and workplaces. Students choose a focus and learn through case studies, role-play and a long project in the field. Assessments include reports and short oral presentations.",
+    "majors": ["Applied Psychology", "Community Wellbeing"],
+    "units": [
+      "Applied Social Psychology",
+      "Intervention Design",
+      "Evaluation Methods",
+      "Community Practice",
+      "Field Project"
+    ]
+  },
+  {
+    "name": "Diploma of Counselling and Wellbeing",
+    "campusId": "swinburne-hawthorn",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 21,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "An introduction to talk-based support. Students practise basic counselling skills with each other, study wellbeing and resilience, and complete a short placement in a support service. The course is a stepping stone into further study.",
+    "majors": ["Counselling Foundations"],
+    "units": [
+      "Counselling Skills",
+      "Wellbeing and Resilience",
+      "Mental Health Literacy",
+      "Ethics",
+      "Placement"
+    ]
+  },
+  {
+    "name": "Master of Organisational Psychology and Leadership",
+    "campusId": "swinburne-hawthorn",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 46,
+    "field": "psych",
+    "graphField": "organisational-psychology",
+    "niche": true,
+    "placements": true,
+    "description": "Combines psychology of work with practical leadership development. Students analyse how teams form and break down, coach one another and run an assessment project inside a partner organisation. Each unit ends in a short consulting report.",
+    "majors": ["Organisational Psychology", "Leadership Development"],
+    "units": [
+      "Psychology of Work",
+      "Coaching Skills",
+      "Team Effectiveness",
+      "Organisational Culture",
+      "Workforce Analytics",
+      "Consulting Report",
+      "Placement"
+    ]
+  },
+  {
+    "name": "Master of Human Factors Engineering",
+    "campusId": "swinburne-hawthorn",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 48,
+    "field": "psych",
+    "graphField": "human-factors",
+    "niche": true,
+    "placements": false,
+    "description": "Teaches how to design systems that suit the people operating them. Students use simulators to study workload and attention, assess cockpits, control panels and screens, and write design recommendations backed by evidence. Projects are often done with outside partners.",
+    "majors": ["Human Factors Engineering", "Simulation and Workload"],
+    "units": [
+      "Human Information Processing",
+      "Workload and Attention",
+      "Display and Control Design",
+      "Simulator Methods",
+      "Systems Safety",
+      "Design Project"
+    ]
+  },
+  {
+    "name": "Master of Sport and Performance Psychology",
+    "campusId": "swinburne-hawthorn",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 43,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "Looks at motivation, focus and pressure in athletes, performers and teams. Students learn mental skills training and practise coaching conversations. Fieldwork involves working with clubs or ensembles under the guidance of a supervisor.",
+    "majors": ["Performance Psychology"],
+    "units": [
+      "Motivation and Confidence",
+      "Mental Skills Training",
+      "Group Dynamics in Sport",
+      "Injury and Recovery",
+      "Performance Placement"
+    ]
+  },
+
+  {
+    "name": "Master of Psychology (Clinical)",
+    "campusId": "utas-sandy-bay",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 50,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "Training in the assessment and treatment of mental health conditions across the lifespan. Students learn in small groups, observe sessions and then take their own clients under supervision. The second year includes rural and regional placements.",
+    "majors": ["Clinical Psychology"],
+    "units": [
+      "Advanced Psychopathology",
+      "Therapy Models",
+      "Psychological Testing",
+      "Rural Mental Health",
+      "Clinical Placement 1",
+      "Clinical Placement 2",
+      "Research Thesis"
+    ]
+  },
+  {
+    "name": "Master of Counselling",
+    "campusId": "utas-sandy-bay",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 35,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "A practice-based course in individual and group counselling. Classes are small and stress self-awareness, with recorded practice sessions reviewed in supervision. Students spend part of the second year placed in a service and write a reflective case study.",
+    "majors": ["Counselling"],
+    "units": [
+      "Counselling Approaches",
+      "Self and Practice",
+      "Group Counselling",
+      "Mental Health in Context",
+      "Placement 1",
+      "Placement 2"
+    ]
+  },
+  {
+    "name": "Diploma of Psychology",
+    "campusId": "utas-sandy-bay",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 20,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": false,
+    "description": "A first-year-style course covering how people think, feel and act. Students learn to read research, run a small survey and write up findings. It is designed to lead into a psychology degree.",
+    "majors": ["General Psychology"],
+    "units": [
+      "Introduction to Psychology",
+      "Mind and Brain",
+      "Social Behaviour",
+      "Study and Research Skills"
+    ]
+  },
+  {
+    "name": "Master of Organisational Psychology",
+    "campusId": "utas-sandy-bay",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 41,
+    "field": "psych",
+    "graphField": "organisational-psychology",
+    "niche": true,
+    "placements": true,
+    "description": "This course covers how to improve selection, training and morale in workplaces. Students analyse data from a real workplace, run interviews and present findings to staff. Smaller class sizes mean regular feedback from teaching staff.",
+    "majors": ["Organisational Psychology"],
+    "units": [
+      "Work Behaviour",
+      "Selection and Appraisal",
+      "Training Evaluation",
+      "Employee Wellbeing",
+      "Applied Research",
+      "Workplace Placement"
+    ]
+  },
+  {
+    "name": "Master of Human Factors in Health and Maritime Systems",
+    "campusId": "utas-sandy-bay",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 42,
+    "field": "psych",
+    "graphField": "human-factors",
+    "niche": true,
+    "placements": false,
+    "description": "Studies how people make decisions and avoid mistakes in hospitals, ships and other safety-critical places. Students review incident reports, model team communication and test checklists in simulated settings. A final project redesigns a real procedure.",
+    "majors": ["Safety-critical Systems"],
+    "units": [
+      "Human Error and Resilience",
+      "Team Communication",
+      "Checklist and Procedure Design",
+      "Incident Analysis",
+      "Simulation Methods",
+      "Redesign Project"
+    ]
+  },
+  {
+    "name": "Diploma of Child and Family Support",
+    "campusId": "utas-sandy-bay",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 17,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "A year of study about children's development and how families cope with change. Students practise observing children, speaking with parents and recording what they see. They finish with time in a family support service.",
+    "majors": ["Family Support"],
+    "units": [
+      "Child Development",
+      "Family Systems",
+      "Observation and Recording",
+      "Safeguarding",
+      "Placement"
+    ]
+  },
+
+  {
+    "name": "Master of Clinical Psychology",
+    "campusId": "unisa-city-west",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 51,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "A two-year professional course that combines coursework in assessment and therapy with long supervised placements. Students learn a range of treatments and are expected to write detailed case formulations. A thesis rounds out the course.",
+    "majors": ["Clinical Psychology"],
+    "units": [
+      "Clinical Psychopathology",
+      "Assessment and Formulation",
+      "Cognitive Therapy",
+      "Mood and Anxiety Disorders",
+      "Placement A",
+      "Placement B",
+      "Thesis"
+    ]
+  },
+  {
+    "name": "Master of Counselling and Mental Health",
+    "campusId": "unisa-city-west",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 37,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "Develops counselling skills alongside a solid grounding in mental health conditions and the services that treat them. Students practise in skills labs, discuss complex cases and take on supervised placement work. The program stresses ethical, reflective practice.",
+    "majors": ["Mental Health Counselling", "Trauma Counselling"],
+    "units": [
+      "Mental Health Conditions",
+      "Counselling Theory",
+      "Trauma and Abuse",
+      "Skills Laboratory",
+      "Ethics and Law",
+      "Supervised Placement"
+    ]
+  },
+  {
+    "name": "Diploma of Counselling",
+    "campusId": "unisa-city-west",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 19,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "An entry-level course teaching the basics of listening and responding to people in distress. Students work in pairs and small groups, write short reflections and spend time with an agency. It can lead into a counselling master's degree.",
+    "majors": ["Counselling Basics"],
+    "units": [
+      "Counselling Fundamentals",
+      "Listening and Responding",
+      "Crisis and Risk",
+      "Professional Boundaries",
+      "Agency Placement"
+    ]
+  },
+  {
+    "name": "Master of Organisational Psychology",
+    "campusId": "unisa-city-west",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 44,
+    "field": "psych",
+    "graphField": "organisational-psychology",
+    "niche": true,
+    "placements": true,
+    "description": "Focuses on the evidence behind good people management. Students design a selection process, evaluate a training program and study how organisations change. Work placements give them practice in surveys, interviews and report writing.",
+    "majors": ["Organisational Psychology", "People Analytics"],
+    "units": [
+      "Selection Methods",
+      "Training and Development",
+      "Organisational Change",
+      "Workplace Surveys",
+      "Statistics for Practice",
+      "Placement"
+    ]
+  },
+  {
+    "name": "Master of Human Factors and Safety Science",
+    "campusId": "unisa-city-west",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 46,
+    "field": "psych",
+    "graphField": "human-factors",
+    "niche": true,
+    "placements": true,
+    "description": "Explores why accidents happen and how systems can be designed to prevent them. Students study human behaviour in complex settings, analyse accidents with structured methods and propose changes. An industry placement supports the final project.",
+    "majors": ["Safety Science", "Human Factors"],
+    "units": [
+      "Accident Analysis",
+      "Human Performance Limits",
+      "Safety Management Systems",
+      "Risk Perception",
+      "Fieldwork Methods",
+      "Industry Placement"
+    ]
+  },
+  {
+    "name": "Master of Educational and Developmental Psychology",
+    "campusId": "unisa-city-west",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 47,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "For students who want to work with children and young people in learning settings. They learn to assess learning difficulties, plan support and work with teachers and families. Supervised school placements form a large part of the second year.",
+    "majors": ["Educational Psychology"],
+    "units": [
+      "Learning and Cognition",
+      "Learning Difficulties",
+      "Child Assessment",
+      "Consulting with Schools",
+      "Family Collaboration",
+      "School Placement"
+    ]
+  },
+
+  {
+    "name": "Master of Psychology (Clinical)",
+    "campusId": "monash-clayton",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 58,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "A demanding two-year program that trains students to assess and treat a wide range of mental health conditions. Teaching includes small-group case seminars, supervised client work in the teaching clinic and a research thesis.",
+    "majors": ["Clinical Psychology", "Clinical Neuroscience"],
+    "units": [
+      "Psychopathology",
+      "Therapeutic Models",
+      "Clinical Assessment",
+      "Neuroscience for Clinicians",
+      "Clinic Practicum 1",
+      "Clinic Practicum 2",
+      "Thesis A",
+      "Thesis B"
+    ]
+  },
+  {
+    "name": "Master of Counselling",
+    "campusId": "monash-clayton",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 40,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "Teaches counselling as both a craft and a science. Students practise skills in videoed sessions, study major therapy models and learn to work with people from many backgrounds. The second year is mostly supervised placement.",
+    "majors": ["Counselling"],
+    "units": [
+      "Models of Counselling",
+      "Skills Practice",
+      "Cultural Competence",
+      "Anxiety and Depression",
+      "Placement 1",
+      "Placement 2"
+    ]
+  },
+  {
+    "name": "Diploma of Psychological Science",
+    "campusId": "monash-clayton",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 24,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": false,
+    "description": "A one-year foundation in the science of behaviour. Students are taught how psychological studies are designed, how to analyse simple data sets and how to present results. It is a pathway into degree-level psychology.",
+    "majors": ["Psychological Science"],
+    "units": [
+      "Foundations of Psychology",
+      "Research Design",
+      "Introductory Statistics",
+      "Brain and Behaviour",
+      "Scientific Writing"
+    ]
+  },
+  {
+    "name": "Master of Organisational Psychology",
+    "campusId": "monash-clayton",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 49,
+    "field": "psych",
+    "graphField": "organisational-psychology",
+    "niche": true,
+    "placements": true,
+    "description": "Covers the research and practice behind selection, leadership, teams and workplace change. Students complete consulting projects in groups, then a supervised placement where they apply what they have learned. Coursework includes psychometric testing.",
+    "majors": ["Organisational Psychology"],
+    "units": [
+      "Psychometric Testing",
+      "Leadership Theory",
+      "Team Processes",
+      "Change Management",
+      "Occupational Health",
+      "Consulting Projects",
+      "Placement"
+    ]
+  },
+  {
+    "name": "Master of Human Factors",
+    "campusId": "monash-clayton",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 50,
+    "field": "psych",
+    "graphField": "human-factors",
+    "niche": true,
+    "placements": false,
+    "description": "An applied study of how people perceive, decide and act within technical systems. Students run experiments on attention and fatigue, test vehicle and device interfaces and learn to turn findings into design advice. A research project completes the second year.",
+    "majors": ["Human Factors", "Transport Safety"],
+    "units": [
+      "Perception and Action",
+      "Fatigue Science",
+      "Interface Evaluation",
+      "Experimental Methods",
+      "Transport Human Factors",
+      "Research Project"
+    ]
+  },
+  {
+    "name": "Master of Forensic Mental Health",
+    "campusId": "monash-clayton",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 52,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "Studies mental illness and offending, and how mental health professionals work with courts and corrections. Students read case material, practise risk assessment interviews and write reports. Placement work is supervised.",
+    "majors": ["Forensic Mental Health"],
+    "units": [
+      "Mental Illness and Offending",
+      "Risk Assessment",
+      "Legal Frameworks",
+      "Report Writing",
+      "Forensic Placement"
+    ]
+  },
+
+  {
+    "name": "Master of Clinical Psychology",
+    "campusId": "deakin-waurn-ponds",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 49,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "A two-year course in assessing and treating mental health problems, taught with a focus on regional communities. Students learn through case seminars, role-play and supervised placements. A research project is completed in the final year.",
+    "majors": ["Clinical Psychology"],
+    "units": [
+      "Psychopathology",
+      "Assessment Methods",
+      "Evidence-based Treatment",
+      "Regional and Rural Practice",
+      "Clinical Placement 1",
+      "Clinical Placement 2",
+      "Research Project"
+    ]
+  },
+  {
+    "name": "Master of Counselling",
+    "campusId": "deakin-waurn-ponds",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 34,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "A practical course for people who want to counsel in schools, clinics or community services. Students build skills in short, focused sessions, learn about grief, relationships and stress, and reflect on their own practice with a supervisor.",
+    "majors": ["Counselling", "School Counselling"],
+    "units": [
+      "Counselling Skills",
+      "Grief and Relationships",
+      "Stress and Wellbeing",
+      "Counselling in Schools",
+      "Placement 1",
+      "Placement 2"
+    ]
+  },
+  {
+    "name": "Diploma of Counselling and Support Work",
+    "campusId": "deakin-waurn-ponds",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 18,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "A one-year course in helping people through difficult times. Learners practise interviewing, plan support for clients and study how to look after their own wellbeing. A placement with a community organisation completes the year.",
+    "majors": ["Support Work"],
+    "units": [
+      "Helping Relationships",
+      "Interviewing",
+      "Support Planning",
+      "Self-care for Workers",
+      "Community Placement"
+    ]
+  },
+  {
+    "name": "Master of Organisational Psychology",
+    "campusId": "deakin-waurn-ponds",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 40,
+    "field": "psych",
+    "graphField": "organisational-psychology",
+    "niche": true,
+    "placements": true,
+    "description": "Teaches how to apply psychology to selection, development and workplace wellbeing, with attention to regional and smaller organisations. Projects use real staff data. Students finish with a supervised placement and a short research paper.",
+    "majors": ["Organisational Psychology"],
+    "units": [
+      "Individual Differences at Work",
+      "Selection and Development",
+      "Wellbeing at Work",
+      "Applied Statistics",
+      "Research Paper",
+      "Placement"
+    ]
+  },
+  {
+    "name": "Diploma of Human Factors and Workplace Safety",
+    "campusId": "deakin-waurn-ponds",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 23,
+    "field": "psych",
+    "graphField": "human-factors",
+    "niche": true,
+    "placements": false,
+    "description": "A short course on how design and human limits affect safety at work. Students walk through workplaces, interview workers and learn to suggest simple, low-cost fixes. It leads into postgraduate study in the field.",
+    "majors": ["Workplace Safety"],
+    "units": [
+      "Introduction to Human Factors",
+      "Hazard Identification",
+      "Worker Interviews",
+      "Layout and Design",
+      "Improvement Proposals"
+    ]
+  },
+  {
+    "name": "Master of Human Factors and Usability",
+    "campusId": "deakin-waurn-ponds",
+    "level": "Master's",
+    "years": 1,
+    "feeK": 45,
+    "field": "psych",
+    "graphField": "human-factors",
+    "niche": true,
+    "placements": false,
+    "description": "A fast one-year course for graduates who want to study how people use systems and products. Students run usability sessions, analyse errors and report on how designs could change. Most assessment is project work.",
+    "majors": ["Usability"],
+    "units": [
+      "Human Factors Foundations",
+      "Usability Methods",
+      "Error Analysis",
+      "Design Critique",
+      "Applied Project"
+    ]
+  },
+  {
+    "name": "Master of Child and Adolescent Mental Health",
+    "campusId": "deakin-waurn-ponds",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 39,
+    "field": "psych",
+    "graphField": "psych",
+    "niche": false,
+    "placements": true,
+    "description": "Prepares graduates to support children and teenagers facing emotional and behavioural difficulties. Students learn about development, family dynamics and school-based programs, then practise play-based and talk-based approaches under supervision.",
+    "majors": ["Child and Adolescent Mental Health"],
+    "units": [
+      "Child Development",
+      "Emotional and Behavioural Problems",
+      "Family Interventions",
+      "Play-based Approaches",
+      "Youth Placement"
+    ]
+  }
+]

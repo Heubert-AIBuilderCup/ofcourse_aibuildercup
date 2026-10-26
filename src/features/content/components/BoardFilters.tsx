@@ -15,8 +15,8 @@ import { BOARD_TYPES, type BoardParams, type BoardStaff, boardHref } from '../li
 type Option = { id: string; label: string }
 
 /**
- * The board's four selects, a quiet row under its tabs. Each value lives in the address, so a view is a link:
- * a change replaces the address, keeping the other filters.
+ * The board's four selects, beside its tabs (below @xl, two by two under them). Each value lives
+ * in the address, so a view is a link: a change replaces the address, keeping the other filters.
  */
 export function BoardFilters({
   params,
@@ -32,7 +32,7 @@ export function BoardFilters({
     router.replace(boardHref({ ...params, [key]: value } as BoardParams), { scroll: false })
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-3 @max-xl:grid @max-xl:grow @max-xl:grid-cols-2 @max-xl:gap-3">
       <FilterSelect
         label="Assignee"
         value={params.assignee}
@@ -79,12 +79,18 @@ function FilterSelect({
 }) {
   const id = useId()
   return (
-    <div className="flex items-center gap-1.5">
-      <label htmlFor={id} className="text-caption text-muted-foreground">
+    <div className="flex items-center gap-2 @max-xl:flex-col @max-xl:items-stretch @max-xl:gap-1">
+      <label
+        htmlFor={id}
+        className="font-heading text-caption font-medium tracking-widest text-muted-foreground uppercase"
+      >
         {label}
       </label>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger id={id} className="h-8 w-32 px-2 py-1 text-caption">
+        <SelectTrigger
+          id={id}
+          className="h-11 w-auto min-w-30 gap-3 border-foreground/30 text-base @max-xl:w-full @max-xl:min-w-0"
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

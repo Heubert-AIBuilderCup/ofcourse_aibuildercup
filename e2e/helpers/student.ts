@@ -2,7 +2,7 @@
 // account may land, wherever she left off. And the walk through them a spec repeats: a new
 // student, and steps 01 and 02 answered one question per screen by the options' visible names.
 
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 import { freshEmail } from './accounts'
 import { devLogin } from './login'
 
@@ -49,14 +49,14 @@ export async function signOutViaMenu(page: Page): Promise<void> {
 /** A question (or a relative-form field) by its visible name, and the option to give it. */
 export type Tap = readonly [question: string, option: string]
 
-// Step 01's questions as the screen asks them, to their slugs as PRODUCT.md lists them: each has
-// its own screen at /onboarding/facts/<slug>. Written out, not imported, so a slug renamed in the
-// product breaks these tests instead of being followed by them.
+// Step 01's questions as the screen asks them (who pays is hidden since 16 Oct 2026), to their
+// slugs as PRODUCT.md lists them: each has its own screen at /onboarding/facts/<slug>. Written
+// out, not imported, so a slug renamed in the product breaks these tests instead of being
+// followed by them.
 const FACT_SLUGS: Readonly<Record<string, string>> = {
   'Where are you right now?': 'where',
   Amount: 'amount',
   'It covers': 'covers',
-  'Who pays': 'who-pays',
   'Is this a hard limit, or roughly?': 'limit',
   'Earliest start': 'earliest',
   "Latest you'd accept": 'latest',
@@ -78,15 +78,41 @@ export const card = (page: Page, question: string, name: string) =>
   page.getByRole('radiogroup', { name: question }).getByRole('radio', { name, exact: true })
 
 /**
+ * Tap a single-choice card not chosen yet, and wait for both things the tap does: its save comes
+ * back (a server action's POST), and the screen moves on by itself, to the next question or out
+ * of the step from its last (QuestionScreen's `choose`), so the URL leaves `path`.
+ */
+async function chooseAndMoveOn(page: Page, chosen: Locator, path: string): Promise<void> {
+  const saved = page.waitForResponse(
+    (r) => r.request().method() === 'POST' && r.request().headers()['next-action'] !== undefined,
+  )
+  await chosen.click()
+  await saved
+  await page.waitForURL((url) => url.pathname !== path)
+}
+
+/**
+ * Tap a single-choice card on the question on screen and see that question again as she left
+ * it: the tap saves and moves on by itself, then Back returns to it with the card checked. Within
+ * a step the screen keeps its saves, so the question still says it is saved; from a step's last
+ * question Back opens it afresh from what was stored. For a check of the tapped screen that the
+ * move on would otherwise race.
+ */
+export async function chooseAndComeBack(page: Page, chosen: Locator): Promise<void> {
+  const path = new URL(page.url()).pathname
+  await chooseAndMoveOn(page, chosen, path)
+  await page.getByRole('button', { name: 'Back', exact: true }).click()
+  await page.waitForURL((url) => url.pathname === path)
+  await expect(chosen).toHaveAttribute('aria-checked', 'true')
+}
+
+/**
  * Answer a step 01 question on its own screen: open it by URL, tap the option's card in the
- * question's radiogroup, and wait until the screen says the answer is saved.
+ * question's radiogroup, and wait until the answer is saved and the screen has moved on.
  */
 export async function answerFact(page: Page, [question, option]: Tap): Promise<void> {
   await page.goto(factUrl(question))
-  const chosen = card(page, question, option)
-  await chosen.click()
-  await expect(chosen).toHaveAttribute('aria-checked', 'true')
-  await expect(page.getByText('Saved. Tap another answer to change it.')).toBeVisible()
+  await chooseAndMoveOn(page, card(page, question, option), factUrl(question))
 }
 
 // Step 02's questions as the screen asks them, to their slugs as PRODUCT.md lists them: written
@@ -96,8 +122,6 @@ const STUDY_SLUGS: Readonly<Record<string, string>> = {
   'Which field?': 'field',
   'Pick up to three': 'areas',
   'Study level': 'level',
-  'How you like to learn': 'learning',
-  "Course length you'd prefer": 'length',
 }
 
 /** The URL of a step 02 question's screen, by the question it asks. */
@@ -117,18 +141,18 @@ export const areaCheck = (page: Page, area: string) =>
     .getByRole('checkbox', { name: new RegExp(`^${area}`) })
 
 /**
- * Answer a step 02 question on its own screen: open it by URL, tap the option (its card, or for
- * the areas its checkbox), and wait until the screen says the answer is saved.
+ * Answer a step 02 question on its own screen: open it by URL and tap the option. The areas (a
+ * multi-select, its checkbox) stay on screen until it says the answer is saved; a card is
+ * waited on as `answerFact`'s is, saved and moved on.
  */
 export async function answerStudy(page: Page, [question, option]: Tap): Promise<void> {
   await page.goto(studyUrl(question))
-  const areas = question === AREAS
-  const chosen = areas ? areaCheck(page, option) : card(page, question, option)
+  if (question !== AREAS) {
+    await chooseAndMoveOn(page, card(page, question, option), studyUrl(question))
+    return
+  }
+  const chosen = areaCheck(page, option)
   await chosen.click()
   await expect(chosen).toHaveAttribute('aria-checked', 'true')
-  await expect(
-    page.getByText(
-      areas ? 'Saved. Tap an area again to remove it.' : 'Saved. Tap another answer to change it.',
-    ),
-  ).toBeVisible()
+  await expect(page.getByText('Saved. Tap an area again to remove it.')).toBeVisible()
 }

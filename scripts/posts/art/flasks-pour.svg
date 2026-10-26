@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="780" viewBox="0 0 1080 780">
+  <title>A jug fills one round flask to the top; four wait empty</title>
+  <!-- You can do anything: a jug fills one round flask to the top, four wait empty. Drawn in ink and white: the Pop tint shows ink as deep blue and white as yellow. -->
+  <rect width="1080" height="780" fill="#FFFFFF"/>
+  <!-- the jug, tipped toward the first flask -->
+  <g transform="rotate(-35 300 230)">
+    <path d="M230 150 L370 150 L390 330 Q390 350 370 350 L230 350 Q210 350 210 330 Z" fill="#16191B" stroke="#16191B" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M230 150 L190 120 L250 150 Z" fill="#16191B" stroke="#16191B" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M390 190 Q450 200 440 260 Q432 300 385 300" fill="none" stroke="#16191B" stroke-width="12" stroke-linecap="round"/>
+  </g>
+  <!-- the stream -->
+  <path d="M150 206 Q138 330 140 470" fill="none" stroke="#16191B" stroke-width="16" stroke-linecap="round"/>
+  <!-- five flasks: the first full -->
+  <g stroke="#16191B" stroke-width="8" stroke-linejoin="round">
+    <rect x="115" y="470" width="50" height="70" fill="#16191B"/>
+    <circle cx="140" cy="610" r="85" fill="#16191B"/>
+    <rect x="315" y="470" width="50" height="70" fill="#FFFFFF"/>
+    <circle cx="340" cy="610" r="85" fill="#FFFFFF"/>
+    <rect x="515" y="470" width="50" height="70" fill="#FFFFFF"/>
+    <circle cx="540" cy="610" r="85" fill="#FFFFFF"/>
+    <rect x="715" y="470" width="50" height="70" fill="#FFFFFF"/>
+    <circle cx="740" cy="610" r="85" fill="#FFFFFF"/>
+    <rect x="915" y="470" width="50" height="70" fill="#FFFFFF"/>
+    <circle cx="940" cy="610" r="85" fill="#FFFFFF"/>
+  </g>
+  <rect x="40" y="712" width="1000" height="10" fill="#16191B"/>
+  <text x="1060" y="764" font-family="Barlow" font-weight="400" font-size="20" fill="#5F5D58" text-anchor="end">Illustration idea: @pjmilani</text>
+</svg>

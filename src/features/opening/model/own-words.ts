@@ -16,7 +16,14 @@ import type {
 } from '@/shared/types/student'
 import { formatEnglish, parseEnglish } from './english'
 import { OWN_WORDS_STEP_OF, PERSON, QUESTION_STEPS } from './onboarding'
-import { DRAWN_TO_AREAS, display, isVisible, PARTICULAR, questionOf } from './questions'
+import {
+  DRAWN_TO_AREAS,
+  display,
+  HIDDEN_QUESTIONS,
+  isVisible,
+  PARTICULAR,
+  questionOf,
+} from './questions'
 
 export type OwnWordsChip = {
   key: QuestionKey
@@ -36,12 +43,13 @@ export type OwnWordsModel = {
 
 /**
  * The step's questions as the model sees them: key, question, options (amounts as "AUD 30k").
- * The app's reader and the real-Gemini check both send these.
+ * The app's reader and the real-Gemini check both send these. A hidden question is never asked,
+ * so the model never sees it.
  */
 export function ownWordsQuestions(step: OwnWordsStep) {
   return QUESTION_STEPS[OWN_WORDS_STEP_OF[step]].questions.flatMap((q) => {
     // Her person (step 03's "Who, and where?") is no stored answer.
-    if (q.key === PERSON) return []
+    if (q.key === PERSON || HIDDEN_QUESTIONS.has(q.key)) return []
     const { key, options } = questionOf(q.key)
     return [
       {
@@ -352,10 +360,9 @@ export function checkOwnWords(
     }))
   const wellbeing = tags.filter((tag) => tag.wellbeing).map((tag) => loose(tag.quote))
 
-  // Her person (step 03's "Who, and where?") is no stored answer: no chip fills it.
-  const keys = new Set<string>(
-    QUESTION_STEPS[OWN_WORDS_STEP_OF[step]].questions.map((q) => q.key).filter((k) => k !== PERSON),
-  )
+  // Her person (step 03's "Who, and where?") is no stored answer, and a hidden question is never
+  // asked: no chip fills either.
+  const keys = new Set<string>(ownWordsQuestions(step).map((q) => q.key))
   // Rupees and lakh are read in the currency of a where read in these same words, before hers.
   const whereChip = keys.has('where')
     ? model.chips.find(

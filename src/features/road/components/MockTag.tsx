@@ -1,7 +1,7 @@
 import { cn } from '@/shared/lib/utils'
 
-/** The dashed "mock" tag after a line whose figures are preview data. */
-export function MockTag({ className }: { className?: string }) {
+/** The dashed tag after a line whose figures are preview data: "mock" unless `label` says else. */
+export function MockTag({ label = 'mock', className }: { label?: string; className?: string }) {
   return (
     <span
       className={cn(
@@ -9,7 +9,7 @@ export function MockTag({ className }: { className?: string }) {
         className,
       )}
     >
-      mock
+      {label}
     </span>
   )
 }

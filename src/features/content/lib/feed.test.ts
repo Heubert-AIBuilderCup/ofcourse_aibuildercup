@@ -11,14 +11,19 @@ import {
   type FeedPost,
   type FeedVersion,
   type Filters,
+  feedCardOf,
   feedOrder,
+  feedPage,
   filterHref,
   isLive,
   matchesWords,
   parseFilters,
   parseMarket,
+  postingAccounts,
   slideAlt,
   slideWords,
+  toggled,
+  toggledShow,
   versionOf,
 } from './feed'
 
@@ -91,10 +96,10 @@ function blog(id: string, approvedAt: string, over: Partial<FeedBlog> = {}): Fee
 }
 
 const F = (over: Partial<Filters> = {}): Filters => ({
-  destination: null,
+  destination: [],
   home: null,
-  theme: null,
-  age: null,
+  theme: [],
+  age: [],
   q: '',
   ...over,
 })
@@ -167,12 +172,12 @@ describe('the feed with blogs (BR11, 81)', () => {
 
   it('keeps a blog under a chip it carries and drops it under another, as a post', () => {
     const all: FeedItem[] = [...posts, books, work]
-    expect(ids(applyFilters(all, F({ theme: 'books-movies' })))).toEqual([
+    expect(ids(applyFilters(all, F({ theme: ['books-movies'] })))).toEqual([
       'post-1h',
       'post-3h',
       'blog-books',
     ])
-    expect(ids(applyFilters(all, F({ theme: 'work-study-life' })))).toEqual([
+    expect(ids(applyFilters(all, F({ theme: ['work-study-life'] })))).toEqual([
       'post-1h',
       'post-3h',
       'blog-work',
@@ -219,17 +224,17 @@ describe('parseFilters (81, 83)', () => {
   it('reads a known tag value per group, the home market in any case, and the trimmed words', () => {
     expect(
       parseFilters({
-        destination: 'AU',
+        destination: ['AU'],
         home: 'np',
-        theme: 'books-movies',
-        age: '21-25',
+        theme: ['books-movies'],
+        age: ['21-25'],
         q: '  Rent in  Manchester ',
       }),
     ).toEqual({
-      destination: 'AU',
+      destination: ['AU'],
       home: 'NP',
-      theme: 'books-movies',
-      age: '21-25',
+      theme: ['books-movies'],
+      age: ['21-25'],
       q: 'Rent in  Manchester',
       chosen: true,
     })
@@ -242,15 +247,52 @@ describe('parseFilters (81, 83)', () => {
     expect(parseFilters({ market: 'NP' }).chosen).toBe(false)
   })
 
-  it('drops a value the tag file lacks, a repeated key and a missing one', () => {
+  it('drops a value the tag file lacks, a missing one, and a repeated home or words key', () => {
     expect(
-      parseFilters({ destination: 'XX', home: ['NP'], theme: 'cats', age: undefined, q: ['a'] }),
+      parseFilters({
+        destination: 'XX',
+        home: ['NP', 'IN'],
+        theme: 'cats',
+        age: undefined,
+        q: ['a'],
+      }),
     ).toEqual(F({ chosen: true }))
     expect(parseFilters({})).toEqual(F({ chosen: false }))
   })
 
+  it('reads several values of a group from a repeated key, each once, in the tag file’s order', () => {
+    expect(
+      parseFilters({
+        destination: ['UK', 'XX', 'AU', 'UK'],
+        theme: ['books-movies'],
+        age: '21-25',
+      }),
+    ).toEqual(
+      F({ destination: ['AU', 'UK'], theme: ['books-movies'], age: ['21-25'], chosen: true }),
+    )
+  })
+
   it('bounds the words', () => {
     expect(parseFilters({ q: 'a'.repeat(300) }).q).toHaveLength(100)
+  })
+
+  it('shows everything without a `show` key, even beside other filters, so a link from elsewhere misses nothing', () => {
+    expect(parseFilters({}).show).toBeUndefined()
+    expect(parseFilters({ destination: 'AU', q: 'rent' }).show).toBeUndefined()
+  })
+
+  it('with a `show` key, shows only the kinds it names, each once, in Updates, Posts, Blogs order', () => {
+    expect(parseFilters({ show: ['blogs', 'updates', 'cats', 'blogs'] }).show).toEqual([
+      'updates',
+      'blogs',
+    ])
+    expect(parseFilters({ show: 'posts' }).show).toEqual(['posts'])
+    // Every box unticked: the key is there, empty.
+    expect(parseFilters({ show: '' }).show).toEqual([])
+  })
+
+  it('counts a `show` key as naming the filters, so her roadmaps do not fill them again (84)', () => {
+    expect(parseFilters({ show: 'updates' }).chosen).toBe(true)
   })
 
   it('bounds Nepali, Hindi or Thai words at 100 characters as a reader sees them, never cutting one (GD40)', () => {
@@ -280,25 +322,42 @@ describe('applyFilters (81, 83)', () => {
   const ids = (posts: FeedPost[]) => posts.map((p) => p.id)
 
   it('keeps the posts tagged with the chip or untagged in its group, in their order', () => {
-    expect(ids(applyFilters(all, F({ destination: 'AU' })))).toEqual(['au', 'au-books', 'untagged'])
-  })
-
-  it('combines chips across groups', () => {
-    expect(ids(applyFilters(all, F({ destination: 'AU', theme: 'books-movies' })))).toEqual([
+    expect(ids(applyFilters(all, F({ destination: ['AU'] })))).toEqual([
       'au',
       'au-books',
       'untagged',
     ])
-    expect(ids(applyFilters(all, F({ destination: 'UK', theme: 'work-study-life' })))).toEqual([
+  })
+
+  it('combines chips across groups', () => {
+    expect(ids(applyFilters(all, F({ destination: ['AU'], theme: ['books-movies'] })))).toEqual([
+      'au',
+      'au-books',
+      'untagged',
+    ])
+    expect(ids(applyFilters(all, F({ destination: ['UK'], theme: ['work-study-life'] })))).toEqual([
       'uk',
       'untagged',
     ])
   })
 
+  it('keeps a post carrying any of a group’s chosen values, groups still combined with AND', () => {
+    expect(ids(applyFilters(all, F({ destination: ['AU', 'UK'] })))).toEqual(ids(all))
+    expect(
+      ids(
+        applyFilters(
+          all,
+          F({ destination: ['AU', 'NZ'], theme: ['books-movies', 'work-study-life'] }),
+        ),
+      ),
+    ).toEqual(['au', 'au-books', 'untagged'])
+    expect(ids(applyFilters(all, F({ destination: ['NZ', 'US'] })))).toEqual(['untagged'])
+  })
+
   it('combines the words with the chips, and leaves everything with no filter', () => {
     expect(ids(applyFilters(all, F()))).toEqual(ids(all))
-    expect(ids(applyFilters(all, F({ destination: 'AU', q: 'au-books' })))).toEqual(['au-books'])
-    expect(applyFilters(all, F({ destination: 'AU', q: 'nothing here' }))).toEqual([])
+    expect(ids(applyFilters(all, F({ destination: ['AU'], q: 'au-books' })))).toEqual(['au-books'])
+    expect(applyFilters(all, F({ destination: ['AU'], q: 'nothing here' }))).toEqual([])
   })
 })
 
@@ -364,7 +423,7 @@ describe('matchesWords (83)', () => {
 
 describe('filterHref (81)', () => {
   it('changes one filter and keeps the others, in a fixed order', () => {
-    expect(filterHref('/feed', F({ home: 'NP', q: 'rent' }), { theme: 'books-movies' })).toBe(
+    expect(filterHref('/feed', F({ home: 'NP', q: 'rent' }), { theme: ['books-movies'] })).toBe(
       '/feed?home=NP&theme=books-movies&q=rent',
     )
     expect(filterHref('/feed/p1', F({ home: 'NP' }), {})).toBe('/feed/p1?home=NP')
@@ -378,12 +437,58 @@ describe('filterHref (81)', () => {
     expect(filterHref('/feed', F(), { q: 'rent & bills' })).toBe('/feed?q=rent+%26+bills')
   })
 
+  it('repeats the key for each value of a group, in the order given', () => {
+    expect(filterHref('/feed', F({ destination: ['AU', 'UK'], home: 'NP' }), {})).toBe(
+      '/feed?destination=AU&destination=UK&home=NP',
+    )
+    expect(filterHref('/feed', F({ destination: ['AU'] }), { destination: [] })).toBe('/feed?q=')
+  })
+
   it('keeps naming the filters once the student chose, so an emptied URL is not a bare one (84)', () => {
     // Clear on the last chip, and any link from a page whose URL named its filters.
     expect(filterHref('/feed/p1', F({ home: 'NP' }), { home: null })).toBe('/feed/p1?q=')
     expect(filterHref('/feed/p1', F({ chosen: true }), {})).toBe('/feed/p1?q=')
     // A page opened bare links bare.
     expect(filterHref('/feed/p1', F({ chosen: false }), {})).toBe('/feed/p1')
+  })
+
+  it('repeats `show` for each kind ticked, first, and leaves it out when all three are', () => {
+    expect(filterHref('/feed', F({ home: 'NP' }), { show: ['updates', 'blogs'] })).toBe(
+      '/feed?show=updates&show=blogs&home=NP',
+    )
+    expect(filterHref('/feed/p1', F({ show: ['posts'] }), {})).toBe('/feed/p1?show=posts')
+    expect(filterHref('/feed', F({ home: 'NP' }), { show: ['updates', 'posts', 'blogs'] })).toBe(
+      '/feed?home=NP',
+    )
+  })
+
+  it('names an empty `show` when every kind is unticked', () => {
+    expect(filterHref('/feed', F(), { show: [] })).toBe('/feed?show=')
+  })
+})
+
+describe('toggledShow (the Show group)', () => {
+  it('unticks a kind shown, ticks one hidden, from all three when the URL named none', () => {
+    expect(toggledShow(F(), 'posts')).toEqual({ show: ['updates', 'blogs'] })
+    expect(toggledShow(F({ show: ['updates'] }), 'blogs')).toEqual({ show: ['updates', 'blogs'] })
+    expect(toggledShow(F({ show: ['updates'] }), 'updates')).toEqual({ show: [] })
+  })
+})
+
+describe('toggled (several values per group)', () => {
+  it('adds a value to its group, or takes it away, keeping the tag file’s order', () => {
+    expect(toggled(F({ destination: ['UK'] }), 'destination', 'AU')).toEqual({
+      destination: ['AU', 'UK'],
+    })
+    expect(toggled(F({ destination: ['AU', 'UK'] }), 'destination', 'AU')).toEqual({
+      destination: ['UK'],
+    })
+    expect(toggled(F(), 'age', '21-25')).toEqual({ age: ['21-25'] })
+  })
+
+  it('keeps home to one value: choosing one replaces it, choosing it again clears it', () => {
+    expect(toggled(F({ home: 'NP' }), 'home', 'IN')).toEqual({ home: 'IN' })
+    expect(toggled(F({ home: 'NP' }), 'home', 'NP')).toEqual({ home: null })
   })
 })
 
@@ -505,5 +610,144 @@ describe('cardSourceLine (71)', () => {
   it('shows the drawn line when it was whole, and none when no slide has one', () => {
     expect(cardSourceLine([laid(null), laid('Source: Guide · ¶2')])).toBe('Source: Guide · ¶2')
     expect(cardSourceLine([laid(null)])).toBeNull()
+  })
+})
+
+describe("feedPage (the feed's infinite scroll)", () => {
+  const ids = (items: FeedItem[]) => items.map((i) => i.id)
+  const ten = Array.from({ length: 10 }, (_, i) => post(`p${i}`, ago((i + 1) * HOUR)))
+
+  it('keeps the order it is given and takes `size` items from `offset`', () => {
+    expect(ids(feedPage(ten, F(), 0, 4))).toEqual(['p0', 'p1', 'p2', 'p3'])
+    expect(ids(feedPage(ten, F(), 4, 4))).toEqual(['p4', 'p5', 'p6', 'p7'])
+    expect(ids(feedPage([...ten].reverse(), F(), 0, 2))).toEqual(['p9', 'p8'])
+  })
+
+  it('applies the filters before slicing, so the offset counts only what the filters leave', () => {
+    const tagged = ten.map((p, i) => ({
+      ...p,
+      tags: [i % 2 ? 'theme:books-movies' : 'theme:work-study-life'],
+    }))
+    // Under Books and movies only the odd ones stay: p1, p3, p5, p7, p9.
+    expect(ids(feedPage(tagged, F({ theme: ['books-movies'] }), 0, 2))).toEqual(['p1', 'p3'])
+    expect(ids(feedPage(tagged, F({ theme: ['books-movies'] }), 2, 2))).toEqual(['p5', 'p7'])
+  })
+
+  it('drops posts or blogs the Show group unticked, before slicing, so every next page does too', () => {
+    const mixed = [
+      post('p1', ago(HOUR)),
+      blog('b1', ago(2 * HOUR)),
+      post('p2', ago(3 * HOUR)),
+      blog('b2', ago(4 * HOUR)),
+    ]
+    expect(ids(feedPage(mixed, F({ show: ['updates', 'blogs'] }), 0, 1))).toEqual(['b1'])
+    expect(ids(feedPage(mixed, F({ show: ['updates', 'blogs'] }), 1, 1))).toEqual(['b2'])
+    expect(ids(feedPage(mixed, F({ show: ['posts'] }), 0, 4))).toEqual(['p1', 'p2'])
+    expect(feedPage(mixed, F({ show: ['updates'] }), 0, 4)).toEqual([])
+    expect(ids(feedPage(mixed, F(), 0, 4))).toEqual(['p1', 'b1', 'p2', 'b2'])
+  })
+
+  it('returns a short last page, and nothing past the end', () => {
+    expect(ids(feedPage(ten, F(), 8, 4))).toEqual(['p8', 'p9'])
+    expect(feedPage(ten, F(), 12, 4)).toEqual([])
+  })
+})
+
+describe('postingAccounts (who posted it, shown beside the post)', () => {
+  it('is the accounts it was shared to, in the order listed, an unlisted one by its id', () => {
+    const p = post('p1', ago(HOUR), {}, { sharedTo: ['comics', 'gone', 'main'] })
+    expect(postingAccounts(p)).toEqual(['@ofcourse_ai', '@ofcourse_comics', 'gone'])
+  })
+
+  it('is the page its Instagram version went out under when it was never shared', () => {
+    const instagram = {
+      url: 'https://www.instagram.com/p/x/',
+      handle: 'ofcourse.main',
+      pageUrl: 'https://www.instagram.com/ofcourse.main/',
+    }
+    expect(postingAccounts(post('p1', ago(HOUR), {}, { instagram, sharedTo: [] }))).toEqual([
+      '@ofcourse.main',
+    ])
+  })
+
+  it('is its page by the rule otherwise: a comic’s page, else the page its theme picks', () => {
+    expect(postingAccounts(post('c', ago(HOUR), {}, { courseId: 'course-1' }))).toEqual([
+      '@ofcourse_comics',
+    ])
+    const books = post('b', ago(HOUR), {}, { tags: ['destination:AU', 'theme:books-movies'] })
+    expect(postingAccounts(books)).toEqual(['@ofcourse_philosophy'])
+  })
+
+  it('falls back to the main page with nothing else to go on', () => {
+    expect(postingAccounts(post('p', ago(HOUR)))).toEqual(['@ofcourse_ai'])
+  })
+})
+
+describe('feedCardOf (what a feed card shows, and all the browser is sent)', () => {
+  it('shapes a post with the version the home chip asks for and the first line of its excerpt', () => {
+    const p = post(
+      'p1',
+      ago(HOUR),
+      { layer: 'personal', whyLine: 'You weighted work rights.' },
+      {
+        title: 'Paid work',
+        sourceLine: 'Source: Guide · ¶2',
+        language: 'ne',
+        main: { excerpt: 'First line.\nSecond line.', slides: MAIN.slides },
+        market: { id: 'NP', version: NEPAL },
+        sources: [{ site: null, title: 'Guide', url: 'https://example.org' }],
+      },
+    )
+    expect(feedCardOf(p, null)).toEqual({
+      kind: 'post',
+      id: 'p1',
+      title: 'Paid work',
+      accounts: ['@ofcourse_ai'],
+      layer: 'personal',
+      whyLine: 'You weighted work rights.',
+      language: 'ne',
+      caption: 'First line.\nSecond line.',
+      slides: MAIN.slides,
+      sourceLine: 'Source: Guide · ¶2',
+      roadmapLinks: null,
+    })
+    expect(feedCardOf(p, 'NP')).toMatchObject({
+      caption: 'Nepal excerpt.',
+      slides: NEPAL.slides,
+    })
+  })
+
+  it('carries the accounts that posted it, as postingAccounts names them', () => {
+    const p = post('p1', ago(HOUR), {}, { sharedTo: ['comics'] })
+    expect(feedCardOf(p, null)).toMatchObject({ accounts: ['@ofcourse_comics'] })
+  })
+
+  it('links the post to her roadmaps with its destination, none with no roadmaps', () => {
+    const p = post('p1', ago(HOUR), {}, { tags: ['destination:AU', 'theme:work-study-life'] })
+    const roadmaps = [
+      { name: 'Sydney · Data science', destinations: ['AU'] },
+      { name: 'Open road', destinations: [] },
+    ]
+    expect(feedCardOf(p, null, roadmaps)).toMatchObject({
+      roadmapLinks: { all: false, names: ['Sydney · Data science'], more: 0 },
+    })
+    expect(feedCardOf(p, null, [])).toMatchObject({ roadmapLinks: null })
+  })
+
+  it('shapes a blog with its cover and reading time, without its words or settings', () => {
+    const b = blog('b1', ago(HOUR), {
+      title: 'How many hours?',
+      cover: { assetId: 'png-cover', alt: 'A café counter' },
+      minutes: 6,
+      language: 'th',
+    })
+    expect(feedCardOf(b, 'NP')).toEqual({
+      kind: 'blog',
+      id: 'b1',
+      title: 'How many hours?',
+      cover: { assetId: 'png-cover', alt: 'A café counter' },
+      language: 'th',
+      minutes: 6,
+    })
   })
 })

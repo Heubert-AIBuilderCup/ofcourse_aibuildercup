@@ -123,6 +123,7 @@ export function TileAsk({
               value={question}
               maxLength={ASK_QUESTION_MAX}
               autoComplete="off"
+              placeholder="e.g. Can I afford this?"
               onChange={(e) => setQuestion(e.target.value)}
               className="h-11 min-w-0 flex-1 rounded-none"
             />
@@ -147,7 +148,7 @@ export function TileAsk({
             {reply.kind === 'answered' ? (
               <div className="flex flex-col gap-1 text-caption text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  From our data ·
+                  Answered from these facts ·
                   <MockTag />
                 </span>
                 <ul className="m-0 flex list-none flex-col gap-0.5 p-0">

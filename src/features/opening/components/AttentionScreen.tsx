@@ -29,8 +29,8 @@ import { useCoinPiles } from './useCoinPiles'
 
 const TRAY = Array.from({ length: COINS_TOTAL }, (_, i) => i)
 const STACK = Array.from({ length: MAX_PER_PILE }, (_, i) => i)
-/** Back opens step 04's last question. */
-const BACK_PATH = questionPath(4, 'settle')
+/** Back opens step 04's last question, focus (long-term is hidden since 16 Oct 2026). */
+const BACK_PATH = questionPath(4, 'focus')
 
 /** One coin: a dashed ring while free, filled once placed. */
 function Coin({ on }: { on: boolean }) {
@@ -73,7 +73,7 @@ export function AttentionScreen({
   const full = canFinish(piles)
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 @max-xl:gap-4">
+    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 @max-xl:gap-4">
       <div className={cn(motion.rise, motion.d2, 'flex min-h-11 items-center')}>
         <StepKicker detail="optional">Your attention</StepKicker>
       </div>

@@ -8,6 +8,7 @@ import {
   type MapSize,
   mapPadding,
   project,
+  reframe,
   STOP_CAP,
   stepFromPinch,
   stepFromWheel,
@@ -223,5 +224,38 @@ describe('layoutOf', () => {
       'wide',
       'wide',
     ])
+  })
+})
+
+describe('reframe', () => {
+  const at = { stop: 'level' as Stop, here: 'cyber', focus: null }
+
+  it('keeps the framing when a press opens a tile at Whole road or Level', () => {
+    expect(reframe(at, { stop: 'level', here: 'cyber', tile: 'visa-485' })).toBe(at)
+    const whole = { ...at, stop: 'whole' as Stop }
+    expect(reframe(whole, { stop: 'whole', here: 'cyber', tile: 'perth' })).toBe(whole)
+  })
+
+  it('frames the open tile when the zoom changes', () => {
+    expect(reframe(at, { stop: 'tile', here: 'cyber', tile: 'visa-485' })).toEqual({
+      stop: 'tile',
+      here: 'cyber',
+      focus: 'visa-485',
+    })
+    expect(reframe(at, { stop: 'whole', here: 'cyber', tile: 'perth' }).focus).toBe('perth')
+  })
+
+  it('follows a press at Tile', () => {
+    const tile = { ...at, stop: 'tile' as Stop, focus: 'perth' }
+    expect(reframe(tile, { stop: 'tile', here: 'cyber', tile: 'visa-485' }).focus).toBe('visa-485')
+    expect(reframe(tile, { stop: 'tile', here: 'cyber', tile: 'perth' })).toBe(tile)
+  })
+
+  it('frames afresh when she moves', () => {
+    expect(reframe(at, { stop: 'level', here: 'data', tile: null })).toEqual({
+      stop: 'level',
+      here: 'data',
+      focus: null,
+    })
   })
 })

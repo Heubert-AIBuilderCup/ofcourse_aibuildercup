@@ -47,7 +47,10 @@ export type RoadKind = 'level' | 'open' | 'fog' | 'fork' | 'next' | 'lit'
 /** `id` names the line once on the map (two levels can share a kind). */
 export type RoadLine = { id: string; kind: RoadKind; d: string; width: number }
 
-/** The roads, drawn in this order under the tiles: the level lines, the road ahead, then the walked. */
+/**
+ * The roads, drawn in this order under the tiles: the level lines (with the lines to the options
+ * beside a step), the road ahead, then the walked.
+ */
 export function roadLines(scene: Scene, cam: Camera): RoadLine[] {
   const at = toScreen(cam)
   const { u } = cam
@@ -66,6 +69,19 @@ export function roadLines(scene: Scene, cam: Camera): RoadLine[] {
       kind: open ? 'open' : 'level',
       d: line(ends(ids, byId)),
       width: Math.max(1, u * (open ? 0.06 : 0.05)),
+    })
+  }
+  // The options beside a step hang off its middle, on a level line of their own.
+  const steps = [...new Set(scene.tiles.flatMap((t) => (t.beside ? [t.beside] : [])))]
+  for (const id of steps) {
+    const step = byId.get(id)
+    if (!step) continue
+    const options = scene.tiles.filter((t) => t.beside === id).map((t): Point => [t.gx, t.gy])
+    out.push({
+      id: `beside-${id}`,
+      kind: 'level',
+      d: line([middle(step), ...options]),
+      width: Math.max(1, u * 0.05),
     })
   }
   if (scene.ahead.length > 1)

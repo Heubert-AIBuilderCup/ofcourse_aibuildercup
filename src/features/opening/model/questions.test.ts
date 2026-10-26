@@ -9,6 +9,7 @@ import {
   activeRelative,
   DEFAULTS,
   effective,
+  isAsked,
   isAssumed,
   isVisible,
   parseAnswer,
@@ -61,6 +62,27 @@ describe('isVisible', () => {
     expect(isVisible('amount', {})).toBe(true)
     expect(isVisible('community', {})).toBe(true)
   })
+
+  it('still shows a hidden question, so an answer stored for it stays hers', () => {
+    expect(isVisible('who', {})).toBe(true)
+    expect(isVisible('settle', {})).toBe(true)
+  })
+})
+
+describe('isAsked', () => {
+  it('never asks the six hidden questions (16 Oct 2026)', () => {
+    for (const key of ['who', 'learn', 'length', 'climate', 'earn', 'settle'] as const) {
+      expect(isAsked(key, { [key]: s('x') })).toBe(false)
+    }
+  })
+
+  it('asks every other question as isVisible shows it', () => {
+    expect(isAsked('amount', {})).toBe(true)
+    expect(isAsked('community', {})).toBe(true)
+    expect(isAsked('knows', {})).toBe(false)
+    expect(isAsked('knows', { community: s('Yes') })).toBe(true)
+    expect(isAsked('field', { know: s('Something particular') })).toBe(true)
+  })
 })
 
 describe('parseAnswer', () => {
@@ -86,13 +108,33 @@ describe('parseAnswer', () => {
     expect(parseAnswer('stay', 'Not sure')).toEqual(s('Not sure'))
   })
 
+  it('offers nine areas: Data went into IT and computing; teaching, social work and hospitality came in', () => {
+    expect(questionOf('areas').options).toEqual([
+      'IT and computing',
+      'Business',
+      'Health',
+      'Engineering',
+      'Design',
+      'Psychology',
+      'Education / Teaching',
+      'Social work',
+      'Hospitality & tourism',
+    ])
+  })
+
   it('takes one to three distinct areas', () => {
-    expect(parseAnswer('areas', ['Data', 'Health'])).toEqual(s(['Data', 'Health']))
-    expect(parseAnswer('areas', ['Data', 'Health', 'Business', 'Design'])).toBeNull()
+    expect(parseAnswer('areas', ['Business', 'Health'])).toEqual(s(['Business', 'Health']))
+    expect(parseAnswer('areas', ['Business', 'Health', 'Social work', 'Design'])).toBeNull()
     expect(parseAnswer('areas', [])).toBeNull()
-    expect(parseAnswer('areas', ['Data', 'Data'])).toBeNull()
-    expect(parseAnswer('areas', ['Data', 'Cooking'])).toBeNull()
-    expect(parseAnswer('areas', 'Data')).toBeNull()
+    expect(parseAnswer('areas', ['Business', 'Business'])).toBeNull()
+    expect(parseAnswer('areas', ['Business', 'Cooking'])).toBeNull()
+    expect(parseAnswer('areas', 'Business')).toBeNull()
+  })
+
+  it('reads a Data-era answer as IT and computing, once', () => {
+    expect(parseAnswer('areas', ['Data', 'Health'])).toEqual(s(['IT and computing', 'Health']))
+    expect(parseAnswer('areas', ['IT and computing', 'Data'])).toEqual(s(['IT and computing']))
+    expect(parseAnswer('areas', s(['Data']))).toEqual(s(['IT and computing']))
   })
 
   it('takes back a stored answer (Undo): stated on an option, assumed on the default', () => {
@@ -100,7 +142,7 @@ describe('parseAnswer', () => {
     expect(parseAnswer('amount', assumed(30))).toEqual(assumed(30))
     expect(parseAnswer('stay', assumed('Not sure'))).toEqual(assumed('Not sure'))
     expect(parseAnswer('field', assumed('Any'))).toEqual(assumed('Any'))
-    expect(parseAnswer('areas', s(['Data']))).toEqual(s(['Data']))
+    expect(parseAnswer('areas', s(['Health']))).toEqual(s(['Health']))
   })
 
   it('refuses a stored answer that is neither', () => {

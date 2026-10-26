@@ -97,14 +97,14 @@ describe('the board filters in the address', () => {
 })
 
 describe('boardView', () => {
-  it('lists the six columns in order with their labels', () => {
-    expect(view([]).columns.map((c) => c.label)).toEqual([
-      'Structures',
-      'Approved · to render',
-      'Rendered · edit & check',
-      'In review',
-      'Ready · publish or export',
-      'Live in feed · exported',
+  it('lists the six columns in order with their names and one-line subs', () => {
+    expect(view([]).columns.map((c) => [c.label, c.sub])).toEqual([
+      ['Structures', 'Pick one'],
+      ['Approved', 'To render'],
+      ['Rendered', 'Edit and check'],
+      ['In review', 'A reviewer checks'],
+      ['Ready', 'Publish or export'],
+      ['Live', 'In the feed or exported'],
     ])
   })
 
@@ -118,7 +118,7 @@ describe('boardView', () => {
     expect(column(v, 'live').items.map((i) => i.id)).toEqual(['c'])
   })
 
-  it('shows a social card from its parent, and the parent links to it', () => {
+  it('puts a social card right after its feed post, naming the post it hangs under', () => {
     const v = view([
       card({ id: 'p', stage: 'ready' }),
       card({
@@ -131,19 +131,29 @@ describe('boardView', () => {
       }),
     ])
     const [parent, social] = column(v, 'ready').items
-    expect(parent.linkedLines).toEqual(['↳ Instagram · review'])
+    expect(parent.parentId).toBeNull()
     expect(social.id).toBe('s')
     expect(social.kind).toBe('social')
-    expect(social.fromLine).toBe('↳ from feed post "The 20-hour line"')
+    expect(social.parentId).toBe('p')
     expect(social.href).toBe('/admin/posts/s')
   })
 
-  it('writes the social stage in lower case, and LinkedIn as LinkedIn', () => {
+  it("counts a feed post's social versions, whatever stage each is at", () => {
     const v = view([
       card({ id: 'p', stage: 'ready' }),
       card({ id: 's', kind: 'social', parentId: 'p', stage: 'in_review', platform: 'linkedin' }),
+      card({ id: 't', kind: 'social', parentId: 'p', stage: 'ready', platform: 'instagram' }),
+      card({ id: 'q', title: 'Other', stage: 'ready' }),
     ])
-    expect(column(v, 'ready').items[0].linkedLines).toEqual(['↳ LinkedIn · review'])
+    const versions = (id: string) => shown(v).find((i) => i.id === id)?.versions
+    expect(versions('p')).toBe(2)
+    expect(versions('q')).toBe(0)
+    expect(versions('s')).toBe(0)
+  })
+
+  it('names no parent for a social version whose feed post is gone', () => {
+    const v = view([card({ id: 's', kind: 'social', parentId: 'gone', stage: 'ready' })])
+    expect(column(v, 'ready').items[0].parentId).toBeNull()
   })
 
   it('adds a Nepal market item right after its post, in the same column', () => {
@@ -154,7 +164,6 @@ describe('boardView', () => {
       'The 20-hour line · Nepal',
       'Other',
     ])
-    expect(items[0].linkedLines).toEqual(['↳ Nepal · market variant'])
     expect(items[1].kind).toBe('market')
     // The market version opens the post at its own step, which shows the Market switch on it.
     expect(items[1].href).toBe('/admin/posts/p?market=NP')
@@ -163,7 +172,6 @@ describe('boardView', () => {
   it("names the market item's market, never Nepal for another market (87)", () => {
     const items = column(view([card({ id: 'p', market: 'IN' })]), 'structures').items
     expect(items.map((i) => i.title)).toEqual(['The 20-hour line', 'The 20-hour line · India'])
-    expect(items[0].linkedLines).toEqual(['↳ India · market variant'])
     expect(items[1].href).toBe('/admin/posts/p?market=IN')
   })
 
@@ -235,7 +243,39 @@ describe('boardView', () => {
     const line = 'General · Everyone · Leaves the feed in 90 days'
     const v = view([card({ id: 'p', stage: 'live', liveLine: line })])
     expect(column(v, 'live').items[0].liveLine).toBe(line)
-    expect(column(v, 'live').items[0].fromLine).toBeNull()
+  })
+
+  it('says there are no posts only when there are none at all, filters or not', () => {
+    expect(view([]).noPosts).toBe(true)
+    expect(view([], { lang: 'th' }).noPosts).toBe(true)
+    expect(view([card({ id: 'p' })], { lang: 'th' }).noPosts).toBe(false)
+  })
+})
+
+describe("boardView's count of the viewer's own posts", () => {
+  it('counts the cards assigned to the viewer in Structures, In review and Ready', () => {
+    const v = view([
+      card({ id: 'a', stage: 'source', assigneeId: ME }),
+      card({ id: 'b', stage: 'structures', assigneeId: ME }),
+      card({ id: 'c', stage: 'structures', assigneeId: 'u-ed' }),
+      card({ id: 'd', stage: 'in_review', assigneeId: ME }),
+      card({ id: 'e', stage: 'ready', assigneeId: null }),
+      card({ id: 'f', stage: 'rendered', assigneeId: ME }),
+      card({ id: 'g', stage: 'live', assigneeId: ME }),
+    ])
+    expect(v.mine).toEqual({ structures: 2, in_review: 1, ready: 0 })
+  })
+
+  it('counts them whatever the tab and the filters show', () => {
+    const cards = [
+      card({ id: 'a', stage: 'structures', assigneeId: ME, language: 'ne' }),
+      card({ id: 'b', kind: 'social', stage: 'ready', assigneeId: ME, platform: 'instagram' }),
+    ]
+    expect(view(cards, { filter: 'comics', assignee: 'u-ed', lang: 'en' }).mine).toEqual({
+      structures: 1,
+      in_review: 0,
+      ready: 1,
+    })
   })
 })
 

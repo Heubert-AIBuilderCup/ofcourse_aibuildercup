@@ -14,6 +14,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  vector,
 } from 'drizzle-orm/pg-core'
 import {
   type Coins,
@@ -359,7 +360,14 @@ export const contentStep = pgTable(
     finishedAt: tz('finished_at'),
     error: text('error'),
     // How far a run is, as it records it (the images drawn of those planned), or null.
-    progress: jsonb('progress').$type<{ done: number; total: number }>(),
+    // How far a run is, and what its model waits for (features/content/lib/running.ts StepProgress).
+    progress: jsonb('progress').$type<{
+      done: number
+      total: number
+      note?:
+        | { kind: 'busy'; model: string; attempt: number; waitS: number }
+        | { kind: 'fallback'; model: string }
+    }>(),
     // When the run last said it is alive: a lock is stale counted from this, else from started_at.
     beatAt: tz('beat_at'),
   },
@@ -370,8 +378,9 @@ export const contentStep = pgTable(
 )
 
 /**
- * The log of model calls, one row per call: the daily caps count it by (day, tier). No foreign
- * key on the post: the log outlives posts.
+ * The log of model calls, one row per call: the daily caps count it by (day, tier), all but the
+ * cache hits and the calls a busy model refused (429), which cost nothing. No foreign key on the
+ * post: the log outlives posts.
  */
 export const aiCall = pgTable(
   'ai_call',
@@ -388,6 +397,8 @@ export const aiCall = pgTable(
     ms: integer('ms').notNull(),
     fallback: text('fallback'),
     postId: text('post_id'),
+    // Refused by a busy model (429): logged, never counted against a cap.
+    refused: boolean('refused').notNull().default(false),
     createdAt: tz('created_at').notNull().defaultNow(),
   },
   (t) => [
@@ -533,7 +544,7 @@ export const adminUpdate = pgTable(
     sourceCheckedAt: date('source_checked_at', { mode: 'string' }).notNull(),
     audience: jsonb('audience')
       .notNull()
-      .$type<{ institution: string; homeCountry: string | null }>(),
+      .$type<{ institution: string; homeCountry: string | null; topic?: string }>(),
     status: text('status').notNull().$type<'draft' | 'in_review' | 'live'>(),
     createdByUserId: text('created_by_user_id').references(() => user.id, {
       onDelete: 'set null',
@@ -609,4 +620,27 @@ export const aiSettingChange = pgTable('ai_setting_change', {
   newValue: text('new_value'),
   userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
   at: tz('at').notNull().defaultNow(),
+})
+
+/**
+ * The finder's copy of the course catalogue, one row per course with its embedding (pgvector),
+ * rebuilt from catalogue.ts by `bun run finder:seed`. No HNSW index: under a thousand rows an exact
+ * scan is right (ADR-117).
+ */
+export const courseDoc = pgTable('course_doc', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  university: text('university').notNull(),
+  cityId: text('city_id').notNull(),
+  level: text('level').notNull(),
+  field: text('field').notNull(),
+  graphField: text('graph_field').notNull(),
+  years: integer('years').notNull(),
+  feeK: integer('fee_k').notNull(),
+  niche: boolean('niche').notNull(),
+  description: text('description').notNull(),
+  textHash: text('text_hash').notNull(),
+  embeddingModel: text('embedding_model').notNull(),
+  embedding: vector('embedding', { dimensions: 768 }).notNull(),
+  updatedAt: tz('updated_at').notNull().defaultNow(),
 })

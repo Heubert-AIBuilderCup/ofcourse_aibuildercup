@@ -1,9 +1,11 @@
 import 'server-only'
-import { and, asc, eq, sql } from 'drizzle-orm'
+import { and, asc, eq, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/shared/lib/db'
 import { contentStep } from '@/shared/lib/db/schema'
 import type { ActionResult } from '@/shared/types/action-result'
+import { type WaitListener, withWaitNotes } from '../ai/wait-notes'
+import { type FailureReason, failureReason } from '../lib/failure'
 import type { StepProgress } from '../lib/running'
 import { WORKFLOW_ERRORS } from '../lib/workflow'
 import { afterResponse } from './after'
@@ -21,12 +23,34 @@ const TIMEOUT = sql.raw(`interval '${STEP_TIMEOUT_MS} milliseconds'`)
 /** When a run was last heard from: its last beat, or its start. */
 const HEARD = sql`coalesce(${contentStep.beatAt}, ${contentStep.startedAt})`
 
-const ProgressSchema = z.object({ done: z.number().int().min(0), total: z.number().int().min(0) })
+const NoteSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('busy'),
+    model: z.string(),
+    attempt: z.number().int(),
+    waitS: z.number(),
+  }),
+  z.object({ kind: z.literal('fallback'), model: z.string() }),
+])
+const ProgressSchema = z.object({
+  done: z.number().int().min(0),
+  total: z.number().int().min(0),
+  note: NoteSchema.optional(),
+})
 
 /** What the work of a step gets: a way to record how far it is, which also keeps its lock. */
 export type StepRun = {
   /** Records the progress and beats; false when the run no longer holds its lock (taken over or ended), so it stops. */
   progress(done: number, total: number): Promise<boolean>
+}
+
+/** A run's own handle, and what finish needs to know after its work: whether it ended on Flash-Lite. */
+type HeldRun = StepRun & {
+  listener: WaitListener
+  /** Waits for the run's progress writes in flight. */
+  settled(): Promise<void>
+  /** The progress to keep on the row after a run that ended on Flash-Lite, or null. */
+  liteNote(): StepProgress | null
 }
 
 /** A run that holds its step's lock: started_at as text identifies it. */
@@ -73,17 +97,50 @@ const heldRow = (held: Held) =>
     sql`${contentStep.startedAt}::text = ${held.startedAt}`,
   )
 
-/** The handle the held run's work records its progress with. */
-function runOf(held: Held): StepRun {
-  return {
-    async progress(done, total) {
+/**
+ * The handle the held run's work records its progress with, and the listener its model calls tell
+ * what they wait for (ai/wait-notes.ts). Progress and notes are one state, written in order, each
+ * write a beat; a note write that fails is logged, never costing the run.
+ */
+function runOf(held: Held): HeldRun {
+  let state: StepProgress = { done: 0, total: 0 }
+  let lite: string | null = null
+  let writes: Promise<unknown> = Promise.resolve()
+  const write = (): Promise<boolean> => {
+    const { note, ...count } = state
+    const progress = note ? { ...count, note } : count
+    const next = writes.then(async () => {
       const rows = await db
         .update(contentStep)
-        .set({ progress: { done, total }, beatAt: sql`now()` })
+        .set({ progress, beatAt: sql`now()` })
         .where(heldRow(held))
         .returning({ step: contentStep.step })
       return rows.length > 0
+    })
+    writes = next.catch(() => {})
+    return next
+  }
+  return {
+    progress(done, total) {
+      state = { ...state, done, total }
+      return write()
     },
+    listener: {
+      note(note) {
+        state = { done: state.done, total: state.total, ...(note ? { note } : {}) }
+        write().catch((err) => console.error('[content.steps.note]', err))
+      },
+      lite(model) {
+        lite = model
+      },
+    },
+    settled: async () => {
+      await writes
+    },
+    liteNote: () =>
+      lite === null
+        ? null
+        : { done: state.done, total: state.total, note: { kind: 'fallback', model: lite } },
   }
 }
 
@@ -93,20 +150,25 @@ async function finish<T>(
   work: (run: StepRun) => Promise<ActionResult<T>>,
 ): Promise<ActionResult<T>> {
   let result: ActionResult<T>
+  const run = runOf(held)
   try {
-    result = await work(runOf(held))
+    result = await withWaitNotes(run.listener, () => work(run))
   } catch (err) {
     console.error(`[content.steps.${held.step}]`, err)
     result = { ok: false, error: DB_ERROR }
   }
 
   try {
+    await run.settled()
+    // A run that ended on Flash-Lite keeps the fact, so its screen says so (failedNow `lite`).
+    const lite = result.ok ? run.liteNote() : null
     await db
       .update(contentStep)
       .set({
         status: result.ok ? 'done' : 'failed',
         finishedAt: sql`now()`,
         error: result.ok ? null : result.error,
+        ...(lite ? { progress: lite } : {}),
       })
       .where(heldRow(held))
   } catch (err) {
@@ -155,14 +217,44 @@ export async function runStepAfter<T>(
   }
 }
 
+/**
+ * The steps whose last run on a post failed, by name, and why each failed, read from the error it
+ * keeps (lib/failure.ts): the page says so beside the step. And the steps whose last run finished
+ * on Flash-Lite because Flash and Pro were busy (`lite`), which the page says once. One query over
+ * the post's rows.
+ */
+export async function failedNow(
+  postId: string,
+): Promise<{ failed: string[]; reasons: Record<string, FailureReason>; lite: string[] }> {
+  const rows = await db
+    .select({ step: contentStep.step, status: contentStep.status, error: contentStep.error })
+    .from(contentStep)
+    .where(
+      and(
+        eq(contentStep.postId, postId),
+        or(
+          eq(contentStep.status, 'failed'),
+          and(
+            eq(contentStep.status, 'done'),
+            sql`${contentStep.progress} -> 'note' ->> 'kind' = 'fallback'`,
+          ),
+        ),
+      ),
+    )
+    .orderBy(asc(contentStep.step))
+  const failed = rows.filter((r) => r.status === 'failed')
+  const reasons: Record<string, FailureReason> = {}
+  for (const row of failed) reasons[row.step] = failureReason(row.error)
+  return {
+    failed: failed.map((r) => r.step),
+    reasons,
+    lite: rows.filter((r) => r.status === 'done').map((r) => r.step),
+  }
+}
+
 /** The steps whose last run on a post failed, by name: the page says so beside the step. */
 export async function failedSteps(postId: string): Promise<string[]> {
-  const rows = await db
-    .select({ step: contentStep.step })
-    .from(contentStep)
-    .where(and(eq(contentStep.postId, postId), eq(contentStep.status, 'failed')))
-    .orderBy(asc(contentStep.step))
-  return rows.map((r) => r.step)
+  return (await failedNow(postId)).failed
 }
 
 /**

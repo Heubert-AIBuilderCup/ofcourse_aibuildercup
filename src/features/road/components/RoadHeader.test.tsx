@@ -33,11 +33,10 @@ afterEach(() => {
   window.matchMedia = realMatchMedia
 })
 
-const onLater = mock(() => {})
 const header = () =>
   render(
     <Providers initialChoice="light" systemTheme={null}>
-      <RoadHeader roadmapName="On a budget" onLater={onLater} />
+      <RoadHeader roadmapName="On a budget" />
     </Providers>,
   )
 
@@ -52,18 +51,18 @@ describe('RoadHeader', () => {
     expect(within(crumb).getByText('On a budget')).toHaveAttribute('aria-current', 'page')
   })
 
-  it('offers Your answers between Ask and Compare, and not on a draft', () => {
+  it('offers Feed then Your answers, and no Your answers on a draft', () => {
     const onAnswers = mock(() => {})
     const { unmount } = render(
       <Providers initialChoice="light" systemTheme={null}>
-        <RoadHeader roadmapName="On a budget" onLater={onLater} onAnswers={onAnswers} />
+        <RoadHeader roadmapName="On a budget" onAnswers={onAnswers} />
       </Providers>,
     )
-    const names = screen
-      .getAllByRole('button')
+    const names = [...screen.getByRole('banner').querySelectorAll('a, button')]
       .map((b) => b.textContent?.trim())
-      .filter((t) => t === 'Ask · 1' || t === 'Your answers' || t === 'Compare')
-    expect(names).toEqual(['Ask · 1', 'Your answers', 'Compare'])
+      .filter((t) => t === 'Feed' || t === 'Your answers' || t === 'Ask · 1' || t === 'Compare')
+    expect(names).toEqual(['Feed', 'Your answers'])
+    expect(screen.getByRole('link', { name: 'Feed' }).getAttribute('href')).toBe('/feed')
     screen.getByRole('button', { name: 'Your answers' }).click()
     expect(onAnswers).toHaveBeenCalledTimes(1)
     unmount()

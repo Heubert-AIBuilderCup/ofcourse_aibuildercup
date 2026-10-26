@@ -1,0 +1,231 @@
+// The students a judge can sign in as (features/judge): each a whole onboarding, answered, with
+// her person, her coins and her picture, landing on a road of her own (judge-stories.test.ts pins
+// which). Built from the demo's answer sets (model/demo-profiles.ts) and the road gallery's roads
+// (docs/student-ai-roads/road-gallery.md). Pure.
+
+import type { Coins, Persona, Relative, StoredAnswers } from '@/shared/types/student'
+import { stated } from '../model/demo-profiles'
+
+export type JudgeStory = {
+  id: string
+  /** Her first name, as the card and the account's name show it. */
+  name: string
+  /** Where she is from, as the card shows it (her `where` answer). */
+  country: string
+  /** One line on her road, for the card. */
+  line: string
+  persona: Persona
+  answers: StoredAnswers
+  relative: Relative | null
+  coins: Coins
+}
+
+/** Ten coins over the eight life values (LIFE_VALUES' order), as she placed them. */
+const spent = (piles: number[]): Coins => ({ state: 'spent', piles, assumed: false })
+
+export const JUDGE_STORIES: readonly JudgeStory[] = [
+  {
+    id: 'priya',
+    name: 'Priya',
+    country: 'Nepal',
+    line: 'Master of Cyber Security in Perth, then PR through state nomination (190).',
+    persona: 'female',
+    answers: stated({
+      where: 'Nepal',
+      amount: 36,
+      covers: 'Fees only',
+      who: 'Family',
+      hard: 'Roughly',
+      earliest: 'Feb 2027',
+      latest: 'Jul 2027',
+      years: '3',
+      dep: 'No one',
+      qual: "Bachelor's",
+      eng: 'IELTS 6.5',
+      know: 'Something particular',
+      field: 'Cyber security',
+      level: "Master's",
+      learn: 'Hands-on with placements',
+      length: 'Fine with longer if it opens more',
+      dest: 'Australia',
+      place: 'City',
+      community: 'Yes',
+      knows: 'Yes',
+      climate: 'Warm',
+      stay: 'Yes',
+      focus: 'Career-focused',
+      earn: 'Helpful',
+      settle: 'Settle long-term',
+    }),
+    relative: { placeId: 'perth-cbd', place: 'Perth CBD', relationship: 'Cousin', name: 'Anjali' },
+    coins: spent([1, 1, 2, 1, 3, 1, 1, 0]),
+  },
+  {
+    id: 'aarav',
+    name: 'Aarav',
+    country: 'India',
+    line: 'Master of Engineering (civil) in Sydney, then PR through the regional 491 or an employer (186).',
+    persona: 'male',
+    answers: stated({
+      where: 'India',
+      amount: 42,
+      covers: 'Fees only',
+      who: 'A mix',
+      hard: 'Roughly',
+      earliest: 'Jul 2027',
+      latest: 'Feb 2028',
+      years: '4 or more',
+      dep: 'No one',
+      qual: "Bachelor's",
+      eng: 'IELTS 7.0',
+      know: "A few areas I'm drawn to",
+      areas: ['Engineering'],
+      level: "Master's",
+      learn: 'Hands-on with placements',
+      length: 'Fine with longer if it opens more',
+      dest: 'Australia',
+      place: 'City',
+      community: 'A little',
+      knows: 'No',
+      climate: 'No preference',
+      stay: 'Yes',
+      focus: 'Career-focused',
+      earn: 'No',
+      settle: 'Settle long-term',
+    }),
+    relative: null,
+    coins: spent([1, 2, 3, 2, 0, 0, 1, 1]),
+  },
+  {
+    id: 'sita',
+    name: 'Sita',
+    country: 'Nepal',
+    line: 'Master of Nursing (graduate entry) in Adelaide, then PR through state nomination (190).',
+    persona: 'female',
+    answers: stated({
+      where: 'Nepal',
+      amount: 30,
+      covers: 'Fees only',
+      who: 'Loan',
+      hard: 'Hard limit',
+      earliest: 'Feb 2027',
+      latest: 'Jul 2027',
+      years: '3',
+      dep: 'Partner',
+      qual: "Bachelor's",
+      eng: 'IELTS 6.5',
+      know: "A few areas I'm drawn to",
+      areas: ['Health'],
+      level: "Master's",
+      learn: 'Hands-on with placements',
+      length: 'As short as possible',
+      dest: 'Australia',
+      place: 'Regional',
+      community: 'Yes',
+      knows: 'Yes',
+      climate: 'Mild',
+      stay: 'Yes',
+      focus: 'Career-focused',
+      earn: 'Yes',
+      settle: 'Settle long-term',
+    }),
+    relative: {
+      placeId: 'adelaide-cbd',
+      place: 'Adelaide CBD',
+      relationship: 'Aunt or uncle',
+      name: 'Hari',
+    },
+    coins: spent([1, 1, 3, 0, 2, 2, 0, 1]),
+  },
+  {
+    id: 'meera',
+    name: 'Meera',
+    country: 'Sri Lanka',
+    line: 'Master of Interaction Design in Melbourne, then home with Australian work behind her.',
+    persona: 'female',
+    answers: stated({
+      where: 'Sri Lanka',
+      amount: 42,
+      covers: 'Fees only',
+      who: 'Savings',
+      hard: 'Roughly',
+      earliest: 'Feb 2027',
+      latest: 'Feb 2028',
+      years: '2',
+      dep: 'No one',
+      qual: "Bachelor's",
+      eng: 'IELTS 7.5 or more',
+      know: "A few areas I'm drawn to",
+      areas: ['Design'],
+      level: "Master's",
+      learn: 'Hands-on with placements',
+      length: 'Fine with longer if it opens more',
+      dest: 'Open to others',
+      place: 'City',
+      community: 'A little',
+      knows: 'No',
+      climate: 'Mild',
+      stay: 'No',
+      focus: 'Academic',
+      earn: 'Helpful',
+      settle: 'Come home eventually',
+    }),
+    relative: null,
+    coins: spent([2, 1, 1, 3, 3, 0, 0, 0]),
+  },
+  {
+    id: 'rohan',
+    name: 'Rohan',
+    country: 'India',
+    line: 'Master of Psychology (Cyberpsychology) in Melbourne, on how people behave online: no clear road to PR.',
+    persona: 'male',
+    answers: stated({
+      where: 'India',
+      amount: 42,
+      covers: 'Fees only',
+      who: 'Family',
+      hard: 'Hard limit',
+      earliest: 'Feb 2027',
+      latest: 'Jul 2027',
+      years: '2',
+      dep: 'No one',
+      qual: "Bachelor's",
+      eng: 'IELTS 7.0',
+      know: 'Something particular',
+      field: 'Psychology',
+      level: "Master's",
+      learn: 'Hands-on with placements',
+      length: 'As short as possible',
+      dest: 'Australia',
+      place: 'Suburban',
+      community: 'Yes',
+      knows: 'Yes',
+      climate: 'Warm',
+      stay: 'Yes',
+      focus: 'Career-focused',
+      earn: 'Yes',
+      settle: 'Settle long-term',
+    }),
+    relative: {
+      placeId: 'clayton',
+      place: 'Clayton',
+      relationship: 'Friend',
+      name: 'Vikram',
+    },
+    coins: spent([1, 3, 3, 1, 1, 0, 0, 1]),
+  },
+]
+
+/**
+ * The one story the student sign-in page offers the judges: Priya, whose board shows every action
+ * working (each city and course beside her road starts a new roadmap, "What changes" differs in
+ * money, work rights, PR and jobs, her stack lists courses of her field). The others stay for the
+ * tests that pin their roads.
+ */
+export const OFFERED_JUDGE_STORIES: readonly JudgeStory[] = JUDGE_STORIES.filter(
+  (s) => s.id === 'priya',
+)
+
+/** The story with this id, or undefined. */
+export const judgeStoryById = (id: string): JudgeStory | undefined =>
+  JUDGE_STORIES.find((s) => s.id === id)

@@ -601,6 +601,21 @@ describe.skipIf(!enabled)('"New comic" against the database', () => {
   )
 
   test(
+    'a comic’s panels are its pictures: Skip pictures is refused, and nothing is saved',
+    async () => {
+      const { id, version } = await approvedComic()
+      expect(await commands.skipPictures(ED, id, version)).toEqual({
+        ok: false,
+        error: errors.panels,
+      })
+      const after = await load(id)
+      expect(after.version).toBe(version)
+      expect(after.stage).toBe('approved')
+    },
+    SLOW,
+  )
+
+  test(
     'with the character approved, every panel is drawn square in the Comics style with the sheet as its first reference, each its own picture',
     async () => {
       const sheet = await approvedCharacter()

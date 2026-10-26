@@ -3,17 +3,26 @@ import { type Filters, filterHref, parseFilters } from './feed'
 import { chipsFromProfile, type StudentProfile } from './profile-contract'
 
 const F = (over: Partial<Filters> = {}): Filters => ({
-  destination: null,
+  destination: [],
   home: null,
-  theme: null,
-  age: null,
+  theme: [],
+  age: [],
   q: '',
   ...over,
 })
 
-/** The filters a feed link opens with, as the page reads them. */
-const opened = (href: string) =>
-  parseFilters(Object.fromEntries(new URL(href, 'https://ofcourse.test').searchParams))
+/** The filters a feed link opens with, as the page reads them: a repeated key as its values. */
+const opened = (href: string) => {
+  const params = new URL(href, 'https://ofcourse.test').searchParams
+  return parseFilters(
+    Object.fromEntries(
+      [...new Set(params.keys())].map((k) => {
+        const all = params.getAll(k)
+        return [k, all.length > 1 ? all : all[0]]
+      }),
+    ),
+  )
+}
 
 describe('chipsFromProfile (84)', () => {
   const profile: StudentProfile = {
@@ -22,9 +31,9 @@ describe('chipsFromProfile (84)', () => {
     ageBand: 'under-21',
   }
 
-  it('fills the chips of a URL with no filter key: the home market, the first destination, the age band', () => {
+  it('fills the chips of a URL with no filter key: the home market, every destination, the age band', () => {
     expect(chipsFromProfile(profile, opened('/feed'))).toEqual(
-      F({ home: 'IN', destination: 'UK', age: 'under-21', chosen: false }),
+      F({ home: 'IN', destination: ['AU', 'UK'], age: ['under-21'], chosen: false }),
     )
   })
 
@@ -35,21 +44,26 @@ describe('chipsFromProfile (84)', () => {
     expect(chipsFromProfile(profile, opened('/feed?q='))).toEqual(F({ chosen: true }))
   })
 
-  it('lets Clear stick: a chip the profile filled stays clear, down to the last one', () => {
+  it('keeps several destinations through a link, and lets Clear stick down to the last one', () => {
     let filters = chipsFromProfile(profile, opened('/feed'))
-    for (const group of ['home', 'destination', 'age'] as const) {
-      filters = chipsFromProfile(profile, opened(filterHref('/feed', filters, { [group]: null })))
-      expect(filters[group]).toBeNull()
+    expect(chipsFromProfile(profile, opened(filterHref('/feed', filters, {})))).toEqual({
+      ...filters,
+      chosen: true,
+    })
+    const changes: Partial<Filters>[] = [{ home: null }, { destination: [] }, { age: [] }]
+    for (const change of changes) {
+      filters = chipsFromProfile(profile, opened(filterHref('/feed', filters, change)))
+      expect(filters).toMatchObject(change)
     }
     expect(filters).toEqual(F({ chosen: true }))
   })
 
   it('changes nothing with no profile, and ignores a value the tag file lacks', () => {
     expect(chipsFromProfile(null, opened('/feed?theme=books-movies'))).toEqual(
-      F({ theme: 'books-movies', chosen: true }),
+      F({ theme: ['books-movies'], chosen: true }),
     )
     expect(
       chipsFromProfile({ homeMarket: null, destinations: ['XX', 'NZ'], ageBand: 'teen' }, F()),
-    ).toEqual(F({ destination: 'NZ' }))
+    ).toEqual(F({ destination: ['NZ'] }))
   })
 })

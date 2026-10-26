@@ -114,19 +114,56 @@ export async function makePost(page: Page, source: Source): Promise<string> {
   return id
 }
 
+const escaped = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
 /**
- * Wait on the Text step until the versions are drafted (criterion 93): "Draft again" offers more,
- * and the first Ready version is picked for the editor (GD29), the others folded away.
+ * A step's tab by its name (ActionTabs, src/features/content/components/stage.tsx): a badge adds
+ * " · 2 to fix", " · needs attention" or a count to the name a screen reader hears.
  */
-export async function versionsDrafted(page: Page): Promise<void> {
-  await expect(page.getByRole('button', { name: 'Draft again' })).toBeVisible({ timeout: 90_000 })
-  await expect(chosenVersion(page)).toBeVisible({ timeout: 90_000 })
+export const tab = (scope: Page | Locator, name: string): Locator =>
+  scope.getByRole('tab', { name: new RegExp(`^${escaped(name)}( · .+)?$`) })
+
+/** Open a step's tab; only the open tab's panel is in the page. */
+export async function openTab(scope: Page | Locator, name: string): Promise<void> {
+  const t = tab(scope, name)
+  await t.click()
+  await expect(t).toHaveAttribute('aria-selected', 'true')
 }
 
-/** Unfold "Choose another version" on the Text step, where the versions not picked wait. */
+/** A slide step's stage (SlideStage): the selected slide large over the filmstrip. */
+export const stage = (scope: Page | Locator): Locator =>
+  scope.getByRole('group', { name: 'Slides, one at a time', exact: true })
+
+/**
+ * Every slide's picture on a stage, in order: the filmstrip's thumbnails, hidden from screen
+ * readers (each is heard by its button's name), so they are looked up with the hidden ones.
+ */
+export const stageSlides = (scope: Page | Locator): Locator =>
+  scope
+    .getByRole('list', { name: 'All slides', exact: true })
+    .getByRole('img', { name: /^Slide \d+\b/, includeHidden: true })
+
+/** The "!" beside an unavailable control, whose description is the reason (parts.tsx Control). */
+export const whyUnavailable = (scope: Page | Locator): Locator =>
+  scope.getByRole('button', { name: 'Why this is unavailable', exact: true })
+
+/** The workbench's step bar, where a step's own action ("Send to review", "Approve") sits. */
+export const stepActions = (page: Page): Locator =>
+  page.getByRole('region', { name: 'Step actions', exact: true })
+
+/**
+ * Wait on the Text step until the version is drafted (criterion 93): a draft writes one and picks
+ * it for the editor itself when Ready (GD29), so "Your version" is a tab; "Versions" counts it, and
+ * holds the others "Draft again" adds.
+ */
+export async function versionsDrafted(page: Page): Promise<void> {
+  await expect(tab(page, 'Your version')).toBeVisible({ timeout: 90_000 })
+  await expect(tab(page, 'Versions')).toBeVisible()
+}
+
+/** Open "Versions" on the Text step, where the versions not picked wait ("Draft again" adds them). */
 export async function openOtherVersions(page: Page): Promise<void> {
-  const others = page.getByRole('group', { name: 'Choose another version', exact: true })
-  if ((await others.getAttribute('open')) === null) await others.locator('summary').click()
+  await openTab(page, 'Versions')
 }
 
 /** On the Outline step, once the idea's outline is there, "Write the slides". */
@@ -137,7 +174,7 @@ export async function writeSlides(page: Page): Promise<void> {
 
 /**
  * On the Ideas step, "Use this idea" on card `n` (0-based): it opens the idea's Outline, and
- * "Write the slides" there drafts its versions on Text.
+ * "Write the slides" there drafts its version on Text.
  */
 export async function pickIdea(page: Page, n = 0): Promise<void> {
   await page.getByRole('button', { name: 'Use this idea' }).nth(n).click()
@@ -146,42 +183,59 @@ export async function pickIdea(page: Page, n = 0): Promise<void> {
   await versionsDrafted(page)
 }
 
-/** Make the post and use its first idea: the post is on Text with three versions drafted. */
+/** Make the post and use its first idea: the post is on Text with its one version drafted. */
+
 export async function draftedPost(page: Page, source: Source): Promise<string> {
   const id = await makePost(page, source)
   await pickIdea(page)
   return id
 }
 
-/** The chosen version on the Text step. */
+/** The chosen version on the Text step, in its "Your version" tab (see yourVersion). */
 export const chosenVersion = (page: Page): Locator =>
   page.getByRole('region', { name: 'Your version', exact: true })
 
+/** Open "Your version" on the Text step and return the chosen version. */
+export async function yourVersion(page: Page): Promise<Locator> {
+  await openTab(page, 'Your version')
+  const card = chosenVersion(page)
+  await expect(card).toBeVisible({ timeout: 60_000 })
+  return card
+}
+
 /**
- * Version `n` (0-based) of the Text step as the chosen one. The first is picked for the editor
- * when the versions arrive (GD29: the first Ready one; every fake version is Ready), so `n` = 0
- * waits for it, and any other is used from under "Choose another version".
+ * Version `n` (0-based) of the Text step as the chosen one. The drafting picks the first for the
+ * editor itself (GD29: the first Ready one; every fake version is Ready), so `n` = 0 waits for
+ * it, and any other is used from "Versions".
  */
 export async function pickVersion(page: Page, n = 0): Promise<void> {
-  await expect(chosenVersion(page)).toBeVisible({ timeout: 60_000 })
-  if (n === 0) return
+  if (n === 0) {
+    await yourVersion(page)
+    return
+  }
   await openOtherVersions(page)
-  await page
+  const card = page
     .getByRole('article')
     .filter({ has: page.getByRole('button', { name: 'Use this version' }) })
     .nth(n - 1)
-    .getByRole('button', { name: 'Use this version' })
-    .click()
-  await expect(chosenVersion(page)).toBeVisible({ timeout: 60_000 })
+  const angle = await card.getByRole('heading', { level: 4 }).innerText()
+  await card.getByRole('button', { name: 'Use this version' }).click()
+  await expect(
+    page.locator('[data-sonner-toast]').filter({ hasText: 'Version picked' }).first(),
+  ).toBeVisible({ timeout: 60_000 })
+  await expect(await yourVersion(page)).toContainText(angle)
 }
 
-/** Choose the Pop colours and "Approve text → Images", and wait for the Images step. */
+/**
+ * "Approve text → Images" on the Pop colours, which the drafting chose for the editor (no press
+ * before Approve), and wait for the Images step.
+ */
 export async function approveText(page: Page): Promise<void> {
-  const pop = page.getByRole('button', { name: 'Pop', exact: true })
-  if ((await pop.getAttribute('aria-pressed')) !== 'true') {
-    await pop.click()
-    await expect(pop).toHaveAttribute('aria-pressed', 'true')
-  }
+  await openTab(page, 'Style')
+  await expect(page.getByRole('button', { name: 'Pop', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
   const approve = page.getByRole('button', { name: /^Approve text/ })
   await expect(approve).toBeEnabled({ timeout: 60_000 })
   await approve.click()
@@ -247,8 +301,12 @@ export async function legacyPost(
   return id
 }
 
-/** On a legacy post's Text step, choose a theme and "Approve text → Images", and wait for Images. */
+/**
+ * On a legacy post's Text step, choose a theme in "Style" (Paper, the drafting's own choice, needs
+ * no press) and "Approve text → Images", and wait for Images.
+ */
 export async function approveLegacyText(page: Page, theme = 'Paper'): Promise<void> {
+  await openTab(page, 'Style')
   const button = page.getByRole('button', { name: theme, exact: true })
   if ((await button.getAttribute('aria-pressed')) !== 'true') {
     await button.click()
@@ -262,7 +320,7 @@ export async function approveLegacyText(page: Page, theme = 'Paper'): Promise<vo
 
 /**
  * A post from before the looks, its first The line version approved on Paper and rendered with
- * its cover art: on its Images step, with "Version 1" under the cover.
+ * its cover art: on its Images step, "This slide" open on the cover, which shows "Version 1".
  */
 export async function renderedLegacyPost(page: Page, source: Source): Promise<string> {
   const id = await legacyPost(page, source)
@@ -270,25 +328,64 @@ export async function renderedLegacyPost(page: Page, source: Source): Promise<st
   await approveLegacyText(page)
   const images = page.getByRole('region', { name: 'Images', exact: true })
   await images.getByRole('button', { name: 'Render', exact: true }).click()
+  // Rendered, "Covers" opens first; the cover's version is under "This slide".
+  await expect(tab(images, 'This slide')).toBeVisible({ timeout: 60_000 })
+  await openTab(images, 'This slide')
   await expect(images.getByText('Version 1', { exact: true })).toBeVisible({ timeout: 60_000 })
   return id
 }
 
-/** The Settings step's source check: what each claim on the slides was found as. */
+/** The Settings step's source check, in its tab: what each claim on the slides was found as. */
 export const sourceCheck = (page: Page): Locator =>
   page.getByRole('region', { name: 'Source check', exact: true })
 
-/** The Settings step's feed settings. */
+/** The Settings step's feed settings: its panels, one tab at a time. */
 export const feedSettings = (page: Page): Locator =>
   page.getByRole('region', { name: 'Feed settings', exact: true })
+
+/** Open one of the Settings step's panels ("Who sees it", "Expiry"), and return the feed settings. */
+export async function settingsPanel(page: Page, name: string): Promise<Locator> {
+  await openTab(feedSettings(page), name)
+  return feedSettings(page)
+}
+
+/** Open the Settings step's last panel, which ends with "Save settings", and return the feed settings. */
+export async function lastSettingsPanel(page: Page): Promise<Locator> {
+  const last = feedSettings(page)
+    .getByRole('tablist', { name: 'Settings panels', exact: true })
+    .getByRole('tab')
+    .last()
+  await last.click()
+  await expect(last).toHaveAttribute('aria-selected', 'true')
+  return feedSettings(page)
+}
+
+/** Open the Settings step's "Source check" panel and return the check. */
+export async function openSourceCheck(page: Page): Promise<Locator> {
+  await settingsPanel(page, 'Source check')
+  return sourceCheck(page)
+}
+
+/**
+ * Open the source check's "All checked sentences" drawer (every sentence but the ones not found),
+ * and return it; Close shuts it.
+ */
+export async function allCheckedSentences(page: Page): Promise<Locator> {
+  await sourceCheck(page).getByRole('button', { name: 'All checked sentences' }).click()
+  const drawer = page.getByRole('dialog', { name: 'All checked sentences', exact: true })
+  await expect(drawer).toBeVisible()
+  return drawer
+}
 
 /**
  * On the Settings step, wait for the source check, which runs by itself after approval
  * (criterion 98), and mark each claim it could not find as editorial opinion.
  */
 export async function markNotFoundAsOpinion(page: Page): Promise<void> {
-  const check = sourceCheck(page)
-  await expect(check.getByText(/(Found ¶\d+|Not found)$/).first()).toBeVisible({ timeout: 60_000 })
+  const check = await openSourceCheck(page)
+  // Done, the check shows its summary line ("7 found in the article · 0 not found · 0 opinion");
+  // the sentences not found are listed under it, the rest in the "All checked sentences" drawer.
+  await expect(check.getByText(/\d+ found in the article/).first()).toBeVisible({ timeout: 60_000 })
   const opinion = check.getByRole('button', { name: 'Mark as editorial opinion' })
   for (let left = await opinion.count(); left > 0; left--) {
     await opinion.first().click()
@@ -296,9 +393,9 @@ export async function markNotFoundAsOpinion(page: Page): Promise<void> {
   }
 }
 
-/** On the Settings step, "Send to review → Review", and wait for the Review step. */
+/** On the Settings step, "Send to review → Review" in the step bar, and wait for the Review step. */
 export async function sendToReview(page: Page): Promise<void> {
-  await feedSettings(page).getByRole('button', { name: 'Send to review → Review' }).click()
+  await stepActions(page).getByRole('button', { name: 'Send to review → Review' }).click()
   await onStep(page, 'review')
 }
 
@@ -310,44 +407,41 @@ export async function approvePublish(page: Page): Promise<void> {
 }
 
 const CHECKING = 'Checking against the source…'
-/** The chosen version's check, once every sentence on its slides is found in the source. */
-export const CLEAN = 'Every sentence found in the source'
+/** The chosen version's source check summary once nothing on its slides is left not found. */
+export const CLEAN = /^\d+ found · 0 not found · \d+ opinion$/
 
-/** A version's strip of slides on the Text step. */
-export const strip = (card: Locator): Locator =>
-  card.getByRole('list', { name: 'Slides', exact: true })
-
-/** A version's "Details" (closed by default): slot text, facts and every check row. */
-const details = (card: Locator): Locator =>
-  card
-    .getByRole('group')
-    .filter({ has: card.page().getByText('Details', { exact: true }) })
-    .last()
-
-/** Open a version's "Details" when they are closed, and return them. */
-export async function openDetails(card: Locator): Promise<Locator> {
-  const d = details(card)
-  if (!(await d.getByRole('heading', { name: 'Fit checks' }).isVisible())) {
-    await d.getByText('Details', { exact: true }).click()
-  }
-  return d
+/**
+ * Open "Checks" on the Text step and return its panel: what is left to fix with its fixes
+ * (the source's wording beside a sentence not found), the source check and every fit row.
+ */
+export async function checkResults(page: Page): Promise<Locator> {
+  await openTab(page, 'Checks')
+  return page.getByRole('tabpanel')
 }
 
-/** Select slide `n` of the chosen version in its strip. */
-export async function selectSlide(card: Locator, n: number): Promise<void> {
-  const button = strip(card).getByRole('button', { name: new RegExp(`^Slide ${n} · `) })
+/** Select slide `n` in the Text step's filmstrip, under the slide shown large. */
+export async function selectSlide(page: Page, n: number): Promise<void> {
+  const button = stage(page)
+    .getByRole('list', { name: 'All slides', exact: true })
+    .getByRole('button', { name: `Slide ${n}`, exact: true })
   await button.click()
-  await expect(button).toHaveAttribute('aria-pressed', 'true')
+  await expect(button).toHaveAttribute('aria-current', 'true')
 }
+
+/** The chosen version's field for slide `n`'s slot `label` ("Body"), in "Your version". */
+export const slotField = (card: Locator, n: number, label: string): Locator =>
+  card
+    .getByRole('group', { name: `Slide ${n} text`, exact: true })
+    .getByLabel(label, { exact: true })
 
 /**
  * Wait until the chosen version's check has landed (no button starts it) and shows `result` in
- * its Details. A change remounts the version, which closes its Details: they open on each look.
+ * "Checks", opened on each look.
  */
-export async function checked(card: Locator, result: string | RegExp): Promise<void> {
+export async function checked(page: Page, result: string | RegExp): Promise<void> {
   await expect(async () => {
-    const d = await openDetails(card)
-    await expect(d.getByText(CHECKING)).toHaveCount(0, { timeout: 1_000 })
-    await expect(d.getByText(result)).toBeVisible({ timeout: 1_000 })
+    const results = await checkResults(page)
+    await expect(results.getByText(CHECKING)).toHaveCount(0, { timeout: 1_000 })
+    await expect(results.getByText(result)).toBeVisible({ timeout: 1_000 })
   }).toPass({ timeout: 60_000 })
 }

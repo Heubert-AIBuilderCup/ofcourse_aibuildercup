@@ -49,7 +49,7 @@ export default async function FeedBlogPage({ params, searchParams }: PageProps<'
   if (!blog) notFound()
   const filters = chipsFromProfile(profile, parseFilters(query))
   return (
-    <div className="flex flex-col gap-block">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-block px-gutter py-section">
       <FeedChips pathname={`${FEED_PATH}/blog/${encodeURIComponent(id)}`} filters={filters} />
       <Link
         href={filterHref(FEED_PATH, filters, {})}

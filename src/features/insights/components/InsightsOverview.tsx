@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { AdminPageHeader } from '@/features/admin'
 import { Blueprint } from '@/shared/components/Blueprint'
 import { cn } from '@/shared/lib/utils'
 import { barRows, cacheShare, dimensionBars, type PerformanceRow } from '../lib/overview'
@@ -40,12 +41,11 @@ export function InsightsOverview({
   const { scope } = data
   return (
     <div className="@container flex flex-col gap-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-        <h1 className="text-h1 font-semibold tracking-tight">Insights</h1>
-        <p className={caption}>
-          {`${scope.country} · ${scope.window} · ${n(scope.students)} students · aggregated (mock)`}
-        </p>
-      </div>
+      <AdminPageHeader
+        kicker="Students, in aggregate"
+        title="Insights"
+        lede={`${scope.country} · ${scope.window} · ${n(scope.students)} students · aggregated (mock)`}
+      />
 
       <Blueprint
         as="section"

@@ -1,6 +1,16 @@
 /// <reference lib="dom" />
 /// <reference path="../../../node_modules/@testing-library/jest-dom/types/bun.d.ts" />
-import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock,
+  setSystemTime,
+} from 'bun:test'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { THEME_COOKIE_MAX_AGE } from '@/shared/lib/theme'
 
@@ -38,8 +48,9 @@ afterEach(() => {
   window.matchMedia = realMatchMedia
   setThemeChoice.mockClear()
   delete document.documentElement.dataset.theme
+  // Expired in the past: with max-age=0 happy-dom keeps it until the clock moves on.
   // biome-ignore lint/suspicious/noDocumentCookie: clearing the cookie the component set
-  document.cookie = 'theme-os=; path=/; max-age=0'
+  document.cookie = 'theme-os=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
 })
 
 function Probe() {
@@ -123,6 +134,11 @@ describe('Providers', () => {
   })
 
   describe('the device scheme the server hears about', () => {
+    // The clock held still, as when the next test reads the cookies in the same millisecond the
+    // last one's cleanup ran: happy-dom drops a cookie only once its expiry has passed.
+    beforeAll(() => setSystemTime(new Date('2026-10-26T09:00:00Z')))
+    afterAll(() => setSystemTime())
+
     // The cookie is set in the browser: a server action that sets one refreshes the route.
     it('is written as a cookie on a first visit, with no server action', () => {
       deviceDark = true

@@ -55,7 +55,7 @@ it('on the welcome lists every step, none current, step 00 optional, nothing lit
   }
   expect(items[0]).toHaveTextContent('00Your comic characterOptional')
   expect(screen.getByText('Not started.')).toBeInTheDocument()
-  expect(screen.getByText('Not started yet · about 6 min')).toBeInTheDocument()
+  expect(screen.getByText('Not started yet · about 5 min')).toBeInTheDocument()
   expect(screen.getByText('First: Your comic character')).toBeInTheDocument()
   expect(segments(container)).toEqual({ all: 6, lit: 0 })
 })
@@ -86,9 +86,9 @@ it('on step 01 marks step 00 done and counts the question she is on', () => {
   expect(items[0]).toHaveTextContent('Done')
   expect(items[0]).not.toHaveAttribute('aria-current')
   expect(items[1]).toHaveAttribute('aria-current', 'step')
-  expect(items[1]).toHaveTextContent('Now · 2/11')
+  expect(items[1]).toHaveTextContent('Now · 2/10')
   expect(screen.getByText('Step 1 of 5.')).toBeInTheDocument()
-  expect(screen.getByText('Now: 01 Facts about you · 2 of 11')).toBeInTheDocument()
+  expect(screen.getByText('Now: 01 Facts about you · 2 of 10')).toBeInTheDocument()
   expect(screen.getByText("Next: What you'd study")).toBeInTheDocument()
   expect(screen.getByRole('complementary', { name: 'Getting started' })).not.toHaveTextContent(
     'recommended',
@@ -105,7 +105,7 @@ it('stays light in a dark page: the panel is marked data-theme="light"', () => {
 
 it('on step 01 with no question reads as the first', () => {
   renderAt('/onboarding/facts')
-  expect(steps()[1]).toHaveTextContent('Now · 1/11')
+  expect(steps()[1]).toHaveTextContent('Now · 1/10')
 })
 
 it('on step 02 marks steps 00 and 01 done and counts the question she is on', () => {
@@ -115,9 +115,9 @@ it('on step 02 marks steps 00 and 01 done and counts the question she is on', ()
   expect(items[0]).toHaveTextContent('Done')
   expect(items[1]).toHaveTextContent('Done')
   expect(items[2]).toHaveAttribute('aria-current', 'step')
-  expect(items[2]).toHaveTextContent('Now · 1/4')
+  expect(items[2]).toHaveTextContent('Now · 1/2')
   expect(screen.getByText('Step 2 of 5.')).toBeInTheDocument()
-  expect(screen.getByText("Now: 02 What you'd study · 1 of 4")).toBeInTheDocument()
+  expect(screen.getByText("Now: 02 What you'd study · 1 of 2")).toBeInTheDocument()
   expect(screen.getByText("Next: Where and how you'd live")).toBeInTheDocument()
   expect(segments(container)).toEqual({ all: 6, lit: 3 })
 })
@@ -126,8 +126,8 @@ it('on step 02 counts the questions her first answer asks', () => {
   renderAt('/onboarding/study/areas', {
     know: { value: "A few areas I'm drawn to", state: 'stated' },
   })
-  expect(steps()[2]).toHaveTextContent('Now · 2/5')
-  expect(screen.getByText("Now: 02 What you'd study · 2 of 5")).toBeInTheDocument()
+  expect(steps()[2]).toHaveTextContent('Now · 2/3')
+  expect(screen.getByText("Now: 02 What you'd study · 2 of 3")).toBeInTheDocument()
 })
 
 it('on step 03 marks steps 00 to 02 done and counts the question she is on', () => {
@@ -138,9 +138,9 @@ it('on step 03 marks steps 00 to 02 done and counts the question she is on', () 
   const items = steps()
   for (const done of items.slice(0, 3)) expect(done).toHaveTextContent('Done')
   expect(items[3]).toHaveAttribute('aria-current', 'step')
-  expect(items[3]).toHaveTextContent('Now · 4/5')
+  expect(items[3]).toHaveTextContent('Now · 4/4')
   expect(screen.getByText('Step 3 of 5.')).toBeInTheDocument()
-  expect(screen.getByText("Now: 03 Where and how you'd live · 4 of 5")).toBeInTheDocument()
+  expect(screen.getByText("Now: 03 Where and how you'd live · 4 of 4")).toBeInTheDocument()
   expect(screen.getByText('Next: After you graduate')).toBeInTheDocument()
   expect(segments(container)).toEqual({ all: 6, lit: 4 })
 })
@@ -150,9 +150,9 @@ it('on step 04 marks steps 00 to 03 done and counts the question she is on', () 
   const items = steps()
   for (const done of items.slice(0, 4)) expect(done).toHaveTextContent('Done')
   expect(items[4]).toHaveAttribute('aria-current', 'step')
-  expect(items[4]).toHaveTextContent('Now · 2/4')
+  expect(items[4]).toHaveTextContent('Now · 2/2')
   expect(screen.getByText('Step 4 of 5.')).toBeInTheDocument()
-  expect(screen.getByText('Now: 04 After you graduate · 2 of 4')).toBeInTheDocument()
+  expect(screen.getByText('Now: 04 After you graduate · 2 of 2')).toBeInTheDocument()
   expect(screen.getByText('Next: Your attention · optional')).toBeInTheDocument()
   expect(screen.getByRole('heading', { level: 2, name: 'Five short steps' })).toBeInTheDocument()
   expect(segments(container)).toEqual({ all: 6, lit: 5 })

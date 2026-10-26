@@ -42,7 +42,8 @@ const memoryAi = client.makeAi({
 })
 mock.module('./client', () => ({ ...client, ai: memoryAi }))
 
-const { extractFacts, splitParagraphs } = await import('./extract')
+const { extractFacts, extractIdea, splitParagraphs } = await import('./extract')
+const { IDEA_KIND } = await import('../model/artifacts')
 const { EXTRACT } = await import('./prompts')
 const { toModelSchema } = await import('./schema-guard')
 const { sourceSentences } = await import('../text/sentences')
@@ -281,6 +282,74 @@ describe('extractFacts', () => {
   it('fails without calling a model when there are no paragraphs', async () => {
     const res = await run({ title: 'Empty', kind: 'news', text: ' \n\n ' })
     expect(res.ok).toBe(false)
+  })
+})
+
+describe('extractIdea', () => {
+  // A post started from an idea alone (bug, 18 Oct): an opinion states no fact the model would
+  // name, so the model gave none, and every look's factual slot had nothing to cite.
+  it('makes each sentence of the idea a supported fact, quoted word for word, with no model call', () => {
+    let calls = 0
+    provider = {
+      ...fakeProvider,
+      json: (req) => {
+        calls++
+        return fakeProvider.json(req)
+      },
+    }
+    const idea = 'Do not always push yourself. Enjoy what we have right now.'
+    const res = extractIdea({ title: idea, kind: IDEA_KIND, text: idea })
+    if (!res.ok) throw new Error(res.error)
+    expect(calls).toBe(0)
+    expect(res.source.paragraphs).toEqual([{ ref: '¶1', text: idea }])
+    expect(res.facts).toEqual([
+      {
+        id: 'f1',
+        text: 'Do not always push yourself.',
+        value: null,
+        ref: '¶1',
+        quote: 'Do not always push yourself.',
+        supported: true,
+        why: null,
+        span: null,
+        sentenceId: '¶1.1',
+      },
+      {
+        id: 'f2',
+        text: 'Enjoy what we have right now.',
+        value: null,
+        ref: '¶1',
+        quote: 'Enjoy what we have right now.',
+        supported: true,
+        why: null,
+        span: null,
+        sentenceId: '¶1.2',
+      },
+    ])
+    expect(res.keyIdeas).toEqual(['Do not always push yourself.', 'Enjoy what we have right now.'])
+    expect(res.replays).toEqual([])
+  })
+
+  it('takes an idea with no full stop as one fact, the whole idea', () => {
+    const idea = 'Do not always push yourself enjoy what we have right now'
+    const res = extractIdea({ title: idea, kind: IDEA_KIND, text: idea })
+    if (!res.ok) throw new Error(res.error)
+    expect(res.facts.map((f) => [f.id, f.quote, f.supported])).toEqual([['f1', idea, true]])
+    expect(res.keyIdeas).toEqual([idea])
+  })
+
+  it('keeps at most three key ideas, the first three sentences', () => {
+    const res = extractIdea({ title: 'Count', kind: IDEA_KIND, text: 'One. Two. Three. Four.' })
+    if (!res.ok) throw new Error(res.error)
+    expect(res.facts).toHaveLength(4)
+    expect(res.keyIdeas).toEqual(['One.', 'Two.', 'Three.'])
+  })
+
+  it('refuses an idea with no paragraph, as extraction does', () => {
+    expect(extractIdea({ title: 'x', kind: IDEA_KIND, text: '  \n\n ' })).toEqual({
+      ok: false,
+      error: 'The source has no paragraphs.',
+    })
   })
 })
 

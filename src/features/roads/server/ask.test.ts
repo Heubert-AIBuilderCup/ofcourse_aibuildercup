@@ -49,8 +49,11 @@ mock.module('@/features/content/ai/client', () => ({
 let found: Roadmap | null = null
 const getRoadmap = mock(async (_userId: string, _id: string) => found)
 const none = async () => null
-// Every export the module has, as Bun keeps one mock of a module for the whole run.
+// Every export the module has (its own, then these stubs), as Bun keeps one mock of a module
+// for the whole run.
+const roadmaps = { ...(await import('@/features/roadmaps/server/roadmaps')) }
 mock.module('@/features/roadmaps/server/roadmaps', () => ({
+  ...roadmaps,
   getRoadmap,
   getDraft: none,
   ensureDraft: none,
@@ -283,6 +286,25 @@ describe('askTile (23–28)', () => {
     expect(seen).toHaveLength(0)
     expect(recorded).toEqual([])
     expect(await askTile('student-1', 'rm-1', COURSE_TILE, 'a'.repeat(300), ENV)).not.toBeNull()
+  })
+
+  it('on a roadmap pinned to a course, answers from a tile on the pinned road (criterion 30)', async () => {
+    const { composeRoad } = await import('../model/compose')
+    const pinned = { courseId: 'uts-cyber', cityId: 'sydney' }
+    const spec = composeRoad({ ...pinned, stays: true })
+    found = roadmap({ choices: { pinned } })
+    const res = await askTile(
+      'student-1',
+      'rm-1',
+      spec.slots.course.id,
+      'How much are the fees?',
+      ENV,
+    )
+    expect(res?.kind).toBe('answered')
+    expect(seen[0].data).toEqual({
+      ...askFacts(spec, 'course', PROFILE_1.answers, []),
+      question: 'How much are the fees?',
+    })
   })
 
   it('answers nothing for a roadmap that is not hers', async () => {

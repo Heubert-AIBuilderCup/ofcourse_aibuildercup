@@ -186,6 +186,26 @@ describe('idea cards and image plans (GD1, GD2, GD12)', () => {
     expect(BODIES.drafts.parse({ ...old, idea: { cards: [CARD] } }).idea).toEqual({ cards: [CARD] })
   })
 
+  it('keeps up to four ideas combined on a drafts record and an outline, and refuses five (GD2)', () => {
+    const drafts = (n: number) =>
+      BODIES.drafts.safeParse({
+        factsId: 'f',
+        attempt: 1,
+        items: [],
+        replays: [],
+        idea: { cards: Array(n).fill(CARD) },
+      }).success
+    const outline = (n: number) =>
+      BODIES.post_outline.safeParse({
+        factsId: 'f',
+        ideas: Array(n).fill(CARD),
+        format: null,
+        slides: Array(3).fill({ job: 'point', layout: 'picture', point: 'A point.' }),
+        note: 'Outlined',
+      }).success
+    expect([drafts(4), drafts(5), outline(4), outline(5)]).toEqual([true, false, true, false])
+  })
+
   it('keeps an image plan: a scene per slide, or one panorama', () => {
     const plan = {
       revisionId: 'r',

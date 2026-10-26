@@ -8,6 +8,7 @@ import {
   nativeDigits,
   scriptProblems,
   scriptShare,
+  sourceWordingRefusal,
   wordCount,
 } from './script'
 
@@ -129,5 +130,37 @@ describe('firstChars', () => {
   it('leaves a text within the limit as it is, and cuts English as before', () => {
     expect(firstChars('หนังสือ', 10)).toBe('หนังสือ')
     expect(firstChars('Keep paid work modest.', 9)).toBe('Keep paid')
+  })
+})
+
+describe('sourceWordingRefusal', () => {
+  const ENGLISH = 'Balance is something you keep adjusting.'
+  const THAI_LINE = 'สมดุลคือกระบวนการ'
+
+  it("takes the source's wording only when it is in the post's script", () => {
+    expect(sourceWordingRefusal(ENGLISH, 'en')).toBeNull()
+    expect(sourceWordingRefusal(THAI_LINE, 'th')).toBeNull()
+    expect(sourceWordingRefusal(NATIVE.ne, 'ne')).toBeNull()
+  })
+
+  it('refuses an English source sentence on a Thai, Nepali or Hindi post, naming its language', () => {
+    expect(sourceWordingRefusal(ENGLISH, 'th')).toBe(
+      'The source is in English; edit the slide in Thai instead.',
+    )
+    expect(sourceWordingRefusal(ENGLISH, 'ne')).toBe(
+      'The source is in English; edit the slide in Nepali instead.',
+    )
+    expect(sourceWordingRefusal(ENGLISH, 'hi')).toBe(
+      'The source is in English; edit the slide in Hindi instead.',
+    )
+  })
+
+  it('refuses a sentence in another script on an English post; a post with no language is English', () => {
+    expect(sourceWordingRefusal(THAI_LINE, 'en')).toBe(
+      'The source is not in English; edit the slide in English instead.',
+    )
+    expect(sourceWordingRefusal(THAI_LINE, undefined)).toBe(
+      'The source is not in English; edit the slide in English instead.',
+    )
   })
 })

@@ -28,16 +28,15 @@ test('step 02 asks one question per screen, in the order her first answer sets',
     await expect(page).toHaveURL(/\/onboarding\/study\/know$/)
     await expect.poll(async () => (await profileOf(email))?.lastStep).toBe('study')
     await expect(heading(page, KNOW)).toBeVisible()
-    await expect(page.getByText("What you'd study · 1 of 4", { exact: true })).toBeVisible()
+    await expect(page.getByText("What you'd study · 1 of 2", { exact: true })).toBeVisible()
     const current = page.getByRole('list', { name: 'Your steps' }).locator('[aria-current="step"]')
     await expect(current).toContainText("What you'd study")
-    await expect(current).toContainText('Now · 1/4')
+    await expect(current).toContainText('Now · 1/2')
 
-    // "Something particular" asks the field too: five questions.
+    // "Something particular" asks the field too: three questions, and the tap moves on to it.
     await card(page, KNOW, 'Something particular').click()
-    await expect(page.getByText("What you'd study · 1 of 5", { exact: true })).toBeVisible()
-    await button(page, 'Continue').click()
     await expect(page).toHaveURL(/\/onboarding\/study\/field$/)
+    await expect(page.getByText("What you'd study · 2 of 3", { exact: true })).toBeVisible()
     const group = page.getByText('Something particular', { exact: true })
     const field = heading(page, 'Which field?')
     await expect(field).toBeVisible()
@@ -46,27 +45,23 @@ test('step 02 asks one question per screen, in the order her first answer sets',
     const fieldBox = await field.boundingBox()
     expect(groupBox && fieldBox && groupBox.y + groupBox.height <= fieldBox.y).toBe(true)
     await card(page, 'Which field?', 'Data science').click()
+    await expect(page).toHaveURL(/\/onboarding\/study\/level$/)
 
     // Back and forward between questions; her choice stays.
-    await button(page, 'Continue').click()
-    await expect(page).toHaveURL(/\/onboarding\/study\/level$/)
     await button(page, 'Back').click()
     await expect(page).toHaveURL(/\/onboarding\/study\/field$/)
     await expect(card(page, 'Which field?', 'Data science')).toHaveAttribute('aria-checked', 'true')
     await button(page, 'Continue').click()
     await expect(page).toHaveURL(/\/onboarding\/study\/level$/)
-    await button(page, 'Skip').click()
-    await expect(page).toHaveURL(/\/onboarding\/study\/learning$/)
-    await button(page, 'Skip').click()
-    await expect(page).toHaveURL(/\/onboarding\/study\/length$/)
-    await expect(heading(page, "Course length you'd prefer")).toBeVisible()
+    await expect(heading(page, 'Study level')).toBeVisible()
 
-    // Out of the step and back: step 03 follows the last question, and its Back returns to it.
+    // Out of the step and back: step 03 follows the last question, the level (how she likes to
+    // learn and the course length are hidden since 16 Oct 2026), and its Back returns to it.
     await button(page, "Next: Where and how you'd live").click()
     await expect(page).toHaveURL(/\/onboarding\/living\/destination$/)
     await button(page, 'Back').click()
-    await expect(page).toHaveURL(/\/onboarding\/study\/length$/)
-    await expect(heading(page, "Course length you'd prefer")).toBeVisible()
+    await expect(page).toHaveURL(/\/onboarding\/study\/level$/)
+    await expect(heading(page, 'Study level')).toBeVisible()
 
     // Back from the first question opens step 01's last.
     await page.goto('/onboarding/study/know')
@@ -88,11 +83,10 @@ test('the areas: up to three, a fourth refused, the last one removed clears her 
     // which may land before her first answer is saved; the screen still asks the areas.
     await page.goto('/onboarding/study/know')
     await card(page, KNOW, "A few areas I'm drawn to").click()
-    await button(page, 'Continue').click()
     await expect(page).toHaveURL(/\/onboarding\/study\/areas$/)
     await expect(heading(page, AREAS)).toBeVisible()
 
-    const chosen = ['IT and computing', 'Data', 'Health']
+    const chosen = ['IT and computing', 'Social work', 'Health']
     for (const area of chosen) await areaCheck(page, area).click()
     await expect(page.getByText('3 of 3 chosen', { exact: true })).toBeVisible()
     await expect
@@ -124,7 +118,7 @@ test('the areas: up to three, a fourth refused, the last one removed clears her 
   }
 })
 
-test('coming back: the bare step, a question not asked, an unknown slug, and /', async ({
+test('coming back: the bare step, a question not asked, a hidden one, an unknown slug, and /', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
@@ -138,6 +132,10 @@ test('coming back: the bare step, a question not asked, an unknown slug, and /',
     await expect(heading(page, 'Study level')).toBeVisible()
     // The field is asked only after "Something particular".
     await page.goto('/onboarding/study/field')
+    await expect(page).toHaveURL(/\/onboarding\/study\/level$/)
+    await expect(heading(page, 'Study level')).toBeVisible()
+    // How she likes to learn is no longer asked: its old link opens her first open question.
+    await page.goto('/onboarding/study/learning')
     await expect(page).toHaveURL(/\/onboarding\/study\/level$/)
     await expect(heading(page, 'Study level')).toBeVisible()
 

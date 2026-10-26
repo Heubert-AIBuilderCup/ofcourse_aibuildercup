@@ -2,17 +2,50 @@
 // "Ready", or each problem in one plain sentence with a one-click fix where one exists. Pure and
 // client-safe: it reads the version, its fit rows, its facts and the source check's results.
 
-import type { Body } from '../model/artifacts'
+import { FEED_BRAND } from '../brands'
+import { PRESETS } from '../brands/guideline'
+import type { Body, Pointers } from '../model/artifacts'
 import type { ClaimResult, Fact, FitCheck, SlotSpec } from '../model/types'
-import { findSlideSpec } from '../templates'
+import { findSlideSpec, isLook } from '../templates'
 import { unboundSlots } from './claims'
 
 type Item = Body<'drafts'>['items'][number]
+/** What the problems read of a version: its slides and its template (a draft's item, or a revision). */
+type Shaped = Pick<Item, 'structure' | 'template'>
 
-/** The press that fixes a problem: the shorter chip on one slide (GD10), for words that do not fit. */
-export type ProblemFix = { kind: 'nudge'; nudge: 'shorter'; slide: number }
+/**
+ * The press that fixes a problem: the shorter chip on one slide (GD10), for words that do not fit;
+ * a supported fact bound in an unbound slot's place (criterion 28); for a sentence the check could
+ * not find, by its place in the check, the source's wording in its place where the check found
+ * one (criterion 104), or the editor's opinion mark (criteria 42, 43); or, for what
+ * no change to the words fixes, the Text tab where it is chosen (18 Oct): the colours on Style,
+ * the template's smallest text by another version.
+ */
+export type ProblemFix =
+  | { kind: 'nudge'; nudge: 'shorter'; slide: number }
+  | { kind: 'bind'; slide: number; slot: string }
+  | { kind: 'wording'; claim: number }
+  | { kind: 'open'; tab: 'Style' | 'Versions' }
 
-export type VersionProblem = { text: string; fix?: ProblemFix }
+/** The Text tab where a failing fit row is fixed: Style for colours, Versions for the smallest text, else Checks. */
+export function fitFixTab(row: FitCheck): 'Checks' | 'Style' | 'Versions' {
+  if (row.check === 'contrast') return 'Style'
+  return row.check === 'legibility' ? 'Versions' : 'Checks'
+}
+
+/**
+ * One problem: its sentence (the version cards list them), and for the Checks tab's card where it
+ * is ("Slide 3 · Body"), what is wrong in a few words ("Too long") and the evidence (the length and
+ * its limit, the sentence at fault, the source's paragraph it should match). A problem the drafting
+ * left is its sentence alone.
+ */
+export type VersionProblem = {
+  text: string
+  where?: string
+  what?: string
+  evidence?: string[]
+  fix?: ProblemFix
+}
 export type VersionStatus = { ready: boolean; problems: VersionProblem[] }
 
 const UNITS = { chars: 'characters', words: 'words', points: 'points' } as const
@@ -21,46 +54,121 @@ const UNITS = { chars: 'characters', words: 'words', points: 'points' } as const
 export const versionLetter = (index: number): string => String.fromCharCode(65 + index)
 
 /** A slot's spec on a slide of the version, if the template has one. */
-function specOf(item: Item, slide: number, key: string): SlotSpec | undefined {
+function specOf(item: Shaped, slide: number, key: string): SlotSpec | undefined {
   const at = item.structure.slides[slide - 1]
   return at ? findSlideSpec(item.template, at)?.slots.find((s) => s.key === key) : undefined
 }
 
 /** "Slide 2 body": a slot by its slide and its label, as the editor sees it. */
-function slotName(item: Item, slide: number, key: string): string {
+function slotName(item: Shaped, slide: number, key: string): string {
   const label = specOf(item, slide, key)?.label ?? key
   return `Slide ${slide} ${label.charAt(0).toLowerCase()}${label.slice(1)}`
 }
+
+/** "Slide 2 · Body": where a slot's problem is, on its card. */
+const slotPlace = (item: Shaped, slide: number, key: string) =>
+  `Slide ${slide} · ${specOf(item, slide, key)?.label ?? key}`
 
 /** The colour pair a contrast row names: "Contrast · Pop block 3.1:1 · Too low" names "Pop block". */
 const pairOf = (label: string) => (label.split(' · ')[1] ?? '').replace(/ [\d.]+:1$/, '')
 
 /** A failing fit row as a sentence, with the shorter chip where the words are too many. */
-function fitProblem(item: Item, row: FitCheck): VersionProblem {
+function fitProblem(item: Shaped, row: FitCheck): VersionProblem {
   const { slide, slot } = row
   if (row.check === 'contrast')
-    return { text: `Text on ${pairOf(row.label)} is ${row.value}:1; it needs ${row.limit}.` }
+    return {
+      text: `Text on ${pairOf(row.label)} is ${row.value}:1; it needs ${row.limit}.`,
+      where: `Colours · ${pairOf(row.label)}`,
+      what: 'Contrast too low',
+      evidence: [`${row.value}:1 · needs ${row.limit}`],
+      fix: { kind: 'open', tab: 'Style' },
+    }
   if (row.check === 'legibility') {
-    return { text: `The smallest text is ${row.value}px on a phone; it needs ${row.limit}.` }
+    return {
+      text: `The smallest text is ${row.value}px on a phone; it needs ${row.limit}.`,
+      where: 'Smallest text',
+      what: 'Too small on a phone',
+      evidence: [`${row.value}px · needs ${row.limit}`],
+      fix: { kind: 'open', tab: 'Versions' },
+    }
   }
   if (slide === null || slot === null) return { text: row.label }
   const name = slotName(item, slide, slot)
+  const where = slotPlace(item, slide, slot)
   const shorter: ProblemFix = { kind: 'nudge', nudge: 'shorter', slide }
   if (row.check === 'box') {
     const room = Number.parseInt(row.limit, 10)
-    return { text: `${name} needs ${row.value} lines; it has room for ${room}.`, fix: shorter }
+    return {
+      text: `${name} needs ${row.value} lines; it has room for ${room}.`,
+      where,
+      what: 'Does not fit its box',
+      evidence: [`Needs ${row.value} lines · room for ${room}`],
+      fix: shorter,
+    }
   }
   if (row.check === 'glyph') {
+    const characters = `${row.value} character${row.value === 1 ? '' : 's'}`
     return {
-      text: `${name} has ${row.value} character${row.value === 1 ? '' : 's'} the font cannot draw.`,
+      text: `${name} has ${characters} the font cannot draw.`,
+      where,
+      what: `The font cannot draw ${characters}`,
     }
   }
   const limit = specOf(item, slide, slot)?.limit
   if (!limit) return { text: row.label }
   const unit = UNITS[limit.unit]
+  const evidence = [`${row.value} ${unit} · limit ${limit.min}–${limit.max}`]
   return row.value > limit.max
-    ? { text: `${name} is ${row.value} ${unit}; the most is ${limit.max}.`, fix: shorter }
-    : { text: `${name} is ${row.value} ${unit}; the least is ${limit.min}.` }
+    ? {
+        text: `${name} is ${row.value} ${unit}; the most is ${limit.max}.`,
+        where,
+        what: 'Too long',
+        evidence,
+        fix: shorter,
+      }
+    : {
+        text: `${name} is ${row.value} ${unit}; the least is ${limit.min}.`,
+        where,
+        what: 'Too short',
+        evidence,
+      }
+}
+
+/** The failing fit rows of a version, each as a problem named by its place and what is wrong. */
+export const fitFailures = (version: Shaped, checks: FitCheck[]): VersionProblem[] =>
+  checks.filter((row) => !row.pass).map((row) => fitProblem(version, row))
+
+/** A fit row's identity across two layouts of the same slides: its check and slot, or its label. */
+const rowKey = (row: FitCheck) =>
+  row.slide === null || row.slot === null ? row.label : `${row.check}|${row.slide}|${row.slot}`
+
+/** What a newly failing row leaves its slot, after "would leave Slide 2 · Body". */
+const LEFT: Record<string, string> = {
+  'Too short': 'too short',
+  'Too long': 'too long',
+  'Does not fit its box': 'over its box',
+}
+
+/**
+ * Why a sentence the source check could not find may not be removed or put in the source's words
+ * (server/commands/render.ts reviseClaim): the new layout fails a fit row that passed before, so
+ * the post would drop back to Images with nothing it could render. Names the first such slot and
+ * the ways to fix it; null when no row that passed before fails after.
+ */
+export function claimFitError(
+  change: 'remove' | 'wording',
+  version: Shaped,
+  before: FitCheck[],
+  after: FitCheck[],
+): string | null {
+  const failedBefore = new Set(before.filter((row) => !row.pass).map(rowKey))
+  const fresh = after.find((row) => !row.pass && !failedBefore.has(rowKey(row)))
+  if (!fresh) return null
+  const { where, what = '' } = fitProblem(version, fresh)
+  const left = where ? `${where} ${LEFT[what] ?? what.toLowerCase()}` : fresh.label
+  return change === 'remove'
+    ? `Removing it would leave ${left}. Use the source's wording, or edit it on Text.`
+    : `The source's wording would leave ${left}. Remove the sentence, or edit it on Text.`
 }
 
 /**
@@ -75,22 +183,67 @@ export function versionStatus(
   claims: ClaimResult[] = [],
 ): VersionStatus {
   const problems: VersionProblem[] = [
-    ...checks.filter((row) => !row.pass).map((row) => fitProblem(item, row)),
+    ...fitFailures(item, checks),
     ...(item.problems ?? []).map((text) => ({ text })),
-    ...unboundSlots(item.structure, item.template, facts).map((u) => ({
-      text:
-        u.reason === 'No source'
-          ? `${slotName(item, u.slide, u.slot)} is not in the source: “${u.text}”`
-          : `${slotName(item, u.slide, u.slot)} has a number its fact does not give: “${u.text}”`,
-    })),
-    ...claims
-      .filter((c) => c.result === 'not_found')
-      .map((c) => ({
-        text: `${slotName(item, c.slide, c.slot)} was not found in the source: “${c.text}”`,
-      })),
+    ...unboundSlots(item.structure, item.template, facts).map(
+      (u): VersionProblem => ({
+        text:
+          u.reason === 'No source'
+            ? `${slotName(item, u.slide, u.slot)} is not in the source: “${u.text}”`
+            : `${slotName(item, u.slide, u.slot)} has a number its fact does not give: “${u.text}”`,
+        where: slotPlace(item, u.slide, u.slot),
+        what: u.reason === 'No source' ? 'Not in the source' : 'A number its fact does not give',
+        evidence: [`“${u.text}”`],
+        fix: { kind: 'bind', slide: u.slide, slot: u.slot },
+      }),
+    ),
+    ...claims.flatMap((c, claim): VersionProblem[] =>
+      c.result === 'not_found'
+        ? [
+            {
+              text: `${slotName(item, c.slide, c.slot)} was not found in the source: “${c.text}”`,
+              where: slotPlace(item, c.slide, c.slot),
+              what: 'Not found in the source',
+              evidence: [
+                `“${c.text}”`,
+                ...(c.suggestion ? [`Source ${c.suggestion.ref}: ${c.suggestion.text}`] : []),
+              ],
+              fix: { kind: 'wording', claim },
+            },
+          ]
+        : [],
+    ),
   ]
   return { ready: problems.length === 0, problems }
 }
+
+/**
+ * What is chosen for the editor when versions are drafted, so nothing waits on a choice nobody
+ * made: her pick while it is still among the new versions and clean, else the first version the
+ * drafting left without problems (version A, as a rule), or none when every one has some
+ * (criterion 97: such a version is never picked); and her colours while they still suit the
+ * versions, else Pop for looks (GD9, as a comic is) and the feed brand's first theme for a
+ * template from before the looks.
+ */
+export function draftChoices(
+  was: Pick<Pointers, 'picked' | 'themeId'>,
+  items: readonly Item[],
+): { picked: number | null; themeId: string } {
+  const clean = (at: number) => at < items.length && (items[at].problems ?? []).length === 0
+  const first = items.findIndex((_, at) => clean(at))
+  const picked = was.picked !== null && clean(was.picked) ? was.picked : first < 0 ? null : first
+  const looks = items.some((item) => isLook(item.template))
+  const themes: readonly string[] = looks ? PRESETS : FEED_BRAND.themes.map((t) => t.id)
+  const themeId = was.themeId !== null && themes.includes(was.themeId) ? was.themeId : themes[0]
+  return { picked, themeId }
+}
+
+/**
+ * The colours the versions are shown and approved in: hers, or, on a post drafted before
+ * draftChoices (no theme stored), the default it gives (Pop for looks, the brand's first theme).
+ */
+export const themeOrDefault = (themeId: string | null, items: readonly Item[]): string =>
+  themeId ?? draftChoices({ picked: null, themeId: null }, items).themeId
 
 /** The version picked for the editor when versions arrive (GD29): the first Ready one, or none. */
 export function firstReady(statuses: readonly VersionStatus[]): number | null {

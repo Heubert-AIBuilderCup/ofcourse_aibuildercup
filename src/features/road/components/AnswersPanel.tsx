@@ -1,7 +1,7 @@
 'use client'
 
 import { Check } from 'lucide-react'
-import { type KeyboardEvent, useState } from 'react'
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import {
   type AnswerGroup,
   type AnswerRow,
@@ -85,13 +85,15 @@ const counted = (n: number, one: string, many: string) => `${n} ${n === 1 ? one 
 /**
  * How the panel ends: Your answers saves changes to the roadmap (`onSave`, her answers with them
  * merged in) or closes (`onClose`); a new roadmap's draft, a copy of `copyOf` (null from scratch),
- * is created with them (`onCreate`) or cancelled (`onCancel`).
+ * is created with them (`onCreate`) or cancelled (`onCancel`). A draft `around` a course (named, the
+ * course she chose to switch to) can be created with no answer changed.
  */
 type Ends =
   | { mode?: 'edit'; onSave: (answers: StoredAnswers) => void; onClose: () => void }
   | {
       mode: 'draft'
       copyOf: string | null
+      around?: string
       onCreate: (answers: StoredAnswers) => void
       onCancel: () => void
     }
@@ -118,6 +120,7 @@ export function AnswersPanel({
   place = 'column',
   tags = [],
   rematch,
+  openAt = null,
   onPreview,
   ...ends
 }: {
@@ -131,9 +134,15 @@ export function AnswersPanel({
   tags?: RoadmapTag[]
   /** The board draws the road her answers match: its rule, so a pick says when it would change it. */
   rematch?: RoadChangeOf
+  /** The question it opens at (Pick a destination's): that row open, with focus. */
+  openAt?: QuestionKey | null
   onPreview: (prev: Record<string, string>) => void
 } & Ends) {
-  const [openKey, setOpenKey] = useState<RowKey | null>(null)
+  const [openKey, setOpenKey] = useState<RowKey | null>(openAt)
+  const rootRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (openAt) rootRef.current?.querySelector<HTMLElement>('[aria-expanded="true"]')?.focus()
+  }, [openAt])
   const [pending, setPending] = useState<Pending>({})
   const [asking, setAsking] = useState(false)
   const [done, setDone] = useState<Done[]>([])
@@ -146,10 +155,18 @@ export function AnswersPanel({
   const count = Object.keys(pending).length
   const draft = ends.mode === 'draft'
   const scratch = ends.mode === 'draft' && ends.copyOf === null
+  const around = ends.mode === 'draft' ? ends.around : undefined
   // From scratch every question is open: a default it would count as is not her answer yet.
   const asShown = (row: AnswerRow): AnswerRow =>
     scratch && row.editable && !(row.key in answers) ? { ...row, shown: '', open: UNANSWERED } : row
   const leave = ends.mode === 'draft' ? ends.onCancel : ends.onClose
+  // What follows the close she is being asked about (Find opening); dropped if she keeps editing.
+  const then = useRef<(() => void) | null>(null)
+
+  function keepEditing() {
+    setAsking(false)
+    then.current = null
+  }
 
   function change(picks: Pending) {
     // A pick on a question the others no longer ask goes with it.
@@ -158,7 +175,7 @@ export function AnswersPanel({
       Object.entries(picks).filter(([key]) => isVisible(key as QuestionKey, asked)),
     ) as Pending
     setPending(next)
-    setAsking(false)
+    keepEditing()
     onPreview(
       Object.assign(
         {},
@@ -188,7 +205,7 @@ export function AnswersPanel({
 
   function save() {
     if (ends.mode === 'draft') {
-      if (count) ends.onCreate(merged())
+      if (count || around) ends.onCreate(merged())
       return
     }
     const next = merged()
@@ -199,18 +216,24 @@ export function AnswersPanel({
   }
 
   function discard() {
+    const next = then.current
     change({})
     leave()
+    next?.()
   }
 
-  function close() {
-    if (count) setAsking(true)
-    else leave()
+  /** Close, asking first when picks wait; `next` follows once it has closed. */
+  function close(next: (() => void) | null = null) {
+    if (count) {
+      setAsking(true)
+      then.current = next
+    } else {
+      leave()
+      next?.()
+    }
   }
 
-  const question = draft
-    ? 'Discard this new roadmap?'
-    : `Discard ${counted(count, 'change', 'changes')}?`
+  const question = `Discard ${counted(count, 'change', 'changes')}?`
 
   const foot =
     place === 'sheet' ? 'sticky bottom-0 -mx-4 px-4' : 'sticky -bottom-6 -mx-6 -mb-6 px-6'
@@ -218,6 +241,7 @@ export function AnswersPanel({
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: Escape from anywhere inside closes it as Close does
     <div
+      ref={rootRef}
       className="flex flex-col gap-3"
       onKeyDown={(e: KeyboardEvent) => {
         if (e.key !== 'Escape' || asking) return
@@ -232,22 +256,32 @@ export function AnswersPanel({
               ? 'From onboarding · change any of them'
               : scratch
                 ? 'New roadmap · from scratch'
-                : `New roadmap · a copy of ${ends.copyOf}`}
+                : around
+                  ? `New roadmap · around ${around}`
+                  : `New roadmap · a copy of ${ends.copyOf}`}
           </p>
           <h2 className="m-0 text-h2 leading-none">
-            {scratch ? 'Answer the questions' : draft ? 'Change any answers' : 'Your answers'}
+            {scratch
+              ? 'Answer the questions'
+              : around
+                ? 'Create a new roadmap?'
+                : draft
+                  ? 'Change any answers'
+                  : 'Your answers'}
           </h2>
         </div>
-        <Button type="button" variant="text" onClick={close}>
+        <Button type="button" variant="text" onClick={() => close()}>
           Close
         </Button>
       </div>
       <p className="m-0 text-muted-foreground">
         {scratch
           ? 'Start with no answers. Each one you give draws more of the map.'
-          : draft
-            ? 'It starts with the same answers. Change one or more; the map shows what would be different before you create it.'
-            : 'Pick one to change it. Your roadmap shows what would move before anything moves.'}
+          : around
+            ? 'The map shows the road this course leads to: its visa, work rights and jobs. Your other roadmaps stay as they are.'
+            : draft
+              ? 'It starts with the same answers. Change one or more; the map shows what would be different before you create it.'
+              : 'Pick one to change it. Your roadmap shows what would move before anything moves.'}
       </p>
 
       {/* The rows her answers would ask with the picks waiting: a follow-up shows at once. */}
@@ -272,7 +306,7 @@ export function AnswersPanel({
                 lines={(value) => effectOf(road, row.key, value, answers, rematch).lines}
                 onToggle={() => {
                   setOpenKey(openKey === row.key ? null : row.key)
-                  setAsking(false)
+                  keepEditing()
                 }}
                 onPick={(value) => (isMulti(row) ? toggle(row, value as string) : pick(row, value))}
               />
@@ -314,12 +348,7 @@ export function AnswersPanel({
             <Button type="button" variant="outline" className="h-11" onClick={discard}>
               Discard
             </Button>
-            <Button
-              type="button"
-              variant="strong"
-              className="h-11"
-              onClick={() => setAsking(false)}
-            >
+            <Button type="button" variant="strong" className="h-11" onClick={keepEditing}>
               Keep editing
             </Button>
           </div>
@@ -341,13 +370,15 @@ export function AnswersPanel({
                   : 'Answer at least one question'
                 : count
                   ? `${counted(count, 'answer', 'answers')} changed`
-                  : 'Change at least one answer'}
+                  : around
+                    ? 'Same answers, around this course'
+                    : 'Change at least one answer'}
           </span>
           <Button
             type="button"
             variant="outline"
             className="h-11"
-            onClick={draft ? close : discard}
+            onClick={draft ? () => close() : discard}
           >
             {draft ? 'Cancel' : 'Discard'}
           </Button>
@@ -355,7 +386,7 @@ export function AnswersPanel({
             type="button"
             variant="strong"
             className="h-11 aria-disabled:opacity-60"
-            aria-disabled={draft && !count ? true : undefined}
+            aria-disabled={draft && !count && !around ? true : undefined}
             onClick={save}
           >
             {draft ? 'Create roadmap' : 'Save changes'}

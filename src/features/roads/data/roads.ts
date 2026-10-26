@@ -267,8 +267,9 @@ export type CourseWords = {
   name: string
   /** "ECU · Perth" */
   sub: string
-  gains: string
-  costs: string
+  /** Left out when the course gives nothing, or costs nothing. */
+  gains?: string
+  costs?: string
   guide: string
   /** The study step's name once it is on her roadmap. */
   step: string

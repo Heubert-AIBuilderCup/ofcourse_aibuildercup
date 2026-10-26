@@ -94,25 +94,6 @@ export function slideSpec(template: Template, slide: Pick<Slide, 'kind' | 'layou
   return spec
 }
 
-/**
- * Whether a slide of another version can take the place of `target` in a version of this template
- * (GD11, "Use this slide in my version"): the same kind, with exactly the slots the template's
- * spec for it lists. The command refuses any other, and the workbench says so before the press.
- */
-export function slideFitsAt(
-  template: Template,
-  taken: Slide,
-  target: Pick<Slide, 'kind'>,
-): boolean {
-  const keys = findSlideSpec(template, taken)?.slots.map((s) => s.key)
-  return (
-    taken.kind === target.kind &&
-    keys !== undefined &&
-    keys.length === Object.keys(taken.slots).length &&
-    keys.every((key) => taken.slots[key])
-  )
-}
-
 /** The looks drawn as one wide image cut into a window per slide (GD4): Postcard. */
 const PANORAMA_LOOKS: readonly string[] = ['postcard']
 

@@ -1,3 +1,4 @@
+import { courseFallback } from './course-fallback'
 import type { CourseSubjects, Source } from './types'
 
 const handbook = (university: string): Source => ({
@@ -250,11 +251,360 @@ export const SUBJECTS: readonly CourseSubjects[] = [
     conditions: ['A bachelor degree in any field', MATHS],
     source: handbook('UTS'),
   },
+  {
+    courseId: 'ecu-bus-analytics',
+    majors: ['Business analytics', 'Marketing analytics'],
+    units: [
+      'Data-driven decision making',
+      'Predictive analytics',
+      'Data visualisation for business',
+      'Analytics consulting project',
+    ],
+    conditions: ['A bachelor degree in any field', MATHS],
+    source: handbook('ECU'),
+  },
+  {
+    courseId: 'unisa-software',
+    majors: ['Software architecture', 'Secure software'],
+    units: ['Software requirements', 'Software architecture', 'Software testing', 'Agile project'],
+    conditions: [PROGRAMMING],
+    source: handbook('UniSA'),
+  },
+  {
+    courseId: 'unisa-mph',
+    majors: ['Epidemiology', 'Health promotion'],
+    units: ['Biostatistics', 'Health promotion practice', 'Global health', 'Public health project'],
+    conditions: ['A bachelor degree in any field'],
+    source: handbook('UniSA'),
+  },
+  {
+    courseId: 'unisa-health-admin',
+    majors: ['Health services management', 'Health policy'],
+    units: [
+      'Health systems and policy',
+      'Managing health services',
+      'Health finance',
+      'Quality and safety in health care',
+    ],
+    conditions: ['A bachelor degree in any field'],
+    source: handbook('UniSA'),
+  },
+  {
+    courseId: 'uts-infosec',
+    majors: ['Security architecture', 'Governance and risk'],
+    units: [
+      'Security architecture',
+      'Identity and access management',
+      'Security governance',
+      'Cloud security',
+    ],
+    conditions: [PROGRAMMING],
+    source: handbook('UTS'),
+  },
+  {
+    courseId: 'uts-forensics',
+    majors: ['Digital forensics', 'Incident investigation'],
+    units: [
+      'Forensic investigation',
+      'Malware analysis',
+      'Evidence and the law',
+      'Incident response',
+    ],
+    conditions: [PROGRAMMING],
+    source: handbook('UTS'),
+  },
+  {
+    courseId: 'uts-structural',
+    majors: ['Structural engineering', 'Bridge engineering'],
+    units: [
+      'Advanced structural analysis',
+      'Steel and concrete design',
+      'Structural dynamics',
+      'Engineering project',
+    ],
+    conditions: [
+      'A bachelor degree in engineering or a close field',
+      'A capstone project with an industry partner in the final year',
+    ],
+    source: handbook('UTS'),
+  },
+  {
+    courseId: 'uts-eng-management',
+    majors: ['Project management', 'Construction management'],
+    units: [
+      'Engineering project management',
+      'Construction law and contracts',
+      'Engineering risk management',
+      'Leading engineering teams',
+    ],
+    conditions: ['A bachelor degree in engineering or a close field'],
+    source: handbook('UTS'),
+  },
+  {
+    courseId: 'uts-accounting',
+    majors: ['Accounting', 'Financial reporting'],
+    units: [
+      'Accounting for business decisions',
+      'Financial reporting',
+      'Taxation law',
+      'Audit and assurance',
+    ],
+    conditions: ['A bachelor degree in any field'],
+    source: handbook('UTS'),
+  },
+  {
+    courseId: 'monash-design',
+    majors: ['Communication design', 'Visual identity'],
+    units: ['Design research', 'Typography and layout', 'Visual systems', 'Design studio'],
+    conditions: ['A bachelor degree in any field', 'A portfolio of two or three pieces of work'],
+    source: handbook('Monash'),
+  },
+  {
+    courseId: 'swin-design-strategy',
+    majors: ['Service design', 'Design-led innovation'],
+    units: ['Design thinking', 'Service design', 'Strategic foresight', 'Innovation studio'],
+    conditions: ['A bachelor degree in any field', 'A portfolio of two or three pieces of work'],
+    source: handbook('Swinburne'),
+  },
+  {
+    courseId: 'monash-org-psych',
+    majors: ['Organisational psychology', 'Workplace assessment'],
+    units: [
+      'Psychological assessment at work',
+      'Organisational behaviour',
+      'Coaching and development',
+      'Research methods',
+    ],
+    conditions: [
+      'An accredited psychology degree with honours-level results',
+      'Supervised placement hours in the second year',
+    ],
+    source: handbook('Monash'),
+  },
+  {
+    courseId: 'monash-health-informatics',
+    majors: ['Health data', 'Digital health'],
+    units: [
+      'Health information systems',
+      'Health data analytics',
+      'Clinical terminologies and standards',
+      'Digital health project',
+    ],
+    conditions: ['A bachelor degree in any field'],
+    source: handbook('Monash'),
+  },
+  {
+    courseId: 'deakin-commerce',
+    majors: ['Accounting', 'Finance'],
+    units: [
+      'Accounting for managers',
+      'Financial management',
+      'Economics for business',
+      'Business law',
+    ],
+    conditions: ['A bachelor degree in any field'],
+    source: handbook('Deakin'),
+  },
+  {
+    courseId: 'deakin-supply-chain',
+    majors: ['Logistics', 'Procurement'],
+    units: [
+      'Supply chain strategy',
+      'Logistics operations',
+      'Procurement and contracts',
+      'Supply chain project',
+    ],
+    conditions: ['A bachelor degree in any field'],
+    source: handbook('Deakin'),
+  },
+  {
+    courseId: 'deakin-cyber-governance',
+    majors: ['Security governance', 'Cyber risk'],
+    units: ['Security policy', 'Cyber risk management', 'Privacy and compliance', 'Security audit'],
+    conditions: ['A bachelor degree in any field'],
+    source: handbook('Deakin'),
+  },
+  {
+    courseId: 'deakin-network-security',
+    majors: ['Network security', 'Cloud security'],
+    units: ['Network defence', 'Secure network design', 'Cloud security', 'Security operations'],
+    conditions: [PROGRAMMING],
+    source: handbook('Deakin'),
+  },
+  {
+    courseId: 'deakin-mechanical',
+    majors: ['Mechanical design', 'Advanced manufacturing'],
+    units: ['Mechanical design', 'Thermofluids', 'Advanced manufacturing', 'Engineering project'],
+    conditions: ['A bachelor degree in engineering or a close field', MATHS],
+    source: handbook('Deakin'),
+  },
+  {
+    courseId: 'deakin-electrical',
+    majors: ['Power systems', 'Renewable energy'],
+    units: ['Power systems', 'Renewable energy systems', 'Control systems', 'Engineering project'],
+    conditions: ['A bachelor degree in engineering or a close field', MATHS],
+    source: handbook('Deakin'),
+  },
+  {
+    courseId: 'utas-infosys',
+    majors: ['Information systems', 'Software development'],
+    units: ['Systems analysis', 'Programming', 'Databases', 'IT project'],
+    conditions: ['A bachelor degree in any field'],
+    source: handbook('UTAS'),
+  },
+  {
+    courseId: 'utas-computing',
+    majors: ['Software development', 'Cloud computing'],
+    units: ['Software engineering', 'Cloud platforms', 'Web development', 'Computing project'],
+    conditions: [PROGRAMMING],
+    source: handbook('UTAS'),
+  },
+  {
+    courseId: 'utas-mph',
+    majors: ['Epidemiology', 'Rural and remote health'],
+    units: [
+      'Biostatistics',
+      'Epidemiology methods',
+      'Rural and remote health',
+      'Public health project',
+    ],
+    conditions: ['A bachelor degree in any field'],
+    source: handbook('UTAS'),
+  },
+  {
+    courseId: 'ecu-teaching-secondary',
+    majors: ['Mathematics teaching', 'Science teaching'],
+    units: [
+      'Curriculum and pedagogy',
+      'Classroom management',
+      'Teaching diverse learners',
+      'Professional experience',
+    ],
+    conditions: [
+      'A bachelor degree with study in one or two school teaching areas',
+      'A Working with Children Check before your first school placement',
+    ],
+    source: handbook('ECU'),
+  },
+  {
+    courseId: 'ecu-teaching-early',
+    majors: ['Early learning', 'Play-based pedagogy'],
+    units: [
+      'Child development',
+      'Early literacy and numeracy',
+      'Play-based learning',
+      'Professional experience',
+    ],
+    conditions: [
+      'A bachelor degree in any field',
+      'A Working with Children Check before your first school placement',
+    ],
+    source: handbook('ECU'),
+  },
+  {
+    courseId: 'monash-teaching',
+    majors: ['English teaching', 'Mathematics teaching'],
+    units: [
+      'Curriculum and pedagogy',
+      'Assessment for learning',
+      'Inclusive education',
+      'Professional experience',
+    ],
+    conditions: [
+      'A bachelor degree with study in one or two school teaching areas',
+      'A Working with Children Check before your first school placement',
+    ],
+    source: handbook('Monash'),
+  },
+  {
+    courseId: 'curtin-social-work',
+    majors: ['Children and young people', 'Mental health practice'],
+    units: [
+      'Social work theory and practice',
+      'Human rights and social justice',
+      'Mental health and wellbeing',
+      'Field education',
+    ],
+    conditions: [
+      'A bachelor degree in any field, with some study in the social sciences',
+      'A police check before field placements',
+    ],
+    source: handbook('Curtin'),
+  },
+  {
+    courseId: 'unisa-social-work',
+    majors: ['Children and young people', 'Mental health practice'],
+    units: [
+      'Social work theory and practice',
+      'Human rights and social justice',
+      'Mental health and wellbeing',
+      'Field education',
+    ],
+    conditions: [
+      'A bachelor degree in any field, with some study in the social sciences',
+      'A police check before field placements',
+    ],
+    source: handbook('UniSA'),
+  },
+  {
+    courseId: 'monash-social-work',
+    majors: ['Children and young people', 'Mental health practice'],
+    units: [
+      'Social work theory and practice',
+      'Human rights and social justice',
+      'Mental health and wellbeing',
+      'Field education',
+    ],
+    conditions: [
+      'A bachelor degree in any field, with some study in the social sciences',
+      'A police check before field placements',
+    ],
+    source: handbook('Monash'),
+  },
+  {
+    courseId: 'utas-social-work',
+    majors: ['Children and young people', 'Mental health practice'],
+    units: [
+      'Social work theory and practice',
+      'Human rights and social justice',
+      'Mental health and wellbeing',
+      'Field education',
+    ],
+    conditions: [
+      'A bachelor degree in any field, with some study in the social sciences',
+      'A police check before field placements',
+    ],
+    source: handbook('UTAS'),
+  },
+  {
+    courseId: 'uts-tourism',
+    majors: ['Hotel management', 'Events and destinations'],
+    units: [
+      'Hospitality operations',
+      'Tourism marketing',
+      'Revenue management',
+      'Industry placement',
+    ],
+    conditions: ['A bachelor degree in any field'],
+    source: handbook('UTS'),
+  },
+  {
+    courseId: 'deakin-tourism',
+    majors: ['Hospitality management', 'Regional tourism'],
+    units: [
+      'Hospitality operations',
+      'Destination management',
+      'Revenue management',
+      'Industry placement',
+    ],
+    conditions: ['A bachelor degree in any field'],
+    source: handbook('Deakin'),
+  },
 ]
 
 const SUBJECTS_BY_COURSE = new Map(SUBJECTS.map((s) => [s.courseId, s]))
 
-/** The majors, units and entry conditions of a course; undefined for one the catalogue has none for. */
+/** The majors, units and entry conditions of a course, else any the server registered; undefined for one neither has. */
 export function subjectsOf(courseId: string): CourseSubjects | undefined {
-  return SUBJECTS_BY_COURSE.get(courseId)
+  return SUBJECTS_BY_COURSE.get(courseId) ?? courseFallback().subjectsOf(courseId)
 }

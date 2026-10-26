@@ -4,6 +4,8 @@ import { alias } from 'drizzle-orm/pg-core'
 import { db } from '@/shared/lib/db'
 import { roadmap } from '@/shared/lib/db/schema'
 import {
+  type BoardChoices,
+  boardChoicesSchema,
   type Coins,
   coinsSchema,
   type OwnWordsStep,
@@ -215,6 +217,26 @@ export async function listRoadmaps(userId: string): Promise<Roadmap[]> {
   return rows.map(toRoadmap)
 }
 
+/**
+ * Her finished roadmaps as listRoadmaps orders and bounds them, only their name, answers and
+ * choices: what the feed reads of each, on every page she scrolls.
+ */
+export async function listRoadmapSummaries(
+  userId: string,
+): Promise<Pick<Roadmap, 'name' | 'answers' | 'choices'>[]> {
+  const rows = await db
+    .select({ name: roadmap.name, answers: roadmap.answers, choices: roadmap.choices })
+    .from(roadmap)
+    .where(and(eq(roadmap.userId, userId), finished, alive))
+    .orderBy(...lastOpenedFirst)
+    .limit(LIST_MAX)
+  return rows.map((row) => ({
+    name: row.name,
+    answers: storedAnswersSchema.safeParse(row.answers).data ?? {},
+    choices: roadmapChoicesSchema.safeParse(row.choices).data ?? {},
+  }))
+}
+
 /** The answers of the roadmap listRoadmaps puts first (archived ones count), or null: one row. */
 export async function lastOpenedAnswers(userId: string): Promise<StoredAnswers | null> {
   const [row] = await db
@@ -331,15 +353,21 @@ export async function touchOpened(userId: string, id: string): Promise<boolean> 
   return false
 }
 
-/** What she did on its board; a key the schema does not know is dropped. False when not hers. */
+/**
+ * What she did on its board; a key a board does not have is dropped. Its pin, set when it was made,
+ * stays as stored, in the same write. False when not hers.
+ */
 export async function saveChoices(
   userId: string,
   id: string,
-  choices: RoadmapChoices,
+  choices: BoardChoices,
 ): Promise<boolean> {
+  const board = JSON.stringify(boardChoicesSchema.parse(choices))
   const rows = await db
     .update(roadmap)
-    .set({ choices: roadmapChoicesSchema.parse(choices) })
+    .set({
+      choices: sql`${board}::jsonb || jsonb_strip_nulls(jsonb_build_object('pinned', ${roadmap.choices} -> 'pinned'))`,
+    })
     .where(hers(userId, id))
     .returning({ id: roadmap.id })
   return rows.length > 0

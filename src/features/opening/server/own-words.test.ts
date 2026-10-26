@@ -55,8 +55,11 @@ let draft: Roadmap | null = null
 const saveOwnWords = mock(async (_userId: string, _step: string, _text: string) => draft)
 const addTags = mock(async (_userId: string, _tags: RoadmapTag[]) => {})
 const none = async () => null
-// Every export the module has, as Bun keeps one mock of a module for the whole run.
+// Every export the module has (its own, then these stubs), as Bun keeps one mock of a module
+// for the whole run.
+const roadmaps = { ...(await import('@/features/roadmaps/server/roadmaps')) }
 mock.module('@/features/roadmaps/server/roadmaps', () => ({
+  ...roadmaps,
   saveOwnWords,
   addTags,
   getRoadmap: none,
@@ -148,19 +151,11 @@ describe('readOwnWords (36, 37, 40, 42)', () => {
       questions: { key: string; options: string[] }[]
     }
     expect(data.text).toBe(STUDY_TEXT)
-    expect(data.questions.map((q) => q.key)).toEqual([
-      'know',
-      'field',
-      'areas',
-      'level',
-      'learn',
-      'length',
-    ])
+    expect(data.questions.map((q) => q.key)).toEqual(['know', 'field', 'areas', 'level'])
     expect(res?.failed).toBe(false)
     expect(res?.chips.map((c) => [c.key, c.value, c.quote])).toEqual([
       ['field', 'Data science', 'data science'],
       ['level', "Master's", 'masters'],
-      ['learn', 'Hands-on with placements', 'hands-on'],
     ])
     expect(saveOwnWords).toHaveBeenCalledTimes(1)
     expect(saveOwnWords).toHaveBeenCalledWith('student-1', 'study', STUDY_TEXT)
@@ -376,7 +371,7 @@ describe('the student words spec', () => {
   it('runs on Flash-Lite and never climbs past Flash (criteria 71, 79)', () => {
     expect(STUDENT_WORDS).toMatchObject({
       useCase: 'student_words',
-      version: 'student_words.v2',
+      version: 'student_words.v3',
       tier: 'lite',
       maxTier: 'flash',
     })

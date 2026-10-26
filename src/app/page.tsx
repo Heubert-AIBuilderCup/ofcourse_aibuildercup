@@ -2,9 +2,12 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { type PanelCells, SignInPanel } from '@/features/auth/components/SignInPanel'
 import { StudentSignIn } from '@/features/auth/components/StudentSignIn'
+import { JudgeAccess, type JudgeStoryCard, judgeAccessOn } from '@/features/judge'
+import { judgeStudentSignInAction } from '@/features/judge/actions'
 import { signedInLanding } from '@/features/opening'
 import { getProfile } from '@/features/opening/server/profile'
 import { ICONS } from '@/features/road'
+import { OFFERED_JUDGE_STORIES } from '@/features/roads'
 import motion from '@/shared/components/motion.module.css'
 import { ThemeToggle } from '@/shared/components/ThemeToggle'
 import { isStudent } from '@/shared/lib/auth/access'
@@ -32,6 +35,14 @@ const CELLS: PanelCells = [
   { label: 'Visa', paths: ICONS.visa },
   { label: 'Goal', paths: ICONS.flag },
 ]
+
+// The judges' one story as its card shows it: never her answers, which stay on the server.
+const JUDGE_CARDS: JudgeStoryCard[] = OFFERED_JUDGE_STORIES.map(({ id, name, country, line }) => ({
+  id,
+  name,
+  country,
+  line,
+}))
 
 /**
  * Public: the student sign-in page, the Industry login design. The layout follows the page's own
@@ -77,6 +88,15 @@ export default async function SignInPage({ searchParams }: PageProps<'/'>) {
           {/* Email codes are off: no email provider is set up yet, so a code never arrives.
               Turn them back on (codes) once RESEND_API_KEY and EMAIL_FROM are configured. */}
           <StudentSignIn next={next} notice={message} codes={false} />
+
+          {/* Only while JUDGE_PASSCODE is set: the AI Builder Cup judges' way in (features/judge). */}
+          {judgeAccessOn(process.env) ? (
+            <JudgeAccess
+              action={judgeStudentSignInAction}
+              stories={JUDGE_CARDS}
+              passcode={process.env.JUDGE_PASSCODE?.trim()}
+            />
+          ) : null}
 
           <div
             className={cn(

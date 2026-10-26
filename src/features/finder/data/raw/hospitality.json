@@ -1,0 +1,64 @@
+[
+  {
+    "name": "Master of International Tourism and Hospitality Management",
+    "campusId": "uts-ultimo",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 42,
+    "field": "hospitality",
+    "graphField": "hospitality",
+    "niche": false,
+    "placements": true,
+    "description": "Prepares you to manage hotels, events and visitor experiences in a large city market. Units cover revenue management, service design and destination marketing, taught through case studies of real venues. An industry placement in your second year puts the theory to work.",
+    "majors": ["Hotel Management", "Events", "Destination Management"],
+    "units": [
+      "Hospitality Operations",
+      "Revenue Management",
+      "Service Design",
+      "Destination Marketing",
+      "Event Management",
+      "Industry Placement"
+    ]
+  },
+  {
+    "name": "Master of International Tourism and Hospitality Management",
+    "campusId": "deakin-waurn-ponds",
+    "level": "Master's",
+    "years": 2,
+    "feeK": 33,
+    "field": "hospitality",
+    "graphField": "hospitality",
+    "niche": false,
+    "placements": true,
+    "description": "Tourism along a coast and in wine regions is the setting for this course, which looks at how visitors, local businesses and the environment fit together. You study sustainable tourism, hospitality finance and people management, and finish with a placement or a consulting project for a regional operator.",
+    "majors": ["Sustainable Tourism", "Hospitality Management"],
+    "units": [
+      "Sustainable Tourism",
+      "Hospitality Finance",
+      "Managing People in Service",
+      "Visitor Experience Design",
+      "Regional Tourism Development",
+      "Placement or Consulting Project"
+    ]
+  },
+  {
+    "name": "Diploma of Hospitality Management",
+    "campusId": "tafe-perth",
+    "level": "Diploma",
+    "years": 1,
+    "feeK": 16,
+    "field": "hospitality",
+    "graphField": "hospitality",
+    "niche": false,
+    "placements": true,
+    "description": "Hands-on training for supervisors and duty managers in restaurants, bars and hotels. You run shifts in the training restaurant, build rosters and budgets, and learn to handle guests and staff. Work placement in a venue is part of the year.",
+    "majors": ["Hospitality Management"],
+    "units": [
+      "Lead and Manage a Shift",
+      "Rosters and Labour Costs",
+      "Food Safety Supervision",
+      "Guest Service and Complaints",
+      "Hospitality Budgets"
+    ]
+  }
+]

@@ -2,7 +2,13 @@ import 'server-only'
 import { z } from 'zod'
 import { canEdit } from '@/shared/lib/auth/access'
 import { db } from '@/shared/lib/db'
-import { extractFacts, sentenceFact, sentencesById, splitParagraphs } from '../../ai/extract'
+import {
+  extractFacts,
+  extractIdea,
+  sentenceFact,
+  sentencesById,
+  splitParagraphs,
+} from '../../ai/extract'
 import { isFeedPostPage } from '../../brands'
 import { LANGUAGE_IDS, type LanguageId } from '../../languages'
 import { claimsIn } from '../../lib/claims'
@@ -12,6 +18,7 @@ import {
   type Body,
   emptyPointers,
   FramingSchema,
+  IDEA_KIND,
   SOURCE_ERRORS,
   SOURCE_LIMITS,
   type SourcePart,
@@ -343,7 +350,11 @@ async function extract(
   const { title, kind, text } = input
   // The framing line steers the key ideas; the notes are never source text (GD20, GD21).
   const framing = extras.framing ?? null
-  const extracted = await extractFacts({ title, kind, text, postId, framing })
+  // The idea alone is its own source: its sentences are the facts, with no model asked for them.
+  const ideaAlone = kind === IDEA_KIND && (extras.parts?.length ?? 0) === 0
+  const extracted = ideaAlone
+    ? extractIdea({ title, kind, text })
+    : await extractFacts({ title, kind, text, postId, framing })
   if (!extracted.ok) return fail(extracted.error)
   const source = BODIES.source.parse({ ...extracted.source, ...extras })
   const facts: Body<'facts'> = {
@@ -376,7 +387,8 @@ async function putExtracted(
  * "Save and remake" at the source step (criterion 113; GD18): the same fields as "Make post", the
  * changed text or the pages at the changed links, extracted as a new source and facts, then, for
  * a post made through the idea cards, new cards for those facts, as "Make post" makes them (GD1);
- * for a post from before them, three versions of each ticked template after the response
+ * for a post from before them, a version of each ticked template after the response
+
  * (criteria 93, 94). It lands at structures. The old source, facts and versions stay in the
  * history. A failed extraction moves nothing; a failed ideas or draft step keeps the new source and
  * facts, and the step shows "Try again".

@@ -1,11 +1,19 @@
-import { ALL_INSTITUTIONS } from './audience'
+import {
+  ALL_INSTITUTIONS,
+  ALL_TOPICS,
+  type AudienceRule,
+  audienceOf,
+  drawnToWhy,
+  topicName,
+} from './audience'
 import type { CardUpdate, StoredUpdate } from './update'
 
 // Which live updates are hers, on her feed: an update is hers when one of her roadmaps matches it,
-// its institution on that roadmap (or the update for all of them) and, when it names a country,
-// her country on that roadmap. Pure and client-safe.
+// its institution on that roadmap (or the update for all of them), when it names a country, her
+// country on that roadmap and, when it names a topic, a course in that field on the roadmap or the
+// field among her stated interests. Pure and client-safe.
 
-/** One of her roadmaps, as the match needs it: its name, the institutions on it, her country. */
+/** One of her roadmaps, as the match needs it: its name, institutions, topics, her country. */
 export type FeedRoadmap = {
   id: string
   name: string
@@ -13,26 +21,47 @@ export type FeedRoadmap = {
   universities: string[]
   /** Her country on it; null when she has not stated one. */
   country: string | null
+  /** The fields of its course, alternative course and stacked course. */
+  courseTopics: string[]
+  /** The fields she said she is drawn to on it (assumed answers left out). */
+  interestTopics: string[]
+  /** Whether its answers match a road; without one it is matched only by her interests. */
+  hasRoad: boolean
 }
 
 /** An update of hers: the card's fields, the roadmap it is hers through, and why. */
 export type FeedUpdate = { update: CardUpdate & { id: string }; roadmapId: string; why: string }
 
-const matches = (u: StoredUpdate, r: FeedRoadmap) =>
-  (u.audience.institution === ALL_INSTITUTIONS ||
-    r.universities.includes(u.audience.institution)) &&
-  (u.audience.homeCountry === null || u.audience.homeCountry === r.country)
+/** How a roadmap matches: for all topics, through a course in the topic, or a stated interest. */
+type Match = 'plain' | 'course' | 'interest'
 
-function whyOf(u: StoredUpdate, r: FeedRoadmap): string {
-  const { institution, homeCountry } = u.audience
-  if (institution !== ALL_INSTITUTIONS)
-    return `Because ${institution} is on your roadmap "${r.name}"`
-  return `Because it applies to every student${homeCountry === null ? '' : ` from ${homeCountry}`}`
+function matchOf(a: AudienceRule, r: FeedRoadmap): Match | null {
+  if (a.homeCountry !== null && a.homeCountry !== r.country) return null
+  // A road-less roadmap has no courses: only a topic she is drawn to, for every institution.
+  if (!r.hasRoad) {
+    const drawn =
+      a.institution === ALL_INSTITUTIONS &&
+      a.topic !== ALL_TOPICS &&
+      r.interestTopics.includes(a.topic)
+    return drawn ? 'interest' : null
+  }
+  if (a.institution !== ALL_INSTITUTIONS && !r.universities.includes(a.institution)) return null
+  if (a.topic === ALL_TOPICS) return 'plain'
+  if (r.courseTopics.includes(a.topic)) return 'course'
+  return r.interestTopics.includes(a.topic) ? 'interest' : null
+}
+
+function whyOf(a: AudienceRule, r: FeedRoadmap, match: Match): string {
+  if (match === 'course') return `Because ${topicName(a.topic)} is on your roadmap "${r.name}"`
+  if (match === 'interest') return drawnToWhy(a.topic)
+  if (a.institution !== ALL_INSTITUTIONS)
+    return `Because ${a.institution} is on your roadmap "${r.name}"`
+  return `Because it applies to every student${a.homeCountry === null ? '' : ` from ${a.homeCountry}`}`
 }
 
 /**
  * The live updates that are hers, in the order given (newest first), once each, through the first
- * of her roadmaps (last opened first) that matches.
+ * of her roadmaps (last opened first) that matches, a course match before an interest match.
  */
 export function feedUpdates(
   updates: readonly StoredUpdate[],
@@ -40,8 +69,13 @@ export function feedUpdates(
 ): FeedUpdate[] {
   return updates.flatMap((u) => {
     if (u.status !== 'live') return []
-    const r = roadmaps.find((r) => matches(u, r))
-    if (!r) return []
+    const a = audienceOf(u.audience)
+    const matched = roadmaps.map((r) => ({ r, match: matchOf(a, r) }))
+    const found =
+      matched.find((m) => m.match === 'plain' || m.match === 'course') ??
+      matched.find((m) => m.match === 'interest')
+    if (!found?.match) return []
+    const { r, match } = found
     const update = {
       id: u.id,
       kind: u.kind,
@@ -53,6 +87,6 @@ export function feedUpdates(
       sourceTitle: u.sourceTitle,
       sourceCheckedAt: u.sourceCheckedAt,
     }
-    return [{ update, roadmapId: r.id, why: whyOf(u, r) }]
+    return [{ update, roadmapId: r.id, why: whyOf(a, r, match) }]
   })
 }

@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { GoogleSignIn } from '@/features/auth/components/GoogleSignIn'
 import { SignInPanel } from '@/features/auth/components/SignInPanel'
 import styles from '@/features/auth/components/sign-in.module.css'
+import { JudgeAccess, judgeAccessOn } from '@/features/judge'
+import { judgeAdminSignInAction } from '@/features/judge/actions'
 import { Blueprint } from '@/shared/components/Blueprint'
 import motion from '@/shared/components/motion.module.css'
 import { ThemeToggle } from '@/shared/components/ThemeToggle'
@@ -85,6 +87,10 @@ export default async function AdminSignInPage({ searchParams }: PageProps<'/admi
 
             <GoogleSignIn next={next} surface="admin" errorCallbackURL={ADMIN_SIGNIN_ERROR_PATH} />
           </Blueprint>
+
+          {/* Only while JUDGE_PASSCODE is set: the AI Builder Cup judges' way in (features/judge).
+              The passcode is asked for, never shown: the admin judge edits and publishes. */}
+          {judgeAccessOn(process.env) ? <JudgeAccess action={judgeAdminSignInAction} /> : null}
 
           <div
             className={cn(

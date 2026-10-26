@@ -4,7 +4,7 @@
 // reads.
 
 import { NOT_TAKEN } from '@/features/opening/model/english'
-import type { RoadmapChoices, StoredAnswers } from '@/shared/types/student'
+import type { BoardChoices, RoadmapChoices, StoredAnswers } from '@/shared/types/student'
 import type { Badge, BadgeId, LabelPlace, Road, Ruler, Tile, Walk } from './road-data'
 
 /** What she has done on the board this session. */
@@ -49,7 +49,7 @@ export const choicesFrom = ({
   first: _,
   preview: __,
   ...choices
-}: Session): Required<RoadmapChoices> => choices
+}: Session): Required<BoardChoices> => choices
 
 export type Scene = Walk & {
   /** The tiles on the board, each with its state and label placement per stop. */

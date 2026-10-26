@@ -1,14 +1,22 @@
 'use client'
 
-import { CircleAlert, Eye, Layers, Minus, Plus, Split } from 'lucide-react'
-import { type ReactNode, useMemo, useRef, useState } from 'react'
+import { CircleAlert, Eye, Info, Layers, Minus, Plus, Split } from 'lucide-react'
+import { type ReactNode, useId, useMemo, useRef, useState } from 'react'
 import { Duck } from '@/shared/components/Duck'
 import motion from '@/shared/components/motion.module.css'
 import { Button } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
 import { useMapCamera } from '../hooks/useMapCamera'
+import { useRoadMorph } from '../hooks/useRoadMorph'
 import { useSwapMotion } from '../hooks/useSwapMotion'
-import { type Camera, type Layout, type MapSize, stepStop } from '../model/camera'
+import {
+  type Camera,
+  type Framing,
+  type Layout,
+  type MapSize,
+  reframe,
+  stepStop,
+} from '../model/camera'
 import {
   depthOrder,
   drawTile,
@@ -23,6 +31,7 @@ import {
   toScreen,
 } from '../model/drawing'
 import { ICONS, type IconName, kindOf } from '../model/kinds'
+import type { MatchLine } from '../model/match-line'
 import {
   type BadgeId,
   type Road,
@@ -34,8 +43,10 @@ import {
 } from '../model/road-data'
 import type { RoadState } from '../model/road-url'
 import { POINT_A, type Scene } from '../model/scene'
+import { type Morph, tradePlaces, type Was } from '../model/start'
 import { KeyStrip } from './KeyStrip'
 import { LessonLink } from './LessonLink'
+import { MatchStrip } from './MatchStrip'
 import { MockTag } from './MockTag'
 import styles from './road-map.module.css'
 
@@ -87,6 +98,15 @@ type Props = {
    * the map drops its controls, names only what would change and where she is, and frames it.
    */
   answering?: boolean
+  /**
+   * Why this road, when it is not exactly hers (the closest, or the illustrative one): folded
+   * into the map's top-left "Why this road?" button; none, no button.
+   */
+  match?: MatchLine | null
+  /** Starting a new roadmap: the road ahead turning into it (drawn only; the camera stays). */
+  morph?: Morph | null
+  /** Starting a new roadmap: the course that trades places with hers, once the road has turned. */
+  traded?: string | null
   /** Over the map: the toast, or the phone's peek. */
   children?: ReactNode
 }
@@ -99,7 +119,8 @@ type Props = {
  * lifts it (its button stays put) and names an unlabelled tile, nothing more. Map key shows and
  * hides the key strip. The camera is useMapCamera's. A pick in her answers not saved yet draws
  * what would change as dashed rings with "If you save" on their labels, under a "Preview · not
- * saved" tag.
+ * saved" tag. As a new roadmap starts, the road ahead turns into its own (`morph`), then the course
+ * it is built around trades places with hers on the swap's arc (`traded`).
  */
 export function RoadMap({
   road,
@@ -112,25 +133,45 @@ export function RoadMap({
   keyShown,
   onKeyShown,
   answering = false,
+  match = null,
+  morph = null,
+  traded = null,
   children,
 }: Props) {
   const mapRef = useRef<HTMLElement>(null)
-  const { drawn, moving } = useSwapMotion(scene)
+  const shown = useMemo(() => (traded ? tradePlaces(scene, traded) : scene), [scene, traded])
+  const { drawn: swapped, moving } = useSwapMotion(shown)
+  const drawn = useRoadMorph(swapped, morph)
   const stop = state.zoom
   // On a phone her answers' sheet covers the map's foot: only the preview is left over it.
   const under = answering && layout === 'phone'
   const previewing = scene.tiles.some((t) => t.prev !== undefined)
+  // A press opens its card and leaves the camera where it was (reframe).
+  const [framing, setFraming] = useState<Framing>({ stop, here: scene.here, focus: state.tile })
+  const framed = reframe(framing, { stop, here: scene.here, tile: state.tile })
+  if (framed !== framing) setFraming(framed)
   const { cam, size, dragging } = useMapCamera({
     mapRef,
     layout,
     scene,
     stop,
-    focusId: state.tile,
+    focusId: framed.focus,
     sheet: under,
     onStep: (dir) => onZoom(stepStop(stop, dir)),
   })
   const [hover, setHover] = useState<string | null>(null)
   const keyRef = useRef<HTMLButtonElement>(null)
+  // Why this road and the key share the map's top left: opening one closes the other.
+  const [whyShown, setWhyShown] = useState(false)
+  const whyId = useId()
+  const showWhy = (shown: boolean) => {
+    setWhyShown(shown)
+    if (shown) onKeyShown(false)
+  }
+  const showKey = (shown: boolean) => {
+    onKeyShown(shown)
+    if (shown) setWhyShown(false)
+  }
 
   // The camera re-renders the map every frame of a move: look tiles up by id, once per scene.
   const tiles = useMemo(() => new Map(scene.tiles.map((t) => [t.id, t])), [scene.tiles])
@@ -159,7 +200,9 @@ export function RoadMap({
     >
       {cam && size ? (
         <Drawing
-          scene={drawn}
+          scene={drawn.scene}
+          fade={drawn.fade}
+          was={drawn.was}
           hintLine={road.arrival.line}
           cam={cam}
           size={size}
@@ -186,8 +229,29 @@ export function RoadMap({
         />
       ) : null}
 
+      {match && !under ? (
+        <>
+          <Button
+            type="button"
+            variant="square"
+            data-map-control
+            aria-expanded={whyShown}
+            aria-controls={whyId}
+            onClick={() => showWhy(!whyShown)}
+            className={cn(
+              MAP_BUTTON,
+              'absolute top-4 left-4 z-30 aria-expanded:bg-panel-foreground/16 @max-xl:top-3 @max-xl:right-3 @max-xl:left-auto',
+            )}
+          >
+            <Info aria-hidden="true" strokeWidth={1.5} className="size-icon" />
+            Why this road?
+          </Button>
+          {whyShown ? <MatchStrip id={whyId} line={match} /> : null}
+        </>
+      ) : null}
       {keyShown && !under ? (
         <KeyStrip
+          className={match ? 'top-18' : undefined}
           onClose={() => {
             onKeyShown(false)
             // Its Got it goes with it: keyboard focus lands on Map key, not the page.
@@ -201,7 +265,7 @@ export function RoadMap({
         variant="square"
         data-map-control
         aria-pressed={keyShown}
-        onClick={() => onKeyShown(!keyShown)}
+        onClick={() => showKey(!keyShown)}
         className={cn(
           MAP_BUTTON,
           'absolute top-4 right-4 z-30 aria-pressed:bg-panel-foreground/16 @max-xl:top-3 @max-xl:right-auto @max-xl:left-3',
@@ -238,17 +302,14 @@ export function RoadMap({
         </span>
       )}
 
-      <Button
-        type="button"
-        variant="square"
+      {/* Her weights, shown: adjusting them is not built, so this is a picture, not a button (18 Oct). */}
+      <div
+        role="img"
         data-map-control
-        aria-label="Weighing. Adjust weights"
-        className="absolute bottom-4 left-4 z-30 h-auto w-50 flex-col items-stretch gap-2.5 bg-background p-3 font-sans text-foreground shadow-md hover:bg-background @max-5xl:hidden"
+        aria-label={`What you're weighing: ${road.weights.map((w) => `${w.name} ${w.weight} of 3`).join(', ')}`}
+        className="absolute bottom-4 left-4 z-30 flex w-50 flex-col items-stretch gap-2.5 border bg-background p-3 font-sans text-foreground shadow-md @max-5xl:hidden"
       >
-        <span className="flex items-baseline justify-between text-micro uppercase">
-          <span className="text-muted-foreground">Weighing</span>
-          <span className="font-semibold text-brand-hover">Adjust</span>
-        </span>
+        <span className="text-micro text-muted-foreground uppercase">Weighing</span>
         <span className="grid h-15 grid-cols-6 gap-1">
           {road.weights.map((w) => (
             <span key={w.name} className="flex min-w-0 flex-col items-center justify-end gap-1">
@@ -262,7 +323,7 @@ export function RoadMap({
             </span>
           ))}
         </span>
-      </Button>
+      </div>
 
       {scene.ruler.ticks.length ? (
         <p className="absolute bottom-5 left-60 z-30 m-0 flex items-center gap-1.5 text-caption @max-5xl:left-4 @max-xl:hidden">
@@ -280,6 +341,8 @@ export function RoadMap({
 /** The SVG and the HTML layers over it, for one camera. */
 function Drawing({
   scene,
+  fade,
+  was,
   hintLine,
   cam,
   size,
@@ -294,6 +357,10 @@ function Drawing({
   onHover,
 }: {
   scene: Scene
+  /** A tile fading in or out as the road ahead turns: its opacity. */
+  fade: Record<string, number>
+  /** A step turning: the words it had, crossfading to its own. */
+  was: Record<string, Was>
   hintLine: string
   cam: Camera
   size: MapSize
@@ -372,6 +439,7 @@ function Drawing({
             <g
               key={t.id}
               className={styles.tile}
+              style={fade[t.id] === undefined ? undefined : { opacity: fade[t.id] }}
               data-tile={t.id}
               data-state={isHere ? 'here' : t.state}
               data-lift={hovered || (pressed && !isHere) ? '' : undefined}
@@ -466,6 +534,8 @@ function Drawing({
           <Label
             key={t.id}
             label={label}
+            fade={fade[t.id]}
+            was={was[t.id]}
             tile={t}
             here={t.id === scene.here}
             stop={stop}
@@ -563,12 +633,16 @@ const PLACE: Record<LabelDraw['place'], string> = {
  */
 function Label({
   label,
+  fade,
+  was,
   tile,
   here,
   stop,
   badges,
 }: {
   label: LabelDraw
+  fade: number | undefined
+  was: Was | undefined
   tile: Tile
   here: boolean
   stop: Stop
@@ -576,6 +650,8 @@ function Label({
 }) {
   const { full } = label
   const small = stop === 'whole' || tile.kind === 'step' || tile.state === 'fog'
+  // The words it had, as this stop shows them, while it turns.
+  const wasName = was && (stop === 'whole' ? (was.short ?? was.name) : was.name)
   return (
     <div
       aria-hidden="true"
@@ -590,14 +666,18 @@ function Label({
         label.hint && 'opacity-95',
         full && 'max-w-68 items-start gap-1.5 px-3 py-2.5 text-left shadow-lg',
       )}
-      style={{ left: px(label.x), top: px(label.y) }}
+      style={{ left: px(label.x), top: px(label.y), opacity: fade }}
     >
       {label.kicker ? (
         <span className="font-heading text-overline font-medium uppercase opacity-90">
           {label.kicker}
         </span>
       ) : null}
-      {label.when ? <span className="text-overline uppercase opacity-80">{label.when}</span> : null}
+      {label.when ? (
+        <span className="text-overline uppercase opacity-80">
+          <Crossfade from={was?.when} to={label.when} k={was?.k} />
+        </span>
+      ) : null}
       <span
         className={cn(
           'font-heading leading-tight font-semibold',
@@ -605,7 +685,7 @@ function Label({
           tile.state === 'fog' && 'font-medium',
         )}
       >
-        {label.name}
+        <Crossfade from={wasName} to={label.name} k={was?.k} />
       </span>
       {label.sub ? (
         <span className={cn('text-caption', full ? 'text-muted-foreground' : 'opacity-90')}>
@@ -625,6 +705,24 @@ function Label({
         </span>
       ) : null}
     </div>
+  )
+}
+
+/**
+ * Words turning into others: both in one cell, the old fading out as the new fades in, so the
+ * label keeps its size while they turn.
+ */
+function Crossfade({ from, to, k }: { from?: string; to: string; k?: number }) {
+  if (from === undefined || k === undefined || from === to) return to
+  return (
+    <span className="inline-grid">
+      <span className="col-start-1 row-start-1" style={{ opacity: 1 - k }}>
+        {from}
+      </span>
+      <span className="col-start-1 row-start-1" style={{ opacity: k }}>
+        {to}
+      </span>
+    </span>
   )
 }
 

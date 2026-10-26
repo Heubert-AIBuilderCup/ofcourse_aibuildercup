@@ -757,6 +757,7 @@ export const FIELD_OF_OPTION: Readonly<Record<string, FieldId>> = {
   'Data science': 'data',
   'Business analytics': 'business',
   'Information technology': 'it',
+  Psychology: 'psych',
 }
 
 export const FIELD_LABELS: Record<FieldId, string> = {
@@ -768,21 +769,28 @@ export const FIELD_LABELS: Record<FieldId, string> = {
   health: 'health',
   engineering: 'engineering',
   design: 'design',
+  education: 'education',
+  'social-work': 'social work',
+  hospitality: 'hospitality and tourism',
 }
 
 /**
  * Screen 2's areas. An area the preview has no courses for borrows the nearest field, and
- * `substitutedFrom` names what it stands in for (criterion 44).
+ * `substitutedFrom` names what it stands in for (criterion 44). Data went into IT and computing;
+ * teaching, social work and hospitality have courses of their own on the roads, so no note.
  */
 export const AREA_FIELDS: Readonly<
   Record<string, { fields: FieldId[]; substitutedFrom?: string }>
 > = {
-  'IT and computing': { fields: ['it', 'cyber'] },
+  'IT and computing': { fields: ['it', 'cyber', 'data'] },
   Business: { fields: ['business'] },
-  Data: { fields: ['data'] },
   Health: { fields: ['psych'], substitutedFrom: 'health' },
   Engineering: { fields: ['it'], substitutedFrom: 'engineering' },
   Design: { fields: ['it'], substitutedFrom: 'design' },
+  Psychology: { fields: ['psych'] },
+  'Education / Teaching': { fields: ['education'] },
+  'Social work': { fields: ['social-work'] },
+  'Hospitality & tourism': { fields: ['hospitality'] },
 }
 
 // ── Lookups ─────────────────────────────────────────────────────────────────────────────────

@@ -1,3 +1,4 @@
+import { courseFallback } from './course-fallback'
 import { courseById } from './courses'
 import type { Occupation, Source, StateId } from './types'
 
@@ -26,6 +27,10 @@ export const OCCUPATIONS: readonly Occupation[] = [
       'uts-cyber',
       'deakin-cyber',
       'uow-cyber',
+      'uts-infosec',
+      'uts-forensics',
+      'deakin-cyber-governance',
+      'deakin-network-security',
     ],
     lists: { WA: ['190', '491'], SA: ['190', '491'], NSW: ['491'], VIC: ['491'], TAS: ['491'] },
     employerSponsored: true,
@@ -34,7 +39,14 @@ export const OCCUPATIONS: readonly Occupation[] = [
   {
     code: '261313',
     name: 'Software Engineer',
-    courseIds: ['curtin-it', 'unisa-it', 'utas-it', 'monash-it'],
+    courseIds: [
+      'curtin-it',
+      'unisa-it',
+      'utas-it',
+      'monash-it',
+      'unisa-software',
+      'utas-computing',
+    ],
     lists: { WA: ['190', '491'], SA: ['190', '491'], NSW: ['491'], VIC: ['491'], TAS: ['491'] },
     employerSponsored: true,
     source: SOURCE,
@@ -42,7 +54,7 @@ export const OCCUPATIONS: readonly Occupation[] = [
   {
     code: '261112',
     name: 'Systems Analyst',
-    courseIds: ['curtin-infosys', 'unisa-it', 'utas-it'],
+    courseIds: ['curtin-infosys', 'unisa-it', 'utas-it', 'utas-infosys'],
     lists: { WA: ['190'], SA: ['491'], TAS: ['491'] },
     employerSponsored: true,
     source: SOURCE,
@@ -58,7 +70,7 @@ export const OCCUPATIONS: readonly Occupation[] = [
   {
     code: '224999',
     name: 'Business Analyst',
-    courseIds: ['deakin-ba', 'uts-bus-analytics'],
+    courseIds: ['deakin-ba', 'uts-bus-analytics', 'ecu-bus-analytics'],
     lists: { SA: ['491'], VIC: ['491'] },
     employerSponsored: true,
     source: SOURCE,
@@ -82,8 +94,8 @@ export const OCCUPATIONS: readonly Occupation[] = [
   {
     code: '251911',
     name: 'Health Promotion Officer',
-    courseIds: ['monash-mph'],
-    lists: { VIC: ['491'] },
+    courseIds: ['monash-mph', 'unisa-mph', 'utas-mph'],
+    lists: { SA: ['491'], VIC: ['491'], TAS: ['491'] },
     employerSponsored: true,
     source: SOURCE,
   },
@@ -106,7 +118,7 @@ export const OCCUPATIONS: readonly Occupation[] = [
   {
     code: '232411',
     name: 'UX Designer',
-    courseIds: ['swin-ux'],
+    courseIds: ['swin-ux', 'swin-design-strategy'],
     lists: {},
     employerSponsored: true,
     source: SOURCE,
@@ -130,16 +142,144 @@ export const OCCUPATIONS: readonly Occupation[] = [
   {
     code: '221111',
     name: 'Accountant (General)',
-    courseIds: ['curtin-commerce'],
-    lists: { WA: ['190'], SA: ['491'] },
+    courseIds: ['curtin-commerce', 'uts-accounting', 'deakin-commerce'],
+    lists: { WA: ['190'], SA: ['491'], VIC: ['491'] },
+    employerSponsored: true,
+    source: SOURCE,
+  },
+  {
+    code: '233214',
+    name: 'Structural Engineer',
+    courseIds: ['uts-structural'],
+    lists: { NSW: ['491'], VIC: ['190', '491'] },
+    employerSponsored: true,
+    source: SOURCE,
+  },
+  {
+    code: '133211',
+    name: 'Engineering Manager',
+    courseIds: ['uts-eng-management'],
+    lists: { NSW: ['491'], VIC: ['491'] },
+    employerSponsored: true,
+    source: SOURCE,
+  },
+  {
+    code: '233512',
+    name: 'Mechanical Engineer',
+    courseIds: ['deakin-mechanical'],
+    lists: { NSW: ['491'], VIC: ['190', '491'] },
+    employerSponsored: true,
+    source: SOURCE,
+  },
+  {
+    code: '233311',
+    name: 'Electrical Engineer',
+    courseIds: ['deakin-electrical'],
+    lists: { NSW: ['491'], VIC: ['190', '491'] },
+    employerSponsored: true,
+    source: SOURCE,
+  },
+  {
+    code: '134299',
+    name: 'Health and Welfare Services Manager',
+    courseIds: ['unisa-health-admin'],
+    lists: { SA: ['491'], TAS: ['491'] },
+    employerSponsored: true,
+    source: SOURCE,
+  },
+  {
+    code: '224213',
+    name: 'Health Information Manager',
+    courseIds: ['monash-health-informatics'],
+    lists: { VIC: ['491'] },
+    employerSponsored: true,
+    source: SOURCE,
+  },
+  {
+    code: '272313',
+    name: 'Organisational Psychologist',
+    courseIds: ['monash-org-psych'],
+    lists: {},
+    employerSponsored: false,
+    source: SOURCE,
+  },
+  {
+    code: '232413',
+    name: 'Multimedia Designer',
+    courseIds: ['monash-design'],
+    lists: {},
+    employerSponsored: false,
+    source: SOURCE,
+  },
+  {
+    code: '133611',
+    name: 'Supply and Distribution Manager',
+    courseIds: ['deakin-supply-chain'],
+    lists: { VIC: ['491'] },
+    employerSponsored: true,
+    source: SOURCE,
+  },
+  {
+    code: '241411',
+    name: 'Secondary School Teacher',
+    courseIds: ['ecu-teaching-secondary', 'monash-teaching'],
+    lists: {
+      WA: ['190', '491'],
+      SA: ['190', '491'],
+      NSW: ['491'],
+      VIC: ['190', '491'],
+      TAS: ['190', '491'],
+    },
+    employerSponsored: true,
+    source: SOURCE,
+  },
+  {
+    code: '241111',
+    name: 'Early Childhood (Pre-primary School) Teacher',
+    courseIds: ['ecu-teaching-early'],
+    lists: {
+      WA: ['190', '491'],
+      SA: ['190', '491'],
+      NSW: ['491'],
+      VIC: ['190', '491'],
+      TAS: ['190', '491'],
+    },
+    employerSponsored: true,
+    source: SOURCE,
+  },
+  {
+    code: '272511',
+    name: 'Social Worker',
+    courseIds: [
+      'curtin-social-work',
+      'unisa-social-work',
+      'monash-social-work',
+      'utas-social-work',
+    ],
+    lists: {
+      WA: ['190', '491'],
+      SA: ['190', '491'],
+      NSW: ['491'],
+      VIC: ['491'],
+      TAS: ['190', '491'],
+    },
+    employerSponsored: true,
+    source: SOURCE,
+  },
+  {
+    code: '141311',
+    name: 'Hotel or Motel Manager',
+    courseIds: ['uts-tourism', 'deakin-tourism'],
+    lists: { NSW: ['491'], VIC: ['491'], TAS: ['491'] },
     employerSponsored: true,
     source: SOURCE,
   },
 ]
 
-/** The occupations a course leads to. */
+/** The occupations a course leads to; for a course the lists do not name, any the server registered. */
 export function occupationsFor(courseId: string): Occupation[] {
-  return OCCUPATIONS.filter((o) => o.courseIds.includes(courseId))
+  const own = OCCUPATIONS.filter((o) => o.courseIds.includes(courseId))
+  return own.length > 0 ? own : courseFallback().occupationsFor(courseId)
 }
 
 export type StayingRoute = '190' | '491' | '186' | 'none'
@@ -151,11 +291,19 @@ export type StayingRoute = '190' | '491' | '186' | 'none'
  * employers; else a 190 on the state's 190 list, a 491 on its 491 list, else an employer's 186.
  */
 export function stayingRoute(courseId: string, cityId: string): StayingRoute {
+  return routeFor(occupationsFor(courseId), cityId, courseById(courseId)?.prScore)
+}
+
+/** The staying route for any course, from its occupations and PR score (stayingRoute's rule). */
+export function routeFor(
+  occupations: readonly Occupation[],
+  cityId: string,
+  prScore: number | undefined,
+): StayingRoute {
   const state = CITY_STATE[cityId]
-  const occupations = occupationsFor(courseId)
   const on = (list: '190' | '491') => occupations.some((o) => (o.lists[state] ?? []).includes(list))
   const someWay = occupations.some((o) => (o.lists[state] ?? []).length > 0 || o.employerSponsored)
-  if (courseById(courseId)?.prScore === 0 || !someWay) return 'none'
+  if (prScore === 0 || !someWay) return 'none'
   return on('190') ? '190' : on('491') ? '491' : '186'
 }
 

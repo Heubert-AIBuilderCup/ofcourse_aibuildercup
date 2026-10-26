@@ -5,7 +5,7 @@
 
 import { PICTURE_PATH } from '@/shared/lib/student-paths'
 import type { OwnWordsStep, QuestionKey, Relative, StoredAnswers } from '@/shared/types/student'
-import { DRAWN_TO_AREAS, isVisible, PARTICULAR, SCREENS } from './questions'
+import { DRAWN_TO_AREAS, isAsked, isVisible, PARTICULAR, SCREENS } from './questions'
 
 /** Step 00 first, step 05 last; the panel shows all six (criterion 11). */
 export const ONBOARDING_STEPS: readonly string[] = [
@@ -31,10 +31,16 @@ export const OWN_WORDS_STEP_OF: Readonly<Record<OwnWordsStep, QuestionStep>> = {
   after: 4,
 }
 
-/** The own-words box a question step has: OWN_WORDS_STEP_OF read the other way. */
-export const OWN_WORDS_STEP_AT = Object.fromEntries(
-  Object.entries(OWN_WORDS_STEP_OF).map(([name, step]) => [step, name]),
-) as Readonly<Record<QuestionStep, OwnWordsStep>>
+/**
+ * The own-words box a question step offers: OWN_WORDS_STEP_OF read the other way, less step 01,
+ * whose answers are objective facts (where she is, the budget, dates, scores), so it offers none
+ * (16 Oct 2026). Words read earlier on step 01 keep their step name.
+ */
+export const OWN_WORDS_STEP_AT: Readonly<Partial<Record<QuestionStep, OwnWordsStep>>> = {
+  2: 'study',
+  3: 'living',
+  4: 'after',
+}
 
 /**
  * Step 03's "Who, and where?": a step question that is not a stored answer. It reads and writes
@@ -105,18 +111,19 @@ type FactKey =
   | 'eng'
 
 const WHY: Record<FactKey, string> = {
-  where:
-    "It decides whether you'd apply for a visa from home or from inside Australia, and which fees apply.",
-  amount: 'It decides which cities stay open on each route. A rough number is fine.',
+  where: 'It lets updates meant for students from your country reach you.',
+  amount:
+    'A course on your road that costs more is marked over budget, and its city a stretch. A rough number is fine.',
   covers: 'It tells me whether living costs come out of this amount or sit on top of it.',
   who: 'It shapes how each route shows the money a visa asks you to have.',
-  hard: 'A hard limit closes cities above it. Roughly keeps them open, marked as a stretch.',
-  earliest: 'It sets the first intake each route can show.',
-  latest: 'With your earliest start, it decides which intakes stay open.',
-  years: 'It decides which course lengths each route shows.',
-  dep: 'Who comes along changes the living costs on each route.',
+  hard: 'Roughly adds “roughly” where your road says a course is over your budget; a hard limit leaves it out.',
+  earliest: "It shows in the timing line below; your road doesn't change with it.",
+  latest:
+    "The timing line below counts the intakes up to it, from mock data; your road doesn't change with it.",
+  years: "It shows in the timing line below; your road doesn't change with it.",
+  dep: 'This preview shows costs for you alone, and says so if someone comes with you.',
   qual: 'It decides which course levels you can enter.',
-  eng: 'It decides whether a route needs an English course or a pathway first.',
+  eng: "It decides whether your road shows its course's English score as met.",
 }
 
 /**
@@ -157,7 +164,7 @@ const STUDY: Readonly<
   },
   areas: {
     group: DRAWN_TO_AREAS,
-    why: 'Courses from each area you pick show side by side, so you can compare them.',
+    why: 'Your road is matched to a course in one of the areas you pick.',
     slug: 'areas',
     opensWithLine: true,
   },
@@ -186,18 +193,18 @@ type LivingKey = 'dest' | 'place' | 'community' | 'knows' | 'climate'
 /** What step 03 adds to each question of SCREENS[2]: its why and slug. */
 const LIVING: Readonly<Record<LivingKey, Pick<StepQuestion, 'why' | 'slug'>>> = {
   dest: {
-    why: 'It sets the country each future is drawn in. This preview covers Australia.',
+    why: 'This preview covers Australia only, so every future is drawn there.',
     slug: 'destination',
   },
   place: {
-    why: 'It changes the rent, part-time work and migration points on each route.',
+    why: 'Regional points your road to a regional city; city and suburban leave it as it is.',
     slug: 'place',
   },
   community: {
-    why: "It shapes where each future places you to live. It doesn't put one above another.",
+    why: "If it matters, I'll ask whether you know anyone in Australia.",
     slug: 'community',
   },
-  knows: { why: 'If you do, each route can show how far it is from them.', slug: 'know-anyone' },
+  knows: { why: 'If you do, your road can lean to the city they live in.', slug: 'know-anyone' },
   climate: { why: 'Some people settle better in one climate or another.', slug: 'climate' },
 }
 
@@ -205,9 +212,12 @@ type AfterKey = 'stay' | 'focus' | 'earn' | 'settle'
 
 /** What step 04 adds to each question of SCREENS[3]: its why and slug. */
 const AFTER: Readonly<Record<AfterKey, Pick<StepQuestion, 'why' | 'slug'>>> = {
-  stay: { why: 'It decides whether PR counts in your futures, and how much.', slug: 'stay' },
+  stay: {
+    why: 'It decides whether your road stays in Australia after you graduate or goes home.',
+    slug: 'stay',
+  },
   focus: {
-    why: 'It sets how much career outcomes weigh against cost, time and the rest.',
+    why: 'Career-focused can point your road to Sydney, for its job market; academic leaves it as it is.',
     slug: 'focus',
   },
   earn: {
@@ -226,15 +236,15 @@ const PERSON_QUESTION: StepQuestion = {
   itemId: PERSON,
   group: '',
   question: 'Who, and where?',
-  why: 'Each route then shows its distance from them. Leave any part blank.',
+  why: 'With a city or suburb, your road can lean to where they live. Leave any part blank.',
   slug: 'who-and-where',
   opensWithLine: false,
 }
 
 export const ONBOARDING_PATH = '/onboarding'
 export const WELCOME_PATH = `${ONBOARDING_PATH}/welcome`
-/** Steps 00 to 04 hold 24 to 27 one-tap questions, about 15 seconds each; step 05 is optional. */
-export const WELCOME_MINUTES = 6
+/** Steps 00 to 04 hold 18 to 21 one-tap questions, about 15 seconds each; step 05 is optional. */
+export const WELCOME_MINUTES = 5
 export const FACTS_PATH = `${ONBOARDING_PATH}/facts`
 export const STUDY_PATH = `${ONBOARDING_PATH}/study`
 export const LIVING_PATH = `${ONBOARDING_PATH}/living`
@@ -251,8 +261,6 @@ export const QUESTION_STEPS: Readonly<
       title: string
       path: string
       questions: readonly StepQuestion[]
-      /** Where Back goes from the step's first question. */
-      back: string
       /** The next step's name, for "Next: …" on the last question and "Leave the rest for now: go to …". */
       nextName: string
     }
@@ -274,7 +282,6 @@ export const QUESTION_STEPS: Readonly<
         opensWithLine: false,
       })),
     ),
-    back: PICTURE_PATH,
     nextName: "What you'd study",
   },
   2: {
@@ -288,7 +295,6 @@ export const QUESTION_STEPS: Readonly<
         ...STUDY[question.key as StudyKey],
       })),
     ),
-    back: `${FACTS_PATH}/${FACT_SLUGS.eng}`,
     nextName: "Where and how you'd live",
   },
   3: {
@@ -308,7 +314,6 @@ export const QUESTION_STEPS: Readonly<
         return question.key === 'knows' ? [asked, PERSON_QUESTION] : [asked]
       }),
     ),
-    back: `${STUDY_PATH}/${STUDY.length.slug}`,
     nextName: 'After you graduate',
   },
   4: {
@@ -326,7 +331,6 @@ export const QUESTION_STEPS: Readonly<
         }),
       ),
     ),
-    back: `${LIVING_PATH}/${LIVING.climate.slug}`,
     nextName: 'Your attention',
   },
 }
@@ -361,12 +365,27 @@ const asksPerson = (answers: StoredAnswers): boolean =>
 
 /**
  * The questions asked for these answers, in order: the field or the areas only after "know";
- * "Do you know anyone…" only after community is not No, her person only after its Yes.
+ * "Do you know anyone…" only after community is not No, her person only after its Yes; a hidden
+ * question never (HIDDEN_QUESTIONS). Its slug still names it, so an old link opens her first open
+ * question instead.
  */
 export function askedQuestions(step: QuestionStep, answers: StoredAnswers): StepQuestion[] {
   return QUESTION_STEPS[step].questions.filter((q) =>
-    q.key === PERSON ? asksPerson(answers) : isVisible(q.key, answers),
+    q.key === PERSON ? asksPerson(answers) : isAsked(q.key, answers),
   )
+}
+
+/**
+ * Where Back goes from the step's first question: step 00's picture from step 01, else the last
+ * question the step before asks for these answers (step 03 ends at community, "Do you know
+ * anyone…" or her person).
+ */
+export function backPath(step: QuestionStep, answers: StoredAnswers): string {
+  if (step === 1) return PICTURE_PATH
+  const before = (step - 1) as QuestionStep
+  const asked = askedQuestions(before, answers)
+  const last = asked[asked.length - 1]
+  return last ? questionPath(before, last.key) : QUESTION_STEPS[before].path
 }
 
 /**
@@ -397,6 +416,28 @@ export function nextOpenQuestion(
   const asked = askedQuestions(step, answers)
   const after = asked.slice(asked.findIndex((q) => q.key === from) + 1)
   return after.find((q) => isOpen(q.key, answers, relative))?.key ?? null
+}
+
+/**
+ * Where Continue on `from` goes for these answers: the next question asked (once her own words
+ * answered some of the step, the next open one), or the step's forward path from its last.
+ * Called with the answer just tapped already in `answers`, so a pick that changes what is asked
+ * (the field after "Something particular") is counted.
+ */
+export function nextPath(
+  step: QuestionStep,
+  answers: StoredAnswers,
+  from: StepKey,
+  relative: Relative | null = null,
+  wordsUsed = false,
+): { path: string; leaves: boolean } {
+  const asked = askedQuestions(step, answers)
+  const next = wordsUsed
+    ? nextOpenQuestion(step, answers, from, relative)
+    : (asked[asked.findIndex((q) => q.key === from) + 1]?.key ?? null)
+  return next === null
+    ? { path: forwardPath(step, answers), leaves: true }
+    : { path: questionPath(step, next), leaves: false }
 }
 
 const isOpen = (key: StepKey, answers: StoredAnswers, relative: Relative | null): boolean =>

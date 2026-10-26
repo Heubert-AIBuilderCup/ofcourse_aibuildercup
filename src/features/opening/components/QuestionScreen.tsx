@@ -27,8 +27,9 @@ import { type EnglishScores, impactView } from '../model/impact'
 import { ANSWER_SAVE_FAILED, PERSON_SAVE_FAILED } from '../model/messages'
 import {
   askedQuestions,
+  backPath,
   forwardPath,
-  nextOpenQuestion,
+  nextPath,
   OWN_WORDS_STEP_AT,
   PERSON,
   QUESTION_STEPS,
@@ -68,7 +69,7 @@ const OPTIONAL_NOTES: Notes = { ...NOTES, idle: "Optional. Skip, and it's left o
 /** Step 04's two exceptions: stay's "Not sure" is a real answer, and long-term is left blank. */
 const STAY_NOTES: Notes = {
   ...NOTES,
-  idle: "“Not sure” is a real answer here. Skip, and I'll use it.",
+  idle: '“Not sure” is a real answer here. Skip, and your road may stay or go home.',
 }
 const SETTLE_NOTES: Notes = { ...NOTES, idle: "Optional. Skip, and it's left blank." }
 /** Step 03's person form, which saves as she types. */
@@ -97,6 +98,9 @@ const NOTE_ICONS = {
   ),
   saved: <Check aria-hidden="true" className="icon-on-line-sm size-icon-sm shrink-0" />,
 }
+/** How long a chosen card shows its tick before the next question opens. */
+const ADVANCE_MS = 350
+
 /** The impact line's icon by what it says: the accent arrow (the tone's own), none for an assumption, the grey Info for a limit. */
 const IMPACT_ICONS = {
   plain: undefined,
@@ -119,8 +123,8 @@ const IMPACT_ICONS = {
  * a form instead of cards: her person is held here from the one the page passed (a
  * `router.refresh()` does not overwrite what she entered), so "Do you know anyone…" speaks of the
  * person on screen, and each change saves as the answers do. Step 04's last question leads on to
- * step 05, Your attention. With `readOwnWordsAction`, the step's first question has "Tell me in your
- * own words" above it: the chips she uses are stored at once, and the step moves on to its first
+ * step 05, Your attention. With `readOwnWordsAction`, the first question of steps 02 to 04 (step
+ * 01's facts offer none) has "Tell me in your own words" above it: the chips she uses are stored at once, and the step moves on to its first
  * question still open; from then Next skips every question answered after the one shown, so no
  * question a chip answered is asked again.
  */
@@ -130,6 +134,7 @@ export function QuestionScreen({
   saveAnswersAction,
   saveRelativeAction,
   englishScores,
+  borrowedAreas,
   readOwnWordsAction,
 }: {
   step: QuestionStep
@@ -140,13 +145,15 @@ export function QuestionScreen({
   saveRelativeAction?: SaveRelative
   /** Each course's English score, from the roads' catalogue: step 01's English line counts them. */
   englishScores: EnglishScores
+  /** Step 02: the areas no road teaches a course in, each noted as borrowing the nearest field. */
+  borrowedAreas?: readonly string[]
   /** Reads her own words on the step; without it, no box is offered. */
   readOwnWordsAction?: ReadOwnWords
 }) {
   const router = useRouter()
   const pathname = usePathname()
   const [answers, setAnswers] = useOnboardingAnswers()
-  const { title, back, nextName } = QUESTION_STEPS[step]
+  const { title, nextName } = QUESTION_STEPS[step]
   const asked = askedQuestions(step, answers)
   const named = questionOfPath(step, pathname)
   // A question not asked for her answers on screen (the field without "Something particular") is
@@ -165,10 +172,9 @@ export function QuestionScreen({
   // Once her own words answered some of the step, Next skips every question answered after this
   // one; with none left open it leaves the step.
   const [wordsUsed, setWordsUsed] = useState(false)
-  const nextKey = wordsUsed
-    ? nextOpenQuestion(step, answers, item.key, person)
-    : (asked[index + 1]?.key ?? null)
-  const last = nextKey === null
+  // Where Continue goes, by the same rule as a tap's move on.
+  const onward = nextPath(step, answers, item.key, person, wordsUsed)
+  const last = onward.leaves
   const answerSave = useAnswerSave(saveAnswersAction)
   const personSave = useRelativeSave(saveRelativeAction ?? NO_PERSON_SAVE)
   const root = useRef<HTMLDivElement>(null)
@@ -178,6 +184,16 @@ export function QuestionScreen({
   const ownStep = OWN_WORDS_STEP_AT[step]
   // Where "Use these" goes: worked out from her answers with the chips she kept.
   const afterWords = useRef<string | null>(null)
+  // A tap's move on, waiting out ADVANCE_MS and its save; only the latest tap's (`tapped`) may move,
+  // and it is dropped when she moves another way, the question changes or the screen goes.
+  const advance = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const tapped = useRef(0)
+  const dropAdvance = () => {
+    clearTimeout(advance.current)
+    tapped.current += 1
+  }
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new question drops the pending move
+  useEffect(() => dropAdvance, [item.key])
 
   // The URL follows the question shown, with no new history entry (Next.js syncs usePathname).
   useEffect(() => {
@@ -195,7 +211,9 @@ export function QuestionScreen({
     goTo(questionPath(step, key))
   }
 
+  /** To another question of the step; a tap's move on still waiting is dropped, so it moves once. */
   function goTo(path: string) {
+    dropAdvance()
     window.history.pushState(null, '', path)
     const top = root.current?.getBoundingClientRect().top ?? 0
     if (top < 0) root.current?.scrollIntoView({ block: 'start' })
@@ -206,7 +224,9 @@ export function QuestionScreen({
     personSave.flush()
   }
 
+  /** Out of the step; as `goTo`, a tap's move on still waiting is dropped. */
   function leave(path: string) {
+    dropAdvance()
     flush()
     router.push(path)
   }
@@ -232,6 +252,29 @@ export function QuestionScreen({
     }
   }
 
+  /**
+   * A single-choice tap (or Enter or Space on a card, never an arrow key) answers and moves on, no
+   * Continue needed: to the next question for her answers with this one counted, or out of the
+   * step from its last. Its save is sent at once, and she moves on once it is stored, and no sooner
+   * than ADVANCE_MS after the tap, so the tick shows; refused, she stays, with the save-failed alert
+   * and Try again. A second tap in the wait replaces the first.
+   */
+  function choose(key: QuestionKey, raw: AnswerValue) {
+    const parsed = parseAnswer(key, raw)
+    if (!parsed) return
+    const after = nextPath(step, { ...answers, [key]: parsed }, item.key, person, wordsUsed)
+    dropAdvance()
+    const mine = tapped.current
+    const paused = new Promise<void>((done) => {
+      advance.current = setTimeout(done, ADVANCE_MS)
+    })
+    void Promise.all([answerSave.saveNow(key, raw), paused]).then(([status]) => {
+      if (tapped.current !== mine || status !== 'saved') return
+      if (after.leaves) leave(after.path)
+      else goTo(after.path)
+    })
+  }
+
   /** The chips she kept from her own words, saved as her taps are, all at once. */
   async function saveOwnWords(patch: StoredAnswers): Promise<ActionResult> {
     answerSave.flush()
@@ -243,7 +286,7 @@ export function QuestionScreen({
     if (result.ok) {
       setAnswers((current) => ({ ...current, ...patch }))
       setWordsUsed(true)
-      afterWords.current = afterOwnWords(ownStep, { ...answers, ...patch }, person)
+      if (ownStep) afterWords.current = afterOwnWords(ownStep, { ...answers, ...patch }, person)
     }
     return result
   }
@@ -264,22 +307,10 @@ export function QuestionScreen({
   const notes = notesFor(question)
 
   return (
-    <div ref={root} className="mx-auto flex w-full max-w-2xl flex-col gap-5 @max-xl:gap-4">
+    <div ref={root} className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 @max-xl:gap-4">
       <div className={cn(motion.rise, motion.d2, 'flex min-h-11 items-center')}>
         <StepKicker detail={`${index + 1} of ${asked.length}`}>{title}</StepKicker>
       </div>
-
-      {readOwnWordsAction && item.key === asked[0]?.key ? (
-        <OwnWordsBox
-          step={ownStep}
-          answers={answers}
-          readAction={readOwnWordsAction}
-          saveAnswers={saveOwnWords}
-          onDone={() => {
-            if (afterWords.current) goTo(afterWords.current)
-          }}
-        />
-      ) : null}
 
       <div key={item.key} className={cn(styles.question, 'flex flex-col gap-5 @max-xl:gap-4')}>
         {item.group ? <p className="m-0 text-lead text-muted-foreground">{item.group}</p> : null}
@@ -296,6 +327,7 @@ export function QuestionScreen({
               labelledBy={headingId}
               answer={answers[question.key]}
               onAnswer={(raw) => answer(question.key, raw)}
+              borrowed={borrowedAreas}
             />
           ) : (
             <AnswerCards
@@ -303,6 +335,7 @@ export function QuestionScreen({
               labelledBy={headingId}
               answer={answers[question.key]}
               onAnswer={(raw) => answer(question.key, raw)}
+              onChoose={(raw) => choose(question.key, raw)}
             />
           )}
           {key === 'eng' ? (
@@ -314,6 +347,18 @@ export function QuestionScreen({
             </div>
           ) : null}
         </div>
+
+        {readOwnWordsAction && ownStep && item.key === asked[0]?.key ? (
+          <OwnWordsBox
+            step={ownStep}
+            answers={answers}
+            readAction={readOwnWordsAction}
+            saveAnswers={saveOwnWords}
+            onDone={() => {
+              if (afterWords.current) goTo(afterWords.current)
+            }}
+          />
+        ) : null}
 
         {/* Empty, the live region leaves the flow (it stays rendered for screen readers), so it
             adds no second gap between the cards and the note. */}
@@ -392,7 +437,7 @@ export function QuestionScreen({
           type="button"
           variant="outline"
           size="lg"
-          onClick={() => (index === 0 ? leave(back) : go(asked[index - 1].key))}
+          onClick={() => (index === 0 ? leave(backPath(step, answers)) : go(asked[index - 1].key))}
           className="min-w-33 @max-xl:min-w-24 @max-xl:flex-none"
         >
           <ArrowLeft aria-hidden="true" className="size-icon-sm" />
@@ -402,7 +447,7 @@ export function QuestionScreen({
           type="button"
           variant={last || answered ? 'strong' : 'outline'}
           size="lg"
-          onClick={() => (nextKey === null ? leave(forward) : go(nextKey))}
+          onClick={() => (onward.leaves ? leave(onward.path) : goTo(onward.path))}
           className="min-w-33 @max-xl:min-w-0 @max-xl:flex-1"
         >
           {last ? `Next: ${nextName}` : answered ? 'Continue' : 'Skip'}

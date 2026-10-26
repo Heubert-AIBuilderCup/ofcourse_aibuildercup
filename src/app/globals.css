@@ -7,6 +7,8 @@
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 /* Touch screens, which have no hover: the design hides pointer-only decoration there. */
 @custom-variant no-hover (@media (hover: none));
+/* Inside the content workbench (Workbench, SocialWorkbench): its secondary actions read as buttons (button.tsx outline). */
+@custom-variant workbench (&:where(.workbench, .workbench *));
 
 @theme inline {
   --color-background: var(--background);

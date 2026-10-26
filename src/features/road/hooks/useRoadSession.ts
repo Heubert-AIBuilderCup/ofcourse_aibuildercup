@@ -1,10 +1,10 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { NOT_TAKEN } from '@/features/opening/model/english'
 import type { ActionResult } from '@/shared/types/action-result'
-import type { RoadmapChoices, StoredAnswers } from '@/shared/types/student'
+import type { QuestionKey, RoadmapChoices, StoredAnswers } from '@/shared/types/student'
 import type { RoadFocus } from '../components/PhoneRoad'
 import type { BoardRoadmap } from '../components/RoadBoard'
 import { pressTile, primaryAction } from '../model/press'
@@ -19,6 +19,9 @@ import {
   type Session,
   sessionFrom,
 } from '../model/scene'
+import { type Morph, type NextRoad, START_HOLD_MS, startMorph } from '../model/start'
+import { SWAP_MS } from '../model/swap'
+import { prefersReducedMotion } from './motion'
 import { useBoardPath } from './useBoardPath'
 import { useRoadUrl } from './useRoadUrl'
 
@@ -74,14 +77,15 @@ function answersSaid(
  * changes (swaps, Put on my board, the lesson read, a walk) starts from the roadmap's stored
  * choices, is said in a toast with Undo, and is saved to the roadmap, a change and its Undo alike;
  * a save that fails leaves the change on screen and says so (`saveFailed`) until one succeeds. Her
- * first visit (the server's say) is the first arrival, never saved. Zoom changes, presses and the
+ * first visit (the server's say) is the first arrival; the press that ends it saves where it
+ * stood her (her country), so her next visit opens there. Zoom changes, presses and the
  * view are said in `status`, for a polite live region. The list and the lesson opened from the
  * board pushed an entry, so closing them goes back. Her answers (`open=answers`, from the menu or
  * Point A; on a phone, over the Map view) pushed one too: while they are open a press only says
  * to close them, a pick not saved is the scene's preview, and Save writes the roadmap's answers
  * (the board keeps them at once, the server's read follows), said in a toast with Undo when the
- * road moved. On a new roadmap's draft (`draft`) her answers are open from the start and stay
- * open: the draft is the page.
+ * road moved. On a new roadmap's draft (`draft`) her answers are open from the start; closing them
+ * leaves her on the draft's board, and Your answers opens them again.
  */
 export function useRoadSession(
   road: Road,
@@ -105,7 +109,9 @@ export function useRoadSession(
   }
   const scene = useMemo(() => buildScene(road, session, answers), [road, session, answers])
   const { state, setState } = useRoadUrl(scene.tiles)
-  const answering = draft || state.open === 'answers'
+  const [draftOpen, setDraftOpen] = useState(true)
+  const [answersAt, setAnswersAt] = useState<QuestionKey | null>(null)
+  const answering = (draft && draftOpen) || state.open === 'answers'
   // Her answers closed under the board (Back): what they previewed goes with them.
   if (!answering && session.preview) setSession({ ...session, preview: undefined })
   const [status, setStatus] = useState('')
@@ -117,9 +123,24 @@ export function useRoadSession(
   const lessonPushed = useRef(false)
   const answersPushed = useRef(false)
   const [saveFailed, setSaveFailed] = useState(false)
+  // Starting a new roadmap: the road ahead turning into it, then the course traded onto her road.
+  const [morph, setMorph] = useState<Morph | null>(null)
+  const [traded, setTraded] = useState<string | null>(null)
+  const leaving = useRef(false)
+  // Its timers, cleared when she leaves the board first, so a board she left opens no draft.
+  const startTimers = useRef<ReturnType<typeof setTimeout>[]>([])
+  useEffect(
+    () => () => {
+      for (const timer of startTimers.current) clearTimeout(timer)
+    },
+    [],
+  )
 
-  /** Any press ends the first arrival, and its hint. */
-  const settled = session.first ? { ...session, first: false } : session
+  /**
+   * Any press ends the first arrival, and its hint, leaving her where it stood her (her country,
+   * as a walk back there does): a press never moves the duck.
+   */
+  const settled = session.first ? { ...session, first: false, country: true } : session
 
   // The saves sent so far, one after another.
   const saving = useRef<Promise<void>>(Promise.resolve())
@@ -192,10 +213,19 @@ export function useRoadSession(
     router.replace(query ? `${board}?${query}` : board)
   }
 
+  /** The first arrival ended by a press: where it stood her is saved, so her next visit opens there. */
+  function endArrival() {
+    if (!session.first) return
+    setSession(settled)
+    save(settled)
+  }
+
   function press(tileId: string) {
+    // The board is turning into a new roadmap: its tiles have no cards here.
+    if (leaving.current) return
     if (answering) return setStatus('Close your answers to open a tile.')
     if (tileId === POINT_A) return openAnswers()
-    setSession(settled)
+    endArrival()
     const base = settled === session ? scene : buildScene(road, settled, answers)
     go(pressTile(state, tileId, base))
     setStatus(
@@ -206,7 +236,7 @@ export function useRoadSession(
   }
 
   function zoom(stop: Stop) {
-    if (session.first) setSession(settled)
+    endArrival()
     if (stop === state.zoom) return
     go({ ...state, zoom: stop })
     setStatus(`Zoom: ${STOP_NAMES[stop]}`)
@@ -226,6 +256,7 @@ export function useRoadSession(
   function primary() {
     const action = primaryAction(road, scene, state.tile)
     if (!action) return
+    if (action.kind === 'answers') return openAnswers(action.at)
     if (action.kind === 'look') return press(action.tileId)
     if (action.kind === 'list') {
       listPushed.current = true
@@ -244,6 +275,39 @@ export function useRoadSession(
       )
     }
     go({ ...state, tile: null, open: null })
+  }
+
+  /**
+   * A new roadmap around the open tile (`href`, its draft), shown on this board and never saved:
+   * the road ahead turns into the new roadmap's (`next`), then a course trades places with hers as
+   * the last beat, then, after a short hold, the draft opens. At once under reduced motion, or when
+   * nothing would show (no next road, and not a course to trade).
+   */
+  function startNew(href: string, next?: NextRoad) {
+    if (leaving.current) return
+    const tile = scene.tiles.find((t) => t.id === state.tile)
+    const here = scene.tiles.find((t) => t.id === scene.here)
+    const trades = tile?.kind === 'course' && here?.kind === 'course'
+    // Nothing to watch on a phone's Road view (no map is drawn there): the draft opens at once.
+    const unseen = phone && state.view === 'road'
+    if (!tile || (!next && !trades) || unseen || prefersReducedMotion()) return router.push(href)
+    const turn = next ? startMorph(scene, next, tile.id) : null
+    const ms = turn?.ms ?? 0
+    leaving.current = true
+    toastOf(`Drawing a new roadmap around ${tile.name}…`, null)
+    go({ ...state, tile: null, open: null })
+    setMorph(turn)
+    if (trades) startTimers.current.push(setTimeout(() => setTraded(tile.id), ms))
+    startTimers.current.push(
+      setTimeout(
+        () => {
+          // Should the push not land, the board takes presses again.
+          leaving.current = false
+          router.push(href)
+        },
+        ms + (trades ? SWAP_MS : 0) + START_HOLD_MS,
+      ),
+    )
   }
 
   function closeList() {
@@ -279,9 +343,14 @@ export function useRoadSession(
     leaveLesson()
   }
 
-  /** Her answers over the board, pushed so Back closes them; on a phone, over the Map view. */
-  function openAnswers() {
-    if (answering) return
+  /**
+   * Her answers over the board, pushed so Back closes them; on a phone, over the Map view. `at`:
+   * the question they open at (Pick a destination's), else none open.
+   */
+  function openAnswers(at: QuestionKey | null = null) {
+    if (answering || leaving.current) return
+    setAnswersAt(at)
+    if (draft) return setDraftOpen(true)
     answersPushed.current = !panel
     go({ ...state, tile: null, open: 'answers', view: phone ? 'map' : state.view })
     setStatus('Your answers')
@@ -289,6 +358,7 @@ export function useRoadSession(
 
   function closeAnswers() {
     setSession({ ...session, preview: undefined })
+    if (draft) return setDraftOpen(false)
     if (answersPushed.current) {
       answersPushed.current = false
       window.history.back()
@@ -319,7 +389,10 @@ export function useRoadSession(
     scene,
     answers,
     answering,
-    openAnswers,
+    /** Her answers, opened with no question open (a click's event is never taken for one). */
+    openAnswers: () => openAnswers(),
+    /** The question her answers opened at, if any. */
+    answersAt,
     closeAnswers,
     saveAnswers,
     /** What a pick not saved would change, drawn on the map until it is saved or dropped. */
@@ -335,6 +408,11 @@ export function useRoadSession(
     close,
     view,
     primary,
+    startNew,
+    /** The road ahead turning into a new roadmap's, while one is being started. */
+    morph,
+    /** The course traded onto her road as a new roadmap starts, once the road ahead has turned. */
+    traded,
     closeList,
     put,
     leaveLesson,

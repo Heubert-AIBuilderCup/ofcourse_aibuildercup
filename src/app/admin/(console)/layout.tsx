@@ -21,7 +21,7 @@ export default async function AdminLayout({ children }: LayoutProps<'/admin'>) {
 
   return (
     <AdminChrome
-      viewer={{ role: user.role, editor: user.editor, reviewer: user.reviewer }}
+      viewer={{ role: user.role, editor: user.editor, reviewer: user.reviewer, name: user.name }}
       ai={aiInUse}
     >
       {children}

@@ -1,6 +1,6 @@
 /// <reference lib="dom" />
 /// <reference path="../../../../node_modules/@testing-library/jest-dom/types/bun.d.ts" />
-import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import * as navigation from 'next/navigation'
 import type { Staff } from '@/shared/lib/auth/access'
@@ -15,6 +15,12 @@ mock.module('next/navigation', () => ({
 }))
 
 const { Board } = await import('./Board')
+
+// next/image (the band's duck) resolves its src against the page's URL; happy-dom starts on about:blank.
+const dom = (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM
+const startUrl = location.href
+beforeAll(() => dom.setURL('http://localhost:3000/admin/board'))
+afterAll(() => dom.setURL(startUrl))
 
 afterEach(cleanup)
 
@@ -68,7 +74,11 @@ beforeEach(() => {
   assign.mockClear()
 })
 
-const board = (cards: BoardCard[], viewer: Staff = EDITOR, over: Partial<BoardParams> = {}) => {
+const board = (
+  cards: BoardCard[],
+  viewer: Staff & { name?: string } = EDITOR,
+  over: Partial<BoardParams> = {},
+) => {
   const params = { ...ANY_BOARD, ...over }
   return render(
     <Board
@@ -89,11 +99,25 @@ const cardOf = (title: string) => {
 }
 
 describe('Board', () => {
-  it("shows six column headings in the design's words and the render gate after the first", () => {
+  it('numbers the six stages, each with its sub, and locks the render gate after the first', () => {
     view(EDITOR)
-    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(6)
-    expect(screen.getByRole('heading', { level: 2, name: /^Structures\b/ })).toBeInTheDocument()
+    const stages = [
+      ['Structures', 'Pick one'],
+      ['Approved', 'To render'],
+      ['Rendered', 'Edit and check'],
+      ['In review', 'A reviewer checks'],
+      ['Ready', 'Publish or export'],
+      ['Live', 'In the feed or exported'],
+    ]
+    for (const [i, [name, sub]] of stages.entries()) {
+      const column = within(screen.getByRole('region', { name }))
+      expect(column.getByText(`0${i + 1}`)).toBeInTheDocument()
+      expect(column.getByText(sub)).toBeInTheDocument()
+    }
     expect(screen.getByText('Render gate · crossed by approval only')).toBeInTheDocument()
+    expect(
+      screen.getAllByTitle('Only a structure a reviewer has approved can be rendered.').length,
+    ).toBeGreaterThan(0)
   })
 
   it('has no row that scrolls sideways', () => {
@@ -134,30 +158,31 @@ describe('Board', () => {
     )
   })
 
-  it('shows the stage, the lines and who changed it, and says when a column is empty', () => {
+  it("shows the live line, who changed a card and a feed post's versions, and says when a column is empty", () => {
     view(EDITOR)
     expect(screen.getByText('General · Everyone · Leaves the feed in 90 days')).toBeInTheDocument()
-    expect(screen.getByText('↳ Nepal · market variant')).toBeInTheDocument()
-    expect(screen.getByText('↳ from feed post "Second post"')).toBeInTheDocument()
     expect(screen.getAllByText('Changed by Maya R. · 5 Oct 2026, 09:12').length).toBeGreaterThan(0)
+    expect(cardOf('Second post').getByText('1 version')).toBeInTheDocument()
+    // The ↳ lines are gone: a social version hangs under its feed post instead.
+    expect(screen.queryByText(/↳/)).toBeNull()
     // Approved, Rendered and In review hold nothing.
     expect(screen.getAllByText('Nothing here')).toHaveLength(4)
   })
 
   it('offers a new feed post to an editor and to an admin who is an editor', () => {
     view(EDITOR)
-    expect(screen.getByRole('link', { name: '+ New feed post' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'New feed post' })).toHaveAttribute(
       'href',
       '/admin/posts/new',
     )
     cleanup()
     view(ADMIN_EDITOR)
-    expect(screen.getByRole('link', { name: '+ New feed post' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'New feed post' })).toBeInTheDocument()
   })
 
   it('offers no new feed post to an admin without a capability', () => {
     view(ADMIN)
-    expect(screen.queryByRole('link', { name: '+ New feed post' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'New feed post' })).toBeNull()
   })
 
   const openMore = () => fireEvent.click(screen.getByRole('button', { name: 'More' }))
@@ -165,11 +190,11 @@ describe('Board', () => {
   it('keeps a new blog and a new comic in More for an editor, and none for an admin without a capability (BR1, RC1)', () => {
     view(EDITOR)
     openMore()
-    expect(screen.getByRole('link', { name: '+ New blog' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'New blog' })).toHaveAttribute(
       'href',
       '/admin/posts/new?kind=blog',
     )
-    expect(screen.getByRole('link', { name: '+ New comic' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'New comic' })).toHaveAttribute(
       'href',
       '/admin/comics/new',
     )
@@ -181,8 +206,8 @@ describe('Board', () => {
       '/admin/page-styles',
     )
     expect(screen.getByRole('link', { name: 'Comic character' })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: '+ New blog' })).toBeNull()
-    expect(screen.queryByRole('link', { name: '+ New comic' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'New blog' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'New comic' })).toBeNull()
   })
 
   it('marks a blog\'s card "Blog", and a feed post\'s not (BR1)', () => {
@@ -280,6 +305,69 @@ describe('the owner of a post', () => {
   })
 })
 
+describe('the band', () => {
+  const MINE = [
+    card({ id: 'm1', title: 'One', assigneeId: 'u-ed' }),
+    card({ id: 'm2', title: 'Two', stage: 'source', assigneeId: 'u-ed' }),
+    card({ id: 'm3', title: 'Three', stage: 'in_review', assigneeId: 'u-ed' }),
+    card({ id: 't1', title: 'Theirs', stage: 'ready', assigneeId: 'u-rae' }),
+  ]
+
+  it('greets the viewer by first name and counts their own posts in Structures, In review and Ready', () => {
+    board(MINE, { ...EDITOR, name: 'Ed Itor' })
+    expect(screen.getByText('Assigned to you, Ed')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 2, name: '3 of your posts need you' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '2 structures to pick' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '1 in review' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '0 ready to publish' })).toBeInTheDocument()
+  })
+
+  it('says one post needs you in the singular, and greets a viewer with no name without one', () => {
+    board([MINE[2]], { ...EDITOR, name: '' })
+    expect(screen.getByText('Assigned to you')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 2, name: '1 of your posts needs you' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '0 structures to pick' })).toBeInTheDocument()
+  })
+
+  it('sets Assignee to Mine on the All tab when a number is pressed, and lights its column up', () => {
+    replace.mockClear()
+    board(MINE, EDITOR, { filter: 'feed', lang: 'en' })
+    fireEvent.click(screen.getByRole('button', { name: '1 in review' }))
+    expect(replace).toHaveBeenCalledWith('/admin/board?assignee=mine&lang=en', { scroll: false })
+    expect(screen.getByRole('region', { name: 'In review' }).hasAttribute('data-highlighted')).toBe(
+      true,
+    )
+    expect(
+      screen.getByRole('region', { name: 'Structures' }).hasAttribute('data-highlighted'),
+    ).toBe(false)
+  })
+})
+
+describe('a board with no posts at all', () => {
+  it('opens on the first run: no posts yet, a new feed post, and where a post goes', () => {
+    board([])
+    expect(screen.getByRole('heading', { level: 2, name: 'No posts yet.' })).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: 'New feed post' })).toHaveLength(2)
+    const stages = within(screen.getByRole('list', { name: 'Where a post goes' }))
+    expect(stages.getAllByRole('listitem')).toHaveLength(6)
+    expect(stages.getByText('In review')).toBeInTheDocument()
+    // No band, filters or columns over nothing.
+    expect(screen.queryByText(/of your posts/)).toBeNull()
+    expect(screen.queryByRole('navigation', { name: 'Board filters' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Structures' })).toBeNull()
+  })
+
+  it('offers no new feed post there to an admin without a capability', () => {
+    board([], ADMIN)
+    expect(screen.getByRole('heading', { level: 2, name: 'No posts yet.' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'New feed post' })).toBeNull()
+  })
+})
+
 describe('the filters', () => {
   it('says nothing matches when the filters hide every card, with a way to clear them', () => {
     board(CARDS, EDITOR, { lang: 'th' })
@@ -288,7 +376,7 @@ describe('the filters', () => {
       'href',
       '/admin/board',
     )
-    expect(screen.queryAllByRole('heading', { level: 2 })).toHaveLength(0)
+    expect(screen.queryByRole('region', { name: 'Structures' })).toBeNull()
   })
 
   it('offers Clear filters beside the selects only while a filter is set, keeping the tab', () => {
@@ -303,8 +391,9 @@ describe('the filters', () => {
   })
 
   it('shows the columns, not the line, when nothing is filtered', () => {
-    board([])
+    board([card({ id: 'p', stage: 'live' })])
     expect(screen.queryByText('Nothing matches these filters')).toBeNull()
-    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(6)
+    expect(screen.getByRole('region', { name: 'Structures' })).toBeInTheDocument()
+    expect(screen.getAllByText('Nothing here')).toHaveLength(5)
   })
 })

@@ -63,6 +63,8 @@ describe.skipIf(!enabled)('a look post’s images against the database', () => {
   let hold: (() => void)[] | null = null
   /** The image requests, counted from 1 in each test, that fail, as a busy or slow model may. */
   let failAt = new Set<number>()
+  /** What a failing image request throws: by default a plain failure, naming no reason. */
+  let failWith = 'im: the image model is busy'
   let imageCalls = 0
   const posts: string[] = []
 
@@ -190,7 +192,7 @@ describe.skipIf(!enabled)('a look post’s images against the database', () => {
         const waiting = hold
         if (waiting) await new Promise<void>((go) => waiting.push(go))
         imageCalls += 1
-        if (failAt.has(imageCalls)) throw new Error('im: the image model is busy')
+        if (failAt.has(imageCalls)) throw new Error(failWith)
         images.push({ prompt: req.prompt, aspectRatio: req.aspectRatio })
         return painted(`${req.prompt}#${images.length}`)
       },
@@ -201,6 +203,9 @@ describe.skipIf(!enabled)('a look post’s images against the database', () => {
         config: aiConfig({ ...process.env, AI_DAILY_CAP_IMAGE: imageCap }),
         calls: dbCallLog,
         cache: dbCache,
+        // A busy (429) picture is asked again at once, each wait its ceiling: six calls a picture.
+        sleep: async () => {},
+        random: () => 1,
       })
     active = makeActive(process.env.AI_DAILY_CAP_IMAGE as string)
     const ai = new Proxy({} as typeof active, {
@@ -245,6 +250,7 @@ describe.skipIf(!enabled)('a look post’s images against the database', () => {
     images.length = 0
     plans.length = 0
     failAt = new Set()
+    failWith = 'im: the image model is busy'
     imageCalls = 0
     active = makeActive(process.env.AI_DAILY_CAP_IMAGE as string)
     // Every post draws the same scenes: forget the images an earlier test drew, so each test's
@@ -460,6 +466,117 @@ describe.skipIf(!enabled)('a look post’s images against the database', () => {
       expect(again[1]).toMatchObject({ slide: 2, take: 1, nudge: null, fallback: null })
       expect(again[1].assetId).toEqual(expect.any(String))
       expect(again.filter((_, i) => i !== 1)).toEqual(art.filter((_, i) => i !== 1))
+    },
+    SLOW,
+  )
+
+  test(
+    'a picture whose every call is refused as busy (429) keeps why beside its no_art marker; drawn again, the reason goes with the failure',
+    async () => {
+      const { id, version } = await planned()
+      // Slide 2 is asked three times, and the client backs each off five times on a 429: calls 2 to 19.
+      failAt = new Set(Array.from({ length: 18 }, (_, i) => i + 2))
+      failWith = 'got status: 429 RESOURCE_EXHAUSTED'
+      ok(await commands.drawImages(ED, id, version))
+      await settled()
+      const post = await load(id)
+      const art = renderOf(post).body.slideArt ?? []
+      expect(art.map((a) => [a.fallback, a.reason ?? null])).toEqual([
+        [null, null],
+        ['no_art', 'busy'],
+        [null, null],
+        [null, null],
+      ])
+
+      ok(await commands.nudgeImage(ED, id, post.version, { slide: 2, nudge: null }))
+      const again = renderOf(await load(id)).body.slideArt ?? []
+      expect([again[1].fallback, again[1].reason ?? null]).toEqual([null, null])
+    },
+    SLOW,
+  )
+
+  test(
+    'Skip pictures saves every slide as it looks now, without a picture and with no image call, and the post moves on as a finished drawing does; a second press changes nothing',
+    async () => {
+      const { picturesDrawn } = await import('../lib/steps')
+      const { id, version } = await planned()
+      const plan = (await load(id)).current.artPlan
+      ok(await commands.skipPictures(ED, id, version))
+      expect(imageCalls).toBe(0)
+      expect(images).toEqual([])
+      const post = await load(id)
+      expect(post.stage).toBe('rendered')
+      const render = renderOf(post)
+      expect(render.body.slideArt?.map((a) => [a.slide, a.assetId, a.fallback, a.scene])).toEqual(
+        (plan?.body.scenes ?? []).map((s) => [s.slide, null, 'skipped', s.scene]),
+      )
+      expect(render.body.slides).toHaveLength(post.current.layout?.body.slides.length as number)
+      // Images is done: the post opens at its settings.
+      expect(picturesDrawn(post.current)).toBe(true)
+
+      expect(await commands.skipPictures(ED, id, post.version)).toEqual({
+        ok: true,
+        id,
+        version: post.version,
+      })
+      const again = await load(id)
+      expect(again.version).toBe(post.version)
+      expect(renderOf(again).id).toBe(render.id)
+      expect(imageCalls).toBe(0)
+    },
+    SLOW,
+  )
+
+  test(
+    'Skip pictures after some were drawn keeps each drawn picture and saves only the rest without one',
+    async () => {
+      const { id, version } = await planned()
+      failAt = new Set([2, 3, 4])
+      ok(await commands.drawImages(ED, id, version))
+      await settled()
+      const drawn = await load(id)
+      const before = renderOf(drawn).body.slideArt ?? []
+      expect(before.map((a) => a.fallback)).toEqual([null, 'no_art', null, null])
+      imageCalls = 0
+      images.length = 0
+
+      ok(await commands.skipPictures(ED, id, drawn.version))
+      expect(imageCalls).toBe(0)
+      const art = renderOf(await load(id)).body.slideArt ?? []
+      expect(art.map((a) => [a.slide, a.assetId, a.fallback])).toEqual([
+        [1, before[0].assetId, null],
+        [2, null, 'skipped'],
+        [3, before[2].assetId, null],
+        [4, before[3].assetId, null],
+      ])
+    },
+    SLOW,
+  )
+
+  test(
+    'Skip pictures is refused for a viewer who may not draw, and while the images are drawn',
+    async () => {
+      const { id, version } = await planned()
+      expect(await commands.skipPictures(REV, id, version)).toEqual({
+        ok: false,
+        error: errors.notAuthorised,
+      })
+      const waiting: (() => void)[] = []
+      hold = waiting
+      try {
+        ok(await commands.drawImages(ED, id, version))
+        await until(() => waiting.length === 1)
+        expect(await commands.skipPictures(ED, id, version)).toEqual({
+          ok: false,
+          error: stepRunningError('images'),
+        })
+      } finally {
+        hold = null
+        for (const go of waiting.splice(0)) go()
+      }
+      await settled()
+      const art = renderOf(await load(id)).body.slideArt ?? []
+      expect(art.every((a) => a.fallback !== 'skipped')).toBe(true)
     },
     SLOW,
   )

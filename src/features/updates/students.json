@@ -23,7 +23,8 @@
       "id": "sita",
       "name": "Sita",
       "homeCountry": "Nepal",
-      "ranked": ["deakin-cyber", "uow-cyber"]
+      "ranked": ["deakin-cyber", "uow-cyber"],
+      "interests": ["data"]
     },
     {
       "id": "anjali",
@@ -53,7 +54,8 @@
       "id": "nok",
       "name": "Nok",
       "homeCountry": "Thailand",
-      "ranked": ["swin-cyberpsych", "deakin-cyber"]
+      "ranked": ["swin-cyberpsych", "deakin-cyber"],
+      "interests": ["psych", "health"]
     },
     {
       "id": "ploy",
@@ -71,7 +73,8 @@
       "id": "linh",
       "name": "Linh",
       "homeCountry": "Vietnam",
-      "ranked": ["uts-data", "monash-data"]
+      "ranked": ["uts-data", "monash-data"],
+      "interests": ["data", "business"]
     },
     {
       "id": "minh",
@@ -102,7 +105,8 @@
       "id": "maria",
       "name": "Maria",
       "homeCountry": "Philippines",
-      "ranked": ["curtin-it", "utas-it"]
+      "ranked": ["curtin-it", "utas-it"],
+      "interests": ["design"]
     },
     {
       "id": "jose",

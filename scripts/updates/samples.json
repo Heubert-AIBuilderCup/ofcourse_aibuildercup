@@ -1,0 +1,125 @@
+{
+  "mock": true,
+  "updates": [
+    {
+      "id": "unisa-nursing-july-2027-close",
+      "kind": "intake",
+      "category": "Intake",
+      "institution": "UniSA",
+      "title": "UniSA Master of Nursing (graduate entry): July 2027 applications close 31 March (mock)",
+      "body": "Applications for the July 2027 start of UniSA's Master of Nursing (graduate entry) in Adelaide close on 31 March 2027 (mock date). Clinical placement checks take about six weeks, so apply early.",
+      "applyBy": "2027-03-31",
+      "sourceTitle": "UniSA Master of Nursing course page (mock)",
+      "sourceCheckedAt": "2026-10-16",
+      "audience": { "institution": "UniSA", "homeCountry": null, "topic": "health" }
+    },
+    {
+      "id": "student-visa-funds-2027",
+      "kind": "rule_change",
+      "category": "Visa",
+      "institution": "All institutions",
+      "title": "Student visa: proof of funds rises to AUD 31,000 a year (mock)",
+      "body": "From 1 February 2027 you must show AUD 31,000 a year for living costs (mock figure), up from AUD 29,710. Applications lodged before then are assessed on the old amount.",
+      "applyBy": "2027-01-31",
+      "sourceTitle": "Home Affairs student visa financial capacity page (mock)",
+      "sourceCheckedAt": "2026-10-15",
+      "audience": { "institution": "All institutions", "homeCountry": null }
+    },
+    {
+      "id": "india-future-skills-scholarship",
+      "kind": "opportunity",
+      "category": "Scholarship",
+      "institution": "All institutions",
+      "title": "Australia–India Future Skills Scholarship: AUD 10,000 for 2027 starters (mock)",
+      "body": "A one-off AUD 10,000 (mock) for students from India who start a postgraduate course in Australia in 2027 in health, IT or engineering. Apply with your offer letter.",
+      "applyBy": "2026-12-15",
+      "sourceTitle": "Australian High Commission India scholarships page (mock)",
+      "sourceCheckedAt": "2026-10-14",
+      "audience": { "institution": "All institutions", "homeCountry": "India" }
+    },
+    {
+      "id": "graduate-visa-health-extra-year",
+      "kind": "rule_change",
+      "category": "Graduate visa",
+      "institution": "All institutions",
+      "title": "485 graduate visa: an extra year for nursing and health graduates (mock)",
+      "body": "From July 2027, graduates of a registered nursing or allied health course can stay one extra year on the Temporary Graduate visa, subclass 485 (mock rule).",
+      "applyBy": null,
+      "sourceTitle": "Home Affairs subclass 485 page (mock)",
+      "sourceCheckedAt": "2026-10-13",
+      "audience": { "institution": "All institutions", "homeCountry": null, "topic": "health" }
+    },
+    {
+      "id": "pte-kathmandu-extra-dates",
+      "kind": "opportunity",
+      "category": "English test",
+      "institution": "All institutions",
+      "title": "PTE Academic: extra Kathmandu test dates in November (mock)",
+      "body": "Saturday PTE Academic sittings have been added in Kathmandu through November 2026 (mock), with results in about two days. Book early if your offer is conditional on an English score.",
+      "applyBy": "2026-11-28",
+      "sourceTitle": "Pearson PTE test centre listings (mock)",
+      "sourceCheckedAt": "2026-10-16",
+      "audience": { "institution": "All institutions", "homeCountry": "Nepal" }
+    },
+    {
+      "id": "unisa-fees-2027",
+      "kind": "rule_change",
+      "category": "Fees",
+      "institution": "UniSA",
+      "title": "UniSA 2027 international tuition rises 4% (mock)",
+      "body": "UniSA's international tuition rises about 4% for 2027 starters (mock figure). Accept an offer before 31 December 2026 to keep 2026 rates for your first year.",
+      "applyBy": "2026-12-31",
+      "sourceTitle": "UniSA international fees page (mock)",
+      "sourceCheckedAt": "2026-10-12",
+      "audience": { "institution": "UniSA", "homeCountry": null }
+    },
+    {
+      "id": "unisa-adelaide-guaranteed-rooms",
+      "kind": "opportunity",
+      "category": "Accommodation",
+      "institution": "UniSA",
+      "title": "Adelaide student housing: guaranteed UniSA rooms for first-year international students (mock)",
+      "body": "UniSA guarantees a room in its Adelaide city accommodation to first-year international students who apply by 15 December (mock), from AUD 310 a week (mock figure).",
+      "applyBy": "2026-12-15",
+      "sourceTitle": "UniSA accommodation page (mock)",
+      "sourceCheckedAt": "2026-10-11",
+      "audience": { "institution": "UniSA", "homeCountry": null }
+    },
+    {
+      "id": "work-rights-48-hours-2027",
+      "kind": "rule_change",
+      "category": "Work rights",
+      "institution": "All institutions",
+      "title": "Work rights: 48 hours a fortnight confirmed for 2027 (mock)",
+      "body": "Student visa holders can keep working up to 48 hours a fortnight during study periods in 2027 (mock rule), with no limit in scheduled breaks. Unpaid placements that are part of your course do not count.",
+      "applyBy": null,
+      "sourceTitle": "Home Affairs student visa work conditions page (mock)",
+      "sourceCheckedAt": "2026-10-10",
+      "audience": { "institution": "All institutions", "homeCountry": null }
+    },
+    {
+      "id": "ecu-nepal-cyber-scholarship",
+      "kind": "opportunity",
+      "category": "Scholarship",
+      "institution": "ECU",
+      "title": "ECU South Asia Merit Scholarship: 25% off cyber security tuition (mock)",
+      "body": "25% off tuition for the full course (mock) for students from Nepal who start an ECU cyber security course in 2027. There is no separate application: it is assessed with your offer.",
+      "applyBy": "2027-01-31",
+      "sourceTitle": "ECU international scholarships page (mock)",
+      "sourceCheckedAt": "2026-10-09",
+      "audience": { "institution": "ECU", "homeCountry": "Nepal", "topic": "cyber" }
+    },
+    {
+      "id": "monash-july-2027-offers-close",
+      "kind": "intake",
+      "category": "Intake",
+      "institution": "Monash",
+      "title": "Monash July 2027 intake: offers close 30 April (mock)",
+      "body": "Monash closes July 2027 offers for its postgraduate IT and data courses on 30 April 2027 (mock date). Deposits are due four weeks after the offer.",
+      "applyBy": "2027-04-30",
+      "sourceTitle": "Monash key dates page (mock)",
+      "sourceCheckedAt": "2026-10-08",
+      "audience": { "institution": "Monash", "homeCountry": null }
+    }
+  ]
+}

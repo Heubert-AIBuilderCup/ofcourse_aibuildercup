@@ -67,7 +67,7 @@ export function PictureQuestion({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 @max-xl:gap-4.5">
+    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 @max-xl:gap-4.5">
       <StepKicker detail="optional" className={cn(motion.rise, motion.d2)}>
         Your comic character
       </StepKicker>

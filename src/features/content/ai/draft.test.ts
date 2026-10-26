@@ -58,6 +58,7 @@ const { NATIVE, NATIVE_IDS, nativeOf } = await import('../text/native-fixtures')
 const { toModelSchema } = await import('./schema-guard')
 const { templateById } = await import('../templates')
 const { unboundSlots } = await import('../lib/claims')
+const { NO_FACTS_ERROR } = await import('../lib/failure')
 const { DEMO_SOURCES } = await import('../demo-sources')
 const { EMOTIONS, emotionById } = await import('../emotions')
 const { FEED_BRAND } = await import('../brands')
@@ -344,25 +345,16 @@ function recordDraftCalls(): string[] {
 }
 
 describe('draftStructures', () => {
-  it('drafts three versions per ticked template in one call each, flattened in template order, labelled by angle (97)', async () => {
+  it('drafts one version per ticked template in one call each, in template order, labelled by its angle (97, 18 Oct)', async () => {
     const extracted = await paidWorkFacts()
     const users = recordDraftCalls()
     const res = await draft(['the-line', 'the-long-read'], extracted)
     if (!res.ok) throw new Error(res.error)
     expect(users).toHaveLength(2)
-    expect(res.items.map((i) => i.structure.templateId)).toEqual([
-      'the-line',
-      'the-line',
-      'the-line',
-      'the-long-read',
-      'the-long-read',
-      'the-long-read',
-    ])
+    expect(res.items.map((i) => i.structure.templateId)).toEqual(['the-line', 'the-long-read'])
     expect(res.items[0].template).toEqual(theLine)
-    expect(res.items[3].template).toEqual(templateById('the-long-read') as never)
-    const angles = res.items.slice(0, 3).map((i) => i.angle)
-    expect(angles.every((a) => a.length > 0)).toBe(true)
-    expect(new Set(angles).size).toBe(3)
+    expect(res.items[1].template).toEqual(templateById('the-long-read') as never)
+    expect(res.items.every((i) => i.angle.length > 0)).toBe(true)
     expect(res.items.every((i) => i.problems.length === 0)).toBe(true)
     expect(res.replays).toEqual([])
   })
@@ -375,7 +367,7 @@ describe('draftStructures', () => {
     const extracted = await paidWorkFacts()
     const res = await draft(['field-notes'], extracted)
     if (!res.ok) throw new Error(res.error)
-    expect(res.items).toHaveLength(3)
+    expect(res.items).toHaveLength(1)
     for (const { structure, template } of res.items) {
       const layout = layoutStructure({
         structure,
@@ -464,7 +456,7 @@ describe('draftStructures', () => {
   ] as const
   const outlined = { format: null, slides: OUTLINE.map((s) => ({ ...s })) }
 
-  it('drafts every version to the outline, its slides in order with their layouts, and sends each point (GD32)', async () => {
+  it('drafts the version to the outline, its slides in order with their layouts, and sends each point (GD32)', async () => {
     const extracted = await paidWorkFacts()
     const sent: unknown[] = []
     provider = {
@@ -476,7 +468,7 @@ describe('draftStructures', () => {
     }
     const res = await draftStructures({ ...base(extracted), outline: outlined })
     if (!res.ok) throw new Error(res.error)
-    expect(res.items).toHaveLength(3)
+    expect(res.items).toHaveLength(1)
     for (const item of res.items) {
       expect(item.structure.slides.map((s) => s.layout)).toEqual(OUTLINE.map((s) => s.layout))
       expect(item.problems).toEqual([])
@@ -493,21 +485,20 @@ describe('draftStructures', () => {
     FAKE_ANSWERS.draft = (data) => {
       calls++
       const answer = fakeDraft?.(data) as DraftAnswer
-      if (calls > 1) return answer
-      // One middle slide too few in the first version, a layout swapped in the second.
-      answer.versions[0].slides.splice(4, 1)
-      answer.versions[1].slides[4].layout = 'quote'
+      // One middle slide too few, then a layout swapped.
+      if (calls === 1) answer.versions[0].slides.splice(4, 1)
+      if (calls === 2) answer.versions[0].slides[4].layout = 'quote'
       return answer
     }
     const users = recordDraftCalls()
     const res = await draftStructures({ ...base(extracted), outline: outlined })
     if (!res.ok) throw new Error(res.error)
-    expect(calls).toBe(2)
+    expect(calls).toBe(3)
     expect(users[1]).toContain(
       'versions.0.slides: DATA.outline has 6 slides; write exactly 6, one for each, in its order.',
     )
-    expect(users[1]).toContain(
-      'versions.1.slides.4.layout: DATA.outline gives this slide the picture layout.',
+    expect(users[2]).toContain(
+      'versions.0.slides.4.layout: DATA.outline gives this slide the picture layout.',
     )
     expect(res.items.every((i) => i.structure.slides.length === 6)).toBe(true)
   })
@@ -516,8 +507,8 @@ describe('draftStructures', () => {
     const extracted = await paidWorkFacts()
     const res = await draft(['the-line', 'the-long-read', 'the-question'], extracted)
     if (!res.ok) throw new Error(res.error)
-    // The first version of each template.
-    const [line, longRead, question] = [0, 3, 6].map((i) => res.items[i].structure)
+    // Each template's one version.
+    const [line, longRead, question] = res.items.map((i) => i.structure)
     expect(line.slides.map((s) => s.kind)).toEqual(['cover', 'body', 'body', 'body', 'take'])
     expect(line.slides[0].slots.phrase.text).toBe('20-hour')
     expect(line.slides[2].slots.body.text).toEndWith(
@@ -525,16 +516,16 @@ describe('draftStructures', () => {
     )
     expect(longRead.slides[1].slots.body.text.split(/\s+/)).toHaveLength(121)
     expect(question.slides[1].slots.body.factIds).toEqual([])
-    const unbound = unboundSlots(question, res.items[6].template, extracted.facts)
+    const unbound = unboundSlots(question, res.items[2].template, extracted.facts)
     // One entry per sentence of that body, all on slide 2.
     expect(new Set(unbound.map((u) => `${u.slide} ${u.reason}`))).toEqual(new Set(['2 No source']))
   })
 
-  it('keeps a version that still fails after the ladder, with its problems, beside the clean two (97)', async () => {
+  it('keeps the version when it still fails after the ladder, with its problems (97)', async () => {
     const extracted = await paidWorkFacts()
     FAKE_ANSWERS.draft = (data) => {
       const answer = fakeDraft?.(data) as DraftAnswer
-      answer.versions[1].slides[0].slots[0].text = 'The best research'
+      answer.versions[0].slides[0].slots[0].text = 'The best research'
       return answer
     }
     const users = recordDraftCalls()
@@ -542,45 +533,58 @@ describe('draftStructures', () => {
     if (!res.ok) throw new Error(res.error)
     // Flash, Flash with the problems, Pro: none fixed it, so the last answer stands, marked.
     expect(users).toHaveLength(3)
-    expect(users[1]).toContain('versions.1.slides.0.slots.kicker: remove "best".')
-    expect(res.items).toHaveLength(3)
-    expect(res.items[0].problems).toEqual([])
-    expect(res.items[1].problems).toEqual(['slides.0.slots.kicker: remove "best".'])
-    expect(res.items[2].problems).toEqual([])
-    expect(res.items[1].structure.slides[0].slots.kicker.text).toBe('The best research')
+    expect(users[1]).toContain('versions.0.slides.0.slots.kicker: remove "best".')
+    expect(res.items).toHaveLength(1)
+    expect(res.items[0].problems).toEqual(['slides.0.slots.kicker: remove "best".'])
+    expect(res.items[0].structure.slides[0].slots.kicker.text).toBe('The best research')
   })
 
-  it('sends a repeated or empty angle back to the model', async () => {
+  it('says there are no facts to write from when a draft with no supported fact fails (bug, 18 Oct)', async () => {
+    const extracted = await paidWorkFacts()
+    // As the model answered with DATA.facts empty: a paragraph ref where a fact id belongs.
+    FAKE_ANSWERS.draft = (data) => {
+      const answer = fakeDraft?.(data) as DraftAnswer
+      for (const v of answer.versions) {
+        for (const s of v.slides) for (const slot of s.slots) slot.fact_ids = ['¶1']
+      }
+      return answer
+    }
+    const none = await draftStructures({ ...base(extracted), facts: [] })
+    expect(none).toEqual({ ok: false, error: NO_FACTS_ERROR })
+    // With facts to cite, the same failure is the plain one.
+    const some = await draftStructures({ ...base(extracted), attempt: 2 })
+    expect(some).toEqual({ ok: false, error: client.AI_ERRORS.failed })
+  })
+
+  it('sends an empty angle back to the model', async () => {
     const extracted = await paidWorkFacts()
     let calls = 0
     FAKE_ANSWERS.draft = (data) => {
       calls++
       const answer = fakeDraft?.(data) as DraftAnswer
       if (calls > 1) return answer
-      answer.versions[1].angle = answer.versions[0].angle
-      answer.versions[2].angle = ' '
+      answer.versions[0].angle = ' '
       return answer
     }
     const users = recordDraftCalls()
     const res = await draft(['the-line'], extracted)
     if (!res.ok) throw new Error(res.error)
     expect(calls).toBe(2)
-    expect(users[1]).toContain('versions.1.angle:')
-    expect(users[1]).toContain('versions.2.angle:')
-    expect(new Set(res.items.map((i) => i.angle)).size).toBe(3)
+    expect(users[1]).toContain('versions.0.angle:')
+    expect(res.items.map((i) => i.angle.length > 0)).toEqual([true])
   })
 
-  it('fails the step when the model never returns three versions', async () => {
+  it('fails the step when the model never returns exactly one version', async () => {
     const extracted = await paidWorkFacts()
     FAKE_ANSWERS.draft = (data) => {
       const answer = fakeDraft?.(data) as DraftAnswer
-      return { versions: answer.versions.slice(0, 2) }
+      return { versions: answer.versions.slice(0, 0) }
     }
     const users = recordDraftCalls()
     const res = await draft(['the-line'], extracted)
     expect(res).toEqual({ ok: false, error: client.AI_ERRORS.failed })
     expect(users).toHaveLength(3)
-    expect(users[1]).toContain('versions: return exactly three versions.')
+    expect(users[1]).toContain('versions: return exactly one version.')
   })
 
   it('carries the chosen emotion’s tone note into the prompt data, a custom word’s too, none when none (100)', async () => {
@@ -742,7 +746,7 @@ describe('the draft spec', () => {
   it('has an example that parses with its own schema and passes the schema guard', () => {
     expect(DRAFT.schema.safeParse(DRAFT.example.answer).success).toBe(true)
     expect(() => toModelSchema(DRAFT.schema)).not.toThrow()
-    expect(DRAFT).toMatchObject({ useCase: 'draft', version: 'draft.v11', tier: 'flash' })
+    expect(DRAFT).toMatchObject({ useCase: 'draft', version: 'draft.v12', tier: 'flash' })
     // The bullets layout (GD34): three to five points, one per line, counted as points.
     expect(DRAFT.rules.some((r) => r.includes('bullets for three to five short points'))).toBe(true)
     expect(DRAFT.rules.some((r) => r.includes('one point per line'))).toBe(true)
@@ -760,11 +764,13 @@ describe('the draft spec', () => {
     const notes = DRAFT.rules.find((r) => r.includes('DATA.editor_notes'))
     expect(notes).toContain("the editor's opinion, never as a fact or a number")
     expect(DRAFT.temperature).toBe(0.6)
-    // Three versions in one call, each its own angle (97): the example shows all three.
+    // One version a call, named by its angle (97, 18 Oct): the example shows one, and the schema
+    // takes no more, so the answer is a third of what three made.
     const { versions } = DRAFT.example.answer as { versions: { angle: string }[] }
-    expect(versions).toHaveLength(3)
-    expect(new Set(versions.map((v) => v.angle)).size).toBe(3)
-    expect(DRAFT.rules.some((r) => r.includes('three versions'))).toBe(true)
+    expect(versions).toHaveLength(1)
+    expect(DRAFT.schema.safeParse({ versions: [versions[0], versions[0]] }).success).toBe(false)
+    expect(DRAFT.rules[0]).toStartWith('Return exactly one version')
+    expect([...DRAFT.rules, DRAFT.instruction].join(' ')).not.toContain('three versions')
     // The emotion is a data field the rules read for tone (100): the example shows the first chip.
     expect((DRAFT.example.data as { emotion: unknown }).emotion).toEqual({
       label: EMOTIONS[0].label,
@@ -1083,25 +1089,26 @@ describe('redraftVersion (GD10)', () => {
     )
   })
 
-  it('sends a number its facts lack, and more than one version, back to the model, and takes the corrected answer', async () => {
+  it('sends a number its facts lack, and no version at all, back to the model, and takes the corrected answer', async () => {
     const { item, facts } = await draftedLine()
     let calls = 0
     FAKE_ANSWERS.draft = (data) => {
       calls++
       const answer = fakeDraft?.(data) as DraftAnswer
-      if (calls > 1) return answer
+      if (calls > 2) return answer
       const [first] = answer.versions
       first.slides[1].slots = first.slides[1].slots.map((s) =>
         s.key === 'body' ? { ...s, text: `${s.text} Pass rates fell by 12 points.` } : s,
       )
-      return { versions: [first, first] }
+      // The number in the first rung, no version in the second.
+      return calls === 1 ? { versions: [first] } : { versions: [] }
     }
     const seen = recordDraftData()
     const res = await nudge(item, facts)
     if (!res.ok) throw new Error(res.error)
-    expect(calls).toBe(2)
-    expect(seen[1].user).toContain('versions: return exactly one version.')
+    expect(calls).toBe(3)
     expect(seen[1].user).toContain('fell by 12 points." states a number')
+    expect(seen[2].user).toContain('versions: return exactly one version.')
     expect(res.item.structure.slides[1].slots.body.text).not.toContain('12')
   })
 
@@ -1229,7 +1236,7 @@ describe('a post in its language (GD37)', () => {
     expect(seen[0].data).not.toHaveProperty('language')
     expect(seen[0].system).toBe(buildPrompt(DRAFT, seen[0].data).system)
     expect(seen[0].system).not.toContain('Write every text for readers')
-    expect(DRAFT.version).toBe('draft.v11')
+    expect(DRAFT.version).toBe('draft.v12')
   })
 
   it('counts a Thai take’s words by word, and asks again when there are too many', async () => {

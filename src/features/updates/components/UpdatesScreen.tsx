@@ -1,7 +1,9 @@
 'use client'
 
+import { Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { type ReactNode, useId, useRef, useState, useTransition } from 'react'
+import { AdminPageHeader } from '@/features/admin/components/AdminPageHeader'
 import { tag } from '@/shared/components/classes'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -11,7 +13,17 @@ import { Textarea } from '@/shared/components/ui/textarea'
 import { cn } from '@/shared/lib/utils'
 import type { ActionResult } from '@/shared/types/action-result'
 import { HOME_COUNTRIES, type MockStudent, type MockUpdate } from '..'
-import { ALL_INSTITUTIONS, INSTITUTIONS, type Match, matchAudience } from '../lib/audience'
+import {
+  ALL_INSTITUTIONS,
+  ALL_TOPICS,
+  type AudienceRule,
+  INSTITUTIONS,
+  type Match,
+  matchAudience,
+  NO_TOPIC,
+  TOPIC_IDS,
+  topicName,
+} from '../lib/audience'
 import {
   DEMO_DRAFT,
   KIND_LABELS,
@@ -146,20 +158,21 @@ export function UpdatesScreen({
 
   return (
     // The container query reads this wrapper: a grid cannot query its own width.
-    <div className="@container">
+    <div className="@container flex flex-col gap-6">
+      <AdminPageHeader
+        kicker="Students"
+        title="Updates"
+        lede="Rule changes and opportunities, published to the students they concern."
+      >
+        {canWrite && (
+          <Button className="h-11 px-5 @max-xl:flex-1" onClick={() => openNew(DEMO_DRAFT)}>
+            <Plus aria-hidden="true" strokeWidth={1.5} className="size-icon" />
+            New update
+          </Button>
+        )}
+      </AdminPageHeader>
       <div className="grid gap-8 @5xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)] @5xl:items-start">
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-h1 font-semibold tracking-tight">Updates</h1>
-            <p className="text-muted-foreground">
-              Rule changes and opportunities, published to the students they concern.
-            </p>
-            {canWrite && (
-              <Button className="self-start" onClick={() => openNew(DEMO_DRAFT)}>
-                + New update
-              </Button>
-            )}
-          </div>
           <ul aria-label="Updates" className="flex flex-col border-t">
             {updates.map((u) =>
               row(
@@ -427,7 +440,7 @@ function UpdateForm({
       </Field>
       <fieldset className="grid gap-3 border-t pt-3 @xl:col-span-2 @xl:grid-cols-2">
         <legend className={cn(overline, 'pb-1')}>Audience</legend>
-        <Field id={field('aud-inst')} label="Ranked a route at">
+        <Field id={field('aud-inst')} label="Ranked a route at" className="@xl:col-span-2">
           <NativeSelect
             id={field('aud-inst')}
             value={value.audience.institution}
@@ -436,6 +449,31 @@ function UpdateForm({
             {INSTITUTION_CHOICES.map((i) => (
               <option key={i} value={i}>
                 {i}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
+        <Field id={field('aud-topic')} label="Topic">
+          <NativeSelect
+            id={field('aud-topic')}
+            value={value.audience.topic}
+            onChange={(e) =>
+              set('audience', {
+                ...value.audience,
+                topic: e.target.value as AudienceRule['topic'],
+              })
+            }
+          >
+            {/* A stored topic that is none of the eight: shown as it is, never as All topics. */}
+            {value.audience.topic === NO_TOPIC && (
+              <option value={NO_TOPIC} disabled>
+                No topic (unknown)
+              </option>
+            )}
+            <option value={ALL_TOPICS}>{ALL_TOPICS}</option>
+            {TOPIC_IDS.map((t) => (
+              <option key={t} value={t}>
+                {topicName(t)}
               </option>
             ))}
           </NativeSelect>
@@ -464,9 +502,19 @@ function UpdateForm({
   )
 }
 
-function Field({ id, label, children }: { id: string; label: string; children: ReactNode }) {
+function Field({
+  id,
+  label,
+  className,
+  children,
+}: {
+  id: string
+  label: string
+  className?: string
+  children: ReactNode
+}) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className={cn('flex flex-col gap-1', className)}>
       <Label htmlFor={id}>{label}</Label>
       {children}
     </div>

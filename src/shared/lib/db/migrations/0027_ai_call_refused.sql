@@ -1,0 +1,1 @@
+ALTER TABLE "ai_call" ADD COLUMN "refused" boolean DEFAULT false NOT NULL;

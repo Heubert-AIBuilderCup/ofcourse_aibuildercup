@@ -38,7 +38,7 @@ afterEach(() => {
   suggestSourcesAction.mockClear()
 })
 
-const LINKS = 'Links'
+const LINKS = 'Blog link'
 const FRAMING = 'What do you want this post to say?'
 const NOTES = 'Your own notes'
 const paste = () => fireEvent.click(screen.getByRole('button', { name: 'Paste text instead' }))
@@ -255,39 +255,67 @@ it('sends the page chosen for the post, and None as null (105)', async () => {
   expect(makePostAction.mock.calls[1][0]).toMatchObject({ pageBrandId: 'cerebral' })
 })
 
-it('makes a feed post unless it is the blog form, whose button makes a blog (BR1)', async () => {
-  view()
-  links('https://example.com/a')
-  await make()
-  expect(makePostAction.mock.calls[0][0]).toMatchObject({ postKind: 'feed' })
-  cleanup()
+describe('"Start from" (criteria 1, 2)', () => {
+  const start = (name: string) => screen.getByRole('radio', { name })
+  const checked = () =>
+    ['From a blog', 'From an idea'].map((name) => (start(name) as HTMLInputElement).checked)
 
-  render(<SourceForm actions={{ makePostAction, suggestSourcesAction }} postKind="blog" />)
-  links('https://example.com/a')
-  expect(screen.queryByRole('button', { name: 'Make post' })).toBeNull()
-  await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: 'Make blog' }))
+  it('offers "From a blog" and "From an idea", the blog chosen', () => {
+    view()
+    expect(screen.getByRole('radiogroup', { name: 'Start from' })).toBeInTheDocument()
+    expect(checked()).toEqual([true, false])
+    expect(screen.queryByLabelText('Your idea')).toBeNull()
   })
-  expect(makePostAction.mock.calls[1][0]).toMatchObject({
-    postKind: 'blog',
-    links: ['https://example.com/a'],
+
+  it('opens on the idea as New blog, or with an idea', () => {
+    render(<SourceForm actions={{ makePostAction, suggestSourcesAction }} postKind="blog" />)
+    expect(checked()).toEqual([false, true])
+    cleanup()
+    render(
+      <SourceForm
+        actions={{ makePostAction, suggestSourcesAction }}
+        idea={{ text: 'Perth on a student budget', ideaId: null }}
+      />,
+    )
+    expect(checked()).toEqual([false, true])
+  })
+
+  it('"Make post" from a blog link makes a feed post, even on the New blog page', async () => {
+    view()
+    links('https://example.com/a')
+    await make()
+    expect(makePostAction.mock.calls[0][0]).toMatchObject({
+      postKind: 'feed',
+      links: ['https://example.com/a'],
+    })
+    cleanup()
+
+    render(<SourceForm actions={{ makePostAction, suggestSourcesAction }} postKind="blog" />)
+    fireEvent.click(start('From a blog'))
+    links('https://example.com/b')
+    await make()
+    expect(makePostAction.mock.calls[1][0]).toMatchObject({
+      postKind: 'feed',
+      links: ['https://example.com/b'],
+    })
   })
 })
 
 describe('"Start from an idea" (BR12, BR13)', () => {
   const IDEA = 'Your idea'
-  const startFromIdea = () =>
-    fireEvent.click(screen.getByRole('button', { name: 'Start from an idea' }))
+  const startFromIdea = () => fireEvent.click(screen.getByRole('radio', { name: 'From an idea' }))
   const find = (idea: string) =>
     act(async () => {
       fireEvent.change(screen.getByLabelText(IDEA), { target: { value: idea } })
       fireEvent.click(screen.getByRole('button', { name: 'Find sources' }))
     })
   const tick = (name: string) => fireEvent.click(screen.getByRole('checkbox', { name }))
-  const useThese = () =>
+  const press = (name: string) =>
     act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Use these' }))
+      fireEvent.click(screen.getByRole('button', { name }))
     })
+  const BLOG_FIRST = 'Write a blog first'
+  const STRAIGHT = 'Go straight to the post'
 
   it('opens the idea field with its placeholder and help text, and sends the idea on "Find sources"', async () => {
     view()
@@ -330,7 +358,17 @@ describe('"Start from an idea" (BR12, BR13)', () => {
     ).toEqual([true, true, true, false])
   })
 
-  it('"Use these" fills the Links field with the ticked pages and runs "Make post" with them (BR13)', async () => {
+  it('hides the blog link and "Make post", keeping language, framing, notes and page (criterion 4)', () => {
+    view()
+    startFromIdea()
+    expect(screen.queryByLabelText(LINKS)).toBeNull()
+    expect(screen.queryAllByRole('button', { name: 'Make post' }).length).toBe(0)
+    for (const label of ['Language', FRAMING, NOTES, 'Page']) {
+      expect(screen.getByLabelText(label)).toBeInTheDocument()
+    }
+  })
+
+  it('"Write a blog first" makes a blog and "Go straight to the post" a feed post, from the ticked pages (criterion 3, BR13)', async () => {
     suggested = {
       ok: true,
       sources: [source(1, true), source(2, true), source(3, false)],
@@ -338,18 +376,25 @@ describe('"Start from an idea" (BR12, BR13)', () => {
     }
     view()
     startFromIdea()
+    fireEvent.change(screen.getByLabelText(FRAMING), { target: { value: 'Why 20 hours' } })
     await find('Working while you study')
     tick('Page 1')
     tick('Page 3')
-    await useThese()
     const links = ['https://site2.example/page', 'https://site3.example/page']
-    expect(makePostAction).toHaveBeenCalledTimes(1)
-    expect(makePostAction.mock.calls[0][0]).toMatchObject({ links, text: '' })
-    expect(screen.getByLabelText(LINKS)).toHaveValue(links.join('\n'))
+    await press(BLOG_FIRST)
+    expect(makePostAction.mock.calls[0][0]).toMatchObject({
+      links,
+      text: '',
+      framing: 'Why 20 hours',
+      postKind: 'blog',
+    })
     expect(push).toHaveBeenCalledWith('/admin/posts/p1')
+    await press(STRAIGHT)
+    expect(makePostAction.mock.calls[1][0]).toMatchObject({ links, text: '', postKind: 'feed' })
+    expect(makePostAction).toHaveBeenCalledTimes(2)
   })
 
-  it('keeps "Use these" disabled with no page ticked, or more than five (GD18)', async () => {
+  it('keeps both makes disabled with no idea, or more than five pages ticked (GD18)', async () => {
     suggested = {
       ok: true,
       sources: [1, 2, 3, 4, 5, 6].map((n) => source(n, n <= 3)),
@@ -357,13 +402,96 @@ describe('"Start from an idea" (BR12, BR13)', () => {
     }
     view()
     startFromIdea()
+    for (const name of [BLOG_FIRST, STRAIGHT]) {
+      expect(screen.getByRole('button', { name })).toBeDisabled()
+    }
     await find('Working while you study')
     for (const n of [4, 5, 6]) tick(`Page ${n}`)
-    expect(screen.getByRole('button', { name: 'Use these' })).toBeDisabled()
+    for (const name of [BLOG_FIRST, STRAIGHT]) {
+      expect(screen.getByRole('button', { name })).toBeDisabled()
+    }
     expect(screen.getByText('Up to five links.')).toBeInTheDocument()
-    for (const n of [1, 2, 3, 4, 5, 6]) tick(`Page ${n}`)
-    expect(screen.getByRole('button', { name: 'Use these' })).toBeDisabled()
     expect(makePostAction).not.toHaveBeenCalled()
+  })
+
+  const IDEA_ONLY =
+    'No sources ticked: the post is built from your idea alone, and its source check compares against your idea.'
+
+  it('with no search run, makes from the idea alone as the source (framing and notes stay their own fields, never facts), the idea its title, kind "Your idea", no links', async () => {
+    view()
+    startFromIdea()
+    fireEvent.change(screen.getByLabelText(IDEA), {
+      target: { value: '  Working while you study ' },
+    })
+    fireEvent.change(screen.getByLabelText(FRAMING), { target: { value: 'Why 20 hours' } })
+    fireEvent.change(screen.getByLabelText(NOTES), { target: { value: 'I worked 25.' } })
+    await press(BLOG_FIRST)
+    const fromIdea = {
+      text: 'Working while you study',
+      framing: 'Why 20 hours',
+      notes: 'I worked 25.',
+      title: 'Working while you study',
+      kind: 'Your idea',
+      links: [],
+    }
+    expect(makePostAction.mock.calls[0][0]).toMatchObject({ ...fromIdea, postKind: 'blog' })
+    await press(STRAIGHT)
+    expect(makePostAction.mock.calls[1][0]).toMatchObject({ ...fromIdea, postKind: 'feed' })
+    expect(suggestSourcesAction).not.toHaveBeenCalled()
+  })
+
+  it('cuts the title to 200 characters, the whole idea kept as the source', async () => {
+    const long = `${'a'.repeat(200)}b`
+    render(
+      <SourceForm
+        actions={{ makePostAction, suggestSourcesAction }}
+        idea={{ text: long, ideaId: null }}
+      />,
+    )
+    await press(STRAIGHT)
+    expect(makePostAction.mock.calls[0][0]).toMatchObject({
+      text: long,
+      title: 'a'.repeat(200),
+      kind: 'Your idea',
+      links: [],
+      postKind: 'feed',
+    })
+  })
+
+  it('makes from the idea when the search finds nothing, fails, or none is ticked', async () => {
+    suggested = { ok: false, error: 'Try a more specific idea.' }
+    view()
+    startFromIdea()
+    await find('Study')
+    await press(STRAIGHT)
+    expect(makePostAction.mock.calls[0][0]).toMatchObject({ text: 'Study', links: [] })
+
+    suggested = { ok: true, sources: [], entryPoint: null }
+    await find('Study abroad')
+    await press(STRAIGHT)
+    expect(makePostAction.mock.calls[1][0]).toMatchObject({ text: 'Study abroad', links: [] })
+
+    suggested = { ok: true, sources: [source(1, false)], entryPoint: null }
+    await find('Study in Perth')
+    await press(BLOG_FIRST)
+    expect(makePostAction.mock.calls[2][0]).toMatchObject({
+      text: 'Study in Perth',
+      kind: 'Your idea',
+      links: [],
+    })
+  })
+
+  it('says the post is built from the idea alone only while no source is ticked', async () => {
+    suggested = { ok: true, sources: [source(1, true), source(2, false)], entryPoint: null }
+    view()
+    startFromIdea()
+    expect(screen.queryByText(IDEA_ONLY)).toBeInTheDocument()
+    await find('Working while you study')
+    expect(screen.queryByText(IDEA_ONLY)).toBeNull()
+    tick('Page 1')
+    expect(screen.queryByText(IDEA_ONLY)).toBeInTheDocument()
+    tick('Page 2')
+    expect(screen.queryByText(IDEA_ONLY)).toBeNull()
   })
 
   it("renders Google's search entry point in a sandboxed iframe, never in the page", async () => {
@@ -387,17 +515,61 @@ describe('"Start from an idea" (BR12, BR13)', () => {
         idea={{ text: 'Perth on a student budget', ideaId: 'perth-budget' }}
       />,
     )
-    expect(screen.queryAllByRole('button', { name: 'Start from an idea' }).length).toBe(0)
     expect(screen.getByLabelText(IDEA)).toHaveValue('Perth on a student budget')
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Find sources' }))
     })
     expect(suggestSourcesAction.mock.calls[0][0]).toEqual({ idea: 'Perth on a student budget' })
-    await useThese()
+    await press(STRAIGHT)
     expect(makePostAction.mock.calls[0][0]).toMatchObject({
       links: ['https://site1.example/page'],
       ideaId: 'perth-budget',
     })
+  })
+
+  it('drops the other start’s refusal on a switch, and keeps the sources found across a switch away and back', async () => {
+    const error = 'Could not read that page.'
+    makePostAction.mockImplementationOnce(async () => ({
+      ok: false,
+      error,
+      failed: [{ url: 'https://example.com/a', error }],
+    }))
+    suggested = { ok: true, sources: [source(1, true), source(2, false)], entryPoint: null }
+    view()
+    links('https://example.com/a')
+    await make()
+    expect(screen.getAllByRole('alert').length).toBe(1)
+    startFromIdea()
+    expect(screen.queryAllByRole('alert').length).toBe(0)
+    expect(screen.queryAllByRole('list', { name: 'Links not read' }).length).toBe(0)
+
+    await find('Working while you study')
+    tick('Page 2')
+    fireEvent.click(screen.getByRole('radio', { name: 'From a blog' }))
+    startFromIdea()
+    expect((screen.getByLabelText(IDEA) as HTMLInputElement).value).toBe('Working while you study')
+    expect(
+      screen.getAllByRole('checkbox').map((box) => box.getAttribute('aria-checked') === 'true'),
+    ).toEqual([true, true])
+    expect(suggestSourcesAction).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends another request id for the other kind, and the same one for the same kind again', async () => {
+    const refused = async (): Promise<Made> => ({ ok: false, error: 'Try again.' })
+    makePostAction.mockImplementationOnce(refused)
+    makePostAction.mockImplementationOnce(refused)
+    suggested = { ok: true, sources: [source(1, true)], entryPoint: null }
+    view()
+    startFromIdea()
+    await find('Working while you study')
+    await press(BLOG_FIRST)
+    await press(STRAIGHT)
+    await press(STRAIGHT)
+    const [blog, feed, feedAgain] = makePostAction.mock.calls.map(
+      ([input]) => (input as { requestId: string }).requestId,
+    )
+    expect(feed).not.toBe(blog)
+    expect(feedAgain).toBe(feed)
   })
 
   it('says why no source was found, and keeps the idea', async () => {
@@ -408,5 +580,69 @@ describe('"Start from an idea" (BR12, BR13)', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Try a more specific idea.')
     expect(screen.getByLabelText(IDEA)).toHaveValue('Study')
     expect(screen.queryByRole('list', { name: 'Suggested sources' })).toBeNull()
+  })
+})
+
+describe('while Gemini works on the press (the loader)', () => {
+  /** An action's answer held until the test lets it go. */
+  const held = <T,>() => {
+    let resolve: (value: T) => void = () => {}
+    const promise = new Promise<T>((r) => {
+      resolve = r
+    })
+    return { promise, resolve }
+  }
+  const statuses = () => screen.queryAllByRole('status').map((s) => s.textContent)
+  const buttons = (label: string) =>
+    screen
+      .queryAllByRole('button')
+      .filter((b) => b.textContent === label)
+      .map((b) => (b as HTMLButtonElement).disabled)
+  const READING = 'Reading the source and finding ideas · this can take a minute'
+
+  it('"Make post" says it is reading the source, and the pressed button waits as "Running…"', async () => {
+    const answer = held<Made>()
+    makePostAction.mockImplementationOnce(() => answer.promise)
+    view()
+    links('https://example.com/a')
+    await make()
+    try {
+      expect(statuses()).toEqual([READING])
+      expect(buttons('Running…')).toEqual([true])
+    } finally {
+      // A transition left hanging would hold every later one in this file.
+      await act(async () => answer.resolve({ ok: true, id: 'p1', version: 1 }))
+    }
+  })
+
+  it('"Find sources" says it is searching, and "Go straight to the post" says it is reading, "Write a blog first" left as it reads', async () => {
+    suggested = { ok: true, sources: [source(1, true)], entryPoint: null }
+    const found = held<Suggested>()
+    suggestSourcesAction.mockImplementationOnce(() => found.promise)
+    view()
+    fireEvent.click(screen.getByRole('radio', { name: 'From an idea' }))
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Your idea'), { target: { value: 'Study' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Find sources' }))
+    })
+    try {
+      expect(statuses()).toEqual(['Searching for sources…'])
+      expect(buttons('Finding…')).toEqual([true])
+    } finally {
+      await act(async () => found.resolve(suggested))
+    }
+
+    const made = held<Made>()
+    makePostAction.mockImplementationOnce(() => made.promise)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Go straight to the post' }))
+    })
+    try {
+      expect(statuses()).toEqual([READING])
+      expect(buttons('Running…')).toEqual([true])
+      expect(buttons('Write a blog first')).toEqual([true])
+    } finally {
+      await act(async () => made.resolve({ ok: true, id: 'p1', version: 1 }))
+    }
   })
 })

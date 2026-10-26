@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { rateFor } from '@/features/content/markets'
 import type { OwnWordsStep, QuestionKey, StoredAnswer, StoredAnswers } from '@/shared/types/student'
-import { amountFromWords, checkOwnWords, type OwnWordsModel } from './own-words'
+import { amountFromWords, checkOwnWords, type OwnWordsModel, ownWordsQuestions } from './own-words'
 
 // Criteria 36 to 41: her own words read into chips (a step's own values, each quoting her) and
 // tags, checked in code whatever the model returned.
@@ -82,15 +82,58 @@ describe('checkOwnWords', () => {
       checkOwnWords('after', text, { chips, tags: [] }, {}, null).chips.map((c) => c.key),
     ).toEqual(['stay'])
     expect(checkOwnWords('facts', text, { chips, tags: [] }, {}, null).chips).toEqual([])
-    expect(
-      checkOwnWords(
+  })
+
+  it('offers no chip for a hidden question, even when the model reads one (16 Oct 2026)', () => {
+    const cases: [OwnWordsStep, string, OwnWordsModel['chips'][number]][] = [
+      ['facts', 'my family pays', { key: 'who', value: 'Family', quote: 'my family pays' }],
+      [
         'study',
         'hands-on please',
-        model([{ key: 'learn', value: 'Hands-on with placements', quote: 'hands-on' }]),
-        {},
-        null,
-      ).chips.map((c) => c.key),
-    ).toEqual(['learn'])
+        { key: 'learn', value: 'Hands-on with placements', quote: 'hands-on' },
+      ],
+      [
+        'study',
+        'as short as possible',
+        { key: 'length', value: 'As short as possible', quote: 'as short as possible' },
+      ],
+      ['living', 'somewhere warm', { key: 'climate', value: 'Warm', quote: 'somewhere warm' }],
+      ['after', 'I must earn', { key: 'earn', value: 'Yes', quote: 'I must earn' }],
+      [
+        'after',
+        'I will settle there',
+        { key: 'settle', value: 'Settle long-term', quote: 'I will settle there' },
+      ],
+    ]
+    for (const [step, text, chip] of cases) {
+      expect(checkOwnWords(step, text, model([chip]), {}, null).chips).toEqual([])
+    }
+  })
+
+  it('never fills a step 01 answer from words read on a later step, in code or by the model', () => {
+    const text = 'My budget is AUD 30k and I can start Feb 2027. I want data science'
+    const { chips } = checkOwnWords(
+      'study',
+      text,
+      model([
+        { key: 'amount', value: 'AUD 30k', quote: 'AUD 30k' },
+        { key: 'earliest', value: 'Feb 2027', quote: 'Feb 2027' },
+        { key: 'field', value: 'Data science', quote: 'data science' },
+      ]),
+      {},
+      null,
+    )
+    expect(chips.map((c) => c.key)).toEqual(['know', 'field'])
+  })
+})
+
+describe('ownWordsQuestions', () => {
+  it("sends the model only the step's asked questions, none of the six hidden ones", () => {
+    const keys = (step: OwnWordsStep) => ownWordsQuestions(step).map((q) => q.key)
+    expect(keys('study')).toEqual(['know', 'field', 'areas', 'level'])
+    expect(keys('living')).toEqual(['dest', 'place', 'community', 'knows'])
+    expect(keys('after')).toEqual(['stay', 'focus'])
+    expect(keys('facts')).not.toContain('who')
   })
 
   it('drops a chip whose value is not one of its options, and a key that is no question', () => {
@@ -618,16 +661,16 @@ describe('checkOwnWords drops instructions however they are worded (criterion 74
   })
 
   it.each([
-    [
-      'study',
-      'I want to set my own pace, hands-on',
-      'learn',
-      'Hands-on with placements',
-      'hands-on',
-    ],
+    ['study', 'I want to set my own pace, a masters', 'level', "Master's", 'a masters'],
     ['after', "I can't ignore the visa rules, so I want to stay", 'stay', 'Yes', 'I want to stay'],
     ['living', "I'd say that I prefer a city", 'place', 'City', 'a city'],
-    ['facts', 'My brother will act as my sponsor, so family pays', 'who', 'Family', 'family pays'],
+    [
+      'facts',
+      'My brother will act as my sponsor, and my partner comes with me',
+      'dep',
+      'Partner',
+      'my partner comes with me',
+    ],
     ['after', 'From now on I want to focus on my career', 'focus', 'Career-focused', 'my career'],
   ] as const)('keeps the %s chip of an ordinary sentence: %p', (step, text, key, value, quote) => {
     const { chips } = checkOwnWords(step, text, model([{ key, value, quote }]), {}, null)
@@ -646,11 +689,11 @@ describe('checkOwnWords drops only the sentence that instructs the model (criter
   it.each<Row>([
     [
       'facts',
-      "I won't pretend I'm a top student. I got IELTS 6.5 and family can pay 30 lakh.",
+      "I won't pretend I'm a top student. I got IELTS 6.5 after my Bachelor's and family can pay 30 lakh.",
       model(
         [
           { key: 'eng', value: 'IELTS 6.5', quote: 'IELTS 6.5' },
-          { key: 'who', value: 'Family', quote: 'family can pay' },
+          { key: 'qual', value: "Bachelor's", quote: "my Bachelor's" },
           { key: 'amount', value: 'AUD 36k', quote: '30 lakh' },
         ],
         [
@@ -663,7 +706,7 @@ describe('checkOwnWords drops only the sentence that instructs the model (criter
       ),
       [
         ['eng', true],
-        ['who', false],
+        ['qual', false],
         ['amount', true],
       ],
       [["I won't pretend I'm a top student", false]],
@@ -700,14 +743,14 @@ describe('checkOwnWords drops only the sentence that instructs the model (criter
     ],
     [
       'facts',
-      'Fees above AUD 40k I would ignore. My family can pay 30k.',
+      'Fees above AUD 40k I would ignore. My family can pay 30k. My partner comes with me.',
       model([
         { key: 'amount', value: 'AUD 30k', quote: '30k' },
-        { key: 'who', value: 'Family', quote: 'My family can pay' },
+        { key: 'dep', value: 'Partner', quote: 'My partner comes with me' },
       ]),
       [
         ['amount', true],
-        ['who', false],
+        ['dep', false],
       ],
       [],
     ],

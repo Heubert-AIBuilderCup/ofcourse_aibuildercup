@@ -11,6 +11,7 @@ import type {
   Overview,
   StackRow,
 } from '@/features/road/model/road-data'
+import type { NextRoad } from '@/features/road/model/start'
 
 export type Source = { title: string; date: string }
 export type StateId = 'WA' | 'SA' | 'NSW' | 'VIC' | 'TAS'
@@ -32,6 +33,41 @@ export type Occupation = {
   employerSponsored: boolean
   source: Source
 }
+/**
+ * One occupation in one city: sample openings and a pay range in thousands of dollars. No
+ * employer is ever named.
+ */
+export type JobMarketRow = {
+  /** An ANZSCO code from OCCUPATIONS. */
+  code: string
+  cityId: string
+  openings: number
+  payLowK: number
+  payHighK: number
+}
+/** A field one step from another on the field graph, named and defined. */
+export type FieldNear = { name: string; definition: string }
+/** A job a course leads to; with the course detail on, its sample market in the course's city. */
+export type CourseJob = { code: string; name: string; market?: JobMarketRow | null }
+/**
+ * A course's jobs in one of the subjects it combines, named; `primary` for its own field, whose
+ * visa, work rights and PR the course follows.
+ */
+export type CourseJobGroup = { field: FieldId; name: string; primary: boolean; jobs: CourseJob[] }
+/** One line of "What changes": her road's words beside the alternative's, for one subject. */
+export type CompareRow = {
+  key: 'money' | 'time' | 'pr' | 'career' | 'subjects' | 'city'
+  label: string
+  current: string
+  alternative: string
+  /** False when both sides read the same. */
+  changed: boolean
+}
+/**
+ * "What changes" for one alternative: its rows, and the course a new roadmap can be pinned to
+ * (null when it has none that can be) and, with one, the road that new roadmap would draw.
+ */
+export type Comparison = { rows: CompareRow[]; pin: string | null; next?: NextRoad }
 export type CourseSubjects = {
   courseId: string
   majors: string[]

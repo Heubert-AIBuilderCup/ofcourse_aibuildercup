@@ -1,5 +1,6 @@
 'use client'
 
+import { Search } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
@@ -15,11 +16,16 @@ const shows = (filter: Filter, row: StackRow) => filter === 'All' || row.tag ===
 
 const ROW_ACTION = 'h-10 px-3.5 font-sans font-medium'
 
+/** The list's way into the course finder, the only one on the board. */
+export const FIND = 'Find more courses by your interests'
+
 /**
  * A stack's list (`open=list`): its title and Close, the filters as a button group, then a row per
- * course with its actions. "Put on my board" places a row's course beside her road; a row whose
- * course has no tile this round, and More, do nothing yet. A course already on the board is left
- * out. A row whose course is in a field next to the one she picked says so, with that field defined.
+ * course with its actions. "Put on my board" places a row's course beside her road, drawn only on
+ * a row whose course has a tile: no button is drawn with nothing behind it. A course already on
+ * the board is left out. A row whose course is in a field next to the one she picked says so, with that field defined.
+ * With `onFind` (the course finder is on), the list ends with a way to find more courses by her
+ * interests, saying that her level, budget and destination stay as her roadmap has them.
  */
 export function StackList({
   stack,
@@ -27,6 +33,7 @@ export function StackList({
   onBoard,
   onClose,
   onPut,
+  onFind,
 }: {
   stack: Tile
   rows: StackRow[]
@@ -34,6 +41,7 @@ export function StackList({
   onBoard: string[]
   onClose: () => void
   onPut: (tileId: string) => void
+  onFind?: () => void
 }) {
   const [filter, setFilter] = useState<Filter>('All')
   const listed = rows.filter((r) => !(r.tileId && onBoard.includes(r.tileId)) && shows(filter, r))
@@ -89,24 +97,33 @@ export function StackList({
                 {row.tag}
               </span>
             ) : null}
-            {row.blocked ? null : (
+            {row.blocked || !tileId ? null : (
               <span className="col-span-2 flex gap-2">
                 <Button
                   type="button"
                   variant="square"
                   className={ROW_ACTION}
-                  onClick={tileId ? () => onPut(tileId) : undefined}
+                  onClick={() => onPut(tileId)}
                 >
                   Put on my board
-                </Button>
-                <Button type="button" variant="square" className={ROW_ACTION}>
-                  More
                 </Button>
               </span>
             )}
           </li>
         ))}
       </ul>
+      {onFind ? (
+        <div className="flex flex-col gap-1 border-t pt-4">
+          <Button type="button" variant="outline" className="self-start" onClick={onFind}>
+            <Search aria-hidden="true" strokeWidth={1.5} className="size-icon-sm" />
+            {FIND}
+          </Button>
+          <p className="m-0 text-caption text-muted-foreground">
+            You change only your interests. Your level, budget and destination stay as your roadmap
+            has them.
+          </p>
+        </div>
+      ) : null}
       <p className="m-0 flex items-center gap-1 text-caption text-muted-foreground">
         Source: OfCourse preview data ·
         <MockTag />

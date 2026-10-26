@@ -1,6 +1,7 @@
 // A road from its spec, on Priya's road's shape: every tile keeps her tile's kind, state, place
-// and labels, and takes its id and words from the spec's slot. The walk, the first arrival, the
-// year ruler and the weights are hers with the ids renamed. Pure: never changes PRIYA.
+// and labels, and takes its id and words from the spec's slot; the options beside its study step
+// and its 485 (options.ts) follow them. The walk, the first arrival, the year ruler and the
+// weights are hers with the ids renamed. Pure: never changes PRIYA.
 
 import { PRIYA } from '@/features/road/model/fixture'
 import type { BadgeId, HereCopy, Road, Tile, Walk } from '@/features/road/model/road-data'
@@ -8,8 +9,9 @@ import type { StoredAnswers } from '@/shared/types/student'
 import { courseById } from '../data/courses'
 import { entryOf } from '../data/entry'
 import { PRIYA_SLOT, type RoadSpec, SLOTS, type SlotId } from '../data/types'
-import { courseConditions } from './conditions'
+import { courseConditions, englishScore } from './conditions'
 import { herFields, relatedMark } from './details'
+import { optionsBeside } from './options'
 import { isWhySlot, type WhyMatch, whyTemplate, whyTitle } from './why'
 
 /** Her answers, and the match that chose the road, so each card's why names the rules it used. */
@@ -43,20 +45,20 @@ function startLine(answers: StoredAnswers): string {
 /**
  * The road's badges with the course's own entry conditions, read against her answers: the English
  * badge names its score and says met, not met or to take the test, and a course that asks a
- * degree in its field carries that on the `maths` slot. A course with no entry rule keeps the
- * spec's badges.
+ * degree in its field carries that on the `maths` slot (a finder course's typical score says it is
+ * a sample). A course with no entry rule keeps the spec's badges.
  */
 function entryBadges(spec: RoadSpec, answers: StoredAnswers): Road['badges'] {
   const badges = { ...spec.badges }
+  const entry = entryOf(spec.courseId)
   for (const condition of courseConditions(spec.courseId, answers)) {
-    if (condition.id === 'english') {
-      const score = condition.text.replace(/^Needs /, '')
+    if (condition.id === 'english' && entry) {
       badges.ielts = {
         ...badges.ielts,
-        value: `${condition.met === false ? 'Not met: ' : ''}${score} overall`,
+        value: `${condition.met === false ? 'Not met: ' : ''}${englishScore(entry, true)}`,
         explanation: condition.explanation,
       }
-    } else {
+    } else if (condition.id === 'degree') {
       badges.maths = {
         kind: 'Condition',
         value: condition.text,
@@ -130,6 +132,8 @@ export function buildRoad(spec: RoadSpec, ctx: RoadContext): Road {
     }
   })
 
+  const options = optionsBeside(spec, tiles)
+
   const here: Record<string, HereCopy> = {}
   for (const slot of SLOTS) {
     const copy = spec.slots[slot].here
@@ -155,18 +159,21 @@ export function buildRoad(spec: RoadSpec, ctx: RoadContext): Road {
     ) as W
 
   return {
-    tiles,
+    tiles: [...tiles, ...options.tiles],
     badges,
     // A tile her answers decided carries why it is on her road: the template, until the model's,
     // under its heading (on her roadmap, or beside it).
-    cards: Object.fromEntries(
-      SLOTS.map((slot) => {
-        const card = spec.slots[slot].card
-        if (!isWhySlot(slot)) return [spec.slots[slot].id, card]
-        const why = whyTemplate(spec, slot, ctx.answers, ctx.match)
-        return [spec.slots[slot].id, { ...card, why, whyTitle: whyTitle(slot) }]
-      }),
-    ),
+    cards: {
+      ...Object.fromEntries(
+        SLOTS.map((slot) => {
+          const card = spec.slots[slot].card
+          if (!isWhySlot(slot)) return [spec.slots[slot].id, card]
+          const why = whyTemplate(spec, slot, ctx.answers, ctx.match)
+          return [spec.slots[slot].id, { ...card, why, whyTitle: whyTitle(slot) }]
+        }),
+      ),
+      ...options.cards,
+    },
     here,
     stackRows,
     lesson: { ...spec.lesson, tileIds: renameAll(PRIYA.lesson.tileIds) },

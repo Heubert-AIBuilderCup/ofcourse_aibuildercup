@@ -8,19 +8,47 @@ import { ROAD_KEYS } from '../data/road-keys'
 import { composeRoad, specById } from './compose'
 import { stated as a, DEMO_PROFILES, relativeAt } from './demo-profiles'
 import { levelsOpenTo } from './eligibility'
-import { type Difference, matchRoad, pickedFields } from './match'
+import { areasWithoutRoads, type Difference, matchRoad, pickedFields } from './match'
 
 type Values = Parameters<typeof a>[0]
 const DRAWN = "A few areas I'm drawn to"
 /** The stay difference of a staying road whose course has no clear road to PR. */
 const NO_CLEAR_PR_CHIP: Difference = { key: 'stay', yours: 'Yes', road: 'No clear PR' }
 const drawn = (areas: string[], more: Values = {}) => a({ know: DRAWN, areas, ...more })
+/**
+ * The courses added beside others: each shares its city, level, field and entry with an earlier
+ * candidate, so no answer reaches its picks.
+ */
+const BESIDE = [
+  'ecu-bus-analytics',
+  'unisa-software',
+  'unisa-mph',
+  'unisa-health-admin',
+  'uts-infosec',
+  'uts-forensics',
+  'uts-structural',
+  'uts-eng-management',
+  'uts-accounting',
+  'monash-design',
+  'swin-design-strategy',
+  'monash-org-psych',
+  'monash-health-informatics',
+  'deakin-commerce',
+  'deakin-supply-chain',
+  'deakin-cyber-governance',
+  'deakin-network-security',
+  'deakin-mechanical',
+  'deakin-electrical',
+  'utas-infosys',
+  'utas-computing',
+  'utas-mph',
+  'ecu-teaching-early',
+]
 /** The picks no answer can reach, so matching leaves them out. */
 const UNREACHABLE = [
   'perth-curtin-infosys-stay',
   'perth-curtin-infosys-home',
-  'melbourne-swin-cyberpsych-stay',
-  'melbourne-swin-cyberpsych-home',
+  ...ALL_PICKS.filter((p) => BESIDE.includes(p.courseId)).map(pickId),
 ]
 const candidate = (id: string) => {
   const c = ROAD_CANDIDATES.find((r) => r.id === id)
@@ -64,8 +92,7 @@ describe('ROAD_CANDIDATES', () => {
 
   it('leaves out a pick an earlier candidate always ties or beats (criterion 86)', () => {
     // Curtin's Information Systems has every key matching reads (Perth, IT, a Master's, open
-    // entry) in common with Curtin's Information Technology, which comes first; Swinburne's
-    // Cyberpsychology is in psychology, a field no answer names, beside Monash's data Master's.
+    // entry) in common with Curtin's Information Technology, which comes first.
     const ids = ROAD_CANDIDATES.map((c) => c.id)
     for (const id of UNREACHABLE) {
       expect(ids).not.toContain(id)
@@ -105,6 +132,21 @@ describe('ROAD_CANDIDATES', () => {
 })
 
 describe('matchRoad: her field, at a level her qualification opens', () => {
+  it('gives a student who picks Psychology, as her field or an area, Swinburne’s Cyberpsychology', () => {
+    for (const answers of [
+      a({ stay: 'Yes', know: PARTICULAR, field: 'Psychology', level: "Master's" }),
+      drawn(['Psychology'], { stay: 'Yes', level: "Master's" }),
+    ]) {
+      const m = matchRoad(answers, null)
+      expect(m.spec.id).toBe('melbourne-swin-cyberpsych-stay')
+      // Psychology leads to no occupation on a list or sponsored: the strip says so.
+      expect(m.exact).toBe(false)
+      expect(m.differences).toEqual([NO_CLEAR_PR_CHIP])
+    }
+    const home = matchRoad(a({ stay: 'No', know: PARTICULAR, field: 'Psychology' }), null)
+    expect([home.spec.id, home.exact]).toEqual(['melbourne-swin-cyberpsych-home', true])
+  })
+
   it('gives a Bachelor’s holder drawn to Health a health Master’s, exactly (criterion 56)', () => {
     const m = matchRoad(drawn(['Health'], { stay: 'Yes', qual: "Bachelor's" }), null)
     expect(courseById(m.spec.courseId)?.field).toBe('health')
@@ -364,16 +406,33 @@ describe('matchRoad: the city hint', () => {
 
 describe('matchRoad: what it reads', () => {
   it('reads the areas when she is drawn to areas', () => {
-    const data = matchRoad(drawn(['Data'], { stay: 'Yes' }), null)
-    expect(data.spec.field).toBe('data')
-    expect(data.exact).toBe(true)
+    const business = matchRoad(drawn(['Business'], { stay: 'Yes' }), null)
+    expect(business.spec.field).toBe('business')
+    expect(business.exact).toBe(true)
   })
 
-  it('lets IT and computing reach either an IT or a cyber road', () => {
+  it('lets IT and computing reach an IT, a cyber or a data road', () => {
     const m = matchRoad(drawn(['IT and computing'], { stay: 'Yes' }), null)
-    expect(['it', 'cyber']).toContain(m.spec.field)
+    expect(['it', 'cyber', 'data']).toContain(m.spec.field)
     expect(m.exact).toBe(true)
   })
+
+  it('reads a Data-era answer as IT and computing', () => {
+    const it = matchRoad(drawn(['IT and computing'], { stay: 'Yes' }), null)
+    expect(matchRoad(drawn(['Data'], { stay: 'Yes' }), null)).toEqual(it)
+  })
+
+  for (const [area, field] of [
+    ['Education / Teaching', 'education'],
+    ['Social work', 'social-work'],
+    ['Hospitality & tourism', 'hospitality'],
+  ]) {
+    it(`matches ${area} to a road on a course in ${field}`, () => {
+      const m = matchRoad(drawn([area], { stay: 'Yes', level: "Master's" }), null)
+      const course = courseById(m.spec.courseId)
+      expect(`${m.spec.field} ${course?.field} ${m.exact}`).toBe(`${field} ${field} true`)
+    })
+  }
 
   it('ignores the field when she asked to be suggested one', () => {
     const m = matchRoad(a({ stay: 'Yes', know: 'Suggest me', field: 'Data science' }), null)
@@ -419,10 +478,24 @@ describe('matchRoad: what it reads', () => {
 describe('the matching sweep (criterion 86)', () => {
   const STAYS = ['Yes', 'Not sure', 'No', undefined]
   const PICKS: Values[] = [
-    ...['Cyber security', 'Data science', 'Business analytics', 'Information technology'].map(
-      (field) => ({ know: PARTICULAR, field }),
-    ),
-    ...['IT and computing', 'Business', 'Data', 'Health', 'Engineering', 'Design'].map((area) => ({
+    ...[
+      'Cyber security',
+      'Data science',
+      'Business analytics',
+      'Information technology',
+      'Psychology',
+    ].map((field) => ({ know: PARTICULAR, field })),
+    ...[
+      'IT and computing',
+      'Business',
+      'Health',
+      'Engineering',
+      'Design',
+      'Psychology',
+      'Education / Teaching',
+      'Social work',
+      'Hospitality & tourism',
+    ].map((area) => ({
       know: DRAWN,
       areas: [area],
     })),
@@ -454,7 +527,7 @@ describe('the matching sweep (criterion 86)', () => {
     return null
   }
 
-  it('matches at least half of the matchable answer sets exactly and reaches every candidate (full product: 67,200 combinations)', () => {
+  it('matches at least half of the matchable answer sets exactly and reaches every candidate (full product: 94,080 combinations)', () => {
     let total = 0
     let matchable = 0
     let exactAll = 0
@@ -499,7 +572,7 @@ describe('the matching sweep (criterion 86)', () => {
     )
     const unreached = ROAD_CANDIDATES.map((c) => c.id).filter((id) => !reached.has(id))
     console.log(`unreached candidates: ${unreached.join(', ') || 'none'}`)
-    expect(total).toBe(67_200)
+    expect(total).toBe(94_080)
     expect(exactMatchable / matchable).toBeGreaterThanOrEqual(0.5)
     expect(unreached).toEqual([])
   }, 120_000)
@@ -512,14 +585,36 @@ describe('pickedFields: the fields she picked, as matching reads them', () => {
   })
 
   it('reads the areas she is drawn to, Health, Engineering and Design among them', () => {
-    expect(pickedFields(drawn(['IT and computing']))).toEqual(['it', 'cyber'])
+    expect(pickedFields(drawn(['IT and computing']))).toEqual(['it', 'cyber', 'data'])
+    expect(pickedFields(drawn(['Data']))).toEqual(['it', 'cyber', 'data'])
+    expect(pickedFields(drawn(['Education / Teaching']))).toEqual(['education'])
+    expect(pickedFields(drawn(['Social work', 'Hospitality & tourism']))).toEqual([
+      'social-work',
+      'hospitality',
+    ])
     expect(pickedFields(drawn(['Health']))).toEqual(['health'])
     expect(pickedFields(drawn(['Engineering', 'Design']))).toEqual(['engineering', 'design'])
+    expect(pickedFields(drawn(['Psychology']))).toEqual(['psych'])
+    expect(pickedFields(a({ know: PARTICULAR, field: 'Psychology' }))).toEqual(['psych'])
   })
 
   it('is null when she picked no field: unanswered, suggest me, or only assumed', () => {
     expect(pickedFields({})).toBeNull()
     expect(pickedFields(a({ know: 'Suggest me', field: 'Data science' }))).toBeNull()
     expect(pickedFields({ field: { value: 'Data science', state: 'assumed' } })).toBeNull()
+  })
+})
+
+describe('areasWithoutRoads: the areas onboarding says borrow the nearest field', () => {
+  it('is none today: every area reaches a field some candidate road teaches', () => {
+    expect(areasWithoutRoads()).toEqual([])
+  })
+
+  it('lists an area once no candidate road teaches any of its fields, from the data alone', () => {
+    const noHealth = ROAD_CANDIDATES.filter((c) => c.field !== 'health')
+    expect(areasWithoutRoads(noHealth)).toEqual(['Health'])
+    const noIt = ROAD_CANDIDATES.filter((c) => !['it', 'cyber'].includes(c.field))
+    // IT and computing still reaches the data roads.
+    expect(areasWithoutRoads(noIt)).toEqual([])
   })
 })

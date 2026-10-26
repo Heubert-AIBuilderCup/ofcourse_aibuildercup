@@ -1,0 +1,128 @@
+[
+  {
+    "id": "ot-security",
+    "name": "Industrial and critical infrastructure security",
+    "definition": "Protecting the computers that run power grids, water plants and factories, where an attack can stop real machines.",
+    "edges": [
+      { "to": "cyber", "kind": "is-a" },
+      { "to": "engineering", "kind": "related" },
+      { "to": "networks", "kind": "related" }
+    ]
+  },
+  {
+    "id": "cyber-strategy",
+    "name": "Cyber policy and strategy",
+    "definition": "How governments and companies plan for cyber threats, write the laws and rules, and handle attacks between countries.",
+    "edges": [{ "to": "cyber", "kind": "is-a" }, { "to": "security-governance", "kind": "related" }]
+  },
+  {
+    "id": "bioinformatics",
+    "name": "Bioinformatics",
+    "definition": "Using code and statistics to read DNA and other biological data, to understand diseases and find new treatments.",
+    "edges": [{ "to": "data", "kind": "combines" }, { "to": "health", "kind": "combines" }]
+  },
+  {
+    "id": "spatial-data-science",
+    "name": "Geospatial science (GIS)",
+    "definition": "Working with maps, satellite images and location data to plan cities, track the environment and respond to disasters.",
+    "edges": [{ "to": "data", "kind": "is-a" }, { "to": "engineering", "kind": "related" }]
+  },
+  {
+    "id": "actuarial-studies",
+    "name": "Actuarial studies",
+    "definition": "Using maths and statistics to measure risk and price insurance, super and pensions so they stay affordable.",
+    "edges": [{ "to": "business", "kind": "combines" }, { "to": "data", "kind": "combines" }]
+  },
+  {
+    "id": "fintech",
+    "name": "Financial technology (FinTech)",
+    "definition": "Building and running the tech behind modern money: payment apps, online banking, digital lending and blockchain.",
+    "edges": [
+      { "to": "business", "kind": "combines" },
+      { "to": "it", "kind": "combines" },
+      { "to": "software", "kind": "related" }
+    ]
+  },
+  {
+    "id": "hci",
+    "name": "Human-computer interaction",
+    "definition": "Studying how people use technology and testing designs so apps and devices are easy, safe and pleasant to use.",
+    "edges": [
+      { "to": "it", "kind": "combines" },
+      { "to": "design", "kind": "combines" },
+      { "to": "psych", "kind": "related" }
+    ]
+  },
+  {
+    "id": "game-development",
+    "name": "Game development",
+    "definition": "Designing and programming video games, from the rules and levels to the graphics engine that runs them.",
+    "edges": [
+      { "to": "it", "kind": "is-a" },
+      { "to": "software", "kind": "related" },
+      { "to": "design", "kind": "related" }
+    ]
+  },
+  {
+    "id": "organisational-psychology",
+    "name": "Organisational psychology",
+    "definition": "Using psychology at work: hiring the right people, building good teams and keeping staff well and motivated.",
+    "edges": [{ "to": "psych", "kind": "combines" }, { "to": "business", "kind": "combines" }]
+  },
+  {
+    "id": "human-factors",
+    "name": "Human factors and safety science",
+    "definition": "Designing equipment, jobs and systems around how people actually think and make mistakes, so work is safer.",
+    "edges": [
+      { "to": "psych", "kind": "combines" },
+      { "to": "engineering", "kind": "combines" },
+      { "to": "design", "kind": "related" }
+    ]
+  },
+  {
+    "id": "biostatistics",
+    "name": "Biostatistics and epidemiology",
+    "definition": "Using statistics to track how diseases spread and to test whether medicines and health programs really work.",
+    "edges": [{ "to": "health", "kind": "combines" }, { "to": "data", "kind": "combines" }]
+  },
+  {
+    "id": "genetic-counselling",
+    "name": "Genetic counselling",
+    "definition": "Helping families understand genetic test results and inherited health risks, and make decisions about them.",
+    "edges": [{ "to": "health", "kind": "is-a" }, { "to": "psych", "kind": "related" }]
+  },
+  {
+    "id": "renewable-energy-engineering",
+    "name": "Renewable energy engineering",
+    "definition": "Designing solar, wind, battery and grid systems that produce clean power and keep it reliable.",
+    "edges": [{ "to": "engineering", "kind": "is-a" }]
+  },
+  {
+    "id": "biomedical-engineering",
+    "name": "Biomedical engineering",
+    "definition": "Designing medical devices like implants, prosthetics and scanners that help doctors diagnose and treat people.",
+    "edges": [{ "to": "engineering", "kind": "combines" }, { "to": "health", "kind": "combines" }]
+  },
+  {
+    "id": "robotics",
+    "name": "Robotics and mechatronics",
+    "definition": "Building machines that sense, move and decide for themselves, mixing mechanics, electronics and code.",
+    "edges": [
+      { "to": "engineering", "kind": "is-a" },
+      { "to": "ai-ml", "kind": "related" },
+      { "to": "software", "kind": "related" }
+    ]
+  },
+  {
+    "id": "service-design",
+    "name": "Service design",
+    "definition": "Designing the whole experience of a service, like a hospital visit or a bank account, not just one screen.",
+    "edges": [{ "to": "design", "kind": "is-a" }, { "to": "business", "kind": "related" }]
+  },
+  {
+    "id": "design-strategy",
+    "name": "Design strategy and innovation",
+    "definition": "Using design thinking to help organisations spot new ideas, test them quickly and turn them into products.",
+    "edges": [{ "to": "design", "kind": "combines" }, { "to": "business", "kind": "combines" }]
+  }
+]

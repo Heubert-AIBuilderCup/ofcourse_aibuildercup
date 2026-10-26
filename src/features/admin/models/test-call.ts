@@ -25,6 +25,7 @@ import {
   SCENE_PLAN,
   SOURCE_CHECK,
   STUDENT_ASK,
+  STUDENT_FINDER_WHY,
   STUDENT_WHY,
   STUDENT_WORDS,
 } from '@/features/content/ai/prompts'
@@ -71,6 +72,7 @@ const SPECS: Record<TextUseCase, PromptSpec<z.ZodType>> = {
   student_why: STUDENT_WHY,
   student_ask: STUDENT_ASK,
   student_words: STUDENT_WORDS,
+  student_finder_why: STUDENT_FINDER_WHY,
   suggest_sources: SUGGEST_SOURCES,
   research_claim: RESEARCH_CLAIM,
 }

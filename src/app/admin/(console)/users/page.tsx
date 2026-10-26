@@ -17,6 +17,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps<'/admin
   return (
     <>
       <AdminPageHeader
+        kicker="People"
         title="Users"
         lede="Every account, with who is online now. Personal data: for admins only."
       />

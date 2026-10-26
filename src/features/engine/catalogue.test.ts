@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { questionOf } from '@/features/opening'
+import { EXTRA_COURSES } from '@/features/roads/data/courses'
 import {
   AREA_FIELDS,
   CAMPUSES,
@@ -306,8 +307,8 @@ describe('the mock catalogue', () => {
     for (const text of prose()) expect(text).not.toMatch(/ranked 1st|\bbest\b|recommended/i)
   })
 
-  it('maps every field option and area to fields the catalogue has courses for', () => {
-    const covered = new Set(COURSES.map((c) => c.field))
+  it('maps every field option and area to fields the catalogue (the preview’s or the roads’) has courses for', () => {
+    const covered = new Set([...COURSES, ...EXTRA_COURSES].map((c) => c.field))
     const fieldOptions = questionOf('field').options.map(String)
     expect(Object.keys(FIELD_OF_OPTION).sort()).toEqual([...fieldOptions].sort())
     expect(FIELD_OF_OPTION['Cyber security']).toBe('cyber')
@@ -319,8 +320,11 @@ describe('the mock catalogue', () => {
       for (const field of fields) expect(covered.has(field)).toBe(true)
     }
     expect(AREA_FIELDS.Health).toEqual({ fields: ['psych'], substitutedFrom: 'health' })
-    expect(AREA_FIELDS['IT and computing']).toEqual({ fields: ['it', 'cyber'] })
-    expect([...covered].map((field) => FIELD_LABELS[field]).sort()).toEqual([
+    expect(AREA_FIELDS['IT and computing']).toEqual({ fields: ['it', 'cyber', 'data'] })
+    for (const area of ['Education / Teaching', 'Social work', 'Hospitality & tourism'])
+      expect(AREA_FIELDS[area].substitutedFrom).toBeUndefined()
+    const preview = new Set(COURSES.map((c) => c.field))
+    expect([...preview].map((field) => FIELD_LABELS[field]).sort()).toEqual([
       'business analytics',
       'cyber security',
       'data science',

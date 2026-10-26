@@ -239,6 +239,43 @@ describe('the panel', () => {
   })
 })
 
+describe('the draft of a new roadmap around a course', () => {
+  const COURSE = 'Master of Cyber Security · UniSA, Adelaide'
+  const draft = () =>
+    render(
+      <AnswersPanel
+        mode="draft"
+        copyOf="Information technology in Adelaide"
+        around={COURSE}
+        road={road}
+        answers={SAVED}
+        groupsFor={(a) => answerGroups(a, ANJALI)}
+        onPreview={onPreview}
+        onCreate={onCreate}
+        onCancel={onCancel}
+      />,
+    )
+  const create = () => screen.getByRole('button', { name: 'Create roadmap' })
+
+  it('asks whether to make a new roadmap around the course, her others left as they are', () => {
+    draft()
+    expect(screen.queryAllByText(`New roadmap · around ${COURSE}`).length).toBe(1)
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('Create a new roadmap?')
+    expect(
+      screen.queryAllByText(
+        'The map shows the road this course leads to: its visa, work rights and jobs. Your other roadmaps stay as they are.',
+      ).length,
+    ).toBe(1)
+  })
+
+  it('creates with her answers as they are, no change needed', async () => {
+    draft()
+    expect(create().getAttribute('aria-disabled')).toBeNull()
+    await click(create())
+    expect(onCreate).toHaveBeenCalledWith(SAVED)
+  })
+})
+
 describe('the draft of a copy', () => {
   const draft = () =>
     render(
@@ -322,7 +359,7 @@ describe('the draft of a copy', () => {
     await click(rowButton(AMOUNT))
     await pick(AMOUNT, /^AUD 30k/)
     await click(screen.getByRole('button', { name: 'Close' }))
-    const ask = screen.getByRole('alertdialog', { name: 'Discard this new roadmap?' })
+    const ask = screen.getByRole('alertdialog', { name: 'Discard 1 change?' })
     expect(
       within(ask).getByText('Nothing is created. Your other roadmaps stay as they are.'),
     ).toBeVisible()

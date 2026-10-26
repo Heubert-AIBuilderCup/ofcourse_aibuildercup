@@ -45,6 +45,11 @@ const id = z.string().min(1)
  * the characters of an idea to find sources for (BR12).
  */
 export const SOURCE_LIMITS = { links: 5, framing: 200, notes: 2000, idea: 200 } as const
+/**
+ * The kind of a source made from the idea alone, with no page found or ticked for it: the idea is
+ * the source, and each of its sentences a fact (ai/extract.ts extractIdea).
+ */
+export const IDEA_KIND = 'Your idea'
 /** Its refusals, the same in the form and on the server. */
 export const SOURCE_ERRORS = {
   links: 'Up to five links.',
@@ -136,9 +141,11 @@ export const BODIES = {
     factsId: id,
     attempt: z.number().int().positive(),
     /**
-     * The versions, flattened: three per ticked template in template order (criterion 97); the
-     * post's `picked` pointer is an index into this list. Rows before 9 Oct 2026 hold one per
+     * The versions, flattened: one per ticked template in template order for each draft, those of
+     * a "Draft again" after the ones before (criterion 97; three per template before 18 Oct 2026);
+     * the post's `picked` pointer is an index into this list. Rows before 9 Oct 2026 hold one per
      * template with no angle or problems: read `angle ?? ''` and `problems ?? []`.
+
      */
     items: z.array(
       z.object({
@@ -156,12 +163,12 @@ export const BODIES = {
     /** What made this record, as the history shows it: "Drafted", "Slide 2 edited"; none on rows before criterion 101. */
     note: z.string().nullable().default(null),
     /**
-     * The idea card the versions were drafted for, or two combined (GD2). None on rows before
+     * The idea card the versions were drafted for, or up to four combined (GD2). None on rows before
      * ideas and on drafts from ticked templates: read `idea ?? null`. Optional rather than
      * defaulted, so the drafts built before ideas need not name one.
      */
     idea: z
-      .object({ cards: z.array(IdeaCardSchema).min(1).max(2) })
+      .object({ cards: z.array(IdeaCardSchema).min(1).max(4) })
       .nullable()
       .optional(),
   }),
@@ -187,7 +194,7 @@ export const BODIES = {
    */
   post_outline: z.object({
     factsId: id,
-    ideas: z.array(IdeaCardSchema).min(1).max(2),
+    ideas: z.array(IdeaCardSchema).min(1).max(4),
     format: z.enum(FORMAT_IDS).nullable(),
     attempt: z.number().int().positive().optional(),
     slides: z.array(OutlineSlideSchema).min(OUTLINE_SLIDES.min).max(OUTLINE_SLIDES.max),
@@ -452,6 +459,17 @@ export const BODIES = {
     url: z.url(),
     by: PersonStampSchema,
   }),
+  /**
+   * A live feed post shared to the pages' accounts (criteria 9–11), by account id per network
+   * (model/share.ts SHARE_ACCOUNTS), at least one; nothing is posted. Sharing again is another.
+   */
+  share: z
+    .object({
+      instagram: z.array(z.string().max(64)).max(20),
+      linkedin: z.array(z.string().max(64)).max(20),
+      by: PersonStampSchema,
+    })
+    .refine((b) => b.instagram.length + b.linkedin.length > 0),
 } as const satisfies Record<ArtifactKind, z.ZodType>
 
 export { ARTIFACT_KINDS, type ArtifactKind, type Pointers, PointersSchema }

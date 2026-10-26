@@ -1,0 +1,128 @@
+[
+  {
+    "id": "6fef1566-6c2e-4db3-8291-7c3298191e96",
+    "idea": "You can do anything, but not everything: pour your effort into one thing and it fills up; spread it across everything and nothing fills. For students abroad juggling study, part-time work and settling in, pick what matters most this term.",
+    "kind": "feed",
+    "look": "pop",
+    "tags": {
+      "theme": ["work-study-life"]
+    },
+    "language": "en",
+    "edits": [
+      {
+        "slide": 1,
+        "text": {
+          "heading": "YOU CAN DO ANYTHING…"
+        }
+      },
+      {
+        "slide": 2,
+        "text": {
+          "heading": "…BUT NOT EVERYTHING"
+        }
+      }
+    ],
+    "art": [
+      {
+        "slide": 1,
+        "svg": "art/flasks-pour.svg",
+        "scene": "Flat drawing: a jug fills one round flask to the top, four empty flasks beside it, in two tones"
+      },
+      {
+        "slide": 2,
+        "svg": "art/flasks-spread.svg",
+        "scene": "Flat drawing: the same water spread thinly across five round flasks, in two tones"
+      }
+    ],
+    "title": "You can do anything, but not everything"
+  },
+  {
+    "id": "3b64eab5-9634-4aee-8403-9c3d7721ff66",
+    "title": "Nobody hands you a report card after university",
+    "idea": "At university someone grades you every semester.\n\nPicture a vintage report card headed Semester 1 2 3 4, graded for the first semester: Academic Writing A, Professional Communication A, Statistics 101 C, Research Methods B, Microeconomics B, Design Thinking A, Business Ethics A, Data Analysis C. Its key reads A = Excellent, B = Good, C = Satisfactory, N = Needs Improvement.\n\nNow picture the same report card for life after university, headed Role, with the same eight rows and the same key: Husband, Son, Dog parent, Product Manager and Citizen, then three empty rows, and no grades at all.\n\nAfter university the roles multiply and nobody hands you a report card. You have to decide for yourself what doing well means in each one.",
+    "kind": "feed",
+    "look": "pop",
+    "template": "field-notes",
+    "tags": {
+      "theme": ["work-study-life"]
+    },
+    "language": "en",
+    "edits": [
+      {
+        "slide": 2,
+        "layout": "picture",
+        "text": {
+          "heading": "Semester 1 report card",
+          "body": "Academic Writing A, Professional Communication A, Statistics 101 C, Research Methods B, Microeconomics B, Design Thinking A, Business Ethics A, Data Analysis C."
+        }
+      },
+      {
+        "slide": 4,
+        "layout": "picture",
+        "text": {
+          "heading": "Life report card",
+          "body": "Husband, Son, Dog parent, Product Manager, Citizen, then three empty rows. The same key, and no grades at all."
+        }
+      }
+    ],
+    "art": [
+      {
+        "slide": 1,
+        "svg": "art/report-cover.svg",
+        "scene": "Flat drawing: two blank report cards, one set over the other, in two tones"
+      },
+      {
+        "slide": 2,
+        "svg": "art/report-card-semester.svg",
+        "scene": "Flat drawing of a vintage report card with subjects and letter grades, in two tones"
+      },
+      {
+        "slide": 4,
+        "svg": "art/report-card-roles.svg",
+        "scene": "Flat drawing of a blank report card listing life roles and no grades, in two tones"
+      }
+    ]
+  },
+  {
+    "id": "9a15aa77-42b6-4ca8-b127-ff873edb57fd",
+    "title": "Balance is a process. Not a destination.",
+    "idea": "For students abroad, study, part-time work and life never split the same way two weeks running. Some weeks are all study, some are mostly life. Balance is something you keep adjusting, not a place you arrive.",
+    "kind": "feed",
+    "look": "pop",
+    "template": "field-notes",
+    "tags": {
+      "theme": ["work-study-life"]
+    },
+    "language": "en",
+    "edits": [
+      {
+        "slide": 1,
+        "text": {
+          "heading": "Balance is a process. Not a destination."
+        }
+      }
+    ],
+    "art": [
+      {
+        "slide": 1,
+        "svg": "art/balance-grid.svg",
+        "scene": "Flat grid of nine square tiles, each splitting work and life a different way, in two tones"
+      },
+      {
+        "slide": 2,
+        "svg": "art/balance-row-1.svg",
+        "scene": "Flat row of three square tiles splitting work and life, the first row of the grid, in two tones"
+      },
+      {
+        "slide": 3,
+        "svg": "art/balance-row-2.svg",
+        "scene": "Flat row of three square tiles splitting work and life, the middle row of the grid, in two tones"
+      },
+      {
+        "slide": 4,
+        "svg": "art/balance-row-3.svg",
+        "scene": "Flat row of three square tiles splitting work and life, the last row of the grid, in two tones"
+      }
+    ]
+  }
+]

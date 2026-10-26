@@ -28,6 +28,7 @@ export type UseCase =
   | 'student_why'
   | 'student_ask'
   | 'student_words'
+  | 'student_finder_why'
   | SearchUseCase
 
 /** The calls made with Google Search: they share the search cap, counted by these use cases. */
@@ -42,6 +43,16 @@ export type AiConfig = {
   models: { lite: string; flash: string; pro: string; image: string }
   /** Calls allowed per UTC day. Lite and Flash have no cap; a search on Flash has its own. */
   caps: { pro: number; image: number; search: number }
+  /** Who to email for more when a day's cap is used up (SUPPORT_EMAIL); null when none is set. */
+  supportEmail: string | null
+}
+
+const EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/** SUPPORT_EMAIL trimmed, or null when it is unset or does not look like an email. */
+function email(value: string | undefined): string | null {
+  const trimmed = value?.trim() ?? ''
+  return EMAIL_LIKE.test(trimmed) ? trimmed : null
 }
 
 /** A missing or invalid cap reads as 0, which refuses that tier: safer than unlimited. */
@@ -71,5 +82,6 @@ export function aiConfig(env: Record<string, string | undefined>): AiConfig {
       image: cap(env.AI_DAILY_CAP_IMAGE),
       search: search?.trim() ? cap(search) : DEFAULT_SEARCH_CAP,
     },
+    supportEmail: email(env.SUPPORT_EMAIL),
   }
 }

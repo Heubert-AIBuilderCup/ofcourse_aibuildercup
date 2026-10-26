@@ -6,6 +6,7 @@ import { Blueprint } from '@/shared/components/Blueprint'
 import { Button } from '@/shared/components/ui/button'
 import { Checkbox } from '@/shared/components/ui/checkbox'
 import { Label } from '@/shared/components/ui/label'
+import { Spin, Working } from '@/shared/components/Working'
 import type { Staff } from '@/shared/lib/auth/access'
 import { cn } from '@/shared/lib/utils'
 import { formatById } from '../../formats'
@@ -14,8 +15,8 @@ import { editWaitError, type PostAction, WORKFLOW_ERRORS } from '../../lib/workf
 import type { IdeaCard } from '../../model/types'
 import type { Saved } from '../../server/commands'
 import { templateById } from '../../templates'
-import { Control, movesWait, reasonText, Spin, StepAreas, StepBack, tag, Working } from '../parts'
-import { usePostAction } from '../usePostAction'
+import { Control, FailedLine, movesWait, reasonText, StepAreas, StepBack, tag } from '../parts'
+import { usePressedAction } from '../usePostAction'
 import type { WorkbenchActions, WorkbenchView } from '../Workbench'
 
 export type IdeasStepProps = {
@@ -33,8 +34,9 @@ const IDEAS_STEP = 'ideas'
 const OUTLINE_STEP = 'outline'
 const IDEAS_FAILED = 'Finding ideas failed. Your facts are kept.'
 const OUTLINE_FAILED = 'Outlining failed. Your facts are kept.'
-/** "Combine" takes two cards, no more (GD2). */
-const COMBINE = 2
+/** "Combine" takes two to four cards, no more (GD2). */
+const COMBINE = 4
+const COMBINE_FULL = 'Combine takes up to four ideas.'
 
 /**
  * The cards a failed outline's "Try again" outlines again (criterion 93): the ones last picked on
@@ -53,7 +55,7 @@ function retryCards(
 
 /**
  * The idea cards (GD1–GD3, GD20): the editor's framing line above them, then in the slides area
- * each card's angle and hook, pressed to select it, with a tick to combine two; beside the cards
+ * each card's angle and hook, pressed to select it, with a tick to combine up to four; beside the cards
  * (GD30, D1) the selected card's audience, format with its one-line description (GD33), suggested
  * look and length with "Use this idea", then "Combine" and "More ideas". While the cards are found,
  * or a pick is outlined, the step says so in words and its buttons wait. The model's top three come
@@ -63,7 +65,8 @@ function retryCards(
  * any step runs (122); a viewer who may not edit sees the cards only.
  */
 export function IdeasStep({ view, viewer, actions, onBack }: IdeasStepProps) {
-  const { pending, run } = usePostAction()
+  // Which press is running, so only its control waits as "Running…" with its words beside it.
+  const { pending, run, pressed } = usePressedAction<'use' | 'retry' | 'combine' | 'more'>()
   const router = useRouter()
   const [ticked, setTicked] = useState<number[]>([])
   // The cards picked last on this page, for a failed draft's "Try again".
@@ -91,8 +94,12 @@ export function IdeasStep({ view, viewer, actions, onBack }: IdeasStepProps) {
   const pickGate = gate(blog ? 'pickBlogAngle' : 'pickIdeas')
   const moreGate = gate('moreIdeas')
   const blocked = pending || running
+  const finding = pressed('more')
+  const outlining = pressed('use') || pressed('retry') || pressed('combine')
+  // The press's own words while it runs; the polled step's once it is running.
+  const working = outlining ? 'Outlining the idea…' : finding ? 'Finding more ideas…' : waiting
 
-  const pick = (indexes: number[]) => {
+  const pick = (indexes: number[], from: 'use' | 'retry' | 'combine') => {
     setLastPick(indexes)
     const { pickBlogAngleAction } = actions
     run(
@@ -101,8 +108,11 @@ export function IdeasStep({ view, viewer, actions, onBack }: IdeasStepProps) {
           ? pickBlogAngleAction(view.id, view.version, { card: indexes[0] })
           : actions.pickIdeasAction(view.id, view.version, { cards: indexes }),
       'Outline made',
-      // Outlined, the post is at its outline: its screen opens (GD27, GD32).
-      () => router.push(stepPath(view.id, stepOfStage('structures', false, false, true))),
+      {
+        // Outlined, the post is at its outline: its screen opens (GD27, GD32).
+        onDone: () => router.push(stepPath(view.id, stepOfStage('structures', false, false, true))),
+        press: from,
+      },
     )
   }
   const retry = failed(OUTLINE_STEP)
@@ -114,16 +124,19 @@ export function IdeasStep({ view, viewer, actions, onBack }: IdeasStepProps) {
         cards,
       )
     : null
-  const more = () =>
-    run((): Promise<Saved> => actions.moreIdeasAction(view.id, view.version), 'More ideas found')
+  const more = () => {
+    run((): Promise<Saved> => actions.moreIdeasAction(view.id, view.version), 'More ideas found', {
+      press: 'more',
+    })
+  }
   const tick = (index: number, on: boolean) =>
     setTicked((now) =>
       on ? [...now, index].sort((a, b) => a - b) : now.filter((i) => i !== index),
     )
 
   return (
-    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-8">
-      <h2 id={`${ids}-heading`} className="text-h3">
+    <section aria-labelledby={`${ids}-heading`} className="flex flex-col gap-6">
+      <h2 id={`${ids}-heading`} className="sr-only">
         Ideas
       </h2>
       {onBack && (
@@ -146,7 +159,8 @@ export function IdeasStep({ view, viewer, actions, onBack }: IdeasStepProps) {
       <StepAreas
         slides={
           cards.length > 0 && (
-            <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(16rem,100%),1fr))] gap-4">
+            // Cards narrow enough that six sit in two or three rows within the step's frame.
+            <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(13rem,100%),1fr))] gap-3">
               {cards.map((card, index) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: a card is its place; "More ideas" only adds after it.
                 <li key={index} className="flex">
@@ -174,39 +188,46 @@ export function IdeasStep({ view, viewer, actions, onBack }: IdeasStepProps) {
                 blog={blog}
                 gate={pickGate}
                 disabled={blocked}
-                onUse={() => pick([at])}
+                using={pressed('use')}
+                onUse={() => pick([at], 'use')}
               />
             )}
-            {waiting && <Working words={waiting} />}
-            {failed(IDEAS_STEP) && <p className={reasonText}>{IDEAS_FAILED}</p>}
-            {failed(OUTLINE_STEP) && <p className={reasonText}>{OUTLINE_FAILED}</p>}
+            {working && <Working words={working} />}
+            {failed(IDEAS_STEP) && (
+              <FailedLine words={IDEAS_FAILED} reason={view.failedReasons?.[IDEAS_STEP]} />
+            )}
+            {failed(OUTLINE_STEP) && (
+              <FailedLine words={OUTLINE_FAILED} reason={view.failedReasons?.[OUTLINE_STEP]} />
+            )}
             {retry && pickGate.shown && (
               <Control reason={pickGate.reason}>
                 <Button
                   variant="outline"
                   disabled={blocked || pickGate.reason !== null}
-                  onClick={() => pick(retry)}
+                  onClick={() => pick(retry, 'retry')}
                 >
-                  Try again
+                  {pressed('retry') && <Spin />}
+                  {pressed('retry') ? 'Running…' : 'Try again'}
                 </Button>
               </Control>
             )}
 
-            {pickGate.shown && !blog && ticked.length === COMBINE && (
+            {pickGate.shown && !blog && ticked.length >= 2 && (
               <Control reason={pickGate.reason}>
                 <Button
                   variant="outline"
                   disabled={blocked || pickGate.reason !== null}
-                  onClick={() => pick(ticked)}
+                  onClick={() => pick(ticked, 'combine')}
                 >
-                  Combine
+                  {pressed('combine') && <Spin />}
+                  {pressed('combine') ? 'Running…' : 'Combine'}
                 </Button>
               </Control>
             )}
 
             {moreGate.shown && (
               <Control reason={moreGate.reason}>
-                {running ? (
+                {running || finding ? (
                   <Button variant="outline" disabled>
                     <Spin />
                     Running…
@@ -230,8 +251,10 @@ export function IdeasStep({ view, viewer, actions, onBack }: IdeasStepProps) {
 }
 
 /**
- * A card in the slides area: "Recommended" when the model ranks it high, its angle, which selects
- * it (the whole card answers the click), and its hook, with a tick to combine two.
+ * A card in the slides area, compact so six fit the step's frame: its angle, which selects it (the
+ * whole card answers the click), its hook cut at three lines (the selected card's panel shows it
+ * whole), then one row with the tick to combine up to four and "Recommended" when the model ranks
+ * it high.
  */
 function IdeaCardView(props: {
   card: IdeaCard
@@ -242,25 +265,25 @@ function IdeaCardView(props: {
   gate: { shown: boolean; reason: string | null }
   disabled: boolean
   ticked: boolean
-  /** Two are ticked already: a third waits. */
+  /** Four are ticked already: a fifth waits, saying why. */
   full: boolean
   onSelect: () => void
   onTick: (on: boolean) => void
 }) {
   const { card, gate } = props
   const ids = useId()
+  const combinable = gate.shown && !props.blog
   return (
     <Blueprint
       as="article"
       aria-label={card.angle}
       aria-current={props.selected || undefined}
       className={cn(
-        'flex w-full flex-col gap-4 p-4 hover:border-primary',
+        'flex w-full flex-col gap-3 p-3 hover:border-primary',
         props.selected && 'border-primary',
       )}
     >
-      <div className="flex flex-col gap-2">
-        {card.recommended && <span className={cn(tag, 'self-start')}>Recommended</span>}
+      <div className="flex flex-col gap-1">
         <h3 className="text-h4">
           <button
             type="button"
@@ -271,17 +294,28 @@ function IdeaCardView(props: {
             {card.angle}
           </button>
         </h3>
-        <p>{card.hook}</p>
+        <p className="line-clamp-3 text-caption">{card.hook}</p>
       </div>
-      {gate.shown && !props.blog && (
-        <div className="relative z-10 mt-auto flex items-center gap-2 self-start">
-          <Checkbox
-            id={`${ids}-combine`}
-            checked={props.ticked}
-            disabled={props.disabled || gate.reason !== null || (props.full && !props.ticked)}
-            onCheckedChange={(on) => props.onTick(on === true)}
-          />
-          <Label htmlFor={`${ids}-combine`}>Combine</Label>
+      {(combinable || card.recommended) && (
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
+          {combinable && (
+            <div className="relative z-10">
+              <Control reason={props.full && !props.ticked ? COMBINE_FULL : null}>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id={`${ids}-combine`}
+                    checked={props.ticked}
+                    disabled={
+                      props.disabled || gate.reason !== null || (props.full && !props.ticked)
+                    }
+                    onCheckedChange={(on) => props.onTick(on === true)}
+                  />
+                  <Label htmlFor={`${ids}-combine`}>Combine</Label>
+                </div>
+              </Control>
+            </div>
+          )}
+          {card.recommended && <span className={cn(tag, 'ml-auto')}>Recommended</span>}
         </div>
       )}
     </Blueprint>
@@ -298,6 +332,8 @@ function ChosenIdea(props: {
   blog: boolean
   gate: { shown: boolean; reason: string | null }
   disabled: boolean
+  /** "Use this idea" was pressed and its outline is being made. */
+  using: boolean
   onUse: () => void
 }) {
   const { card, gate } = props
@@ -327,7 +363,8 @@ function ChosenIdea(props: {
       {gate.shown && (
         <Control reason={gate.reason}>
           <Button disabled={props.disabled || gate.reason !== null} onClick={props.onUse}>
-            {props.blog ? 'Use this angle' : 'Use this idea'}
+            {props.using && <Spin />}
+            {props.using ? 'Running…' : props.blog ? 'Use this angle' : 'Use this idea'}
           </Button>
         </Control>
       )}

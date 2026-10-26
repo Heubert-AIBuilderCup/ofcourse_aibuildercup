@@ -2,17 +2,22 @@
 
 import { refresh } from 'next/cache'
 import { z } from 'zod'
+import { pinOf } from '@/features/finder/model/compare'
+// For its side effect: a finder course resolves as a road course, so one can be pinned and named.
+import '@/features/finder/server/road-courses'
+import { compareOn } from '@/features/finder/switch'
 import { parseAnswer } from '@/features/opening/model/questions'
 import { getProfile } from '@/features/opening/server/profile'
 import { roadFor } from '@/features/roads'
 import { asStudent, fail } from '@/shared/lib/auth/as-student'
 import type { ActionResult } from '@/shared/types/action-result'
 import {
+  type BoardChoices,
+  boardChoicesSchema,
+  type Pinned,
   QUESTION_KEYS,
   type QuestionKey,
   ROADMAP_NAME_MAX,
-  type RoadmapChoices,
-  roadmapChoicesSchema,
   type StoredAnswers,
 } from '@/shared/types/student'
 import { copyName, roadmapName, roadNames } from './model/roadmap'
@@ -147,14 +152,11 @@ export async function restoreArchivedAction(id: string): Promise<ActionResult> {
 }
 
 /** What she did on one of her roadmaps' boards, kept with it; a key a board does not have is dropped. */
-export async function saveChoicesAction(
-  id: string,
-  choices: RoadmapChoices,
-): Promise<ActionResult> {
+export async function saveChoicesAction(id: string, choices: BoardChoices): Promise<ActionResult> {
   return asStudent('roadmaps.saveChoices', async (userId) => {
     const roadmapId = idSchema.safeParse(id)
     if (!roadmapId.success) return fail(NOT_FOUND)
-    const parsed = roadmapChoicesSchema.safeParse(choices)
+    const parsed = boardChoicesSchema.safeParse(choices)
     if (!parsed.success) return fail(BAD_CHOICES)
     if (!(await saveChoices(userId, roadmapId.data, parsed.data))) return fail(NOT_FOUND)
     return { ok: true }
@@ -201,29 +203,60 @@ export async function saveRoadmapAnswersAction(
   })
 }
 
+/** A pin from the request: a claim, checked against the catalogue by `pinOf`. */
+const pinSchema = z.object({
+  courseId: z.string().min(1).max(80),
+  cityId: z.string().min(1).max(80),
+})
+
+/** The pin a request asks for, when `pinOf` resolves it. Null for anything else. */
+function requestedPin(raw: unknown): Pinned | null {
+  const pin = pinSchema.safeParse(raw)
+  return pin.success ? pinOf(pin.data.courseId, pin.data.cityId) : null
+}
+
+/** Whether a pin is the one its source already carries (a copy keeping it), not a new one. */
+const samePin = (pin: Pinned, stored: Pinned | undefined): boolean =>
+  stored?.courseId === pin.courseId && stored.cityId === pin.cityId
+
 /**
  * "Create roadmap" on a new roadmap's draft: a copy of one of hers (`fromId`), named "Copy of" its
  * source's name as her list shows it, or from scratch without one, unnamed, with the draft's answers, the whole set, each parsed against its question (or
- * nothing is made). Returns its id, for the loader to land on her roadmaps with it marked. No
- * refresh: the list is read fresh when she lands on it.
+ * nothing is made). With `pinned`, its road is drawn around that course (refused, as not found,
+ * for a course that cannot be pinned, and for a new pin with the compare switch off); its source is never written. Returns its id, for the loader
+ * to land on her roadmaps with it marked. No refresh: the list is read fresh when she lands on it.
  */
 export async function createRoadmapAction(input: {
   fromId?: string
   answers: StoredAnswers
+  pinned?: Pinned
 }): Promise<ActionResult<{ id: string }>> {
   return asStudent('roadmaps.createRoadmap', async (userId) => {
     const fromId = input?.fromId === undefined ? null : idSchema.safeParse(input.fromId)
     if (fromId && !fromId.success) return fail(NOT_FOUND)
+    const pinned = input?.pinned === undefined ? undefined : requestedPin(input.pinned)
+    if (pinned === null) return fail(NOT_FOUND)
     const answers = parseAnswers(input?.answers)
     if (!answers) return fail(BAD_ANSWERS)
     let copy: { fromId: string; name: string } | null = null
+    let sourcePin: Pinned | undefined
     if (fromId) {
       const source = await getRoadmap(userId, fromId.data)
       if (!source) return fail(NOT_FOUND)
-      const { road } = roadFor({ answers: source.answers, relative: source.relative }, process.env)
+      const { road } = roadFor(
+        { answers: source.answers, relative: source.relative, pinned: source.choices.pinned },
+        process.env,
+      )
       copy = { fromId: source.id, name: copyName(roadmapName(source, roadNames(road))) }
+      sourcePin = source.choices.pinned
     }
-    const made = await createRoadmap(userId, copy ? { ...copy, answers } : { answers })
+    // A new pin only with the compare switch on; a copy keeps its source's pin either way.
+    if (pinned && !compareOn(process.env) && !samePin(pinned, sourcePin)) return fail(NOT_FOUND)
+    const made = await createRoadmap(userId, {
+      ...copy,
+      answers,
+      ...(pinned && { choices: { pinned } }),
+    })
     if (made === 'not-found') return fail(NOT_FOUND)
     if (made === 'bad-answers') return fail(BAD_ANSWERS)
     return { ok: true, id: made.id }

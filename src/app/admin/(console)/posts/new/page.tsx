@@ -25,13 +25,15 @@ export default async function NewFeedPostPage({ searchParams }: PageProps<'/admi
     <>
       {blog ? (
         <AdminPageHeader
+          kicker="New blog"
           title="New blog"
           lede="Paste a source or give its link. Its facts come next, then angles for the blog to pick from."
         />
       ) : (
         <AdminPageHeader
+          kicker="New feed post"
           title="New feed post"
-          lede="Paste a source or give its link. Its facts come next, then three versions to pick from."
+          lede="Paste a source or give its link. Its facts come next, then the slides' text."
         />
       )}
       <SourceForm actions={actions} postKind={blog ? 'blog' : 'feed'} idea={idea} />

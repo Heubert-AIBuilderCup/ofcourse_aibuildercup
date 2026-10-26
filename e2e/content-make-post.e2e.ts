@@ -14,15 +14,15 @@ import {
   approveText,
   CLEAN,
   checked,
-  chosenVersion,
+  checkResults,
   drawImages,
-  feedSettings,
   makePost,
   nonDemo,
   onStep,
-  openDetails,
   openOtherVersions,
+  openSourceCheck,
   openStep,
+  openTab,
   PAID_WORK,
   pickIdea,
   pickVersion,
@@ -31,8 +31,11 @@ import {
   type Source,
   selectSlide,
   sendToReview,
-  sourceCheck,
-  strip,
+  settingsPanel,
+  slotField,
+  stage,
+  stageSlides,
+  yourVersion,
 } from './helpers/content'
 import {
   cacheArt,
@@ -134,11 +137,11 @@ async function press(page: Page, name: string, confirms: string | RegExp, scope?
   await expect(toast(page, confirms).first()).toBeVisible({ timeout: 60_000 })
 }
 
-/** The bytes of each slide image in `scope`, fetched with the page's session. */
-async function slideBytes(page: Page, scope: Locator): Promise<Buffer[]> {
-  const srcs = await scope
-    .getByRole('img', { name: /^Slide \d+\b/ })
-    .evaluateAll((els) => els.map((el) => (el as HTMLImageElement).src))
+/** The bytes of each slide on the stage in `scope`, fetched with the page's session. */
+async function slideBytes(page: Page, scope: Page | Locator): Promise<Buffer[]> {
+  const srcs = await stageSlides(scope).evaluateAll((els) =>
+    els.map((el) => (el as HTMLImageElement).src),
+  )
   expect(srcs.length).toBeGreaterThan(0)
   const out: Buffer[] = []
   for (const src of srcs) {
@@ -203,14 +206,21 @@ test('"Make post" stops at the idea cards, and "Use this idea" runs to three ver
   await pickIdea(page)
 
   // Three versions in the card's look, each labelled by its angle: the first is picked for the
-  // editor (GD29) and the other two wait under "Choose another version" with "Use this version".
-  await expect(chosenVersion(page)).toContainText(ANGLES[0])
+  // editor (GD29) and the other two wait in "Versions" with "Use this version", each card showing
+  // its first slide and listing its five in its "Details" drawer.
+  await expect(await yourVersion(page)).toContainText(ANGLES[0])
+  await expect(stageSlides(page)).toHaveCount(5)
   await openOtherVersions(page)
   for (const angle of ANGLES.slice(1)) {
     const card = version(page, angle)
     await expect(card.getByRole('heading', { level: 4, name: angle, exact: true })).toBeVisible()
     await expect(card.getByRole('button', { name: 'Use this version' })).toBeEnabled()
-    await slidesLoaded(card, 5)
+    await slidesLoaded(card, 1)
+    await card.getByRole('button', { name: 'Details', exact: true }).click()
+    const details = page.getByRole('dialog', { name: new RegExp(` · ${angle}$`) })
+    await expect(details.getByText(/^Slide \d+$/)).toHaveCount(5)
+    await details.getByRole('button', { name: 'Close', exact: true }).click()
+    await expect(details).toBeHidden()
   }
 
   // Each paragraph's first sentence is a fact on the Source step, numbered and word for word.
@@ -227,23 +237,25 @@ test('the chosen version is checked by itself, and a change to one slide changes
   const { page } = er
   await openStep(page, postId, 'text')
   await pickVersion(page, 1)
-  const card = chosenVersion(page)
+  const card = await yourVersion(page)
   await expect(card.getByText(ANGLES[1], { exact: true })).toBeVisible()
   // The check lands with nothing pressed to start it.
-  await checked(card, CLEAN)
+  await checked(page, CLEAN)
   await expect(page.getByRole('button', { name: /source check|vision check/i })).toHaveCount(0)
 
-  const before = await slideBytes(page, strip(card))
+  const before = await slideBytes(page, page)
   expect(before).toHaveLength(5)
-  await selectSlide(card, 4)
-  await card.getByRole('button', { name: 'Shorter · Slide 4', exact: true }).click()
+  await selectSlide(page, 4)
+  await (await yourVersion(page))
+    .getByRole('button', { name: 'Shorter · Slide 4', exact: true })
+    .click()
   await expect
-    .poll(async () => (await slideBytes(page, strip(card)))[3].equals(before[3]), {
+    .poll(async () => (await slideBytes(page, page))[3].equals(before[3]), {
       timeout: 60_000,
     })
     .toBe(false)
-  await checked(card, /^(Every sentence found in the source|\d+ not found in the source)$/)
-  const after = await slideBytes(page, strip(card))
+  await checked(page, /^\d+ found · \d+ not found · \d+ opinion$/)
+  const after = await slideBytes(page, page)
   expect(after).toHaveLength(5)
   after.forEach((bytes, i) => {
     expect(bytes.equals(before[i]), `slide ${i + 1} ${i === 3 ? 'changes' : 'stays'}`).toBe(i !== 3)
@@ -253,34 +265,35 @@ test('the chosen version is checked by itself, and a change to one slide changes
 test("a sentence typed on the slide that the source does not hold is flagged beside the source's sentence, and its wording makes the check clean (98, 104)", async () => {
   const { page } = er
   await openStep(page, postId, 'text')
-  const card = chosenVersion(page)
-  await selectSlide(card, 3)
+  await selectSlide(page, 3)
 
-  await card.getByRole('button', { name: 'Edit Slide 3 · Body' }).click()
-  await card.getByRole('textbox', { name: 'Slide 3 · Body' }).fill(EDITED)
-  await card.getByRole('button', { name: 'Save', exact: true }).click()
+  // Edited on the slide itself, on the stage.
+  const slide = stage(page)
+  await slide.getByRole('button', { name: 'Edit Slide 3 · Body' }).click()
+  await slide.getByRole('textbox', { name: 'Slide 3 · Body', exact: true }).fill(EDITED)
+  await slide.getByRole('button', { name: 'Save', exact: true }).click()
 
   // Checked by itself: the typed sentence is the one flag, beside the sentence its fact rests on.
-  const text = card.getByRole('list', { name: 'Slide 3 text', exact: true })
-  await expect(text.getByRole('listitem').filter({ hasText: UNSUPPORTED })).toContainText(
-    'Not in the source',
-    { timeout: 60_000 },
-  )
-  const d = await openDetails(card)
-  const row = d.getByRole('listitem').filter({ hasText: UNSUPPORTED }).last()
-  await expect(row).toContainText('Not found')
+  const body = slotField(await yourVersion(page), 3, 'Body')
+  await expect(body).toHaveValue(EDITED, { timeout: 60_000 })
+  await expect(body).toHaveAccessibleDescription(/Not in the source/, { timeout: 60_000 })
+  await checked(page, /· 1 not found ·/)
+  const results = await checkResults(page)
+  const row = results
+    .getByRole('list', { name: 'To fix', exact: true })
+    .getByRole('listitem')
+    .filter({ hasText: UNSUPPORTED })
+  await expect(row).toContainText('Not found in the source')
   await expect(row.getByText(`Source ¶2: ${sentence('¶2.1')}`, { exact: true })).toBeVisible()
-  const wording = card.getByRole('button', { name: "Use the source's wording" })
+  const wording = results.getByRole('button', { name: "Use the source's wording" })
   await expect(wording).toHaveCount(1)
-  await expect(d.getByText('1 not found in the source')).toBeVisible()
 
   await wording.click()
-  await checked(card, CLEAN)
+  await checked(page, CLEAN)
   await expect(wording).toHaveCount(0)
-  await expect(text.getByRole('listitem').filter({ hasText: 'Body' })).toContainText(
-    sentence('¶2.1'),
-  )
-  await expect(text).not.toContainText(UNSUPPORTED)
+  const text = slotField(await yourVersion(page), 3, 'Body')
+  await expect(text).toHaveValue(new RegExp(escaped(sentence('¶2.1'))))
+  await expect(text).not.toHaveValue(new RegExp(escaped(UNSUPPORTED)))
 
   // Every change is a version in the history on the Source step, by its editor, and the older
   // ones can be restored.
@@ -347,6 +360,7 @@ test('"Make covers" offers three cover slides to choose from, and one is used (1
   cachedArt.push({ key, assetId })
   await cacheArt(key, assetId, PNG)
 
+  await openTab(render, 'Covers')
   await press(page, 'Make covers', 'Covers made', render)
   const options = render.getByRole('list', { name: 'Cover options' }).getByRole('listitem')
   await expect(options).toHaveCount(3)
@@ -368,12 +382,13 @@ test('reviewed and published, the post has a public page a signed-out visitor op
   // Drawn, the post is at Settings: the check and the settings.
   await post(page, postId)
   await onStep(page, 'settings')
-  const check = sourceCheck(page)
-  await expect(check.getByText(/(Found ¶\d+|Not found)$/).first()).toBeVisible({
+  // Landed, the check sums itself up; a sentence not found would be listed under it.
+  const check = await openSourceCheck(page)
+  await expect(check.getByText(/^[1-9]\d* found in the article · 0 not found · /)).toBeVisible({
     timeout: 60_000,
   })
   await expect(check.getByText(/Not found$/)).toHaveCount(0)
-  await feedSettings(page).getByRole('radio', { name: '90 days' }).check()
+  await (await settingsPanel(page, 'Expiry')).getByRole('radio', { name: '90 days' }).check()
   await sendToReview(page)
   await approvePublish(page)
 

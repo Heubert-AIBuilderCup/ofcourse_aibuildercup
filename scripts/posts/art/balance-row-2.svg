@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="540" viewBox="0 0 1080 540">
+  <title>Work and life split three ways, row 2 of the grid</title>
+  <!-- Row 2 of the nine tiles. -->
+  <rect width="1080" height="540" fill="#FFFFFF"/>
+  <g transform="translate(50 100) scale(3)">
+    <rect width="100" height="100" fill="#FFFFFF"/>
+    <circle cx="18" cy="18" r="8" fill="#16191B"/>
+    <circle cx="50" cy="14" r="8" fill="#16191B"/>
+    <circle cx="84" cy="20" r="8" fill="#16191B"/>
+    <circle cx="16" cy="82" r="8" fill="#16191B"/>
+    <circle cx="46" cy="86" r="8" fill="#16191B"/>
+    <circle cx="76" cy="74" r="19" fill="#16191B"/>
+    <text x="76" y="78" font-family="Barlow" font-weight="400" font-size="11" fill="#FFFFFF" text-anchor="middle">work</text>
+    <text x="36" y="52" font-family="Barlow" font-weight="400" font-size="11" fill="#16191B" text-anchor="middle">life</text>
+    <rect width="100" height="100" fill="none" stroke="#16191B" stroke-width="1.3333333333333333"/>
+  </g>
+  <g transform="translate(390 100) scale(3)">
+    <rect width="100" height="100" fill="#16191B"/>
+    <path d="M0 40 L12.5 30 L25 40 L37.5 30 L50 40 L62.5 30 L75 40 L87.5 30 L100 40 L100 68 L87.5 58 L75 68 L62.5 58 L50 68 L37.5 58 L25 68 L12.5 58 L0 68 Z" fill="#FFFFFF"/>
+    <text x="50" y="53" font-family="Barlow" font-weight="400" font-size="11" fill="#16191B" text-anchor="middle">life</text>
+    <text x="50" y="20" font-family="Barlow" font-weight="400" font-size="11" fill="#FFFFFF" text-anchor="middle">work</text>
+    <text x="50" y="88" font-family="Barlow" font-weight="400" font-size="11" fill="#FFFFFF" text-anchor="middle">work</text>
+    <rect width="100" height="100" fill="none" stroke="#16191B" stroke-width="1.3333333333333333"/>
+  </g>
+  <g transform="translate(730 100) scale(3)">
+    <rect width="100" height="100" fill="#FFFFFF"/>
+    <path d="M100 25 L100 100 L25 100 L25 75 L50 75 L50 50 L75 50 L75 25 Z" fill="#16191B"/>
+    <text x="24" y="32" font-family="Barlow" font-weight="400" font-size="11" fill="#16191B" text-anchor="middle">life</text>
+    <text x="74" y="84" font-family="Barlow" font-weight="400" font-size="11" fill="#FFFFFF" text-anchor="middle">work</text>
+    <rect width="100" height="100" fill="none" stroke="#16191B" stroke-width="1.3333333333333333"/>
+  </g>
+  <text x="1060" y="524" font-family="Barlow" font-weight="400" font-size="20" fill="#5F5D58" text-anchor="end">Illustration idea: @pjmilani</text>
+</svg>

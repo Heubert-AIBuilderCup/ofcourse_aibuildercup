@@ -24,6 +24,33 @@
       "name": "dark stone",
       "hex": "#52504B",
       "role": "Quiet secondary text on yellow, where stone falls short of 4.5:1."
+    },
+    { "name": "sepia paper", "hex": "#F4ECDD", "role": "Subdued: the warm sepia page." },
+    {
+      "name": "tan",
+      "hex": "#E7D3B0",
+      "role": "Subdued: light tan blocks, and quiet text on dark sepia."
+    },
+    {
+      "name": "sepia",
+      "hex": "#4A3626",
+      "role": "Subdued: dark sepia backgrounds and the shadows of its pictures."
+    },
+    { "name": "cream", "hex": "#F7F0E3", "role": "Subdued: text on dark sepia." },
+    {
+      "name": "sepia ink",
+      "hex": "#2B2118",
+      "role": "Subdued: text on the sepia page, tan and ochre."
+    },
+    {
+      "name": "ochre",
+      "hex": "#C8963E",
+      "role": "Subdued: the muted highlight, always with sepia ink on it."
+    },
+    {
+      "name": "sepia stone",
+      "hex": "#66523E",
+      "role": "Subdued: quiet secondary text on the sepia page and tan."
     }
   ],
   "presets": {
@@ -39,14 +66,30 @@
       }
     },
     "subdued": {
-      "base": { "bg": "paper", "ink": "ink", "highlight": "light blue", "muted": "stone" },
-      "block": { "bg": "light blue", "ink": "ink", "highlight": "paper", "muted": "stone" },
-      "deep": { "bg": "paper", "ink": "deep blue", "highlight": "light blue", "muted": "stone" }
+      "base": {
+        "bg": "sepia paper",
+        "ink": "sepia ink",
+        "highlight": "ochre",
+        "muted": "sepia stone"
+      },
+      "block": {
+        "bg": "tan",
+        "ink": "sepia ink",
+        "highlight": "sepia paper",
+        "muted": "sepia stone"
+      },
+      "deep": {
+        "bg": "sepia",
+        "ink": "cream",
+        "highlight": "ochre",
+        "highlightInk": "sepia ink",
+        "muted": "tan"
+      }
     }
   },
   "tint": {
     "pop": { "shadow": "deep blue", "light": "yellow" },
-    "subdued": { "wash": "paper", "strength": 0.35 }
+    "subdued": { "shadow": "sepia", "light": "sepia paper" }
   },
   "art": {
     "style": "Flat, bold editorial illustration with simple shapes, generous space and one clear subject.",

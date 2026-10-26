@@ -37,6 +37,7 @@ import type { ActionResult } from '@/shared/types/action-result'
 import { NETWORK_ERROR } from '../hooks/useAdminAction'
 import { CAPABILITY_LABELS, ROLE_LABELS } from '../lib/labels'
 import type { UserDetail } from '../users/server'
+import { AdminPageHeader } from './AdminPageHeader'
 import { CheckField } from './CheckField'
 import { Field } from './Field'
 import { chipStrong, hint } from './styles'
@@ -189,8 +190,7 @@ function Header({ user, name }: { user: UserDetail; name: string }) {
       >
         All users
       </Link>
-      <h1 className="text-3xl font-semibold tracking-tight">{name}</h1>
-      <p className="text-base text-muted-foreground">{user.email}</p>
+      <AdminPageHeader kicker="People" title={name} lede={user.email} />
       <ul className="flex flex-wrap gap-2">
         <li className={chipStrong}>{ROLE_LABELS[user.role]}</li>
       </ul>

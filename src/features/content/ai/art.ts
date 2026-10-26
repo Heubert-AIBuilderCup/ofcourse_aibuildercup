@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { compile, GUIDELINE, type Guideline, guidelineFor } from '../brands/guideline'
 import { emotionOf } from '../emotions'
+import { failureReason } from '../lib/failure'
 import { canonicalJson, sha256Hex } from '../server/hash'
 import { dbCallLog } from './calls'
 import { ai } from './client'
@@ -163,6 +164,8 @@ export type ArtDeps = {
 export type CoverArt = {
   bytes: Uint8Array | null
   fallback: 'replay' | 'no_art' | 'daily_limit' | null
+  /** Why a no_art image's call failed, when its error says (lib/failure.ts): busy (429) or too slow. */
+  reason?: 'busy' | 'timeout'
 }
 
 const ASPECT_RATIO: ImageAspect = '4:5'
@@ -203,7 +206,7 @@ async function recordFallback(fallback: 'replay' | 'no_art', postId: string): Pr
 
 type Drawn =
   | { ok: true; bytes: Uint8Array }
-  | { ok: false; reason: 'failed' | 'daily_limit' | 'text' }
+  | { ok: false; reason: 'failed' | 'daily_limit' | 'text'; error?: string }
 
 /**
  * One image under its cache key: the cached one, which was checked when it was kept, or a new one
@@ -234,7 +237,7 @@ async function drawOne(
       })),
     }),
   })
-  if (!res.ok) return { ok: false, reason: res.reason }
+  if (!res.ok) return { ok: false, reason: res.reason, error: res.error }
   // Art the check could not read is never offered as if it were clean.
   if ((await artCheck({ bytes: res.value, postId })) !== 'clean')
     return { ok: false, reason: 'text' }
@@ -242,6 +245,34 @@ async function drawOne(
     await deps.remember(key, res.value)
   } catch {}
   return { ok: true, bytes: res.value }
+}
+
+/**
+ * The art cache key of one image call: the image model, the prompt, the shape, which image of the
+ * post it is (`set`, `option`), the attempt, and a page's reference images by asset id (left out
+ * when there are none, so the key is the one a page without a design language always had).
+ * coverArt looks every image up under it; scripts/make-posts-art.ts keeps its own pictures there.
+ */
+export function artCacheKey(input: {
+  prompt: string
+  aspectRatio: ImageAspect
+  set: number
+  option: number
+  attempt: number
+  references: readonly string[]
+}): string {
+  const { prompt, aspectRatio, set, option, attempt, references } = input
+  return sha256Hex(
+    canonicalJson({
+      model: process.env.GEMINI_IMAGE_MODEL ?? '',
+      prompt,
+      aspectRatio,
+      set,
+      option,
+      attempt,
+      ...(references.length > 0 && { references }),
+    }),
+  )
 }
 
 /**
@@ -273,17 +304,14 @@ export async function coverArt(
 
   let drawn: Drawn = { ok: false, reason: 'failed' }
   for (const attempt of [1, 2]) {
-    const key = sha256Hex(
-      canonicalJson({
-        model: process.env.GEMINI_IMAGE_MODEL ?? '',
-        prompt,
-        aspectRatio,
-        set: input.set ?? 0,
-        option: input.option ?? 0,
-        attempt,
-        ...(references.length > 0 && { references: references.map((r) => r.assetId) }),
-      }),
-    )
+    const key = artCacheKey({
+      prompt,
+      aspectRatio,
+      set: input.set ?? 0,
+      option: input.option ?? 0,
+      attempt,
+      references: references.map((r) => r.assetId),
+    })
     drawn = await drawOne(prompt, aspectRatio, key, postId, references, deps)
     // Only an image with text is drawn again; a failed or capped call is not.
     if (drawn.ok || drawn.reason !== 'text') break
@@ -297,7 +325,10 @@ export async function coverArt(
   if (!cover && drawn.reason === 'daily_limit') {
     return { ok: true, art: { bytes: null, fallback: 'daily_limit' } }
   }
-  return { ok: true, art: { bytes: cover, fallback } }
+  // A failed call says why when its error does, so the slide can.
+  const why = failureReason(drawn.error ?? null)
+  const reason = !cover && (why === 'busy' || why === 'timeout') ? why : null
+  return { ok: true, art: { bytes: cover, fallback, ...(reason && { reason }) } }
 }
 
 /**

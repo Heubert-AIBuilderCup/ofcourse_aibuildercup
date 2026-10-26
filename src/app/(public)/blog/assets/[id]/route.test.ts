@@ -22,7 +22,12 @@ mock.module('@/shared/lib/auth/session', () => ({ getSession: async () => null }
 // src/features/content/routes.test.ts, the posts' and the feed's image route tests and the blog
 // page's test mock this module too: a mocked module keeps the export names of whichever mock runs
 // first, so all of them name the same set.
+mock.module('server-only', () => ({}))
+// The store's other exports kept: Bun keeps the export names of the first mock of a module for
+// the whole run, so a later test file that mocks it still finds them.
+const store = { ...(await import('@/features/content/server/store')) }
 mock.module('@/features/content/server/store', () => ({
+  ...store,
   isLiveAsset: async () => true,
   isLiveBlogAsset: async (id: string) => {
     asked.push(id)

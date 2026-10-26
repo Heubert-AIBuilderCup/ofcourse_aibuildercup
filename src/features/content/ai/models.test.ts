@@ -52,6 +52,7 @@ describe('allowedTiers', () => {
     expect(allowedTiers('student_why')).toEqual(['lite', 'flash'])
     expect(allowedTiers('student_ask')).toEqual(['lite', 'flash'])
     expect(allowedTiers('student_words')).toEqual(['lite', 'flash'])
+    expect(allowedTiers('student_finder_why')).toEqual(['lite', 'flash'])
   })
 
   test('the image use case allows only the image tier', () => {

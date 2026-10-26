@@ -1,9 +1,13 @@
 # Postgres for development only, on host port 5433 so a Postgres already on 5432 is left alone.
 # No container_name: Compose names the container and volume after this folder, so two projects
 # made from the starter never share a database.
+# pgvector's image (Debian, glibc) for the finder's vector table. It has its own volume, never the
+# old Alpine (musl) image's `pg-data`: Postgres sorts text through the C library, so text indexes
+# written under one are unsafe under the other. Data moves between them only by `bun run db:dump`
+# and `bun run db:restore`. The old `pg-data` volume stays intact for branches without this change.
 services:
   db:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:pg17
     environment:
       POSTGRES_DB: app
       POSTGRES_USER: app
@@ -11,7 +15,7 @@ services:
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
-      - pg-data:/var/lib/postgresql/data
+      - pg-data-vector:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U app -d app"]
       interval: 2s
@@ -19,4 +23,4 @@ services:
       retries: 30
 
 volumes:
-  pg-data:
+  pg-data-vector:

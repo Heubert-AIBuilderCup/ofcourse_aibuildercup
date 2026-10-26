@@ -10,7 +10,7 @@ import { ROADS, roadById } from '../data/roads'
 import { SKELETONS } from '../data/skeletons'
 import type { RoadSpec, SlotCopy } from '../data/types'
 import { buildRoad } from './build'
-import { composeRoad, specById } from './compose'
+import { composeRoad, specById, workRightsLine } from './compose'
 import { courseWords } from './course-words'
 import { expectSound, strings } from './sound.test-helpers'
 
@@ -292,7 +292,9 @@ describe('the road home (criterion 59)', () => {
   const MELBOURNE_HOME = roadById('melbourne-home')!
 
   it('claims no way to stay after the 485 on any road home', () => {
-    expect(HOMES.length).toBe(26)
+    // 57: the 22 courses added so each course has two neighbours in its field, and the 9 for
+    // teaching, social work and hospitality, add a road home each.
+    expect(HOMES.length).toBe(57)
     for (const p of HOMES) {
       const spec = specOf(p)
       const text = strings(AFTER_485.map((s) => spec.slots[s])).join(' ')
@@ -460,10 +462,10 @@ describe('the courses around her course', () => {
       )
       if (others.some((o) => near(o.courseId))) expect(near(alt.id)).toBe(true)
     }
-    // Data science's neighbour in Perth is business (Commerce); civil engineering has none in
-    // Sydney, so its alternative is the city's other course, in catalogue order.
+    // Data science's neighbour in Perth is business (Commerce); civil engineering's in Sydney is
+    // structural engineering, added beside it.
     expect(composeRoad(pick('perth', 'ecu-data')).altCourseId).toBe('curtin-commerce')
-    expect(composeRoad(pick('sydney', 'uts-civil')).altCourseId).toBe('uts-cyber')
+    expect(composeRoad(pick('sydney', 'uts-civil')).altCourseId).toBe('uts-structural')
   })
 
   it('stacks the alternative again when the city has only two courses, and says so', () => {
@@ -489,5 +491,36 @@ describe('specById: the one lookup for any road (criterion 56)', () => {
     expect(specById('nowhere')).toBeNull()
     expect(specById('perth-uts-data-stay')).toBeNull()
     expect(specById('adelaide-unisa-nursing-later')).toBeNull()
+  })
+})
+
+describe('workRightsLine: the work rights after any course', () => {
+  it('says a regional city gives a master’s up to 5 years', () => {
+    expect(workRightsLine('perth', "Master's", 2)).toBe(
+      'Counts as regional: up to 5 years of post-study work rights after the course',
+    )
+  })
+
+  it('says a big city gives a diploma about 18 months', () => {
+    expect(workRightsLine('sydney', 'Diploma', 2)).toBe(
+      'Not regional: about 18 months of post-study work rights after a diploma',
+    )
+  })
+
+  it('says one year of study alone opens no 485', () => {
+    expect(workRightsLine('perth', "Master's", 1)).toBe(
+      'One year of study alone does not open the Temporary Graduate visa (485)',
+    )
+  })
+})
+
+describe('the courses for teaching, social work and hospitality', () => {
+  it('each field has courses in at least two road cities, each composing a road, staying or home', () => {
+    for (const field of ['education', 'social-work', 'hospitality']) {
+      const picks = ALL_PICKS.filter((p) => courseById(p.courseId)?.field === field)
+      const cities = new Set(picks.map((p) => p.cityId))
+      expect(`${field}: ${cities.size >= 2}`).toBe(`${field}: true`)
+      for (const p of picks) expect(specOf(p).courseId).toBe(p.courseId)
+    }
   })
 })

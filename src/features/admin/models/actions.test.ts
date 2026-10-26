@@ -4,6 +4,7 @@
 // test calls in ./test-call.test.ts.
 
 import { afterEach, describe, expect, it, mock } from 'bun:test'
+import * as nextCache from 'next/cache'
 import type { Tier, UseCase } from '@/features/content/ai/config'
 import type { StudentCallRow, TestResult, TierOverride } from './test-call'
 
@@ -14,7 +15,8 @@ mock.module('@/shared/lib/auth/session', () => ({
   getSession: async () => session,
 }))
 mock.module('server-only', () => ({}))
-mock.module('next/cache', () => ({ revalidatePath: () => {} }))
+// Next's other exports kept, so a later test file that mocks another one still finds it.
+mock.module('next/cache', () => ({ ...nextCache, revalidatePath: () => {} }))
 
 // The rest of each module stays real: bun's module mocks last for the process.
 const PASSED: TestResult = { ok: true, model: 'm', ms: 5 }

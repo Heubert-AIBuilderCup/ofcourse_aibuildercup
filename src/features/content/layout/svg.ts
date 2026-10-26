@@ -17,11 +17,15 @@ import { isLook } from '../templates'
 import { contrastRatio } from '../text/contrast'
 import { numbersIn } from '../text/numbers'
 import { BULLET, CANVAS, FRAME, LEGIBILITY_FLOOR_PX, SOURCE_LINE, sourceLineY } from './engine'
-import { runs, SCRIPT_FONTS, wrap } from './measure'
+import { measure, runs, SCRIPT_FONTS, wrap } from './measure'
 import { tintFilter } from './tint'
 
-/** The card under a panel layout's slots: white at 90%, so the art shows through a little. */
-const PANEL = { fill: '#FFFFFF', opacity: 0.9, radius: 14 } as const
+/**
+ * The card under a panel layout's slots: the slide's surface colour at 90%, so the art shows
+ * through a little and the surface's ink reads on it as it does on the surface (white on Pop's
+ * deep blue, ink on its white).
+ */
+const PANEL = { opacity: 0.9, radius: 14 } as const
 
 /** Only an embedded image: an external or file reference would let the rasteriser read it. */
 const ART_URI = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/
@@ -43,18 +47,70 @@ export function escapeXml(text: string): string {
     .replace(/'/g, '&apos;')
 }
 
+// RESVG PIN: package.json pins @resvg/resvg-js to exactly 2.6.2 (JSON carries no comment, so it
+// is said here and in docs/hackathon/deploy.md). The dx shift below makes up for 2.6.2 dropping a
+// Devanagari spacing sign's width. A resvg that draws that width itself would double the gap after
+// every sign on Nepali and Hindi slides: svg.test.ts renders नेपाल and fails on such a bump, so
+// the shift (devanagariXml) comes out with it.
+
+/** Devanagari's spacing vowel signs: ा ि ी ॉ ॊ ो ौ and the visarga ः (ि is drawn before its letter). */
+const SPACING_SIGN = /[\u093E-\u0940\u0949-\u094C\u0903]/gu
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+
+/** The text with its first letter cluster moved on by `shift`, when there is one to move. */
+function shifted(text: string, shift: number): string {
+  if (shift <= 0) return escapeXml(text)
+  const [first] = GRAPHEMES.segment(text)
+  if (!first) return ''
+  const rest = text.slice(first.segment.length)
+  return `<tspan dx="${n(shift)}">${escapeXml(first.segment)}</tspan>${escapeXml(rest)}`
+}
+
+/**
+ * A Devanagari run with each letter cluster after one that carries a spacing vowel sign moved on
+ * by the sign's width (`dx`): resvg 2.6.2 draws the next cluster over the sign, so नेपाल came out
+ * as नेपल. The width is the sign's in the Noto file of the line's weight, at its size; after a
+ * conjunct the font may draw a wider ि, so there it can come out a little tight. `shift`
+ * is what the run's last cluster leaves for the run after it.
+ */
+function devanagariXml(
+  text: string,
+  weight: 400 | 700,
+  px: number,
+  carried: number,
+): { xml: string; shift: number } {
+  const file = SCRIPT_FONTS.devanagari[weight === 700 ? 'bold' : 'regular']
+  let shift = carried
+  let xml = ''
+  for (const { segment } of GRAPHEMES.segment(text)) {
+    xml += shifted(segment, shift)
+    const signs = segment.match(SPACING_SIGN) ?? []
+    shift = signs.reduce((sum, sign) => sum + measure(sign, file, px), 0)
+  }
+  return { xml, shift }
+}
+
 /**
  * A line's content, each Devanagari or Thai run in a <tspan> of its Noto family (GD38), the rest
  * in the line's brand font. The weight is the line's, so resvg picks the Noto file the engine
- * measured.
+ * measured; text after a Devanagari vowel sign is placed past the width resvg drops, in its run
+ * or the next.
  */
-function runsXml(content: string): string {
+function runsXml(content: string, weight: 400 | 700, px: number): string {
+  let shift = 0
   return runs(content)
-    .map((r) =>
-      r.script === 'latin'
-        ? escapeXml(r.text)
-        : `<tspan font-family="${SCRIPT_FONTS[r.script].family}">${escapeXml(r.text)}</tspan>`,
-    )
+    .map((r) => {
+      if (r.script === 'devanagari') {
+        const run = devanagariXml(r.text, weight, px, shift)
+        shift = run.shift
+        return `<tspan font-family="${SCRIPT_FONTS.devanagari.family}">${run.xml}</tspan>`
+      }
+      const inner = shifted(r.text, shift)
+      shift = 0
+      return r.script === 'latin'
+        ? inner
+        : `<tspan font-family="${SCRIPT_FONTS[r.script].family}">${inner}</tspan>`
+    })
     .join('')
 }
 
@@ -67,7 +123,7 @@ function text(input: {
   fill: string
   content: string
 }): string {
-  return `<text x="${n(input.x)}" y="${n(input.y)}" font-family="${escapeXml(input.family)}" font-weight="${input.weight}" font-size="${n(input.px)}" fill="${input.fill}" xml:space="preserve">${runsXml(input.content)}</text>`
+  return `<text x="${n(input.x)}" y="${n(input.y)}" font-family="${escapeXml(input.family)}" font-weight="${input.weight}" font-size="${n(input.px)}" fill="${input.fill}" xml:space="preserve">${runsXml(input.content, input.weight, input.px)}</text>`
 }
 
 /** A checklist tick, as fractions of its line's size: its width and its stroke. */
@@ -134,12 +190,13 @@ const BAR_CONTRAST = 3
 const DEEP_BLUE = GUIDELINE.palette.find((c) => c.name === 'deep blue')?.hex
 
 /**
- * The second bar's colour: the guideline's deep blue, or where that is the surface's own colour,
- * its ink (the first bar's) or too faint on it, the surface's highlight, then its muted ink; the
- * first of them that stands apart from the first bar at 3:1 against the surface.
+ * The second bar's colour: the preset's deep colour (Pop's deep blue, Subdued's dark sepia; the
+ * guideline's deep blue without a preset), or where that is the surface's own colour, its ink (the
+ * first bar's) or too faint on it, the surface's highlight, then its muted ink; the first of them
+ * that stands apart from the first bar at 3:1 against the surface.
  */
-function secondBar(theme: Theme): string {
-  const candidates = [DEEP_BLUE, theme.highlight, theme.muted].filter((c) => c !== undefined)
+function secondBar(theme: Theme, deep: string | undefined): string {
+  const candidates = [deep, theme.highlight, theme.muted].filter((c) => c !== undefined)
   return (
     candidates.find((c) => c !== theme.ink && contrastRatio(c, theme.bg) >= BAR_CONTRAST) ??
     theme.highlight
@@ -151,8 +208,8 @@ function secondBar(theme: Theme): string {
  * larger reaching the slide's right margin; a value with no number gets no bar. The first bar is
  * the surface's ink, the second `secondBar`, both at 3:1 or more against the surface.
  */
-function bars(slide: LaidSlide, theme: Theme): string {
-  const second = secondBar(theme)
+function bars(slide: LaidSlide, theme: Theme, deep: string | undefined): string {
+  const second = secondBar(theme, deep)
   const rows = BAR_SLOTS.flatMap(({ slot, id }) => {
     const lines = slide.lines.filter((l) => l.slot === slot)
     if (lines.length === 0) return []
@@ -201,7 +258,7 @@ function frame(
     const head = 8
     parts.push(
       `<path d="M${n(start)} ${n(cy)}H${n(end)}M${n(end - head)} ${n(cy - head)}L${n(end)} ${n(cy)}L${n(end - head)} ${n(cy + head)}" fill="none" stroke="${theme.ink}" stroke-width="4"/>`,
-      `<text x="${n(start - FRAME.arrowGap)}" y="${n(SOURCE_LINE.y)}" font-family="${escapeXml(brand.fonts.heading.family)}" font-weight="700" font-size="${n(FRAME.swipePx)}" fill="${theme.ink}" text-anchor="end" xml:space="preserve">${runsXml(f.swipe ?? FRAME.label)}</text>`,
+      `<text x="${n(start - FRAME.arrowGap)}" y="${n(SOURCE_LINE.y)}" font-family="${escapeXml(brand.fonts.heading.family)}" font-weight="700" font-size="${n(FRAME.swipePx)}" fill="${theme.ink}" text-anchor="end" xml:space="preserve">${runsXml(f.swipe ?? FRAME.label, 700, FRAME.swipePx)}</text>`,
     )
   }
   return parts.join('')
@@ -377,11 +434,11 @@ export function svgSlides(input: {
     if (slide.panel) {
       const p = slide.panel
       parts.push(
-        `<rect x="${n(p.x)}" y="${n(p.y)}" width="${n(p.w)}" height="${n(p.h)}" rx="${PANEL.radius}" fill="${PANEL.fill}" fill-opacity="${PANEL.opacity}"/>`,
+        `<rect x="${n(p.x)}" y="${n(p.y)}" width="${n(p.w)}" height="${n(p.h)}" rx="${PANEL.radius}" fill="${theme.bg}" fill-opacity="${PANEL.opacity}"/>`,
       )
     }
     for (const l of slide.lines) parts.push(line(l, theme, brand))
-    if (slide.surface) parts.push(bars(slide, theme))
+    if (slide.surface) parts.push(bars(slide, theme, surfaces?.deep.bg ?? DEEP_BLUE))
     if (slide.sourceLine !== null) {
       const searchRows = slide.lines.filter((l) => l.slot === SEARCH_SLOT).length
       parts.push(small(sourceLineY(searchRows), slide.sourceLine, theme))

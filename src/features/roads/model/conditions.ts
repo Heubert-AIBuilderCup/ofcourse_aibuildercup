@@ -12,11 +12,11 @@ import {
   parseEnglish,
 } from '@/features/opening/model/english'
 import type { StoredAnswer, StoredAnswers } from '@/shared/types/student'
-import { entryOf } from '../data/entry'
+import { type Entry, entryOf } from '../data/entry'
 
 export type Condition = {
   id: 'english' | 'degree'
-  /** "Needs IELTS 7.0". */
+  /** "Needs IELTS 7.0"; a finder course's typical figure "Needs IELTS 6.5 (sample)". */
   text: string
   /** True or false once her answer decides it; null while it does not. */
   met: boolean | null
@@ -24,6 +24,13 @@ export type Condition = {
 }
 
 const TAKE_THE_TEST = 'Take the test before you enrol'
+
+/**
+ * A course's English score as its condition ("IELTS 7.0") and, `overall`, its badge ("IELTS 7.0
+ * overall") name it; a finder course's typical figure ends "(sample)", as its catalogue is labelled.
+ */
+export const englishScore = (entry: Entry, overall = false): string =>
+  `IELTS ${entry.ielts.toFixed(1)}${overall ? ' overall' : ''}${entry.sample ? ' (sample)' : ''}`
 
 /**
  * What she has and how it compares. An IELTS answer reads "You have 6.5"; a PTE or TOEFL score
@@ -39,11 +46,12 @@ function explain(eng: StoredAnswer, required: number, met: boolean): string {
   return met ? `${have}, so it is met` : `${have}, so it isn't met yet`
 }
 
-function englishCondition(required: number, eng: StoredAnswer | undefined): Condition {
+function englishCondition(entry: Entry, eng: StoredAnswer | undefined): Condition {
+  const required = entry.ielts
   const met = englishMeets(eng, required)
   const explanation =
     met === null || !eng || eng.value === NOT_TAKEN ? TAKE_THE_TEST : explain(eng, required, met)
-  return { id: 'english', text: `Needs IELTS ${required.toFixed(1)}`, met, explanation }
+  return { id: 'english', text: `Needs ${englishScore(entry)}`, met, explanation }
 }
 
 /**
@@ -55,7 +63,7 @@ function englishCondition(required: number, eng: StoredAnswer | undefined): Cond
 export function courseConditions(courseId: string, answers: StoredAnswers): Condition[] {
   const entry = entryOf(courseId)
   if (!entry) return []
-  const conditions = [englishCondition(entry.ielts, answers.eng)]
+  const conditions = [englishCondition(entry, answers.eng)]
   if (entry.needsDegreeIn) {
     conditions.push({
       id: 'degree',

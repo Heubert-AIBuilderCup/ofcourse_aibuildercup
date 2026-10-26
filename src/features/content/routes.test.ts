@@ -11,6 +11,11 @@ const ADMIN: User = { id: 'u3', role: 'admin', editor: false, reviewer: false, n
 const REVIEWER: User = { id: 'u4', role: 'user', editor: false, reviewer: true, name: 'Rev' }
 
 let session: { user: User } | null = null
+/** The session lookup failing, as it does when the database has no connection to give (18 Oct). */
+let sessionDown = false
+/** Postgres's answer when every connection slot is taken (production, 18 Oct). */
+const SLOTS_FULL =
+  'remaining connection slots are reserved for roles with privileges of the pg_use_reserved_connections role'
 const BYTES = new Uint8Array([1, 2, 3])
 const previews: unknown[] = []
 const loaded: string[] = []
@@ -33,18 +38,84 @@ function socialPost(stage: string, exported: boolean) {
     },
   }
 }
+/** A feed post's render: text only (every picture skipped), or with its drawn pictures. */
+function feedRender(pictures: boolean) {
+  return {
+    id: 'r2',
+    body: {
+      art: { assetId: null, prompt: '', version: 1, fallback: null },
+      slides: [
+        { svgAssetId: 'svg1', pngAssetId: 'png1' },
+        { svgAssetId: 'svg2', pngAssetId: 'png2' },
+      ],
+      slideArt: [1, 2].map((slide) => ({
+        slide,
+        assetId: pictures ? `art${slide}` : null,
+        scene: '',
+        take: 1,
+        nudge: null,
+        fallback: pictures ? null : 'skipped',
+      })),
+    },
+  }
+}
+/** A feed post (or a blog's post, kind 'feed' too) on its page, rendered or not, with or without a caption. */
+function feedPost(
+  render: unknown,
+  caption: unknown = null,
+  kind = 'feed',
+  pageBrandId: string | null = 'cerebral',
+) {
+  return {
+    id: 'fp1',
+    kind,
+    title: 'Paid work & grades',
+    stage: 'rendered',
+    pointers: { pageBrandId },
+    current: {
+      render,
+      caption,
+      export: null,
+      revision: { id: 'rev1', body: { brand: { name: 'OfCourse feed' } } },
+    },
+  }
+}
 const POSTS: Record<string, unknown> = {
   sp1: socialPost('exported', true),
   ready: socialPost('ready', false),
   feed: { ...socialPost('exported', true), kind: 'feed' },
+  textOnly: feedPost(feedRender(false)),
+  pictured: feedPost(feedRender(true), {
+    id: 'c2',
+    body: { text: 'Up to 20 hours.', hashtags: ['#study'] },
+  }),
+  noPage: feedPost(feedRender(false), null, 'feed', null),
+  unrendered: feedPost(null),
+  blog: feedPost(feedRender(false), null, 'blog'),
+  missingBytes: feedPost({
+    id: 'r3',
+    body: { ...feedRender(false).body, slides: [{ svgAssetId: 'svg1', pngAssetId: 'gone' }] },
+  }),
 }
 const ASSETS: Record<string, { mime: string; bytes: Uint8Array }> = {
   svg1: { mime: 'image/svg+xml', bytes: new TextEncoder().encode('<svg/>') },
   png1: { mime: 'image/png', bytes: BYTES },
+  svg2: { mime: 'image/svg+xml', bytes: new TextEncoder().encode('<svg>2</svg>') },
+  png2: { mime: 'image/png', bytes: new Uint8Array([4, 5]) },
 }
 
-mock.module('@/shared/lib/auth/session', () => ({ getSession: async () => session }))
+mock.module('@/shared/lib/auth/session', () => ({
+  getSession: async () => {
+    if (sessionDown) throw new Error(SLOTS_FULL)
+    return session
+  },
+}))
+mock.module('server-only', () => ({}))
+// The store's other exports kept: Bun keeps the export names of the first mock of a module for
+// the whole run, so a later test file that mocks it still finds them.
+const store = { ...(await import('@/features/content/server/store')) }
 mock.module('@/features/content/server/store', () => ({
+  ...store,
   getAsset: async (id: string) =>
     id === 'known' ? { mime: 'image/webp', bytes: BYTES } : id === 'drawing' ? ASSETS.svg1 : null,
   loadPost: async (id: string) => {
@@ -64,20 +135,25 @@ mock.module('@/features/content/server/store', () => ({
 mock.module('@/features/content/server/preview', () => ({
   draftPreviewPng: async (input: unknown) => {
     previews.push(input)
+    if ((input as { draftsId: string }).draftsId === 'down') throw new Error(SLOTS_FULL)
     return (input as { draftsId: string }).draftsId === 'known' ? BYTES : null
   },
   layoutPreviewPng: async (input: unknown) => {
     previews.push(input)
+    if ((input as { layoutId: string }).layoutId === 'down') throw new Error('resvg failed')
     return (input as { layoutId: string }).layoutId === 'known' ? BYTES : null
   },
   // A plan of the layout's text gives its scenes by slide; any other is none.
-  plannedScenes: async (_postId: string, planId: string) =>
-    planId.startsWith('plan') ? [`Scene of ${planId}`, null] : null,
+  plannedScenes: async (_postId: string, planId: string) => {
+    if (planId === 'down') throw new Error(SLOTS_FULL)
+    return planId.startsWith('plan') ? [`Scene of ${planId}`, null] : null
+  },
 }))
 
 const asset = await import('../../app/admin/(console)/assets/[id]/route')
 const previewRoute = await import('../../app/admin/(console)/posts/[id]/preview/route')
 const exportRoute = await import('../../app/admin/(console)/posts/[id]/export/route')
+const slidesRoute = await import('../../app/admin/(console)/posts/[id]/slides/route')
 const { unzipSync } = await import('fflate')
 
 const CACHE = 'private, max-age=31536000, immutable'
@@ -90,6 +166,7 @@ const get = (query: string) =>
 
 beforeEach(() => {
   session = null
+  sessionDown = false
   previews.length = 0
   loaded.length = 0
 })
@@ -203,6 +280,41 @@ describe('GET /admin/posts/[id]/preview', () => {
     expect(previews).toEqual([])
   })
 
+  test('a database or drawing error is a 503 to retry in 2 s, logged in one line without the ids, and nothing is kept (18 Oct)', async () => {
+    session = { user: STAFF }
+    const logged: unknown[][] = []
+    const error = console.error
+    console.error = (...args: unknown[]) => logged.push(args)
+    try {
+      for (const q of [
+        'drafts=down&i=0&slide=1&theme=paper',
+        'layout=down&slide=2',
+        'layout=known&slide=1&plan=down',
+      ]) {
+        const res = await get(q)
+        expect(res.status).toBe(503)
+        expect(res.headers.get('retry-after')).toBe('2')
+        expect(res.headers.get('cache-control')).toBe('no-store')
+      }
+      sessionDown = true
+      expect((await get('drafts=known&i=0&slide=1')).status).toBe(503)
+      // A failure is not kept: the same URL draws again once the database answers.
+      sessionDown = false
+      previews.length = 0
+      expect((await get('drafts=down&i=0&slide=1&theme=paper')).status).toBe(503)
+      expect(previews).toHaveLength(1)
+    } finally {
+      console.error = error
+    }
+    expect(logged.map((args) => args.join(' '))).toEqual([
+      `[preview] draft slide failed: ${SLOTS_FULL}`,
+      '[preview] layout slide failed: resvg failed',
+      `[preview] layout slide failed: ${SLOTS_FULL}`,
+      `[preview] draft slide failed: ${SLOTS_FULL}`,
+      `[preview] draft slide failed: ${SLOTS_FULL}`,
+    ])
+  })
+
   test('missing or bad parameters, and unknown records, are 404', async () => {
     session = { user: STAFF }
     for (const q of [
@@ -251,5 +363,71 @@ describe('GET /admin/posts/[id]/export', () => {
     expect(files['slide-1.png']).toEqual(BYTES)
     expect(new TextDecoder().decode(files['slide-1.svg'])).toBe('<svg/>')
     expect(new TextDecoder().decode(files['caption.txt'])).toBe('Up to 20 hours.\n\n#study')
+  })
+})
+
+describe('GET /admin/posts/[id]/slides', () => {
+  const download = (id: string) =>
+    slidesRoute.GET(new Request(`http://localhost/admin/posts/${id}/slides`) as never, assetCtx(id))
+  const names = async (res: Response) =>
+    Object.keys(unzipSync(new Uint8Array(await res.arrayBuffer()))).sort()
+
+  test('no session and a student get 404 before any post is read', async () => {
+    for (const s of [null, { user: STUDENT }]) {
+      session = s
+      expect((await download('textOnly')).status).toBe(404)
+    }
+    expect(loaded).toEqual([])
+  })
+
+  test('a bad id, an unknown post, one not rendered, a social version and a blog are 404', async () => {
+    session = { user: STAFF }
+    for (const id of ['x'.repeat(129), 'nope', 'unrendered', 'sp1', 'blog', 'missingBytes']) {
+      expect((await download(id)).status).toBe(404)
+    }
+  })
+
+  test('a text-only render: the slides’ PNGs and SVGs, no caption, named for the page and the post', async () => {
+    session = { user: STAFF }
+    const res = await download('textOnly')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('application/zip')
+    expect(res.headers.get('cache-control')).toBe('private, no-store')
+    expect(res.headers.get('content-disposition')).toBe(
+      'attachment; filename="cerebral_paid-work-grades_slides.zip"',
+    )
+    expect(await names(res)).toEqual(['slide-1.png', 'slide-1.svg', 'slide-2.png', 'slide-2.svg'])
+  })
+
+  test('a render with pictures: the stored PNGs as drawn, and the caption when there is one', async () => {
+    session = { user: STAFF }
+    const res = await download('pictured')
+    expect(res.status).toBe(200)
+    const files = unzipSync(new Uint8Array(await res.arrayBuffer()))
+    expect(Object.keys(files).sort()).toEqual([
+      'caption.txt',
+      'slide-1.png',
+      'slide-1.svg',
+      'slide-2.png',
+      'slide-2.svg',
+    ])
+    expect(Array.from(files['slide-2.png']).join()).toBe('4,5')
+    expect(new TextDecoder().decode(files['slide-2.svg'])).toBe('<svg>2</svg>')
+    expect(new TextDecoder().decode(files['caption.txt'])).toBe('Up to 20 hours.\n\n#study')
+  })
+
+  test('a post with no page is named for its brand', async () => {
+    session = { user: STAFF }
+    const res = await download('noPage')
+    expect(res.headers.get('content-disposition')).toBe(
+      'attachment; filename="ofcourse-feed_paid-work-grades_slides.zip"',
+    )
+  })
+
+  test('everyone who may see the board may download: a reviewer and an admin too', async () => {
+    for (const user of [REVIEWER, ADMIN]) {
+      session = { user }
+      expect((await download('textOnly')).status).toBe(200)
+    }
   })
 })

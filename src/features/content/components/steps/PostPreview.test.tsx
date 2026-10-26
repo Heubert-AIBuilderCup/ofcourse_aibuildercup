@@ -27,6 +27,9 @@ mock.module('next/navigation', () => ({
 }))
 
 const { MarketControls, PostPreview, useShownMarket } = await import('./PostPreview')
+
+/** Where a link sits: in the step bar ("Step actions", 18 Oct) or anywhere else. */
+const place = (el: Element) => (el.closest('[aria-label="Step actions"]') ? 'bar' : 'elsewhere')
 type Props = Parameters<typeof MarketControls>[0]
 
 /** The market versions' panel and the preview, sharing the version shown, as Settings has them. */
@@ -206,8 +209,19 @@ const view = (
   )
 
 const slide = (n: number) => screen.getByRole('img', { name: new RegExp(`^Slide ${n}\\b`) })
+/** The preview's buttons by name: the filmstrip's alone, no way to make or reword a version. */
+const buttonNames = () =>
+  screen.queryAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent ?? '')
 const marketSelect = () => screen.getByRole('combobox', { name: 'For market' })
 const makeButton = () => screen.getByRole('button', { name: 'Make market version' })
+/** The filmstrip's thumbnail of slide `n`, and the one marked as shown. */
+const thumb = (n: number) => screen.getByRole('button', { name: `Slide ${n}` })
+const currentThumb = () =>
+  screen
+    .getAllByRole('button')
+    .filter((b) => b.getAttribute('aria-current') === 'true')
+    .map((b) => b.getAttribute('aria-label'))
+const FILMSTRIP = ['Slide 1', 'Slide 2', 'Slide 3']
 
 afterEach(() => {
   cleanup()
@@ -267,8 +281,12 @@ describe('PostPreview: the market (56–61, 85, 87, 110)', () => {
   it('switches between the stored slides and the market version’s, with its feed excerpt, and offers no second version', () => {
     view({ current: { market: MARKET } })
     expect(screen.queryByRole('button', { name: 'Make market version' })).toBeNull()
+    // One slide at a time on Settings (criterion 5): the second's thumbnail shows it.
+    fireEvent.click(thumb(2))
     expect(slide(2)).toHaveAttribute('src', '/admin/assets/png2')
     fireEvent.click(screen.getByRole('radio', { name: 'Nepal' }))
+    expect(currentThumb()).toEqual(['Slide 1'])
+    fireEvent.click(thumb(2))
     expect(slide(2)).toHaveAttribute('src', '/admin/assets/npng2')
     expect(
       screen.getByText("Deciding with your family how many hours you'll work?"),
@@ -317,12 +335,12 @@ describe('PostPreview: the market (56–61, 85, 87, 110)', () => {
     view({ stage: 'in_review', current: { market: MARKET } })
     expect(screen.getByRole('radio', { name: 'Nepal' })).toBeInTheDocument()
     expect(screen.queryByRole('combobox', { name: 'For market' })).toBeNull()
-    expect(screen.queryByRole('button')).toBeNull()
+    expect(buttonNames()).toEqual(FILMSTRIP)
     cleanup()
 
     view({}, ADMIN)
     expect(screen.getByRole('radio', { name: 'Default' })).toBeInTheDocument()
-    expect(screen.queryByRole('button')).toBeNull()
+    expect(buttonNames()).toEqual(FILMSTRIP)
   })
 
   it('shows a post from before the looks the same way', () => {
@@ -348,7 +366,9 @@ describe('PostPreview: preview in context (55)', () => {
   it('shows the slides first, then the phone card with the whole source line and the settings summary', () => {
     view({ current: { settings: SETTINGS } })
     expect(screen.getByRole('radio', { name: 'Slides' })).toBeChecked()
-    expect(screen.getAllByRole('img')).toHaveLength(3)
+    // One slide in view, the first of the three marked in the filmstrip (criterion 5).
+    expect(screen.getAllByRole('img').length).toBe(1)
+    expect(currentThumb()).toEqual(['Slide 1'])
     fireEvent.click(screen.getByRole('radio', { name: 'Preview in context' }))
     const card = screen.getByRole('img', { name: 'Cover of Paid work, money first' })
     expect(card).toHaveAttribute('src', '/admin/assets/png1')
@@ -358,7 +378,7 @@ describe('PostPreview: preview in context (55)', () => {
     expect(screen.getByText('Source: Paid work, money first · ¶1')).toBeInTheDocument()
     expect(screen.getByText('Personal · 1,284 matched students · No expiry')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('radio', { name: 'Slides' }))
-    expect(screen.getAllByRole('img')).toHaveLength(3)
+    expect(screen.getAllByRole('img').length).toBe(1)
   })
 
   it('says "No feed settings yet" before any are saved', () => {
@@ -371,5 +391,16 @@ describe('PostPreview: preview in context (55)', () => {
     view({ current: { market: MARKET } })
     fireEvent.click(screen.getByRole('radio', { name: 'Nepal' }))
     expect(screen.queryByRole('radio', { name: 'Preview in context' })).toBeNull()
+  })
+})
+
+describe('PostPreview: Download slides', () => {
+  it('offers the rendered slides to download in the step bar (18 Oct)', () => {
+    view()
+    expect(
+      screen
+        .queryAllByRole('link', { name: 'Download slides' })
+        .map((a) => `${a.getAttribute('href')} ${a.hasAttribute('download')} ${place(a)}`),
+    ).toEqual(['/admin/posts/p1/slides true bar'])
   })
 })

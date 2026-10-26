@@ -38,14 +38,22 @@ describe('tintFilter (GD16)', () => {
     })
   })
 
-  it('desaturates Subdued to 40% and lays the wash over it at the guideline’s strength', () => {
+  it('maps Subdued to a sepia duotone, from its dark sepia to its paper', () => {
     const filter = tintFilter('subdued', GUIDELINE)
-    expect(filter).toContain('<feColorMatrix type="saturate" values="0.4"/>')
-    const { wash, strength } = GUIDELINE.tint.subdued
-    const [r] = rgb(hexOf(wash))
-    expect(filter).toContain(
-      `<feFuncR type="linear" slope="${1 - strength}" intercept="${Math.round((r / 255) * strength * 10000) / 10000}"/>`,
-    )
+    expect(filter).toContain('<feColorMatrix type="matrix"')
+    expect([GUIDELINE.tint.subdued.shadow, GUIDELINE.tint.subdued.light]).toEqual([
+      'sepia',
+      'sepia paper',
+    ])
+    const [shadow, light] = [rgb(hexOf('sepia')), rgb(hexOf('sepia paper'))]
+    ;(['R', 'G', 'B'] as const).forEach((channel, i) => {
+      const values = filter.match(
+        new RegExp(`<feFunc${channel} type="table" tableValues="([^"]+)"`),
+      )?.[1]
+      expect(values?.split(' ').map(Number)).toEqual(
+        [shadow[i] / 255, light[i] / 255].map((v) => Math.round(v * 10000) / 10000),
+      )
+    })
   })
 
   it('follows a changed guideline', () => {
@@ -90,16 +98,20 @@ describe('tintedPng: a blog picture mapped to the palette, the original kept (GD
     return [view.readUInt32BE(16), view.readUInt32BE(20)]
   }
 
-  it('draws the picture at its own size through the Subdued wash, leaving the original as it was', () => {
+  it('draws the picture at its own size through the Subdued duotone, leaving the original as it was', () => {
     const grey = greyPng(32, 18)
     const before = Uint8Array.from(grey)
     const tinted = tintedPng(grey, 'subdued')
     if (!tinted) throw new Error('not tinted')
     expect(size(tinted)).toEqual([32, 18])
     expect(grey).toEqual(before)
-    const { wash, strength } = GUIDELINE.tint.subdued
-    const washed = rgb(hexOf(wash)).map((v) => 128 * (1 - strength) + v * strength)
-    expect(distance(centre(tinted, 32, 18), washed)).toBeLessThan(3)
+    // Mid-grey lands near the middle of the duotone, as Pop's does.
+    const shadow = rgb(hexOf(GUIDELINE.tint.subdued.shadow))
+    const light = rgb(hexOf(GUIDELINE.tint.subdued.light))
+    const mix = shadow.map((v, i) => (v + light[i]) / 2)
+    expect(distance(centre(tinted, 32, 18), mix)).toBeLessThan(
+      distance(centre(tinted, 32, 18), [128, 128, 128]),
+    )
   })
 
   it('leaves a picture that is not a PNG untinted', () => {

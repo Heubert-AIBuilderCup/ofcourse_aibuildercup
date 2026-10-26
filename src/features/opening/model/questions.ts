@@ -122,11 +122,22 @@ export const SCREENS: readonly Screen[] = [
             'Data science',
             'Business analytics',
             'Information technology',
+            'Psychology',
           ]),
           q(
             'areas',
             'Pick up to three',
-            ['IT and computing', 'Business', 'Data', 'Health', 'Engineering', 'Design'],
+            [
+              'IT and computing',
+              'Business',
+              'Health',
+              'Engineering',
+              'Design',
+              'Psychology',
+              'Education / Teaching',
+              'Social work',
+              'Hospitality & tourism',
+            ],
             { control: 'multi', notSure: false },
           ),
         ],
@@ -235,12 +246,53 @@ export function isVisible(key: QuestionKey, answers: StoredAnswers): boolean {
 }
 
 /**
+ * Questions no longer asked (16 Oct 2026): their answers change nothing she sees. They keep their
+ * keys, options and stored answers, which stay readable; onboarding, Your answers and her own
+ * words just never ask them.
+ */
+export const HIDDEN_QUESTIONS: ReadonlySet<QuestionKey> = new Set<QuestionKey>([
+  'who',
+  'learn',
+  'length',
+  'climate',
+  'earn',
+  'settle',
+])
+
+/** Whether onboarding asks this question for these answers: shown, and not hidden. */
+export function isAsked(key: QuestionKey, answers: StoredAnswers): boolean {
+  return !HIDDEN_QUESTIONS.has(key) && isVisible(key, answers)
+}
+
+/**
  * Her person, only while screen 3 still shows that she knows someone: a "Yes" left behind when
  * community turned "No" no longer counts, so no future measures from someone she can't see.
  */
 export function activeRelative(answers: StoredAnswers, relative: Relative | null): Relative | null {
   return isVisible('knows', answers) && effective(answers, 'knows') === 'Yes' ? relative : null
 }
+
+/** Areas an earlier onboarding offered, each read as the area that took it in. */
+export const RETIRED_AREAS: Readonly<Record<string, string>> = { Data: 'IT and computing' }
+
+const retired = (v: unknown): v is string =>
+  typeof v === 'string' && Object.hasOwn(RETIRED_AREAS, v)
+
+/**
+ * Her areas with each retired one read as the area that took it in, that area once; any other
+ * value as it is (a repeated area stays repeated, for the question to refuse).
+ */
+export function currentAreas(value: unknown): unknown {
+  return Array.isArray(value) && value.some(retired)
+    ? [...new Set(value.map((v) => (retired(v) ? RETIRED_AREAS[v] : v)))]
+    : value
+}
+
+/** An areas answer, given bare or stored, with retired areas read as today's. */
+const withCurrentAreas = (raw: unknown): unknown =>
+  raw !== null && typeof raw === 'object' && 'value' in raw
+    ? { ...raw, value: currentAreas(raw.value) }
+    : currentAreas(raw)
 
 /** One to three distinct options. */
 const isAreas = (options: readonly AnswerValue[], value: unknown): value is string[] =>
@@ -261,9 +313,11 @@ const isOption = (question: Question, value: unknown): value is AnswerValue =>
 /**
  * What a tap stores, or null when it is not an answer to this question. "Not sure" (where
  * offered) stores the default, assumed; an option stores itself, stated. A stored answer (Undo
- * puts these back) is taken when it is a stated option or the assumed default.
+ * puts these back) is taken when it is a stated option or the assumed default. Areas an earlier
+ * onboarding offered read as the area that took them in (Data as IT and computing).
  */
-export function parseAnswer(key: QuestionKey, raw: unknown): StoredAnswer | null {
+export function parseAnswer(key: QuestionKey, given: unknown): StoredAnswer | null {
+  const raw = key === 'areas' ? withCurrentAreas(given) : given
   const question = questionOf(key)
   const fallback = DEFAULTS[key]
   if (raw === NOT_SURE && question.notSure && fallback !== undefined) {

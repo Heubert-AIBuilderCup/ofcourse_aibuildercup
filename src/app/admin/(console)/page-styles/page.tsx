@@ -20,6 +20,7 @@ export default async function PageStylesPage() {
   return (
     <>
       <AdminPageHeader
+        kicker="Pages"
         title="Page styles"
         lede="Each page's design language: its art style and copy style, from one or two of its posts. Drafts and covers made for the page follow it; colours and fonts stay the brand's."
       />

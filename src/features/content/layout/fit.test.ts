@@ -145,14 +145,60 @@ describe('fitChecks', () => {
     expect(rows.some((r) => r.check === 'glyph')).toBe(false)
   })
 
-  it('fails the Signal theme on contrast', () => {
-    const rows = checks(
-      structure('the-line', [words(47), words(40), words(40)]),
-      THE_LINE,
-      'signal',
-    )
+  it('passes contrast on every feed theme, ink and the words on the highlight (18 Oct: Signal failed at 4.2:1)', () => {
+    for (const t of FEED_BRAND.themes) {
+      const rows = checks(structure('the-line', [words(47), words(40), words(40)]), THE_LINE, t.id)
+      const contrast = rows.filter((r) => r.check === 'contrast')
+      expect(contrast.map((r) => `${r.label} · ${r.pass}`)).toEqual(
+        contrast.map((r) => `${r.label.replace(/ · Too low$/, ' · OK')} · true`),
+      )
+    }
+  })
+
+  it('checks the words on the highlight where the slides mark them, naming the pair', () => {
+    const s = structure('the-line', [words(47), words(40), words(40)])
+    const layout = layoutStructure({
+      structure: s,
+      template: THE_LINE,
+      brand: FEED_BRAND,
+      sourceTitle: 'Hours of paid work',
+      facts: [],
+    })
+    // White on the yellow highlight, as Signal and Ink drew it before they named a highlight ink.
+    const light: Theme = { ...theme('ink'), highlightInk: undefined, name: 'Light' }
+    const rows = fitChecks({
+      structure: s,
+      template: THE_LINE,
+      theme: light,
+      layout,
+      brand: FEED_BRAND,
+    })
+    expect(rows.filter((r) => r.check === 'contrast').map((r) => r.label)).toEqual([
+      'Contrast · Light 15.4:1 · OK',
+      'Contrast · Light highlight 1.4:1 · Too low',
+    ])
+    expect(fitPasses(rows)).toBe(false)
+  })
+
+  it('fails a theme whose ink is too faint on its background, naming it', () => {
+    const s = structure('the-line', [words(47), words(40), words(40)])
+    const layout = layoutStructure({
+      structure: s,
+      template: THE_LINE,
+      brand: FEED_BRAND,
+      sourceTitle: 'Hours of paid work',
+      facts: [],
+    })
+    const faint: Theme = { ...theme('paper'), bg: '#1877F2', ink: '#FFFFFF', name: 'Faint' }
+    const rows = fitChecks({
+      structure: s,
+      template: THE_LINE,
+      theme: faint,
+      layout,
+      brand: FEED_BRAND,
+    })
     expect(rows.find((r) => r.check === 'contrast')).toMatchObject({
-      label: 'Contrast · Signal 4.2:1 · Too low',
+      label: 'Contrast · Faint 4.2:1 · Too low',
       pass: false,
     })
     expect(fitPasses(rows)).toBe(false)
@@ -226,12 +272,28 @@ describe('fitChecks on a look (GD9, GD17)', () => {
       'Contrast · Pop deep · OK',
       'Contrast · Pop deep muted · OK',
       'Contrast · Pop deep highlight · OK',
-      'Contrast · Pop block · OK',
-      'Contrast · Pop block muted · OK',
       'Contrast · Pop base · OK',
       'Contrast · Pop base muted · OK',
-      'Contrast · Pop base highlight · OK',
+      'Contrast · Pop block · OK',
+      'Contrast · Pop block muted · OK',
     ])
+  })
+
+  it('checks the surfaces the rhythm lays out, all three, in every look, and passes them in both presets', () => {
+    for (const id of ['field-notes', 'data-desk', 'postcard']) {
+      for (const preset of PRESETS) {
+        const rows = lookChecks(id, presetThemes(preset)).filter((r) => r.check === 'contrast')
+        const name = preset === 'pop' ? 'Pop' : 'Subdued'
+        const checked = new Set(rows.map((r) => r.label.split(' ')[3]))
+        expect({
+          id,
+          preset,
+          checked: [...checked].sort(),
+          named: rows.every((r) => r.label.startsWith(`Contrast · ${name} `)),
+          failing: rows.filter((r) => !r.pass).map((r) => r.label),
+        }).toEqual({ id, preset, checked: ['base', 'block', 'deep'], named: true, failing: [] })
+      }
+    }
   })
 
   it('reads the words on the highlight in their own colour: ink on yellow passes on Pop deep, white on it fails', () => {
@@ -263,7 +325,6 @@ describe('fitChecks on a look (GD9, GD17)', () => {
       'Contrast · Pop deep highlight · Too low',
       'Contrast · Pop block · Too low',
       'Contrast · Pop block muted · Too low',
-      'Contrast · Pop base highlight · Too low',
     ])
   })
 })

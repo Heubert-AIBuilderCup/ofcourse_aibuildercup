@@ -1,25 +1,26 @@
 import Link from 'next/link'
 import { cn } from '@/shared/lib/utils'
-import { type Filters, filterHref, tagValue } from '../../lib/feed'
+import { chosenIn, type Filters, filterHref, tagValue, toggled } from '../../lib/feed'
 import { TAG_GROUP_LABELS, TAG_GROUPS, type TagGroup, tagsIn } from '../../tags'
 
-/** One filter changed. A home value is a market id: the tag file refuses any other (tags/index.ts). */
-const only = (group: TagGroup, value: string | null): Partial<Filters> =>
-  ({ [group]: value }) as Partial<Filters>
+/** A group cleared: no home market, or no values. */
+const cleared = (group: TagGroup): Partial<Filters> =>
+  group === 'home' ? { home: null } : { [group]: [] }
 
 const quiet = 'text-muted-foreground hover:text-foreground'
 
 /**
- * Four rows of link chips from the tag file, one per group (criterion 81). The home row is also
- * the market-version switch (criterion 82). Links, so the picks live in the URL and survive the
- * move between the feed and its pages; each keeps every other filter. The active chip is
- * `aria-current`, and a row with an active chip offers Clear.
+ * Four rows of link chips from the tag file, one per group (criterion 81). A chip adds its value
+ * to its row's choices or takes it away (lib/feed.ts toggled), so a row holds several; the home
+ * row holds one, since it is also the market-version switch (criterion 82). Links, so the picks
+ * live in the URL and survive the move between the feed and its pages; each keeps every other
+ * filter. Each chosen chip is `aria-current`, and a row with one offers Clear.
  */
 export function FeedChips({ pathname, filters }: { pathname: string; filters: Filters }) {
   return (
     <nav aria-label="Filters" className="flex flex-col gap-2">
       {TAG_GROUPS.map((group) => {
-        const active = filters[group]
+        const chosen = chosenIn(filters, group)
         return (
           <fieldset key={group} className="flex min-w-0 flex-wrap items-center gap-2">
             {/* Floated, so the legend sits in the row with its chips instead of above the frame. */}
@@ -28,11 +29,11 @@ export function FeedChips({ pathname, filters }: { pathname: string; filters: Fi
             </legend>
             {tagsIn(group).map((tag) => {
               const value = tagValue(tag.id)
-              const on = value === active
+              const on = chosen.includes(value)
               return (
                 <Link
                   key={tag.id}
-                  href={filterHref(pathname, filters, only(group, value))}
+                  href={filterHref(pathname, filters, toggled(filters, group, value))}
                   aria-current={on ? 'true' : undefined}
                   className={cn(
                     'border px-3 py-1 font-heading',
@@ -43,9 +44,9 @@ export function FeedChips({ pathname, filters }: { pathname: string; filters: Fi
                 </Link>
               )
             })}
-            {active && (
+            {chosen.length > 0 && (
               <Link
-                href={filterHref(pathname, filters, only(group, null))}
+                href={filterHref(pathname, filters, cleared(group))}
                 className={cn('text-caption underline-offset-4 hover:underline', quiet)}
               >
                 Clear

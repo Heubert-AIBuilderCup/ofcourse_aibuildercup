@@ -1,11 +1,21 @@
 import { describe, expect, it } from 'bun:test'
+import { Resvg } from '@resvg/resvg-js'
 import { FEED_BRAND } from '../brands'
 import { GUIDELINE, PRESETS, type Preset, presetThemes, SURFACES } from '../brands/guideline'
 import { SEARCH_SLOT, type Slide, type Structure, type Template, type Theme } from '../model/types'
 import { templateById } from '../templates'
 import { contrastRatio } from '../text/contrast'
-import { BULLET, LEGIBILITY_FLOOR_PX, layoutStructure, SEARCH_LINE, SOURCE_LINE } from './engine'
+import {
+  BULLET,
+  CANVAS,
+  LEGIBILITY_FLOOR_PX,
+  layoutStructure,
+  SEARCH_LINE,
+  SOURCE_LINE,
+  surfaceRhythm,
+} from './engine'
 import { lookStructure } from './fixtures'
+import { fontPath, measure, SCRIPT_FONTS } from './measure'
 import { toPng } from './png'
 import { escapeXml, slideColours, svgSlides } from './svg'
 import { tintFilter } from './tint'
@@ -193,15 +203,13 @@ describe('svgSlides for a look (GD6, GD9)', () => {
     const { svgs } = lookSvgs('data-desk', 'subdued')
     const bg = (svg: string) =>
       svg.match(/<rect x="0" y="0" width="1080" height="1350" fill="([^"]+)"/)?.[1]
-    // Data Desk: number and picture on block, cover and takeaway on deep, the rest on base.
-    expect(bg(svgs[2])).toBe(subdued.block.bg)
-    expect(bg(svgs[1])).toBe(subdued.block.bg)
-    expect(bg(svgs[3])).toBe(subdued.base.bg)
-    expect(bg(svgs[0])).toBe(subdued.deep.bg)
+    // Every look on the rhythm: cover deep, then base, block, deep, the takeaway deep.
+    const rhythm = surfaceRhythm(lookStructure('data-desk').slides.map((s) => s.kind))
+    expect(svgs.map(bg)).toEqual(rhythm.map((s) => subdued[s].bg))
     expect(lookSvgs('data-desk', 'pop').svgs[2]).toContain(`fill="${presetThemes('pop').block.bg}"`)
   })
 
-  it("draws a highlighted word on Pop's deep blue as a yellow chip with ink text, and keeps every other surface's ink", () => {
+  it("draws a highlighted word on Pop's deep blue as a yellow chip with ink text, on Subdued's dark sepia as an ochre one with sepia ink, and keeps every other surface's ink", () => {
     const word = (surface: 'base' | 'block' | 'deep') => ({
       kind: 'cover' as const,
       lines: [
@@ -236,12 +244,12 @@ describe('svgSlides for a look (GD6, GD9)', () => {
     }
     const hex = (name: string) => GUIDELINE.palette.find((c) => c.name === name)?.hex
     expect(drawn('pop', 'deep')).toEqual({ chip: hex('yellow'), text: hex('ink') })
+    expect(drawn('subdued', 'deep')).toEqual({ chip: hex('ochre'), text: hex('sepia ink') })
     for (const [preset, surface] of [
       ['pop', 'base'],
       ['pop', 'block'],
       ['subdued', 'base'],
       ['subdued', 'block'],
-      ['subdued', 'deep'],
     ] as const) {
       const t = presetThemes(preset)[surface]
       expect(drawn(preset, surface)).toEqual({ chip: t.highlight, text: t.ink })
@@ -252,7 +260,9 @@ describe('svgSlides for a look (GD6, GD9)', () => {
     const barsSvg = (valueA: string, valueB: string) => {
       const s = lookStructure('data-desk')
       const bars = s.slides[3]
+      // After the cover, as the last slide, so the bars sit on base.
       const slides: Slide[] = [
+        s.slides[0],
         {
           ...bars,
           slots: {
@@ -271,7 +281,7 @@ describe('svgSlides for a look (GD6, GD9)', () => {
       })
       const pop = presetThemes('pop')
       return {
-        svg: svgSlides({ layout, theme: PAPER, brand: FEED_BRAND, art: null, surfaces: pop })[0],
+        svg: svgSlides({ layout, theme: PAPER, brand: FEED_BRAND, art: null, surfaces: pop })[1],
         base: pop.base,
       }
     }
@@ -284,6 +294,45 @@ describe('svgSlides for a look (GD6, GD9)', () => {
     const none = barsSvg('Most', '76%').svg
     expect(none).not.toContain('data-bar="a"')
     expect(none).toContain('data-bar="b"')
+  })
+
+  it('draws the second bar in the preset’s own deep colour, never the brand blue on Subdued', () => {
+    const value = (slot: string, y: number) => ({
+      slot,
+      text: slot === 'valueA' ? '78%' : '67%',
+      x: 96,
+      y,
+      fontPx: 96,
+      font: 'heading' as const,
+      mark: 'none' as const,
+      width: 160,
+    })
+    const second = (preset: Preset, surface: 'base' | 'block' | 'deep') => {
+      const [svg] = svgSlides({
+        layout: [
+          {
+            kind: 'body',
+            lines: [value('valueA', 580), value('valueB', 900)],
+            artBox: null,
+            sourceLine: null,
+            searchLine: null,
+            surface,
+          },
+        ],
+        theme: PAPER,
+        brand: FEED_BRAND,
+        art: null,
+        surfaces: presetThemes(preset),
+      })
+      return svg.match(/<rect data-bar="b"[^>]*fill="([^"]+)"/)?.[1]
+    }
+    const subdued = presetThemes('subdued')
+    const pop = presetThemes('pop')
+    expect(second('subdued', 'base')).toBe(subdued.deep.bg)
+    expect(second('subdued', 'block')).toBe(subdued.deep.bg)
+    expect(second('subdued', 'deep')).toBe(subdued.deep.highlight)
+    expect(second('pop', 'base')).toBe(pop.deep.bg)
+    expect(second('pop', 'deep')).toBe(pop.deep.highlight)
   })
 
   it('draws both comparison bars at 3:1 or more against the surface, apart from each other, on every surface of both presets', () => {
@@ -329,13 +378,23 @@ describe('svgSlides for a look (GD6, GD9)', () => {
     }
   })
 
-  it('lays a white card under the slots of a panel layout, and none elsewhere', () => {
-    const postcard = lookSvgs('postcard', 'pop')
-    const panel = postcard.layout[1].panel
-    expect(panel).toBeDefined()
-    expect(postcard.svgs[1]).toContain(
-      `<rect x="${panel?.x}" y="${panel?.y}" width="${panel?.w}" height="${panel?.h}" rx="14" fill="#FFFFFF" fill-opacity="0.9"/>`,
-    )
+  it('lays a card in the slide’s surface colour under the slots of a panel layout, and none elsewhere', () => {
+    for (const preset of PRESETS) {
+      const postcard = lookSvgs('postcard', preset)
+      const surfaces = presetThemes(preset)
+      expect(postcard.layout.map((l) => l.surface)).toContain('deep')
+      postcard.layout.forEach((laid, i) => {
+        const panel = laid.panel
+        expect(panel).toBeDefined()
+        expect({
+          preset,
+          slide: i + 1,
+          card: postcard.svgs[i].includes(
+            `<rect x="${panel?.x}" y="${panel?.y}" width="${panel?.w}" height="${panel?.h}" rx="14" fill="${surfaces[laid.surface ?? 'base'].bg}" fill-opacity="0.9"/>`,
+          ),
+        }).toEqual({ preset, slide: i + 1, card: true })
+      })
+    }
     expect(lookSvgs('field-notes', 'pop').svgs[1]).not.toContain('rx="14"')
   })
 })
@@ -543,7 +602,7 @@ describe('svgSlides for the bullets layout (GD34)', () => {
     marks.forEach(([, cx, cy, fill], i) => {
       expect(Number(cx)).toBeLessThan(firsts[i].x)
       expect(Number(cy)).toBeLessThan(firsts[i].y)
-      expect(fill).toBe(pop.base.ink)
+      expect(fill).toBe(pop[layout[0].surface ?? 'base'].ink)
     })
     // The PNG is what every screen and the export show: a bullets slide must draw.
     expect(() => toPng(svg, FEED_BRAND, 108)).not.toThrow()
@@ -596,7 +655,7 @@ describe('svgSlides for the checklist layout', () => {
     ticks.forEach(([, x, y, stroke], i) => {
       expect(Number(x)).toBeLessThan(firsts[i].x)
       expect(Number(y)).toBeLessThan(firsts[i].y)
-      expect(stroke).toBe(pop.base.ink)
+      expect(stroke).toBe(pop[layout[0].surface ?? 'base'].ink)
     })
     // The PNG is what every screen and the export show: the ticked slide must draw.
     expect(() => toPng(svg, FEED_BRAND, 108)).not.toThrow()
@@ -637,7 +696,9 @@ describe('svgSlides in Nepali and Thai (GD38)', () => {
 
   it("writes each Devanagari or Thai run in its Noto family inside the brand font's line", () => {
     const nepali = svgFor('काम 20 घण्टा')
-    expect(nepali).toContain('<tspan font-family="Noto Sans Devanagari">काम </tspan>20 ')
+    expect(nepali).toMatch(
+      /<tspan font-family="Noto Sans Devanagari">का<tspan dx="[\d.]+">म<\/tspan> <\/tspan>20 /,
+    )
     expect(nepali).toContain('<tspan font-family="Noto Sans Devanagari">घण्टा</tspan>')
     expect(nepali).toContain('font-family="Barlow Condensed"')
     expect(svgFor('ทำงาน 20 ชั่วโมง')).toContain(
@@ -645,6 +706,64 @@ describe('svgSlides in Nepali and Thai (GD38)', () => {
     )
     // A line in the brand's script alone is written as before, with no run of its own.
     expect(svgFor('Work less')).not.toContain('<tspan')
+  })
+
+  it('moves the letter after a spacing vowel sign on by its width, which resvg drops (GD38)', () => {
+    // resvg 2.6.2 draws the letter after ा, ी, ो… over the sign: नेपाल came out as नेपल.
+    const nepali = svgFor('नेपाल जीवन')
+    const shifts = [...nepali.matchAll(/<tspan dx="([\d.]+)">([^<]+)<\/tspan>/g)]
+    expect(shifts.map((m) => m[2]).join('|')).toBe('ल|व')
+    // The width of the sign at the line's size and weight: ा and ी are as wide as each other here.
+    const widths = shifts.map((m) => Number(m[1]))
+    expect(widths[0] > 10 && Math.abs(widths[0] - widths[1]) < 0.5).toBe(true)
+    // ि is drawn before its letter and loses its width the same way: निरन्तर, not न्रिन्तर.
+    const before = [...svgFor('नि र').matchAll(/<tspan dx="([\d.]+)">([^<]+)<\/tspan>/g)]
+    expect(before.map((m) => m[2]).join('|')).toBe(' ')
+    // A run that ends on a sign moves the next run on too: the comma after हो in the brand font.
+    expect(svgFor('हो, गन्तव्य')).toMatch(/हो<\/tspan><tspan dx="[\d.]+">,<\/tspan> /)
+    // Thai has no spacing sign that loses its width: written as before.
+    expect(svgFor('ชีวิตการทำงาน')).not.toContain('dx=')
+  })
+
+  it('draws नेपाल as wide as its letters, as resvg 2.6.2 renders it (GD38)', () => {
+    // A render, not the emitted SVG: the heading's <text> as svg.ts writes it, and the same word
+    // without the shift, drawn in black on white, measured by where the ink ends.
+    const heading = svgFor('नेपाल').match(
+      /<text [^>]*>(?:(?!<\/text>).)*नेपा(?:(?!<\/text>).)*<\/text>/,
+    )
+    const element = (heading?.[0] ?? '').replace(/fill="[^"]*"/, 'fill="#000000"')
+    const px = Number(element.match(/font-size="([\d.]+)"/)?.[1])
+    const bold = element.includes('font-weight="700"')
+    const file = SCRIPT_FONTS.devanagari[bold ? 'bold' : 'regular']
+    const raw = element.replace(/<tspan dx="[\d.]+">([^<]*)<\/tspan>/g, '$1')
+    const ink = (text: string) => {
+      const { width, height } = CANVAS
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="${width}" height="${height}" fill="#FFFFFF"/>${text}</svg>`
+      const fontFiles = [SCRIPT_FONTS.devanagari.regular, SCRIPT_FONTS.devanagari.bold].map(
+        fontPath,
+      )
+      const { pixels } = new Resvg(svg, { font: { fontFiles, loadSystemFonts: false } }).render()
+      let [left, right]: number[] = [width, -1]
+      for (let i = 0; i < pixels.length; i += 4) {
+        if (pixels[i] > 128) continue
+        const x = (i / 4) % width
+        left = Math.min(left, x)
+        right = Math.max(right, x)
+      }
+      return right - left
+    }
+    const letters = measure('नेपाल', file, px)
+    const sign = measure('ा', file, px)
+    expect(px > 0 && element.includes('dx=')).toBe(true)
+    // As svg.ts writes it, the word is as wide as its letters: the ा keeps its room.
+    expect(Math.abs(ink(element) - letters) < sign / 3).toBe(true)
+    // resvg 2.6.2 drops the sign's width, so the plain word comes out one sign short (नेपल). When
+    // this fails, the resvg in use draws the sign's width itself: take the dx shift out of svg.ts
+    // (devanagariXml), or every gap after a sign doubles.
+    expect(
+      Math.abs(ink(raw) - (letters - sign)) < sign / 3,
+      'resvg no longer drops a spacing sign’s width: remove the dx shift in svg.ts',
+    ).toBe(true)
   })
 })
 

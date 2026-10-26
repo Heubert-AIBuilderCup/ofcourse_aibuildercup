@@ -5,14 +5,17 @@ import { db } from '@/shared/lib/db'
 import { aiCall } from '@/shared/lib/db/schema'
 import type { CallLog } from './client'
 
+/** The rows a cap counts: real calls a model answered, not a cache hit or a busy model's refusal. */
+const counts = and(eq(aiCall.cached, false), eq(aiCall.refused, false))
+
 /** The ai_call table: one row per model attempt, and the daily caps counted from it. */
 export const dbCallLog: CallLog = {
-  /** Real calls only: a cache hit costs nothing, so it does not count against a cap. */
+  /** Answered calls only: a cache hit or a refused call (429) costs nothing, so it does not count. */
   async countToday(tier, day) {
     const [row] = await db
       .select({ n: count() })
       .from(aiCall)
-      .where(and(eq(aiCall.day, day), eq(aiCall.tier, tier), eq(aiCall.cached, false)))
+      .where(and(eq(aiCall.day, day), eq(aiCall.tier, tier), counts))
     return row?.n ?? 0
   },
 
@@ -29,13 +32,14 @@ export const dbCallLog: CallLog = {
       ms: row.ms,
       fallback: row.fallback,
       postId: row.postId,
+      refused: row.refused ?? false,
     })
   },
 
   /**
    * Counts and inserts under a transaction lock on the cap (tier or use cases) and day, so two
    * calls racing for the last slot are counted one after the other: the first inserts its pending
-   * row, the second sees it and is refused. Nothing is inserted for a refused call.
+   * row, the second sees it and is refused. Nothing is inserted for a call refused at the cap.
    */
   async reserve(row) {
     // The search cap counts its use cases, whatever their tier; every other cap counts its tier.
@@ -50,7 +54,7 @@ export const dbCallLog: CallLog = {
       const [used] = await tx
         .select({ n: count() })
         .from(aiCall)
-        .where(and(eq(aiCall.day, row.day), counted, eq(aiCall.cached, false)))
+        .where(and(eq(aiCall.day, row.day), counted, counts))
       if ((used?.n ?? 0) >= row.cap) return null
       const id = randomUUID()
       await tx.insert(aiCall).values({
@@ -70,7 +74,11 @@ export const dbCallLog: CallLog = {
     })
   },
 
+  /** A row settled as refused (a 429) stays in the log and frees its slot. */
   async settle(id, outcome) {
-    await db.update(aiCall).set({ ok: outcome.ok, ms: outcome.ms }).where(eq(aiCall.id, id))
+    await db
+      .update(aiCall)
+      .set({ ok: outcome.ok, ms: outcome.ms, refused: outcome.refused })
+      .where(eq(aiCall.id, id))
   },
 }

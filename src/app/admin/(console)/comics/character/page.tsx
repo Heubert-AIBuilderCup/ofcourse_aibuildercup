@@ -26,6 +26,7 @@ export default async function ComicCharacterPage() {
   return (
     <>
       <AdminPageHeader
+        kicker="Route comics"
         title="Comic character"
         lede="The one student every comic shows. Describe them, plan the views of a reference sheet, draw it, and approve it before any panel is drawn."
       />

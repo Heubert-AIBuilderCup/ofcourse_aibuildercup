@@ -29,26 +29,30 @@ describe('presets', () => {
     }
   })
 
-  test('ink reads on the background, and the highlighted words on the highlight, on every surface', () => {
+  test('ink and the muted foot row read on the background, and the highlighted words on the highlight, on every surface', () => {
     for (const preset of PRESETS) {
       for (const surface of SURFACES) {
         const t = presetThemes(preset)[surface]
         expect(contrastRatio(t.ink, t.bg)).toBeGreaterThanOrEqual(MIN_CONTRAST)
+        expect(contrastRatio(t.muted, t.bg)).toBeGreaterThanOrEqual(MIN_CONTRAST)
         const onHighlight = t.highlightInk ?? t.ink
         expect(contrastRatio(onHighlight, t.highlight)).toBeGreaterThanOrEqual(MIN_CONTRAST)
       }
     }
   })
 
-  test("Pop's deep blue highlights in yellow with ink on it; the other surfaces keep their ink", () => {
+  test("Pop's deep blue highlights in yellow with ink on it, Subdued's dark sepia in ochre with sepia ink; the other surfaces keep their ink", () => {
     const hex = (name: string) => GUIDELINE.palette.find((c) => c.name === name)?.hex
     const deep = presetThemes('pop').deep
     expect(deep.highlight).toBe(hex('yellow') as string)
     expect(deep.highlightInk).toBe(hex('ink') as string)
     expect(deep.ink).toBe(hex('white') as string)
+    const sepia = presetThemes('subdued').deep
+    expect(sepia.highlight).toBe(hex('ochre') as string)
+    expect(sepia.highlightInk).toBe(hex('sepia ink') as string)
+    expect(sepia.ink).toBe(hex('cream') as string)
     for (const preset of PRESETS) {
-      for (const surface of SURFACES) {
-        if (preset === 'pop' && surface === 'deep') continue
+      for (const surface of ['base', 'block'] as const) {
         expect(presetThemes(preset)[surface].highlightInk).toBeUndefined()
       }
     }

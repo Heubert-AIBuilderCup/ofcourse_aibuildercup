@@ -8,6 +8,7 @@ import { Button } from '@/shared/components/ui/button'
 import { Label } from '@/shared/components/ui/label'
 import { NativeSelect } from '@/shared/components/ui/native-select'
 import { Textarea } from '@/shared/components/ui/textarea'
+import { Spin, Working } from '@/shared/components/Working'
 import { canEdit, type Staff } from '@/shared/lib/auth/access'
 import type { ActionResult } from '@/shared/types/action-result'
 import type { DesignFields } from '../ai/design-language'
@@ -17,6 +18,7 @@ import type { Brand } from '../model/types'
 import type { PageStyle } from '../server/page-style'
 import { TEMPLATES } from '../templates'
 import { reasonText, tag } from './parts'
+import { usePress } from './usePostAction'
 
 const NETWORK_ERROR = 'Could not reach the server. Please try again.'
 
@@ -72,9 +74,13 @@ function PageStyleCard({ brand, style, editable, actions }: CardProps) {
   const [copyStyle, setCopyStyle] = useState(style?.copyStyle ?? '')
   const [templateId, setTemplateId] = useState(style?.closestTemplateId ?? TEMPLATES[0].id)
   const [error, setError] = useState<string | null>(null)
+  // Which step is running, so only "Describe the style" waits as "Running…" for its own press.
+  const { mark, pressed } = usePress<'upload' | 'describe' | 'save'>(pending)
+  const describing = pressed('describe')
 
   /** Runs one step; a refusal or a lost request shows beside the card. */
-  const step = (work: () => Promise<void>) => {
+  const step = (kind: 'upload' | 'describe' | 'save', work: () => Promise<void>) => {
+    mark(kind)
     setError(null)
     startTransition(async () => {
       try {
@@ -92,7 +98,7 @@ function PageStyleCard({ brand, style, editable, actions }: CardProps) {
       setError(PAGE_STYLE_ERRORS.images)
       return
     }
-    step(async () => {
+    step('upload', async () => {
       const stored: string[] = []
       for (const file of files) {
         const data = new FormData()
@@ -110,7 +116,7 @@ function PageStyleCard({ brand, style, editable, actions }: CardProps) {
   }
 
   const describe = () =>
-    step(async () => {
+    step('describe', async () => {
       const res = await actions.describePageStyleAction(brand.id, refs)
       if (!res.ok) {
         setError(res.error)
@@ -122,7 +128,7 @@ function PageStyleCard({ brand, style, editable, actions }: CardProps) {
     })
 
   const save = () =>
-    step(async () => {
+    step('save', async () => {
       const res = await actions.savePageStyleAction({
         brandId: brand.id,
         artStyle,
@@ -198,8 +204,10 @@ function PageStyleCard({ brand, style, editable, actions }: CardProps) {
             disabled={pending || refs.length === 0}
             onClick={describe}
           >
-            {pending ? 'Running…' : 'Describe the style'}
+            {describing && <Spin />}
+            {describing ? 'Running…' : 'Describe the style'}
           </Button>
+          {describing && <Working words="Describing the style…" />}
           <div className="flex flex-col gap-2">
             <Label htmlFor={`${ids}-art`}>Art style</Label>
             <Textarea

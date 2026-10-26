@@ -8,8 +8,10 @@ import {
   WORKFLOW_ERRORS,
 } from '../../lib/workflow'
 import type { Body, SendBackStep } from '../../model/artifacts'
+import { wordingCheck } from '../../model/current'
 import { type FeedSettings, FeedSettingsSchema, type SourcesAt } from '../../model/types'
 import { isLook } from '../../templates'
+import { sourceWordingRefusal } from '../../text/script'
 import { runStep } from '../steps'
 import { getAsset, type LoadedPost, publishApproval, putArtifact } from '../store'
 import { CHECK_STEP, checkNow, checkTarget } from './check'
@@ -71,11 +73,16 @@ export async function applySourceWording(
   claim: number,
 ): Promise<Saved> {
   return command('applySourceWording', 'sourceWording', actor, id, version, async (post) => {
-    const check = post.current.sourceCheck
+    // From Images the edit has moved the post back to its text, where the revision's check the
+    // editor read the claim from no longer counts; it is still the one she pressed (18 Oct).
+    const check = wordingCheck(post.pointers, post.current, post.records)
     if (!check) return fail(WORKFLOW_ERRORS.checkFirst)
     const target = check.body.claims[claim]
     const wording = target?.result === 'not_found' ? target.suggestion?.text : undefined
     if (!target || wording === undefined) return fail(WORKFLOW_ERRORS.movedOn)
+    // Only a sentence in the post's own script: a stale page may still offer it.
+    const refused = sourceWordingRefusal(wording, post.current.source?.body.language)
+    if (refused) return fail(refused)
     if (post.stage === 'structures') {
       return editPickedSlot(
         post,
@@ -86,10 +93,16 @@ export async function applySourceWording(
         `Source wording used on slide ${target.slide}`,
       )
     }
-    return reviseClaim(post, version, actor, claim, () => wording, 'source wording')
+    return reviseClaim(post, version, actor, claim, () => wording, 'source wording', 'wording')
   })
 }
 
+/**
+ * "Mark as editor's opinion" (criteria 42, 43): a sentence the check could not find counts as
+ * the editor's opinion, in the Text step's Checks before approval or at Settings once rendered.
+ * The checks after keep the mark on the same text (ai/source-check.ts), so a mark made on the
+ * Text step stands on the approved revision's check, and review is not blocked by it.
+ */
 export async function markOpinion(
   actor: Actor,
   id: string,
@@ -97,6 +110,9 @@ export async function markOpinion(
   claim: number,
 ): Promise<Saved> {
   return command('markOpinion', 'markOpinion', actor, id, version, async (post) => {
+    // The check that counts: the picked version's on the Text step, the revision's once rendered.
+    // The mark never moves the post back, so no check is left over from a move here; after one,
+    // the revision's check no longer counts, and the mark waits for the picked version's.
     const check = post.current.sourceCheck
     if (!check) return fail(WORKFLOW_ERRORS.checkFirst)
     if (check.body.claims[claim]?.result !== 'not_found') return fail(WORKFLOW_ERRORS.movedOn)

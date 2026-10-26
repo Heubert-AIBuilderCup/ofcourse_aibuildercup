@@ -103,8 +103,12 @@ export function expectCatalogueFigures(spec: RoadSpec): void {
 export function expectSound(road: Road, spec: RoadSpec): void {
   const ids = road.tiles.map((t) => t.id)
 
-  // Priya's shape: every tile's kind, state, place and label.
-  expect(road.tiles.map(geometry)).toEqual(PRIYA.tiles.map(geometry))
+  // Priya's shape: every tile's kind, state, place and label; the options beside its steps follow
+  // them, each beside a tile of that shape.
+  const shaped = road.tiles.filter((t) => !t.beside)
+  expect(shaped.map(geometry)).toEqual(PRIYA.tiles.map(geometry))
+  for (const t of road.tiles.slice(shaped.length))
+    expect(shaped.map((s) => s.id)).toContain(t.beside as string)
 
   // Every tile its own id, and no reference to any other.
   expect(new Set(ids).size).toBe(ids.length)
@@ -154,7 +158,15 @@ export function expectSound(road: Road, spec: RoadSpec): void {
   for (const [score] of JSON.stringify(road).matchAll(/IELTS \d\.\d/g)) {
     expect(score).toBe(`IELTS ${ielts}`)
   }
-  expect(JSON.stringify(spec)).not.toMatch(
-    /\b(biggest|highest|largest|lowest|cheapest|best|top|most|leading|number one|fastest)\b/i,
-  )
+  expect(rankingWords(JSON.stringify(spec))).toEqual([])
+}
+
+/** Units a course's copy quotes by name ("units such as … Leading Teams"): names, not ranks. */
+const QUOTED_UNITS = /\b(Leading Teams|Leading People)\b/gi
+const RANKING =
+  /\b(biggest|highest|largest|lowest|cheapest|best|top|most|leading|number one|fastest)\b/gi
+
+/** Every ranking word in the text, in any case, once the quoted unit names are taken out. */
+export function rankingWords(text: string): string[] {
+  return [...text.replace(QUOTED_UNITS, '').matchAll(RANKING)].map((m) => m[0])
 }

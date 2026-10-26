@@ -15,6 +15,7 @@ import { blogUrl } from '../lib/public-blog'
 import { postSources, sourceNames } from '../lib/sites'
 import { exportError, WORKFLOW_ERRORS } from '../lib/workflow'
 import { BODIES, type Body, emptyPointers } from '../model/artifacts'
+import { type ShareAccounts, shareChoice } from '../model/share'
 import type { Stage } from '../model/stages'
 import type { Brand, Structure, Template } from '../model/types'
 import { COMIC_TEMPLATE_ID, findSlideSpec, isLook, QUOTE_CARD } from '../templates'
@@ -657,6 +658,35 @@ export async function recordPostUrl(
         body: { exportId: exported.id, platform: 'instagram', url: parsed.data, by: stamp(actor) },
       })
       return { stage: 'exported', pointers: { ...post.pointers, socialLinkId } }
+    })
+  })
+}
+
+/**
+ * A live feed post shared to the pages' accounts (criteria 9–11): a new immutable record naming
+ * the accounts ticked and who shared, the stage and every pointer kept; sharing again is another
+ * record (server/store.ts listShares lists them). Nothing is posted to Instagram or LinkedIn
+ * (ADR-033). Only a feed post shares here: a blog has no social versions and a comic keeps its
+ * own Live step. Only the accounts listed (model/share.ts), at least one.
+ */
+export async function sharePost(
+  actor: Actor,
+  id: string,
+  version: number,
+  accounts: ShareAccounts,
+): Promise<Saved> {
+  return command('sharePost', 'share', actor, id, version, async (post) => {
+    if (post.kind !== 'feed' || isComic(post)) return fail(WORKFLOW_ERRORS.movedOn)
+    const choice = shareChoice(accounts)
+    if (!choice.ok) return fail(choice.error)
+    return save(post, version, actor, async (tx) => {
+      await putArtifact(tx, {
+        kind: 'share',
+        postId: id,
+        actorId: actor.id,
+        body: { ...choice.accounts, by: stamp(actor) },
+      })
+      return { stage: post.stage, pointers: post.pointers }
     })
   })
 }

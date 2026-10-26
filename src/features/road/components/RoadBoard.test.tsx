@@ -18,6 +18,9 @@ import type { ReactNode } from 'react'
 import { renderToString } from 'react-dom/server'
 import type { ActionResult } from '@/shared/types/action-result'
 import type { RoadmapChoices, StoredAnswers } from '@/shared/types/student'
+import type { Road } from '../model/road-data'
+import { MORPH_FADE_MS, MORPH_STAGGER_MS, type NextRoad, START_HOLD_MS } from '../model/start'
+import { SWAP_MS } from '../model/swap'
 import type { BoardRoadmap } from './RoadBoard'
 
 const BOARD = '/roadmaps/rm-1'
@@ -165,21 +168,22 @@ describe('the map', () => {
     expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?tile=data-science-uwa-perth`)
   })
 
-  it('at Whole road, a press first brings the camera to Level, then opens the tile', () => {
+  it('at Whole road, a press opens the tile in the card and the camera stays at Whole road', () => {
     query = 'zoom=whole'
     board()
-    expect(within(zoom()).getByRole('button', { name: 'Whole road' })).toHaveAttribute(
+    expect(within(zoom()).getByRole('button', { name: 'Journey' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
 
     press(tile('Adelaide, not visited. Open in the card'))
 
-    expect(within(zoom()).getByRole('button', { name: 'Level' })).toHaveAttribute(
+    expect(within(zoom()).getByRole('button', { name: 'Journey' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
     expect(screen.getByText('Not visited · City')).toBeInTheDocument()
+    expect(screen.queryByText('You’ve looked at 3 of 11 routes')).not.toBeInTheDocument()
   })
 
   /** The map's label for a tile: the plate whose name line is `name`. */
@@ -282,22 +286,22 @@ describe('zoom', () => {
   it('is a group with the current stop pressed, and says each change in the live region', () => {
     board()
     const group = zoom()
-    expect(within(group).getByRole('button', { name: 'Level' })).toHaveAttribute(
+    expect(within(group).getByRole('button', { name: 'Stage' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
 
-    press(within(group).getByRole('button', { name: 'Tile' }))
+    press(within(group).getByRole('button', { name: 'Step' }))
 
-    expect(within(group).getByRole('button', { name: 'Tile' })).toHaveAttribute(
+    expect(within(group).getByRole('button', { name: 'Step' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
-    expect(within(group).getByRole('button', { name: 'Level' })).toHaveAttribute(
+    expect(within(group).getByRole('button', { name: 'Stage' })).toHaveAttribute(
       'aria-pressed',
       'false',
     )
-    expect(screen.getByText('Zoom: Tile')).toHaveAttribute('aria-live', 'polite')
+    expect(screen.getByText('Zoom: Step')).toHaveAttribute('aria-live', 'polite')
     expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?zoom=tile`)
   })
 
@@ -305,7 +309,7 @@ describe('zoom', () => {
     board()
     const out = within(zoom()).getByRole('button', { name: 'Zoom out' })
     press(out)
-    expect(screen.getByText('Zoom: Whole road')).toBeInTheDocument()
+    expect(screen.getByText('Zoom: Journey')).toBeInTheDocument()
     expect(out).toHaveAttribute('aria-disabled', 'true')
   })
 })
@@ -323,7 +327,7 @@ describe('the card column', () => {
     segments = ['learn', 'masters-years']
     expect(firstRender()).toContain('The Master’s years, in 3 minutes')
     segments = ['route', 'student-visa-500']
-    expect(firstRender()).toContain('Route detail comes in the next round.')
+    expect(firstRender()).toContain('The route ahead')
   })
 
   it('shows the lesson its route names, and closes it when the route leaves it (Back)', () => {
@@ -342,13 +346,33 @@ describe('the card column', () => {
     expect(screen.queryByText('The Master’s years, in 3 minutes')).not.toBeInTheDocument()
   })
 
-  it('shows a route step’s placeholder with a way back to the road', () => {
+  it('shows a route step’s detail: when, its guide, the route ahead with it marked, and a way back', () => {
     segments = ['route', 'student-visa-500']
     board()
-    expect(screen.getByText('Route detail comes in the next round.')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Back to your roadmap' })).toHaveAttribute(
-      'href',
-      `${BOARD}`,
+    const detail = screen.getByRole('region', { name: 'Student visa · 500' })
+    expect(within(detail).queryAllByText('Late 2026').length).toBeGreaterThan(0)
+    const route = within(detail).getByRole('list', { name: 'The route ahead' })
+    const steps = within(route).getAllByRole('listitem')
+    expect(steps.map((li) => li.getAttribute('aria-current'))).toEqual([
+      'step',
+      null,
+      null,
+      null,
+      null,
+      null,
+    ])
+    expect(
+      within(route)
+        .getAllByRole('link')
+        .map((a) => a.getAttribute('href')),
+    ).toEqual([
+      `${BOARD}/route/masters-cyber-security-ecu`,
+      `${BOARD}/route/graduate-visa-485`,
+      `${BOARD}/route/state-nomination-190`,
+      `${BOARD}/route/permanent-residency`,
+    ])
+    expect(screen.getByRole('link', { name: 'Back to your roadmap' }).getAttribute('href')).toBe(
+      BOARD,
     )
   })
 })
@@ -359,6 +383,19 @@ const ADD_TOAST =
 const READ_TOAST = 'Lesson read. The Master’s years now show as looked at.'
 
 describe('the card’s actions', () => {
+  it('draws no course action with nothing behind it: no "What it asks for", no "More"', () => {
+    for (const tileId of ['data-science-uwa-perth', 'information-systems-curtin-perth']) {
+      query = `tile=${tileId}`
+      const view = board()
+      const dead = screen
+        .queryAllByRole('button')
+        .map((b) => b.textContent)
+        .filter((text) => text === 'What it asks for' || text === 'More')
+      expect(`${tileId}: ${dead.join(', ')}`).toBe(`${tileId}: `)
+      view.unmount()
+    }
+  })
+
   it('swaps the alternative onto her road, says so with Undo, and Undo puts it back', () => {
     reduceMotion()
     query = 'tile=data-science-uwa-perth'
@@ -374,6 +411,19 @@ describe('the card’s actions', () => {
     press(button('Undo'))
     expect(tile('Cyber Security, you are here. Open in the card')).toBeInTheDocument()
     expect(screen.queryByText(SWAP_TOAST)).not.toBeInTheDocument()
+  })
+
+  it('draws no Swap that would do nothing: another city, or a course put on from the stack, with no new roadmap to start', () => {
+    query = 'tile=adelaide'
+    board()
+    expect(screen.queryAllByRole('button', { name: 'Swap onto your roadmap' }).length).toBe(0)
+    expect(screen.queryAllByRole('button', { name: 'Cancel' }).length).toBe(1)
+
+    cleanup()
+    query = 'tile=information-systems-curtin-perth'
+    board(null, { choices: { added: true } })
+    expect(screen.getByText('Added · from your stack · Course')).toBeInTheDocument()
+    expect(screen.queryAllByRole('button', { name: 'Swap onto your roadmap' }).length).toBe(0)
   })
 
   it('moves the two tiles on the arc with the tag, then settles; under reduced motion it jumps', () => {
@@ -394,17 +444,18 @@ describe('the card’s actions', () => {
     expect(screen.queryByText('Swapping onto your roadmap')).not.toBeInTheDocument()
   })
 
-  it('looks ahead at the next step, and Back to Cyber Security returns to where she is', () => {
+  it('looks ahead at the next step, and Back to where you are returns to where she is', () => {
     board()
     press(button(/^Look ahead: Student visa · 500/))
-    expect(screen.getByText('Look ahead · the duck stays · Route step')).toBeInTheDocument()
+    expect(screen.getByText('Look ahead · Route step')).toBeInTheDocument()
     expect(heading()).toHaveTextContent('Student visa · 500')
     expect(screen.getByRole('link', { name: 'Open route detail at this step' })).toHaveAttribute(
       'href',
       `${BOARD}/route/student-visa-500`,
     )
 
-    press(button('Back to Cyber Security'))
+    // Its place is part of its name, heard with it.
+    press(button('Back to where you are, Cyber Security'))
     expect(screen.getByText('You are here · Course')).toBeInTheDocument()
   })
 
@@ -415,6 +466,46 @@ describe('the card’s actions', () => {
       `${BOARD}/route/student-visa-500`,
     )
   })
+
+  // Roads built from her answers: every route step's look card links to its route detail, and that
+  // route draws the step's detail in the column.
+  for (const id of ['adelaide-it', 'adelaide-unisa-mph-stay']) {
+    it(`links each route step on the ${id} road to its route detail, which draws it`, async () => {
+      const { buildRoad, specById } = await import('@/features/roads')
+      const { buildScene, sessionFrom } = await import('../model/scene')
+      const built = buildRoad(specById(id)!, { answers: {} })
+      const steps = buildScene(built, sessionFrom({}, false)).tiles.filter((t) => t.routeId)
+      expect(steps.length).toBeGreaterThan(0)
+      const drawn = (children: ReactNode = null) =>
+        render(
+          <Providers initialChoice="light" systemTheme={null}>
+            <RoadBoard road={built} {...props}>
+              {children}
+            </RoadBoard>
+          </Providers>,
+        )
+      for (const step of steps) {
+        query = `tile=${step.id}`
+        drawn()
+        expect(
+          screen.getByRole('link', { name: 'Open route detail at this step' }).getAttribute('href'),
+        ).toBe(`${BOARD}/route/${step.routeId}`)
+        cleanup()
+
+        query = ''
+        segments = ['route', step.routeId!]
+        drawn()
+        expect(
+          screen.getByRole('complementary', { name: 'Route detail' }).getAttribute('aria-label'),
+        ).toBe('Route detail')
+        expect(screen.getByRole('region', { name: step.name }).getAttribute('aria-label')).toBe(
+          step.name,
+        )
+        cleanup()
+        segments = []
+      }
+    })
+  }
 
   it('links a step’s lesson to /road/learn/masters-years', () => {
     query = 'tile=masters-cyber-security-ecu'
@@ -504,6 +595,25 @@ describe('the stack', () => {
     expect(screen.queryByText('Information Systems')).not.toBeInTheDocument()
   })
 
+  it('draws no button with nothing behind it: "Put on my board" only on a row with a tile, no "More"', () => {
+    query = 'tile=more-courses-perth&open=list'
+    board()
+    const rows = screen.getAllByRole('listitem').map((li) => {
+      const name = li.querySelector('.font-heading')?.textContent
+      const buttons = within(li)
+        .queryAllByRole('button')
+        .map((b) => b.textContent)
+      return `${name}: ${buttons.join(', ')}`
+    })
+    expect(rows).toEqual([
+      'Information Systems: Put on my board',
+      'Business Analytics: ',
+      'Computer Science: ',
+      'Accounting: ',
+      'Master of Nursing: ',
+    ])
+  })
+
   it('puts a course on her board, says so with Undo, and Undo takes it off', () => {
     query = 'tile=more-courses-perth&open=list'
     board()
@@ -558,7 +668,7 @@ describe('the lesson', () => {
 
   it('a zoom over it leaves the lesson for /road at that stop, never writing onto the lesson’s path', () => {
     lesson()
-    press(within(zoom()).getByRole('button', { name: 'Tile' }))
+    press(within(zoom()).getByRole('button', { name: 'Step' }))
     expect(router.replace).toHaveBeenCalledWith(`${BOARD}?zoom=tile`)
     expect(replace).not.toHaveBeenCalled()
   })
@@ -572,14 +682,14 @@ describe('the lesson', () => {
 })
 
 describe('Whole road', () => {
-  it('shows the overview, and Back to the walk returns to Level', () => {
+  it('shows the overview, and Close overview returns to Level', () => {
     query = 'zoom=whole'
     board()
     expect(
       screen.getByRole('heading', { name: 'You’ve looked at 3 of 11 routes' }),
     ).toBeInTheDocument()
-    press(button('Back to the walk'))
-    expect(within(zoom()).getByRole('button', { name: 'Level' })).toHaveAttribute(
+    press(button('Close overview'))
+    expect(within(zoom()).getByRole('button', { name: 'Stage' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -618,16 +728,113 @@ describe('the map key', () => {
   })
 })
 
-const LATER_TOAST = 'Ask and Compare come in a later round.'
+/** The controls bar's controls, links and buttons, by their words, in order. */
+const controlNames = () =>
+  [...screen.getByRole('navigation', { name: 'Controls' }).querySelectorAll('a, button')].map((c) =>
+    c.textContent?.trim(),
+  )
 
-describe('Ask and Compare', () => {
-  it('say in a toast that they come later', () => {
+describe('Feed', () => {
+  it('links to the feed from the header and the controls bar, where Ask and Compare were', () => {
     board()
     const header = screen.getByRole('banner')
-    press(within(header).getByRole('button', { name: 'Ask · 1' }))
-    expect(screen.getByText(LATER_TOAST)).toBeInTheDocument()
-    press(within(header).getByRole('button', { name: 'Compare' }))
-    expect(screen.getByText(LATER_TOAST)).toBeInTheDocument()
+    const controls = screen.getByRole('navigation', { name: 'Controls' })
+    for (const place of [header, controls]) {
+      expect(within(place).getByRole('link', { name: 'Feed' }).getAttribute('href')).toBe('/feed')
+      expect(within(place).queryByRole('button', { name: 'Ask · 1' })).toBeNull()
+      expect(within(place).queryByRole('button', { name: 'Compare' })).toBeNull()
+    }
+    expect(controlNames()).toEqual(['Feed', 'Your answers'])
+  })
+})
+
+describe('Find courses', () => {
+  const SEED = 'I like puzzles. I’m drawn to data science.'
+  const finder = {
+    seed: SEED,
+    search: mock(async () => ({ ok: false as const, error: 'unused' })),
+    why: mock(async () => ({ ok: false as const, error: 'unused' })),
+  }
+  const withFinder = () =>
+    render(
+      <Providers initialChoice="light" systemTheme={null}>
+        <RoadBoard road={road} roadmap={ROADMAP} {...actions} finder={finder}>
+          {null}
+        </RoadBoard>
+      </Providers>,
+    )
+  const LIST = 'tile=more-courses-perth&open=list'
+  const FIND = 'Find more courses by your interests'
+  const controls = () => screen.getByRole('navigation', { name: 'Controls' })
+  const box = () =>
+    screen.queryByRole('textbox', { name: 'What you enjoy and what you’re good at' })
+  const panel = () => screen.getByRole('complementary', { name: 'Find courses' })
+  const closeFind = () => press(within(panel()).getByRole('button', { name: 'Close' }))
+
+  // The board loads the panel with next/dynamic: load it once here, so in every test below it is
+  // drawn as soon as Find opens, as it is in the browser once its chunk has arrived.
+  beforeAll(async () => {
+    query = LIST
+    withFinder()
+    press(button(FIND))
+    await screen.findByRole('textbox', { name: 'What you enjoy and what you’re good at' })
+    cleanup()
+  })
+
+  it('offers nothing to find without the finder (criterion 1)', () => {
+    query = LIST
+    board()
+    for (const name of ['Find courses', 'Find', FIND])
+      expect(screen.queryAllByRole('button', { name }).length).toBe(0)
+    expect(controlNames()).toEqual(['Feed', 'Your answers'])
+  })
+
+  it('is offered only in the course stack’s list, never over the board', () => {
+    withFinder()
+    for (const name of ['Find courses', 'Find', FIND])
+      expect(screen.queryAllByRole('button', { name }).length).toBe(0)
+    expect(controlNames()).toEqual(['Feed', 'Your answers'])
+    cleanup()
+    query = LIST
+    withFinder()
+    expect(screen.queryAllByRole('button', { name: FIND }).length).toBe(1)
+  })
+
+  it('opens from the stack’s list with her words in the box and focus in it (criterion 2)', () => {
+    query = LIST
+    withFinder()
+    press(button(FIND))
+    expect((box() as HTMLTextAreaElement | null)?.value).toBe(SEED)
+    expect(document.activeElement === box()).toBe(true)
+    expect(finder.search).not.toHaveBeenCalled()
+  })
+
+  it('closes when Your answers opens', () => {
+    query = LIST
+    withFinder()
+    press(button(FIND))
+    press(within(controls()).getByRole('button', { name: 'Your answers' }))
+    expect(box() === null).toBe(true)
+    expect(screen.queryByRole('complementary', { name: 'Your answers' }) === null).toBe(false)
+  })
+
+  it('closed, gives the column back to the list, focus on its Find', () => {
+    query = LIST
+    withFinder()
+    press(button(FIND))
+    closeFind()
+    expect(box() === null).toBe(true)
+    expect(screen.queryByRole('complementary', { name: 'Stack' }) === null).toBe(false)
+    expect(document.activeElement === button(FIND)).toBe(true)
+  })
+
+  it('closes when a tile on the map is pressed, the column showing that tile’s card', () => {
+    query = LIST
+    withFinder()
+    press(button(FIND))
+    press(tile('Data Science, not visited. Open in the card'))
+    expect(box() === null).toBe(true)
+    expect(screen.queryByText('Not visited · Course') === null).toBe(false)
   })
 })
 
@@ -703,21 +910,53 @@ describe('toasts', () => {
 })
 
 describe('the first arrival', () => {
-  it('on her first visit, shows the duck at Australia with the hint on Perth; any press ends it', () => {
+  it('on her first visit, shows the duck at Australia with the hint on Perth; any press ends it', async () => {
     board(null, { firstVisit: true })
     expect(screen.getByText('Tap Perth to see its courses.')).toBeInTheDocument()
     expect(tile('Australia, you are here. Open in the card')).toBeInTheDocument()
 
     press(tile('Perth, not visited, next. Open in the card'))
     expect(screen.queryByText('Tap Perth to see its courses.')).not.toBeInTheDocument()
-    // Ending the arrival is not a choice: nothing is saved.
-    expect(saveChoicesAction).not.toHaveBeenCalled()
+    // Ending the arrival saves her spot, once: her country.
+    await settle()
+    expect(saveChoicesAction.mock.calls).toEqual([['rm-1', { ...NOTHING_CHOSEN, country: true }]])
+    press(tile('Perth, not visited, next. Open in the card'))
+    await settle()
+    expect(saveChoicesAction.mock.calls.length).toBe(1)
   })
 
-  it('a zoom press ends the hint too', () => {
+  it('her next visit opens where the arrival stood her: her country', async () => {
     board(null, { firstVisit: true })
-    press(within(zoom()).getByRole('button', { name: 'Tile' }))
+    press(tile('Perth, not visited, next. Open in the card'))
+    await settle()
+    const [, saved] = saveChoicesAction.mock.calls[0] as [string, RoadmapChoices]
+    cleanup()
+    board(null, { choices: saved, firstVisit: false })
+    expect(
+      screen.queryAllByRole('button', { name: 'Australia, you are here. Open in the card' }).length,
+    ).toBe(1)
+    expect(screen.queryAllByText('Tap Perth to see its courses.').length).toBe(0)
+  })
+
+  it('a press on her city opens its card and leaves her where the arrival stood her', () => {
+    board(null, { firstVisit: true })
+    press(tile('Perth, not visited, next. Open in the card'))
+    // The arrival ends, but the duck stays at Australia: no jump to her course.
+    expect(
+      screen.queryAllByRole('button', { name: 'Australia, you are here. Open in the card' }).length,
+    ).toBe(1)
+    expect(screen.queryAllByRole('button', { name: /^Cyber Security, you are here/ }).length).toBe(
+      0,
+    )
+    expect(heading().textContent).toBe('Perth')
+  })
+
+  it('a zoom press ends the hint too, saving her spot as a tile press does', async () => {
+    board(null, { firstVisit: true })
+    press(within(zoom()).getByRole('button', { name: 'Step' }))
     expect(screen.queryByText('Tap Perth to see its courses.')).not.toBeInTheDocument()
+    await settle()
+    expect(saveChoicesAction.mock.calls).toEqual([['rm-1', { ...NOTHING_CHOSEN, country: true }]])
   })
 
   it('Go to Perth walks her to Perth', () => {
@@ -745,6 +984,22 @@ describe('an empty road', () => {
     expect(button('Pick a destination')).toBeInTheDocument()
     expect(tile('Point A, you are here. Open your answers')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Zoom' })).not.toBeInTheDocument()
+  })
+
+  it('Pick a destination opens her answers at the destination question', () => {
+    render(
+      <Providers initialChoice="light" systemTheme={null}>
+        <RoadBoard road={{ ...road, tiles: [] }} {...props}>
+          {null}
+        </RoadBoard>
+      </Providers>,
+    )
+    press(button('Pick a destination'))
+    expect(push).toHaveBeenLastCalledWith(null, '', `${BOARD}?open=answers`)
+    const answers = screen.getByRole('complementary', { name: 'Your answers' })
+    const destination = within(answers).getByRole('button', { name: /^Destination/ })
+    expect(destination.getAttribute('aria-expanded')).toBe('true')
+    expect(document.activeElement === destination).toBe(true)
   })
 })
 
@@ -804,9 +1059,7 @@ describe('on a phone', () => {
     expect(within(here).getByRole('heading', { level: 1 })).toHaveTextContent('Cyber Security')
     expect(within(here).getByText('You are here · Course')).toBeInTheDocument()
     expect(within(here).getByText('Also in Perth')).toBeInTheDocument()
-    const controls = screen.getByRole('navigation', { name: 'Controls' })
-    for (const name of ['Ask · 1', 'Weights', 'Compare'])
-      expect(within(controls).getByRole('button', { name })).toBeInTheDocument()
+    expect(controlNames()).toEqual(['Feed', 'Your answers'])
   })
 
   it('asks why her tile is on her roadmap from the card where she is (criterion 15)', async () => {
@@ -834,7 +1087,7 @@ describe('on a phone', () => {
     board()
     press(button('Student visa · 500, next. Open'))
     const sheet = screen.getByRole('dialog', { name: 'Student visa · 500' })
-    expect(within(sheet).getByText('Look ahead · the duck stays · Route step')).toBeInTheDocument()
+    expect(within(sheet).getByText('Look ahead · Route step')).toBeInTheDocument()
     expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?tile=student-visa-500`)
 
     act(() => {
@@ -872,6 +1125,12 @@ describe('on a phone', () => {
 
     press(within(peek).getByRole('button', { name: 'Cancel' }))
     expect(screen.getByRole('region', { name: 'Where you are' })).toBeInTheDocument()
+
+    // Looking ahead, its way back names her place.
+    press(within(peek).getByRole('button', { name: 'Look ahead: Student visa · 500' }))
+    peek = screen.getByRole('region', { name: 'The tile you pressed' })
+    press(within(peek).getByRole('button', { name: 'Back to where you are, Cyber Security' }))
+    expect(screen.getByRole('region', { name: 'Where you are' })).toBeInTheDocument()
   })
 
   it('a deep link to a tile scrolls to its row and opens its sheet', () => {
@@ -905,13 +1164,6 @@ describe('on a phone', () => {
     })
     expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?view=map`)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  })
-
-  it('says Ask and Compare come later from the controls bar', () => {
-    board()
-    const controls = screen.getByRole('navigation', { name: 'Controls' })
-    press(within(controls).getByRole('button', { name: 'Ask · 1' }))
-    expect(screen.getByText(LATER_TOAST)).toBeInTheDocument()
   })
 })
 
@@ -1149,8 +1401,8 @@ describe('Your answers', () => {
   it('a save that changes nothing on the road says so, without Undo', async () => {
     query = 'open=answers'
     board()
-    press(row('How you like to learn'))
-    pick('How you like to learn', /^Mostly classroom and research/)
+    press(row('Anyone coming with you'))
+    pick('Anyone coming with you?', /^Partner and children/)
     press(button('Save changes'))
     await settle()
     expect(screen.getByText('Saved. Nothing on your roadmap changes.')).toBeInTheDocument()
@@ -1201,13 +1453,13 @@ describe('a new roadmap’s draft', () => {
   )
   beforeEach(() => createRoadmapAction.mockClear())
 
-  const draftBoard = () =>
+  const draftBoard = (pinned?: { courseId: string; cityId: string }) =>
     render(
       <Providers initialChoice="light" systemTheme={null}>
         <RoadBoard
           road={road}
           roadmap={ROADMAP}
-          draft={{ from: SOURCE, answers: ROADMAP.answers }}
+          draft={{ from: SOURCE, answers: ROADMAP.answers, ...(pinned && { pinned }) }}
           createRoadmapAction={createRoadmapAction}
         >
           {null}
@@ -1236,6 +1488,11 @@ describe('a new roadmap’s draft', () => {
     expect(push).not.toHaveBeenCalled()
   })
 
+  it('keeps Feed, Your answers (to open the draft again once closed) and Weights in the controls bar', () => {
+    draftBoard()
+    expect(controlNames()).toEqual(['Feed', 'Your answers'])
+  })
+
   it('while drafting, a pressed tile waits and says why', () => {
     draftBoard()
     press(tile('Data Science, not visited. Close your answers to open it'))
@@ -1252,7 +1509,7 @@ describe('a new roadmap’s draft', () => {
   it('a zoom keeps the draft’s source in the URL', () => {
     query = 'from=rm-1'
     draftBoard()
-    press(within(zoom()).getByRole('button', { name: 'Tile' }))
+    press(within(zoom()).getByRole('button', { name: 'Step' }))
     expect(replace).toHaveBeenLastCalledWith(null, '', `${BOARD}?from=rm-1&zoom=tile`)
   })
 
@@ -1274,6 +1531,20 @@ describe('a new roadmap’s draft', () => {
     expect(router.replace).toHaveBeenCalledWith('/roadmaps/rm-new')
   })
 
+  it('Create on a draft pinned to a course makes the roadmap with its pin', () => {
+    jest.useFakeTimers()
+    reduceMotion()
+    const pinned = { courseId: 'uts-cyber', cityId: 'sydney' }
+    draftBoard(pinned)
+    pickAmount()
+    press(button('Create roadmap'))
+    expect(createRoadmapAction).toHaveBeenCalledWith({
+      fromId: 'rm-1',
+      answers: { amount: { value: 30, state: 'stated' } },
+      pinned,
+    })
+  })
+
   it('a refused Create stops the loader and lands nowhere', async () => {
     jest.useFakeTimers()
     reduceMotion()
@@ -1291,13 +1562,28 @@ describe('a new roadmap’s draft', () => {
     expect(router.replace).not.toHaveBeenCalled()
   })
 
-  it('Cancel, after Discard, goes back to her roadmaps; nothing is made', () => {
+  it('Cancel, after Discard, only closes the panel: she stays on the draft, nothing is made', () => {
     draftBoard()
     pickAmount()
     press(button('Cancel'))
     press(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Discard' }))
-    expect(router.replace).toHaveBeenCalledWith('/roadmaps')
+    expect(screen.queryAllByRole('complementary', { name: 'Your answers' }).length).toBe(0)
+    expect(router.replace).not.toHaveBeenCalled()
+    expect(router.push).not.toHaveBeenCalled()
     expect(createRoadmapAction).not.toHaveBeenCalled()
+  })
+
+  it('Close leaves at once with nothing changed, and Your answers opens the draft again', () => {
+    draftBoard()
+    press(
+      within(screen.getByRole('complementary', { name: 'Your answers' })).getByRole('button', {
+        name: 'Close',
+      }),
+    )
+    expect(screen.queryAllByRole('complementary', { name: 'Your answers' }).length).toBe(0)
+    expect(router.replace).not.toHaveBeenCalled()
+    press(screen.getAllByRole('button', { name: 'Your answers' })[0])
+    expect(screen.queryAllByRole('button', { name: 'Create roadmap' }).length).toBe(1)
   })
 })
 
@@ -1356,5 +1642,305 @@ describe('a new roadmap from scratch', () => {
         jest.advanceTimersByTime(700)
       })
     expect(router.replace).toHaveBeenCalledWith('/roadmaps/rm-new')
+  })
+})
+
+describe('why this road', () => {
+  const MATCH = {
+    title: 'Closest road to your answers',
+    chips: ["Level: this road is a Diploma (you said Bachelor's)"],
+  }
+  const withMatch = (match: typeof MATCH | null) =>
+    render(
+      <Providers initialChoice="light" systemTheme={null}>
+        <RoadBoard road={road} roadmap={ROADMAP} {...actions} match={match}>
+          {null}
+        </RoadBoard>
+      </Providers>,
+    )
+  const why = () => screen.queryByRole('button', { name: 'Why this road?' })
+  const panel = () => screen.queryByRole('note', { name: 'Why this road' })
+
+  it('folds the closest-road line into a map button, opened and closed by it', () => {
+    withMatch(MATCH)
+    expect(why()?.getAttribute('aria-expanded')).toBe('false')
+    expect(panel() === null).toBe(true)
+    expect(screen.queryByText(MATCH.chips[0]) === null).toBe(true)
+
+    press(why()!)
+    expect(why()?.getAttribute('aria-expanded')).toBe('true')
+    expect(within(panel()!).queryByText(MATCH.title) !== null).toBe(true)
+    expect(within(panel()!).queryByText(MATCH.chips[0]) !== null).toBe(true)
+
+    press(why()!)
+    expect(panel() === null).toBe(true)
+  })
+
+  it('names the panel it opens', () => {
+    withMatch(MATCH)
+    press(why()!)
+    const controls = why()?.getAttribute('aria-controls') ?? ''
+    expect(controls.length > 0).toBe(true)
+    expect(panel()?.id).toBe(controls)
+  })
+
+  it('shares the map’s corner with the key: opening one closes the other', () => {
+    withMatch(MATCH)
+    const shown = () =>
+      screen
+        .queryAllByRole('note')
+        .map((n) => n.getAttribute('aria-label'))
+        .filter((name) => name === 'Why this road' || name === 'How to read the map')
+
+    press(button('Map key'))
+    expect(shown()).toEqual(['How to read the map'])
+    press(why()!)
+    expect(shown()).toEqual(['Why this road'])
+    expect(button('Map key').getAttribute('aria-pressed')).toBe('false')
+
+    press(button('Map key'))
+    expect(shown()).toEqual(['How to read the map'])
+    expect(why()?.getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('offers no button when the road is exactly hers', () => {
+    withMatch(null)
+    expect(why() === null).toBe(true)
+  })
+})
+
+describe('a course she could switch to (compare on)', () => {
+  const DS = 'data-science-uwa-perth'
+  const START = 'Start a new roadmap from it'
+  const STUDY = 'masters-cyber-security-ecu'
+  /** A course beside the study step, as the road built from her answers draws one. */
+  const OPTION = 'other-unisa-cyber'
+  const withOption: Road = {
+    ...road,
+    tiles: [
+      ...road.tiles,
+      {
+        id: OPTION,
+        kind: 'course',
+        state: 'alt',
+        gx: 12,
+        gy: -2.4,
+        name: 'Cyber Security (UniSA)',
+        beside: STUDY,
+        lab: { whole: 'none', level: 'right', tile: 'right' },
+      },
+    ],
+    cards: {
+      ...road.cards,
+      [OPTION]: {
+        kicker: 'Not visited · Other master’s',
+        sub: 'UniSA · Adelaide',
+        because: 'Another master’s in cyber security, not on your board yet',
+        primary: START,
+      },
+    },
+  }
+  /** The road a new roadmap around it would draw: the visa, the study step and the 190 re-dated. */
+  const NEXT: NextRoad = {
+    ahead: [
+      {
+        id: 'student-visa-500',
+        name: 'Student visa · 500',
+        short: 'Student visa',
+        when: 'Late 2027',
+        kind: 'step',
+      },
+      {
+        id: STUDY,
+        name: 'Master’s · Data Science',
+        short: 'Master’s',
+        when: 'Feb 2028 – Dec 2029',
+        kind: 'slab',
+      },
+      {
+        id: 'graduate-visa-485',
+        name: 'Graduate visa · 485',
+        short: '485',
+        when: 'From 2029',
+        kind: 'slab',
+      },
+      {
+        id: 'state-nomination-190',
+        name: '190 · state nomination (SA)',
+        short: '190',
+        when: '2032',
+        kind: 'step',
+      },
+    ],
+    options: [],
+  }
+  /** Three beats: the visa, the study step, the 190 (the 485 reads the same). */
+  const MORPH = 2 * MORPH_STAGGER_MS + MORPH_FADE_MS
+  const withCompare = (pin: string | null, next?: NextRoad, on: Road = road, tileId = DS) =>
+    render(
+      <Providers initialChoice="light" systemTheme={null}>
+        <RoadBoard
+          road={on}
+          roadmap={ROADMAP}
+          {...actions}
+          details={{ [tileId]: { compare: { rows: [], pin, roadmapId: ROADMAP.id, next } } }}
+        >
+          {null}
+        </RoadBoard>
+      </Providers>,
+    )
+  const standsOn = (name: string) =>
+    screen.queryAllByRole('button', { name: `${name}, you are here. Open in the card` }).length
+  const named = (name: string) =>
+    screen.queryAllByRole('button', { name: new RegExp(`^${name.replace(/[()]/g, '\\$&')},`) })
+      .length
+  const swapping = () => screen.queryAllByText('Swapping onto your roadmap').length
+  const advance = (ms: number) =>
+    act(() => {
+      jest.advanceTimersByTime(ms)
+    })
+
+  it('offers a new roadmap built around it in place of a swap, once', () => {
+    query = `tile=${DS}`
+    withCompare('uwa-data')
+    expect(screen.queryAllByRole('button', { name: START }).length).toBe(1)
+    expect(screen.queryAllByRole('link', { name: START }).length).toBe(0)
+    expect(screen.queryAllByRole('button', { name: 'Swap onto your roadmap' }).length).toBe(0)
+  })
+
+  it('turns the road ahead into the new roadmap’s, then swaps the courses, then opens its draft', () => {
+    jest.useFakeTimers()
+    query = `tile=${DS}`
+    withCompare('uwa-data', NEXT)
+    press(button(START))
+    expect(screen.queryAllByText('Drawing a new roadmap around Data Science…').length).toBe(1)
+
+    // The road ahead turns first, the courses where they were.
+    advance(MORPH - 1)
+    expect(standsOn('Cyber Security')).toBe(1)
+    expect(swapping()).toBe(0)
+    advance(1)
+    for (const step of NEXT.ahead) expect([step.name, named(step.name)]).toEqual([step.name, 1])
+    expect(named('Master’s · Cyber Security')).toBe(0)
+
+    // Then the two courses swap, as the last beat.
+    expect(standsOn('Data Science')).toBe(1)
+    expect(swapping()).toBe(1)
+    expect(router.push).not.toHaveBeenCalled()
+
+    // A short hold once it has landed, then the draft.
+    advance(SWAP_MS + START_HOLD_MS - 1)
+    expect(router.push).not.toHaveBeenCalled()
+    advance(1)
+    expect(router.push).toHaveBeenCalledWith('/roadmaps/new?from=rm-1&pin=uwa-data')
+    expect(saveChoicesAction).not.toHaveBeenCalled()
+  })
+
+  it('plays the same for a course beside the study step', () => {
+    jest.useFakeTimers()
+    query = `tile=${OPTION}`
+    withCompare('unisa-cyber', NEXT, withOption, OPTION)
+    press(button(START))
+    advance(MORPH)
+    expect(named('Master’s · Data Science')).toBe(1)
+    expect(standsOn('Cyber Security (UniSA)')).toBe(1)
+    expect(named('Cyber Security')).toBe(1)
+    advance(SWAP_MS + START_HOLD_MS)
+    expect(router.push).toHaveBeenCalledWith('/roadmaps/new?from=rm-1&pin=unisa-cyber')
+    expect(saveChoicesAction).not.toHaveBeenCalled()
+  })
+
+  it('opens no draft once she has left the board before the hold ends', () => {
+    jest.useFakeTimers()
+    query = `tile=${DS}`
+    const { unmount } = withCompare('uwa-data', NEXT)
+    press(button(START))
+    unmount()
+    advance(MORPH + SWAP_MS + START_HOLD_MS)
+    expect(router.push).not.toHaveBeenCalled()
+  })
+
+  it('opens no answers while the board turns into the new roadmap', () => {
+    jest.useFakeTimers()
+    query = `tile=${DS}`
+    withCompare('uwa-data', NEXT)
+    press(button(START))
+    push.mockClear()
+    press(button('Menu: theme and sign out'))
+    press(screen.getByRole('menuitem', { name: 'Your answers' }))
+    expect(push).not.toHaveBeenCalled()
+    expect(screen.queryAllByRole('complementary', { name: 'Your answers' }).length).toBe(0)
+  })
+
+  it('under reduced motion, opens the draft at once, nothing turned or saved', () => {
+    reduceMotion()
+    query = `tile=${DS}`
+    withCompare('uwa-data', NEXT)
+    press(button(START))
+    expect(router.push).toHaveBeenCalledWith('/roadmaps/new?from=rm-1&pin=uwa-data')
+    expect(named('Master’s · Data Science')).toBe(0)
+    expect(saveChoicesAction).not.toHaveBeenCalled()
+  })
+
+  it('on a phone’s Road view, where no map is drawn, opens the draft at once', () => {
+    box('clientWidth', 390)
+    query = `tile=${DS}`
+    withCompare('uwa-data', NEXT)
+    press(screen.getAllByRole('button', { name: START })[0])
+    expect(router.push).toHaveBeenCalledWith('/roadmaps/new?from=rm-1&pin=uwa-data')
+    expect(saveChoicesAction).not.toHaveBeenCalled()
+  })
+
+  it('swaps as before when no new roadmap can be built around it', () => {
+    query = `tile=${DS}`
+    withCompare(null)
+    expect(screen.queryAllByRole('button', { name: START }).length).toBe(0)
+    expect(screen.queryAllByRole('button', { name: 'Swap onto your roadmap' }).length).toBe(1)
+  })
+})
+
+describe('switching roadmaps', () => {
+  const MINE = [
+    { id: 'rm-1', name: 'Cyber Security in Perth' },
+    { id: 'rm-2', name: 'Data Science in Sydney' },
+  ]
+  const withRoadmaps = (roadmaps: { id: string; name: string }[]) =>
+    render(
+      <Providers initialChoice="light" systemTheme={null}>
+        <RoadBoard road={road} roadmap={ROADMAP} {...actions} roadmaps={roadmaps}>
+          {null}
+        </RoadBoard>
+      </Providers>,
+    )
+  const switchButtons = () => screen.queryAllByRole('button', { name: /^Switch roadmap/ })
+
+  it('opens a drawer of her roadmaps from the header, the open one marked', () => {
+    withRoadmaps(MINE)
+    press(switchButtons()[0])
+    const drawer = screen.getByRole('dialog', { name: 'Your roadmaps' })
+    const links = within(drawer).getAllByRole('link')
+    expect(
+      links.map((l) => [l.textContent, l.getAttribute('href'), l.getAttribute('aria-current')]),
+    ).toEqual([
+      ['Cyber Security in Perth', '/roadmaps/rm-1', 'page'],
+      ['Data Science in Sydney', '/roadmaps/rm-2', null],
+      ['All roadmaps', '/roadmaps', null],
+    ])
+  })
+
+  it('offers no switch with only this roadmap, or none given', () => {
+    withRoadmaps([MINE[0]])
+    expect(switchButtons().length).toBe(0)
+    cleanup()
+    board()
+    expect(switchButtons().length).toBe(0)
+  })
+})
+
+describe('the weighing (18 Oct: no button with nothing behind it)', () => {
+  it('shows her weights as a picture, not a button that does nothing', () => {
+    board()
+    expect(screen.queryByRole('button', { name: /weights|weighing/i })).toBeNull()
+    expect(screen.getAllByRole('img', { name: /^What you're weighing:/ }).length).toBeGreaterThan(0)
   })
 })

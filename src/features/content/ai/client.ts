@@ -1,5 +1,7 @@
 import 'server-only'
 import type { z } from 'zod'
+import { dailyLimitLine, type LimitedCalls } from '../lib/limits'
+import type { WaitNote } from '../lib/running'
 import { canonicalJson, sha256Hex } from '../server/hash'
 import { dbCache } from './cache'
 import { dbCallLog } from './calls'
@@ -18,10 +20,18 @@ import { toModelSchema } from './schema-guard'
 import { type AiSettings, markFailing, readSettings } from './settings'
 import { logAiCall, type Outcome, type Usage, withGenAiSpan } from './telemetry'
 import { vertexProvider } from './vertex'
+import { callNotes, noteLite } from './wait-notes'
 
 export const AI_ERRORS = {
   failed: 'This step failed. Your work so far is kept.',
   dailyLimit: 'The daily limit for this step is reached.',
+  // The last attempt was refused with a 429 (the model's per-minute limit) or ran out of time:
+  // said so, and lib/failure.ts names the reason after a failed step's line. `busy` after a call
+  // spent its wait budget (BUSY_BUDGET_MS); `busyNow` for a call that does not wait that long (a
+  // student's, a single one).
+  busy: "Google's model is still busy after a minute of retries (429). Try again in a few minutes.",
+  busyNow: 'The model is busy right now (429). Try again in a minute.',
+  timeout: 'The model took too long (timeout). Try again.',
 } as const
 
 export type AiResult<T> =
@@ -86,13 +96,19 @@ export type CallLog = {
     ok: boolean
     cached: boolean
     ms: number
-    /** 'env-default': the tier's saved model was not found or refused, so the environment's answered. */
-    fallback: 'replay' | 'no_art' | 'env-default' | null
+    /**
+     * 'env-default': the tier's saved model was not found or refused, so the environment's answered.
+     * 'busy-lite': every rung was busy (429), so Flash-Lite was asked once more.
+     */
+    fallback: 'replay' | 'no_art' | 'env-default' | 'busy-lite' | null
     postId: string | null
+    /** Refused by a busy model (429): logged, but never counted against a cap. */
+    refused?: boolean
   }): Promise<void>
   /**
    * Reserves one call of a capped tier before it is made: a pending row (not ok, not cached) that
    * counts against the day's cap at once, so calls racing for the last slot cannot both take it.
+   * A row settled as refused (429) no longer counts: only answered calls spend the cap.
    * Null when the day's calls on that tier (or, given `useCases`, of those use cases) reached the cap.
    */
   reserve(row: {
@@ -108,8 +124,8 @@ export type CallLog = {
     /** 'env-default': the retry on the environment's model after the saved one failed. */
     fallback?: 'env-default'
   }): Promise<string | null>
-  /** Records the outcome of a reserved call on its row. */
-  settle(id: string, outcome: { ok: boolean; ms: number }): Promise<void>
+  /** Records the outcome of a reserved call on its row; `refused` frees its slot (a 429). */
+  settle(id: string, outcome: { ok: boolean; ms: number; refused: boolean }): Promise<void>
 }
 
 export type Cache = {
@@ -148,10 +164,37 @@ export function settingsFor(config: AiConfig): Settings {
 export const SETTINGS_READ_TIMEOUT_MS = 300
 
 const JSON_TIMEOUT_MS = 30_000
+// Pro is the slow rung, and its drafts run after the response (18 Oct: a Pro draft timed out at
+// 30 s), so it waits a minute.
+const PRO_JSON_TIMEOUT_MS = 60_000
+// The draft is the longest answer we ask for: on 18 Oct in production, writing three versions in
+// one answer, Flash took over 30 s and Pro over 60 s, so a slow but good draft was abandoned. It
+// writes one now, about a third of the size, and still waits longer; it runs after the response,
+// inside Cloud Run's 300 s request time.
+
+const DRAFT_TIMEOUT_MS = 75_000
+const PRO_DRAFT_TIMEOUT_MS = 120_000
+/** How long one JSON attempt on this tier waits for the model, unless the caller sets its own. */
+export const jsonTimeoutMs = (tier: PromptSpec<z.ZodType>['tier'], useCase?: string): number => {
+  if (useCase === 'draft') return tier === 'pro' ? PRO_DRAFT_TIMEOUT_MS : DRAFT_TIMEOUT_MS
+  return tier === 'pro' ? PRO_JSON_TIMEOUT_MS : JSON_TIMEOUT_MS
+}
 // A search runs queries before it answers, so it gets longer than a plain JSON call.
 const SEARCH_TIMEOUT_MS = 45_000
-const IMAGE_TIMEOUT_MS = 20_000
+// A picture takes the image model about 23 s on Cloud Run (16 Oct): a minute leaves it room, so a
+// slow picture is not abandoned, asked again and counted twice against the per-minute quota.
+export const IMAGE_TIMEOUT_MS = 60_000
 const MAX_RATE_LIMIT_WAIT_MS = 5_000
+/**
+ * On a busy model (429) a call (a student's aside) asks the same rung again after full-jitter
+ * exponential backoff, a random wait up to min(CAP, BASE × 2^k), until it has waited
+ * BUSY_BUDGET_MS in all (Google's advice for 429 resource exhaustion), then climbs. A wait is at
+ * least MIN_BUSY_WAIT_MS, so a run of tiny jitters cannot ask again and again without waiting.
+ */
+const BACKOFF_BASE_MS = 2_000
+const BACKOFF_CAP_MS = 30_000
+export const BUSY_BUDGET_MS = 60_000
+const MIN_BUSY_WAIT_MS = 1_000
 // Bounds the retry prompt, however many issues an answer has.
 const MAX_PROBLEMS = 20
 const IMAGE_PROMPT_VERSION = 'image.v1'
@@ -168,7 +211,30 @@ const LADDERS: Record<PromptSpec<z.ZodType>['tier'], Array<'lite' | 'flash' | 'p
 const RUNG: Record<PromptSpec<z.ZodType>['tier'], number> = { lite: 0, flash: 1, pro: 2 }
 
 const FAILED = { ok: false, reason: 'failed', error: AI_ERRORS.failed } as const
-const DAILY_LIMIT = { ok: false, reason: 'daily_limit', error: AI_ERRORS.dailyLimit } as const
+
+/**
+ * A failed call, saying why when its last error was a 429 (after the wait budget when it `backedOff`)
+ * or ran out of time (never a caller's abort).
+ */
+function failedFor(
+  err: unknown,
+  backedOff: boolean,
+): { ok: false; reason: 'failed'; error: string } {
+  if (isRateLimit(err)) {
+    return { ok: false, reason: 'failed', error: backedOff ? AI_ERRORS.busy : AI_ERRORS.busyNow }
+  }
+  if (err instanceof Error && err.name === 'TimeoutError')
+    return { ok: false, reason: 'failed', error: AI_ERRORS.timeout }
+  return FAILED
+}
+
+/** A call refused at the day's cap: what is used up, why, when it resets, who to email (lib/limits.ts). */
+const dailyLimit = (what: LimitedCalls, cap: number, support: string | null) =>
+  ({
+    ok: false,
+    reason: 'daily_limit',
+    error: dailyLimitLine({ what, cap, support }),
+  }) as const
 
 const modelSchemas = new WeakMap<z.ZodType, object>()
 function modelSchema(schema: z.ZodType): object {
@@ -201,12 +267,19 @@ function isRateLimit(err: unknown): err is Error {
   )
 }
 
-/** The server's retryDelay ("12s"), capped at 5 s; 5 s when it gives none. */
-function rateLimitWait(err: Error): number {
+/** The server's retryDelay ("12s") in ms, or null when it gives none. */
+function retryDelay(err: Error): number | null {
   const match = /retryDelay"?\s*:\s*"(\d+(?:\.\d+)?)s"/.exec(err.message)
-  const ms = match ? Number(match[1]) * 1000 : MAX_RATE_LIMIT_WAIT_MS
-  return Math.min(ms, MAX_RATE_LIMIT_WAIT_MS)
+  return match ? Number(match[1]) * 1000 : null
 }
+
+/** The server's retryDelay, capped at 5 s; 5 s when it gives none: a student's one wait. */
+function rateLimitWait(err: Error): number {
+  return Math.min(retryDelay(err) ?? MAX_RATE_LIMIT_WAIT_MS, MAX_RATE_LIMIT_WAIT_MS)
+}
+
+/** A wait in whole seconds, at least one, as the loaders say it. */
+const seconds = (ms: number) => Math.max(1, Math.round(ms / 1000))
 
 /** Settles with the promise, or rejects when the signal aborts, even if the provider ignores it. */
 function untilAborted<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
@@ -300,6 +373,8 @@ export function makeAi(deps: {
   cache: Cache
   now?: () => Date
   sleep?: (ms: number) => Promise<void>
+  /** A number in [0, 1): the jitter of a wait on a busy model. */
+  random?: () => number
   /** Where each finished call's log line goes (SR6): stdout, which Cloud Logging reads. */
   logCall?: typeof logAiCall
   /** The saved model settings; none given, every call runs on the environment's models. */
@@ -310,8 +385,50 @@ export function makeAi(deps: {
   const logCall = deps.logCall ?? logAiCall
   const now = deps.now ?? (() => new Date())
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)))
+  const random = deps.random ?? Math.random
   const settings = deps.settings ?? NO_SETTINGS
   const settingsTimeoutMs = deps.settingsTimeoutMs ?? SETTINGS_READ_TIMEOUT_MS
+  // Each capped tier's refusal, with its cap and the support address from the config.
+  const limited = {
+    pro: dailyLimit('Pro calls', config.caps.pro, config.supportEmail),
+    image: dailyLimit('images', config.caps.image, config.supportEmail),
+    search: dailyLimit('source searches', config.caps.search, config.supportEmail),
+  }
+
+  /**
+   * One call's waits on a busy model: each a full-jitter backoff, or the server's retryDelay when
+   * that is longer and still fits, never past what is left of BUSY_BUDGET_MS; null once it is spent.
+   */
+  function busyWaits(): (err: Error) => number | null {
+    let spent = 0
+    let k = 0
+    return (err) => {
+      const left = BUSY_BUDGET_MS - spent
+      if (left <= 0) return null
+      const ceiling = Math.min(BACKOFF_CAP_MS, BACKOFF_BASE_MS * 2 ** k)
+      const jittered = Math.max(MIN_BUSY_WAIT_MS, Math.round(random() * ceiling))
+      const server = retryDelay(err)
+      const wanted = server !== null && server > jittered && server <= left ? server : jittered
+      const wait = Math.min(wanted, left)
+      k += 1
+      spent += wait
+      return wait
+    }
+  }
+
+  /** Waits `ms`, or stops when the caller's signal aborts first: false then. */
+  async function pause(ms: number, signal: AbortSignal | undefined): Promise<boolean> {
+    if (!signal) {
+      await sleep(ms)
+      return true
+    }
+    try {
+      await untilAborted(sleep(ms), signal)
+      return true
+    } catch {
+      return false
+    }
+  }
 
   /**
    * The saved settings, read for each call so a save applies to the next one (criterion 94). Fails
@@ -399,7 +516,10 @@ export function makeAi(deps: {
     }
   }
 
-  async function settle(id: string, outcome: { ok: boolean; ms: number }): Promise<void> {
+  async function settle(
+    id: string,
+    outcome: { ok: boolean; ms: number; refused: boolean },
+  ): Promise<void> {
     try {
       await calls.settle(id, outcome)
     } catch (err) {
@@ -487,15 +607,26 @@ export function makeAi(deps: {
         let waited = false
         // A single call (once, or a per-call model) has no next attempt, so it never waits on a 429.
         const single = req.once === true || req.model !== undefined
+        // A student's call waits once, at most 5 s, as before; every other backs off on a busy
+        // model within the budget, tells the run it is part of (wait-notes.ts), and may end on Lite.
+        const patient = !single && !spec.useCase.startsWith('student_')
+        const nextWait = busyWaits()
+        // This call's own note: clearing it leaves a sibling call's in the run.
+        const tell = callNotes()
+        let noted: WaitNote | null = null
+        const note = (value: WaitNote | null) => {
+          noted = value
+          tell(value)
+        }
         /** One attempt on `model`, logged; a reserved attempt settles its slot, any other is recorded. */
         const attempt = async (
           n: number,
           tier: PromptSpec<S>['tier'],
           model: string,
           reserved: string | null,
-          fallback: 'env-default' | null,
+          fallback: 'env-default' | 'busy-lite' | null,
         ) => {
-          const timeout = AbortSignal.timeout(req.timeoutMs ?? JSON_TIMEOUT_MS)
+          const timeout = AbortSignal.timeout(req.timeoutMs ?? jsonTimeoutMs(tier, spec.useCase))
           const signal = req.signal ? AbortSignal.any([timeout, req.signal]) : timeout
           const started = Date.now()
           const info = {
@@ -541,7 +672,7 @@ export function makeAi(deps: {
           } catch (err) {
             error = err
             warn(spec.useCase, tier, n, err)
-            if (isRateLimit(err) && !waited && !single) {
+            if (isRateLimit(err) && !waited && !single && !patient) {
               waited = true
               await sleep(rateLimitWait(err))
             }
@@ -550,8 +681,10 @@ export function makeAi(deps: {
           const outcome = answer === null ? 'failed' : answer.ok ? 'ok' : 'invalid'
           logCall({ ...info, ...usage, outcome, ms })
           const ok = answer?.ok === true
-          if (reserved) await settle(reserved, { ok, ms })
-          else await record({ ...base, tier, model, ok, cached: false, ms, fallback })
+          // A 429 is refused, not billed: logged, but not counted against the day's cap.
+          const refused = isRateLimit(error)
+          if (reserved) await settle(reserved, { ok, ms, refused })
+          else await record({ ...base, tier, model, ok, cached: false, ms, fallback, refused })
           return { answer, error }
         }
 
@@ -583,6 +716,10 @@ export function makeAi(deps: {
         }
         // The tiers whose saved model failed in this call: their later rungs run on the environment's.
         const fellBack = new Set<Tier>()
+        // The last attempt's error, so a ladder that ends on a 429 or a timeout says so.
+        let last: unknown = null
+        // Every attempt's number, retries on a busy model included.
+        let n = 0
         for (const [i, tier] of tiers.entries()) {
           // Past the caller's deadline nobody reads the answer: no rung starts.
           if (req.signal?.aborted) break
@@ -590,10 +727,12 @@ export function makeAi(deps: {
           let model = override ?? (fellBack.has(tier) ? config.models[tier] : modelOf(saved, tier))
           let reserved = await slot(tier, model)
           if (reserved === false) {
-            if (i === 0) return DAILY_LIMIT
+            if (i === 0) return limited.pro
             break
           }
-          let { answer, error } = await attempt(i + 1, tier, model, reserved, null)
+          n += 1
+          let { answer, error } = await attempt(n, tier, model, reserved, null)
+          let fallback: 'env-default' | undefined
           // A saved model not found or refused: once more on the environment's (criterion 96). On
           // Pro the retry reserves a slot of its own, so it counts against the cap like any call.
           if (!override && !req.signal?.aborted && fallsBack(tier, model, error)) {
@@ -601,14 +740,29 @@ export function makeAi(deps: {
             await reportFailing(tier, model, error)
             if (!single) {
               model = config.models[tier]
-              reserved = await slot(tier, model, 'env-default')
+              fallback = 'env-default'
+              reserved = await slot(tier, model, fallback)
               if (reserved === false) {
-                if (i === 0) return DAILY_LIMIT
+                if (i === 0) return limited.pro
                 break
               }
-              ;({ answer, error } = await attempt(i + 1, tier, model, reserved, 'env-default'))
+              ;({ answer, error } = await attempt(n, tier, model, reserved, fallback))
             }
           }
+          // A busy model: the same rung again after a wait while the budget lasts, each retry in
+          // a slot of its own on a capped tier, logged like any call; a refused one frees its slot.
+          while (patient && isRateLimit(error) && !req.signal?.aborted) {
+            const wait = nextWait(error)
+            if (wait === null) break
+            n += 1
+            note({ kind: 'busy', model, attempt: n, waitS: seconds(wait) })
+            if (!(await pause(wait, req.signal))) break
+            const retry = await slot(tier, model, fallback)
+            if (retry === false) break
+            ;({ answer, error } = await attempt(n, tier, model, retry, fallback ?? null))
+          }
+          if (noted && !isRateLimit(error)) note(null)
+          last = error
           if (answer?.ok) {
             try {
               if (useCache)
@@ -622,11 +776,27 @@ export function makeAi(deps: {
             return { ok: true, value: answer.value, cached: false }
           }
           if (answer) {
-            warn(spec.useCase, tier, i + 1, null)
+            warn(spec.useCase, tier, n, null)
             problems = answer.problems
           }
         }
-        return FAILED
+        // Every rung still busy: once more on Flash-Lite, which kept answering when Flash and Pro
+        // did not (17 Oct). Its answer is not cached under the start tier's key, so the same
+        // request asks Flash again next time.
+        if (patient && isRateLimit(last) && tiers[0] !== 'lite' && !req.signal?.aborted) {
+          const lite = config.models.lite
+          n += 1
+          note({ kind: 'fallback', model: lite })
+          const { answer, error } = await attempt(n, 'lite', lite, null, 'busy-lite')
+          note(null)
+          if (answer?.ok) {
+            noteLite(lite)
+            return { ok: true, value: answer.value, cached: false }
+          }
+          last = error
+        }
+        if (noted) note(null)
+        return failedFor(last, patient)
       } catch (err) {
         console.error('[ai] generateJson', err instanceof Error ? err.message : err)
         return FAILED
@@ -655,7 +825,7 @@ export function makeAi(deps: {
           cap: config.caps.search,
           useCases: SEARCH_USE_CASES,
         })
-        if (reserved === null) return DAILY_LIMIT
+        if (reserved === null) return limited.search
         const { system, user } = buildPrompt(spec, req.data)
         const attempt = async (model: string) => {
           const signal = AbortSignal.timeout(SEARCH_TIMEOUT_MS)
@@ -722,8 +892,10 @@ export function makeAi(deps: {
           logCall({ ...info, ...usage, outcome, ms })
           return { found, error, ms }
         }
+        const settleSearch = (id: string, r: { found: unknown; error: unknown; ms: number }) =>
+          settle(id, { ok: r.found !== null, ms: r.ms, refused: isRateLimit(r.error) })
         let result = await attempt(chosen)
-        await settle(reserved, { ok: result.found !== null, ms: result.ms })
+        await settleSearch(reserved, result)
         // A saved Flash model not found or refused: once more on the environment's (criterion 96),
         // in a search slot of its own, so the retry counts against the cap like any search.
         if (fallsBack('flash', chosen, result.error)) {
@@ -738,9 +910,9 @@ export function makeAi(deps: {
             useCases: SEARCH_USE_CASES,
             fallback: 'env-default',
           })
-          if (retry === null) return DAILY_LIMIT
+          if (retry === null) return limited.search
           result = await attempt(config.models.flash)
-          await settle(retry, { ok: result.found !== null, ms: result.ms })
+          await settleSearch(retry, result)
         }
         return result.found ? { ok: true, ...result.found } : FAILED
       } catch (err) {
@@ -759,6 +931,8 @@ export function makeAi(deps: {
       model?: string
       /** One attempt: no fallback (a Test, criterion 93). */
       once?: boolean
+      /** The caller's deadline: once it aborts, a busy model's wait stops and no retry starts. */
+      signal?: AbortSignal
     }): Promise<AiResult<Uint8Array>> {
       try {
         const chosen = req.model ?? modelOf(await savedSettings(), 'image')
@@ -770,8 +944,8 @@ export function makeAi(deps: {
           postId: req.postId ?? null,
           cap: config.caps.image,
         })
-        if (reserved === null) return DAILY_LIMIT
-        const attempt = async (model: string) => {
+        if (reserved === null) return limited.image
+        const attempt = async (model: string, n = 1) => {
           const signal = AbortSignal.timeout(IMAGE_TIMEOUT_MS)
           const started = Date.now()
           const info = {
@@ -780,7 +954,7 @@ export function makeAi(deps: {
             promptVersion: IMAGE_PROMPT_VERSION,
             model,
             cached: false,
-            attempt: 1,
+            attempt: n,
           } as const
           let usage: Usage = {}
           try {
@@ -808,33 +982,76 @@ export function makeAi(deps: {
             logCall({ ...info, ...usage, outcome: 'ok', ms })
             return { bytes, error: null, ms }
           } catch (err) {
-            warn('art', 'image', 1, err)
+            warn('art', 'image', n, err)
             const ms = Date.now() - started
             logCall({ ...info, ...usage, outcome: 'failed', ms })
             return { bytes: null, error: err, ms }
           }
         }
+        // A single call (once, or a per-call model) never waits on a busy model.
+        const patient = !req.once && !req.model
+        let model = chosen
+        let fallback: 'env-default' | undefined
+        // A 429 is refused, not billed: its slot is freed, its row kept.
+        const settleImage = (id: string, r: { bytes: unknown; error: unknown; ms: number }) =>
+          settle(id, { ok: r.bytes !== null, ms: r.ms, refused: isRateLimit(r.error) })
         let result = await attempt(chosen)
-        await settle(reserved, { ok: result.bytes !== null, ms: result.ms })
+        await settleImage(reserved, result)
         // A saved image model not found or refused: once more on the environment's (criterion 96).
         if (!req.model && fallsBack('image', chosen, result.error)) {
           await reportFailing('image', chosen, result.error)
           if (req.once) return FAILED
+          model = config.models.image
+          fallback = 'env-default'
           // In an image slot of its own, so the retry counts against the cap like any cover.
           const retry = await reserve({
             useCase: 'art',
             tier: 'image',
-            model: config.models.image,
+            model,
             promptVersion: IMAGE_PROMPT_VERSION,
             postId: req.postId ?? null,
             cap: config.caps.image,
-            fallback: 'env-default',
+            fallback,
           })
-          if (retry === null) return DAILY_LIMIT
-          result = await attempt(config.models.image)
-          await settle(retry, { ok: result.bytes !== null, ms: result.ms })
+          if (retry === null) return limited.image
+          result = await attempt(model)
+          await settleImage(retry, result)
         }
-        return result.bytes ? { ok: true, value: result.bytes, cached: false } : FAILED
+        // A busy image model: the same model again after a wait while the budget lasts, each
+        // retry in an image slot of its own, freed when refused. There is no other model to fall back to.
+        if (patient) {
+          const nextWait = busyWaits()
+          const noteWait = callNotes()
+          let n = 1
+          let noted = false
+          while (result.bytes === null && isRateLimit(result.error) && !req.signal?.aborted) {
+            const wait = nextWait(result.error)
+            if (wait === null) break
+            n += 1
+            noted = true
+            noteWait({ kind: 'busy', model, attempt: n, waitS: seconds(wait) })
+            if (!(await pause(wait, req.signal))) break
+            const retry = await reserve({
+              useCase: 'art',
+              tier: 'image',
+              model,
+              promptVersion: IMAGE_PROMPT_VERSION,
+              postId: req.postId ?? null,
+              cap: config.caps.image,
+              fallback,
+            })
+            if (retry === null) {
+              noteWait(null)
+              return limited.image
+            }
+            result = await attempt(model, n)
+            await settleImage(retry, result)
+          }
+          if (noted) noteWait(null)
+        }
+        return result.bytes
+          ? { ok: true, value: result.bytes, cached: false }
+          : failedFor(result.error, patient)
       } catch (err) {
         console.error('[ai] generateImage', err instanceof Error ? err.message : err)
         return FAILED
