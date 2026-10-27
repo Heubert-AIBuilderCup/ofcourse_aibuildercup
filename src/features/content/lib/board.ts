@@ -172,10 +172,16 @@ export type BoardItem = {
   assignmentNote: string | null
 }
 
+/** A card in its column: a social version hangs under its feed post when the post is above it. */
+export type ColumnItem = BoardItem & { hangs: boolean }
+
 const PLATFORM_LABELS = { instagram: 'Instagram', linkedin: 'LinkedIn' } as const
 
 /** The id of a column's heading, which names its section (and the band brings into view). */
 export const columnHeadingId = (id: ColumnId) => `column-${id}`
+
+/** A stage's number on the road: "01" for the first. */
+export const nth = (i: number) => String(i + 1).padStart(2, '0')
 
 /** The columns where the band counts the viewer's own posts: someone has to act on them there. */
 export const MINE_COLUMNS = ['structures', 'in_review', 'ready'] as const satisfies ColumnId[]
@@ -229,7 +235,7 @@ function matches(item: BoardItem, params: BoardParams, viewerId: string): boolea
 
 /**
  * The board under its filters: items by column, the count each tab shows under the other
- * filters, the viewer's own cards in the columns where they have to act (the band's numbers,
+ * filters, the viewer's own posts in the columns where they have to act (the band's numbers,
  * whatever the filters), the pages the cards are made for (the Page filter's choices), whether the
  * filters hide every card, and whether there is no post at all (the first run).
  */
@@ -238,7 +244,7 @@ export function boardView(
   params: BoardParams,
   viewerId: string,
 ): {
-  columns: { id: ColumnId; label: string; sub: string; items: BoardItem[] }[]
+  columns: { id: ColumnId; label: string; sub: string; items: ColumnItem[] }[]
   counts: Record<BoardFilter, number>
   mine: Record<MineColumn, number>
   pages: { id: string; name: string }[]
@@ -338,14 +344,25 @@ export function boardView(
     const brand = i.pageId ? brandById(i.pageId) : null
     if (brand) pages.set(brand.id, brand.name)
   }
-  const mine = ordered.filter((i) => i.assigneeId === viewerId)
+  // A market item is its post's second card, not a second post.
+  const mine = ordered.filter((i) => i.kind !== 'market' && i.assigneeId === viewerId)
   return {
-    columns: COLUMNS.map((col) => ({
-      id: col.id,
-      label: col.label,
-      sub: col.sub,
-      items: shown.filter((i) => columnOf(i.stage) === col.id),
-    })),
+    columns: COLUMNS.map((col) => {
+      // A social version hangs under its feed post when the post is above it in this column.
+      const above = new Set<string>()
+      return {
+        id: col.id,
+        label: col.label,
+        sub: col.sub,
+        items: shown
+          .filter((i) => columnOf(i.stage) === col.id)
+          .map((i) => {
+            const hangs = i.parentId !== null && above.has(i.parentId)
+            above.add(i.id)
+            return { ...i, hangs }
+          }),
+      }
+    }),
     counts: {
       all: filtered.length,
       feed: filtered.filter((i) => inTab('feed', i)).length,

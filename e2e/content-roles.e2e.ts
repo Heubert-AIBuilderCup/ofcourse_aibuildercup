@@ -113,7 +113,7 @@ test('an admin who is also an editor starts a feed post from the board', async (
   const a = await person(browser, 'cr-admin-editor', { role: 'admin', editor: true })
   try {
     await a.page.goto('/admin/board')
-    await a.page.getByRole('link', { name: '+ New feed post' }).click()
+    await a.page.getByRole('link', { name: 'New feed post', exact: true }).click()
     await expect(a.page).toHaveURL(/\/admin\/posts\/new$/)
     await makePost(a.page, {
       title: 'Paid work, started by an admin',
@@ -214,7 +214,7 @@ test("an admin sees the board and an editor's post, and can change nothing", asy
 
     await a.page.goto('/admin/board')
     await expect(a.page.getByRole('link', { name: title })).toBeVisible()
-    await expect(a.page.getByRole('link', { name: '+ New feed post' })).toHaveCount(0)
+    await expect(a.page.getByRole('link', { name: 'New feed post', exact: true })).toHaveCount(0)
     await expectNoSideways(a.page)
 
     await a.page.goto(`/admin/posts/${id}`)

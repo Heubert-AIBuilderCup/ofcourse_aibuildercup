@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { AdminBand } from '@/features/admin/components/AdminBand'
+import { AdminBand } from '@/features/admin'
 import { type BoardParams, boardHref, MINE_COLUMNS, type MineColumn } from '../lib/board'
 import { useBoardHighlight } from './BoardHighlight'
 

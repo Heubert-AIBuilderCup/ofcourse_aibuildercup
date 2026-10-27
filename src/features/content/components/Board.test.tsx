@@ -347,6 +347,36 @@ describe('the band', () => {
   })
 })
 
+describe('the board on a phone', () => {
+  const picked = (name: string) => screen.getByRole('region', { name }).hasAttribute('data-picked')
+  const stage = (name: RegExp) =>
+    within(screen.getByRole('group', { name: 'Stages' })).getByRole('button', { name })
+
+  it('offers each stage with its count, Structures first, and shows the one pressed', () => {
+    view(EDITOR)
+    expect(stage(/^Structures · 0$/).getAttribute('aria-pressed')).toBe('true')
+    expect(picked('Structures')).toBe(true)
+    fireEvent.click(stage(/^Ready · 3$/))
+    expect(stage(/^Ready · 3$/).getAttribute('aria-pressed')).toBe('true')
+    expect(picked('Ready')).toBe(true)
+    expect(picked('Structures')).toBe(false)
+  })
+
+  it('switches to the stage a band number names', () => {
+    board([card({ id: 'm', stage: 'in_review', assigneeId: 'u-ed' })])
+    fireEvent.click(screen.getByRole('button', { name: '1 in review' }))
+    expect(picked('In review')).toBe(true)
+  })
+
+  it('keeps the filters behind a Filters button that counts the ones set', () => {
+    board(CARDS, EDITOR, { lang: 'en', type: 'feed' })
+    const toggle = screen.getByRole('button', { name: 'Filters · 2' })
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+  })
+})
+
 describe('a board with no posts at all', () => {
   it('opens on the first run: no posts yet, a new feed post, and where a post goes', () => {
     board([])

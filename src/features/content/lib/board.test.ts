@@ -151,6 +151,30 @@ describe('boardView', () => {
     expect(versions('s')).toBe(0)
   })
 
+  it('hangs a social version under its feed post only when the post is above it in its column', () => {
+    const cards = [
+      card({ id: 'p', stage: 'ready', market: 'NP' }),
+      card({ id: 's', kind: 'social', parentId: 'p', stage: 'ready', platform: 'instagram' }),
+      card({ id: 't', kind: 'social', parentId: 'p', stage: 'in_review', platform: 'linkedin' }),
+      card({ id: 'o', kind: 'social', parentId: 'gone', stage: 'ready' }),
+    ]
+    const hangs = (v: ReturnType<typeof boardView>) =>
+      shown(v).map((i) => `${i.kind}:${i.id}:${i.hangs}`)
+    expect(hangs(view(cards))).toEqual([
+      'social:t:false',
+      'feed:p:false',
+      'market:p:false',
+      'social:s:true',
+      'social:o:false',
+    ])
+    // On the Social versions tab the post is not on the board: nothing hangs.
+    expect(hangs(view(cards, { filter: 'social' }))).toEqual([
+      'social:t:false',
+      'social:s:false',
+      'social:o:false',
+    ])
+  })
+
   it('names no parent for a social version whose feed post is gone', () => {
     const v = view([card({ id: 's', kind: 'social', parentId: 'gone', stage: 'ready' })])
     expect(column(v, 'ready').items[0].parentId).toBeNull()
@@ -264,6 +288,14 @@ describe("boardView's count of the viewer's own posts", () => {
       card({ id: 'g', stage: 'live', assigneeId: ME }),
     ])
     expect(v.mine).toEqual({ structures: 2, in_review: 1, ready: 0 })
+  })
+
+  it("counts a post once, not its market version's card as a second post", () => {
+    const v = view([
+      card({ id: 'a', stage: 'structures', assigneeId: ME, market: 'NP' }),
+      card({ id: 'b', stage: 'ready', assigneeId: ME, market: 'IN' }),
+    ])
+    expect(v.mine).toEqual({ structures: 1, in_review: 0, ready: 1 })
   })
 
   it('counts them whatever the tab and the filters show', () => {

@@ -6,24 +6,15 @@ import { useThemeChoice } from '@/shared/components/Providers'
 import { useMenuKeys } from '@/shared/hooks/useMenuKeys'
 import { ADMIN_SIGNIN_PATH } from '@/shared/lib/auth/gate'
 import { toggledChoice } from '@/shared/lib/theme'
+import { initialsOf } from '../lib/initials'
 
 const ITEM =
   'group flex min-h-11 cursor-pointer items-center gap-3 border-0 bg-transparent px-3 text-left text-foreground hover:bg-foreground/6 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary'
 
-/** "MR" for "Maya Rai": the first letters of the first two words. */
-const initialsOf = (name: string) =>
-  name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w.charAt(0))
-    .join('')
-    .toUpperCase()
-
 /**
  * The account button at the end of the admin bar: the viewer's initials, name and role (their
  * real role, never a capability), and a menu with the theme and Sign out, back to the admin
- * sign-in page. Below @5xl only the initials show; on a phone the bar's own theme toggle hides, so
+ * sign-in page. Below @7xl (80rem) only the initials show; on a phone the bar's own theme toggle hides, so
  * the theme is here. The menu keys are the student app's AccountMenu's (useMenuKeys).
  */
 export function AdminAccount({ name, role }: { name: string; role: string | null }) {
@@ -49,9 +40,9 @@ export function AdminAccount({ name, role }: { name: string; role: string | null
         >
           {initialsOf(name)}
         </span>
-        <span className="whitespace-nowrap @max-5xl:hidden">{name}</span>
+        <span className="whitespace-nowrap @max-7xl:hidden">{name}</span>
         {role ? (
-          <span className="font-heading text-overline font-medium tracking-widest whitespace-nowrap text-accent-700 uppercase @max-5xl:hidden">
+          <span className="font-heading text-overline font-medium tracking-widest whitespace-nowrap text-accent-700 uppercase @max-7xl:hidden">
             {role}
           </span>
         ) : null}

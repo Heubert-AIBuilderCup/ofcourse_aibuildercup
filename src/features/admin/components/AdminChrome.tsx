@@ -21,7 +21,7 @@ function aiLabel({ provider, project }: AiInUse): string {
  * The admin's frame: one bar with the brand, the sections this viewer may open, the AI tag, the
  * theme and the account button, then the page. Staff who see the board also see which AI the
  * server runs, since the server reads it once at start and a changed .env does not show until it
- * restarts. Below @5xl the AI tag and the account's name give the tabs room; below @xl the tabs
+ * restarts. Below @7xl (80rem) the AI tag and the account's name give the tabs room; below @xl the tabs
  * drop to their own row, and the theme moves into the account menu.
  */
 export function AdminChrome({
@@ -49,7 +49,7 @@ export function AdminChrome({
           <AdminNav viewer={viewer} />
           <div className="ml-auto flex items-center gap-2">
             {canSeeBoard(viewer) && (
-              <span className="inline-flex min-h-7 items-center border border-dashed border-foreground/40 px-2.5 text-overline tracking-wider whitespace-nowrap text-muted-foreground uppercase @max-5xl:hidden">
+              <span className="inline-flex min-h-7 items-center border border-dashed border-foreground/40 px-2.5 text-overline tracking-wider whitespace-nowrap text-muted-foreground uppercase @max-7xl:hidden">
                 {aiLabel(ai)}
               </span>
             )}

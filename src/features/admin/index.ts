@@ -1,6 +1,7 @@
 // The admin feature's client-safe API. Database reads are in ./users/server (server-only), the
 // mutations in ./users/actions ('use server').
 
+export { AdminBand, type BandStat } from './components/AdminBand'
 export { AdminChrome } from './components/AdminChrome'
 export { AdminNav } from './components/AdminNav'
 export { AdminPageHeader } from './components/AdminPageHeader'

@@ -313,18 +313,23 @@ test('AC4: a 44px theme toggle sits top-right on the logo line [admin sign-in]',
   ).toBeLessThan(8)
 })
 
-test('AC4: a 44px theme toggle sits top-right beside Sign out [admin console]', async ({
+test('AC4: a 44px theme toggle sits top-right beside the account button [admin console]', async ({
   page,
 }) => {
-  // The console has no steel panel: the toggle sits in the top bar beside Sign out (edge case).
+  // The console has no steel panel: the toggle sits in the top bar just before the account
+  // button, the bar's last control; Sign out is an item of the account's menu (edge case).
   const email = await newAdmin(page, 'dm-ac4-admin')
   try {
-    const signOutButton = (p: Page) => p.getByRole('button', { name: 'Sign out', exact: true })
-    await expectToggle(page, '/admin', signOutButton)
+    const accountButton = (p: Page) => p.getByRole('button', { name: /^Account: / })
+    await expectToggle(page, '/admin', accountButton)
     const toggle = await boxOf(themeToggle(page))
-    const signOut = await boxOf(signOutButton(page))
-    expect(Math.abs(centreY(toggle) - centreY(signOut)), 'on the Sign out line').toBeLessThan(8)
-    expect(signOut.x - (toggle.x + toggle.width), 'beside Sign out').toBeLessThan(24)
+    const account = await boxOf(accountButton(page))
+    expect(Math.abs(centreY(toggle) - centreY(account)), 'on the account line').toBeLessThan(8)
+    expect(account.x - (toggle.x + toggle.width), 'beside the account button').toBeLessThan(24)
+    await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toHaveCount(0)
+    await accountButton(page).click()
+    const menu = page.getByRole('menu', { name: 'Account' })
+    await expect(menu.getByRole('menuitem', { name: 'Sign out' })).toBeVisible()
   } finally {
     await deleteUsers([email])
   }

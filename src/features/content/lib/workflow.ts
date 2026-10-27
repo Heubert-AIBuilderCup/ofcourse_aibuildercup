@@ -137,7 +137,7 @@ export type PostAction = (typeof EDITOR_ACTIONS)[number] | (typeof REVIEWER_ACTI
 export const BACK_TO = ['source', 'structures'] as const
 export type BackTo = (typeof BACK_TO)[number]
 
-/** The stages at which a post is its published version: the board's "Live in feed · exported". */
+/** The stages at which a post is its published version: the board's "Live" column. */
 export const LIVE_STAGES: readonly Stage[] = ['live', 'exported']
 
 /**
