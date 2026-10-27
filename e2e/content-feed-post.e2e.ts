@@ -313,7 +313,7 @@ test('the board shows the post in its first column with who changed it, and ← 
 
   // `from` carries the board's own query, as its cards link (lib/board.ts boardFrom).
   await page.goto(`/admin/posts/${posts.paidWork}?from=${encodeURIComponent('filter=social')}`)
-  await page.getByRole('link', { name: '← Board' }).click()
+  await page.getByRole('main').getByRole('link', { name: 'Board', exact: true }).click()
   await expect(page).toHaveURL(/\/admin\/board\?filter=social$/)
 })
 
@@ -630,7 +630,7 @@ test('the reviewer approves and publishes: live, reviewed, and the slides they s
 
   await page.goto('/admin/board')
   const card = page
-    .getByRole('region', { name: 'Live in feed · exported', exact: true })
+    .getByRole('region', { name: 'Live', exact: true })
     .getByRole('listitem')
     .filter({ has: page.locator(`a[href^="/admin/posts/${posts.paidWork}"]`) })
   await expect(card).toContainText(LIVE_LINE)

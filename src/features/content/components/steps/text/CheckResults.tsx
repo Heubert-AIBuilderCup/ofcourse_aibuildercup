@@ -1,5 +1,6 @@
 'use client'
 
+import { Check } from 'lucide-react'
 import { useId } from 'react'
 import { Button } from '@/shared/components/ui/button'
 import { Spin, Working } from '@/shared/components/Working'
@@ -66,29 +67,46 @@ export function CheckResults(props: CheckResultsProps) {
           <h3 id={`${ids}-fix`} className="text-h4">
             To fix
           </h3>
-          <ul aria-label="To fix" className="flex flex-col gap-3">
+          {/* One row each, hairlines between, the outlined "!" marking it as one to fix. */}
+          <ul aria-label="To fix" className="flex flex-col">
             {problems.map((problem) => (
-              <li key={problem.text} className="flex flex-col gap-2 border p-3">
-                {problem.where && (
-                  <span className="text-overline uppercase text-muted-foreground">
-                    {problem.where}
-                  </span>
-                )}
-                <p className="text-caption font-semibold text-destructive wrap-anywhere">
-                  {problem.what ?? problem.text}
-                </p>
-                {problem.evidence?.map((line) => (
-                  <p key={line} className={cn(reasonText, 'wrap-anywhere')}>
-                    {line}
+              <li key={problem.text} className="flex gap-3 border-b py-3.5 first:pt-0">
+                <span
+                  aria-hidden="true"
+                  className="flex size-6 shrink-0 items-center justify-center border-2 border-destructive font-heading font-bold text-destructive"
+                >
+                  !
+                </span>
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  {problem.where && (
+                    <span className="text-overline uppercase text-muted-foreground">
+                      {problem.where}
+                    </span>
+                  )}
+                  <p className="text-caption font-semibold text-destructive wrap-anywhere">
+                    {problem.what ?? problem.text}
                   </p>
-                ))}
-                <ProblemFixControl {...props} problem={problem} />
+                  {problem.evidence?.map((line) => (
+                    <p key={line} className={cn(reasonText, 'wrap-anywhere')}>
+                      {line}
+                    </p>
+                  ))}
+                  <ProblemFixControl {...props} problem={problem} />
+                </div>
               </li>
             ))}
           </ul>
         </section>
       ) : (
-        <p className="text-caption">All checks pass</p>
+        <p className="flex items-center gap-3 text-caption font-semibold">
+          <span
+            aria-hidden="true"
+            className="flex size-6 shrink-0 items-center justify-center bg-primary-strong text-primary-strong-foreground"
+          >
+            <Check strokeWidth={1.5} className="size-icon-sm" />
+          </span>
+          All checks pass
+        </p>
       )}
       <CheckStatus check={props.check} pending={props.pending} />
       <FitChecks item={props.item} checks={props.checks} />

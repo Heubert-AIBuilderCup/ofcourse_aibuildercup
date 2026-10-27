@@ -1,5 +1,6 @@
 'use client'
 
+import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { type ReactNode, useState } from 'react'
@@ -403,18 +404,19 @@ export function Workbench({ view, viewer, from, actions, step, openTab }: Workbe
     <div className="workbench @container flex min-w-0 flex-col gap-4">
       <div className="flex flex-col gap-3">
         {/* One line, as a breadcrumb: the title truncates, its full text on hover. */}
-        <div className="flex min-w-0 items-baseline gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <Link
             href={boardBackHref(from)}
-            className="shrink-0 text-caption text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 font-medium text-accent-700 underline-offset-3 hover:underline"
           >
-            ← Board
+            <ArrowLeft aria-hidden="true" strokeWidth={1.5} className="size-icon" />
+            Board
           </Link>
-          <span aria-hidden="true" className="text-caption text-muted-foreground">
+          <span aria-hidden="true" className="text-muted-foreground">
             /
           </span>
           {/* The bar's current step says where the post is (GD25): no stage or gate badge beside it. */}
-          <h1 title={view.title} className="min-w-0 truncate text-h3">
+          <h1 title={view.title} className="min-w-0 truncate text-h3 leading-tight font-semibold">
             {view.title}
           </h1>
         </div>

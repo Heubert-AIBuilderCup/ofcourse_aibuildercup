@@ -1,5 +1,7 @@
 'use client'
 
+import { Lightbulb, Link2, Lock, Sparkles } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   type Dispatch,
@@ -11,14 +13,17 @@ import {
   useTransition,
 } from 'react'
 import { toast } from 'sonner'
-import { Blueprint } from '@/shared/components/Blueprint'
-import { Button } from '@/shared/components/ui/button'
+import { Duck } from '@/shared/components/Duck'
+import motion from '@/shared/components/motion.module.css'
+import { Button, buttonVariants } from '@/shared/components/ui/button'
 import { Checkbox } from '@/shared/components/ui/checkbox'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { NativeSelect } from '@/shared/components/ui/native-select'
 import { Textarea } from '@/shared/components/ui/textarea'
 import { Spin, Working } from '@/shared/components/Working'
+import { BOARD_PATH } from '@/shared/lib/auth/gate'
+import { cn } from '@/shared/lib/utils'
 import type { SuggestedSource } from '../../ai/search'
 import { FEED_POST_PAGES } from '../../brands'
 import { LANGUAGES, type Language, type LanguageId } from '../../languages'
@@ -223,7 +228,7 @@ export function SourceFields({
           </div>
         </>
       ) : (
-        <Button type="button" variant="outline" className="self-start" onClick={onPaste}>
+        <Button type="button" variant="text" className="self-start" onClick={onPaste}>
           Paste text instead
         </Button>
       )}
@@ -407,10 +412,71 @@ function IdeaSources({
 
 /** Where a new post starts: a blog already written, or an idea to find sources for. */
 const STARTS = [
-  { id: 'blog', label: 'From a blog' },
-  { id: 'idea', label: 'From an idea' },
+  { id: 'blog', label: 'From a blog', about: 'One to five links, or pasted text', icon: Link2 },
+  { id: 'idea', label: 'From an idea', about: 'Gemini finds pages to read', icon: Lightbulb },
 ] as const
 type Start = (typeof STARTS)[number]['id']
+
+/** The workbench's steps as "What happens next" lists them, in the step bar's words. */
+const NEXT_STEPS = [
+  { label: 'Source', about: 'Read the links, pull out the points' },
+  { label: 'Ideas', about: 'Angles to tell it' },
+  { label: 'Outline', about: 'One line per slide' },
+  { label: 'Text', about: 'The words on each slide' },
+  { label: 'Images', about: 'Art in the page’s style' },
+  { label: 'Settings', about: 'Where it shows, and to whom' },
+  { label: 'Review', about: 'A reviewer checks the facts' },
+  { label: 'Live', about: 'In the feed, or exported' },
+] as const
+
+/**
+ * The blue panel beside a new feed post's form: the eight steps the post goes through, the first
+ * lit, and the reviewer's lock. The band's panel style (motion.grid), marked light like the others.
+ */
+function WhatHappensNext() {
+  return (
+    <aside
+      aria-labelledby="what-happens-next"
+      data-theme="light"
+      className={cn(
+        motion.grid,
+        'relative flex flex-col gap-4 overflow-hidden px-6 py-7 text-panel-foreground @5xl:sticky @5xl:top-6',
+      )}
+    >
+      <Duck size="3rem" className="relative size-12 -scale-x-100 object-contain" />
+      <h2 id="what-happens-next" className="relative text-h3 text-panel-foreground">
+        What happens next
+      </h2>
+      <ol className="relative flex flex-col">
+        {NEXT_STEPS.map((s, i) => (
+          <li
+            key={s.label}
+            className="relative flex gap-3 pb-3.5 not-last:before:absolute not-last:before:top-7 not-last:before:bottom-0 not-last:before:left-3.5 not-last:before:w-px not-last:before:bg-panel-foreground/40"
+          >
+            <span
+              className={cn(
+                'flex size-7 shrink-0 items-center justify-center border border-panel-foreground/70 font-heading font-semibold',
+                i === 0 && 'bg-panel-foreground text-panel',
+              )}
+            >
+              {i + 1}
+            </span>
+            <span className="flex flex-col">
+              <span className="font-heading text-h4 font-semibold">{s.label}</span>
+              <span className="text-caption text-panel-foreground dark:text-panel-foreground/78">
+                {s.about}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ol>
+      <p className="relative flex items-center gap-2 border-t border-panel-foreground/35 pt-3.5 text-caption">
+        <Lock aria-hidden="true" strokeWidth={1.5} className="size-icon-sm shrink-0" />
+        Nothing reaches students until a reviewer approves it.
+      </p>
+    </aside>
+  )
+}
 
 /**
  * "Start from" a blog or an idea, then the source (criteria 1–4; 93, 94; GD18–GD21). From a blog:
@@ -547,37 +613,61 @@ export function SourceForm({
     )
   }
 
-  return (
-    <Blueprint
-      as="form"
+  const form = (
+    <form
       aria-label={postKind === 'blog' ? 'New blog' : 'New feed post'}
       onSubmit={submit}
-      className="@container flex max-w-3xl flex-col gap-6 p-6"
+      className="@container flex max-w-2xl min-w-0 flex-col gap-6"
     >
       <div className="flex flex-col gap-2">
         <p id={`${ids}-start`} className="font-medium">
           Start from
         </p>
-        <div role="radiogroup" aria-labelledby={`${ids}-start`} className="flex flex-wrap gap-3">
+        {/* Two option cards: each card's title names its radio, its line describes it. */}
+        <div
+          role="radiogroup"
+          aria-labelledby={`${ids}-start`}
+          className="grid grid-cols-2 gap-3 @max-xl:grid-cols-1"
+        >
           {STARTS.map((s) => (
             <label
               key={s.id}
-              className="flex cursor-pointer items-center gap-2 border border-border px-4 py-2 has-checked:border-primary"
+              className="group relative grid cursor-pointer grid-cols-[auto_1fr] items-center gap-x-3 gap-y-0.5 border border-foreground/25 py-3.5 pr-10 pl-3.5 transition-colors hover:border-foreground/55 has-checked:border-primary has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring"
             >
               <input
                 type="radio"
                 name={`${ids}-start`}
                 value={s.id}
                 checked={start === s.id}
+                aria-labelledby={`${ids}-start-${s.id}`}
+                aria-describedby={`${ids}-start-${s.id}-about`}
                 onChange={() => {
                   // A refusal belongs to the start that made it.
                   setStart(s.id)
                   setError(null)
                   setFailed([])
                 }}
-                className="accent-primary"
+                className="peer sr-only"
               />
-              {s.label}
+              <s.icon
+                aria-hidden="true"
+                strokeWidth={1.5}
+                className="row-span-2 size-icon-lg text-accent-700"
+              />
+              <span id={`${ids}-start-${s.id}`} className="font-heading text-h4 font-semibold">
+                {s.label}
+              </span>
+              <span
+                id={`${ids}-start-${s.id}-about`}
+                className="text-caption text-muted-foreground"
+              >
+                {s.about}
+              </span>
+              {/* The drawn radio: a ring, filled while chosen. */}
+              <span
+                aria-hidden="true"
+                className="absolute top-1/2 right-3.5 size-4 -translate-y-1/2 rounded-full border border-foreground/45 peer-checked:border-accent-700 peer-checked:bg-[radial-gradient(circle,var(--color-accent-700)_0_0.25rem,transparent_0.2625rem)]"
+              />
             </label>
           ))}
         </div>
@@ -642,12 +732,25 @@ export function SourceForm({
         />
       )}
       {(!fromIdea || error) && (
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           {!fromIdea && (
-            <Button type="submit" disabled={blocked || pending}>
-              {making && <Spin />}
+            <Button
+              type="submit"
+              disabled={blocked || pending}
+              className="h-11 px-5 @max-xl:flex-1"
+            >
+              {making ? (
+                <Spin />
+              ) : (
+                <Sparkles aria-hidden="true" strokeWidth={1.5} className="size-icon" />
+              )}
               {making ? 'Running…' : error ? 'Try again' : 'Make post'}
             </Button>
+          )}
+          {!making && (
+            <Link href={BOARD_PATH} className={buttonVariants({ variant: 'text' })}>
+              Cancel
+            </Link>
           )}
           {making && <Working words={READING} />}
           {error && (
@@ -657,6 +760,17 @@ export function SourceForm({
           )}
         </div>
       )}
-    </Blueprint>
+    </form>
+  )
+
+  // A blog's steps are not a feed post's, so only New feed post lists them beside the form.
+  if (postKind === 'blog') return form
+  return (
+    <div className="@container">
+      <div className="grid items-start gap-8 @5xl:grid-cols-[minmax(0,1fr)_22rem]">
+        {form}
+        <WhatHappensNext />
+      </div>
+    </div>
   )
 }

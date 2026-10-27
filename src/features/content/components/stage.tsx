@@ -112,9 +112,9 @@ export function SlideStage({
               aria-current={i === at ? 'true' : undefined}
               className={cn(
                 'block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                // The selected one: a 1px outline in the brand colour, clear of the slide's own hairline.
+                // The selected one: framed in the foreground, clear of the slide's own hairline.
                 i === at
-                  ? 'outline outline-offset-2 outline-primary'
+                  ? 'outline-2 outline-offset-2 outline-foreground'
                   : 'opacity-70 hover:opacity-100',
               )}
               onClick={() => onSelect(i)}
@@ -184,7 +184,8 @@ export function ActionTabs({
     document.getElementById(tabId(i))?.focus()
   }
   return (
-    <div className="flex flex-col gap-6">
+    // One hairline panel: the tabs across its top, the open one's body under them.
+    <div className="flex min-w-0 flex-col border border-foreground/18">
       <div role="tablist" aria-label={label} className="flex flex-wrap border-b">
         {tabs.map((t, i) => (
           <button
@@ -196,11 +197,11 @@ export function ActionTabs({
             aria-controls={i === here ? panelId : undefined}
             tabIndex={i === here ? 0 : -1}
             className={cn(
-              // The open tab: a hairline in the primary colour over the list's, and weight.
-              '-mb-px inline-flex items-center gap-2 border-b px-3 py-2 text-caption transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              // The open tab: the accent line along its foot, inset from its sides.
+              'relative inline-flex min-h-12 flex-auto items-center justify-center gap-2 px-2 text-caption font-medium whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
               i === here
-                ? 'border-primary font-semibold text-foreground'
-                : 'border-transparent text-muted-foreground hover:text-foreground',
+                ? 'text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:bg-accent-600'
+                : 'text-muted-foreground hover:text-foreground',
             )}
             onClick={() => go(i)}
             onKeyDown={(e) => {
@@ -231,7 +232,7 @@ export function ActionTabs({
         aria-labelledby={tabId(here)}
         // biome-ignore lint/a11y/noNoninteractiveTabindex: the APG tabs pattern makes the panel focusable, so Tab from the tablist lands in it.
         tabIndex={0}
-        className="flex flex-col gap-8"
+        className="flex flex-col gap-8 p-5"
       >
         {tabs[here].body}
       </div>

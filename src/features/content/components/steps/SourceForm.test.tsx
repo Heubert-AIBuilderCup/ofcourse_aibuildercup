@@ -1,6 +1,6 @@
 /// <reference lib="dom" />
 /// <reference path="../../../../../node_modules/@testing-library/jest-dom/types/bun.d.ts" />
-import { afterEach, describe, expect, it, mock } from 'bun:test'
+import { afterAll, afterEach, beforeAll, describe, expect, it, mock } from 'bun:test'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import * as navigation from 'next/navigation'
 import type { Made, Suggested } from '../../server/commands'
@@ -13,6 +13,13 @@ mock.module('next/navigation', () => ({
 }))
 
 const { SourceForm } = await import('./SourceForm')
+
+// next/image (the duck in "What happens next") resolves its src against the page's URL; happy-dom
+// starts on about:blank.
+const dom = (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM
+const startUrl = location.href
+beforeAll(() => dom.setURL('http://localhost:3000/admin/posts/new'))
+afterAll(() => dom.setURL(startUrl))
 
 const makePostAction = mock(
   async (_input: unknown): Promise<Made> => ({ ok: true, id: 'p1', version: 1 }),

@@ -28,10 +28,10 @@ const rail = (stage: Stage, open: Parameters<typeof StageRail>[0]['open'], ideas
 const links = () =>
   screen.queryAllByRole('link').map((a) => [a.textContent, a.getAttribute('href')])
 
-it('numbers the steps in plain words with the current one marked, and no gate (GD25)', () => {
+it('numbers the steps in plain words, ticks the done ones, marks the current one, and no gate (GD25)', () => {
   rail('structures', 'text')
   expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-    '1Source',
+    'Source',
     '2Text',
     '3Images',
     '4Settings',
@@ -47,9 +47,9 @@ it('numbers the steps in plain words with the current one marked, and no gate (G
 it('links only the done and current steps to their screens, keeping every board filter (GD27)', () => {
   rail('rendered', 'text', true)
   expect(links()).toEqual([
-    ['1Source', '/admin/posts/p1/source?from=filter%3Dsocial%26lang%3Dne'],
-    ['2Ideas', '/admin/posts/p1/ideas?from=filter%3Dsocial%26lang%3Dne'],
-    ['3Text', '/admin/posts/p1/text?from=filter%3Dsocial%26lang%3Dne'],
+    ['Source', '/admin/posts/p1/source?from=filter%3Dsocial%26lang%3Dne'],
+    ['Ideas', '/admin/posts/p1/ideas?from=filter%3Dsocial%26lang%3Dne'],
+    ['Text', '/admin/posts/p1/text?from=filter%3Dsocial%26lang%3Dne'],
     ['4Images', '/admin/posts/p1/images?from=filter%3Dsocial%26lang%3Dne'],
   ])
   expect(screen.getByText('Review').closest('a')).toBeNull()

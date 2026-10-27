@@ -134,7 +134,7 @@ export function Control({ reason, children }: { reason: string | null; children:
             type="button"
             aria-label="Why this is unavailable"
             aria-describedby={tip}
-            className="flex size-5 cursor-help items-center justify-center border border-destructive bg-destructive text-caption font-semibold leading-none text-destructive-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex size-5 cursor-help items-center justify-center border border-destructive bg-transparent text-caption font-semibold leading-none text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             !
           </button>
@@ -233,9 +233,12 @@ type StepBarSlots = {
 }
 const StepBarTarget = createContext<StepBarSlots | undefined>(undefined)
 
-/** The step actions bar: always in view at the bottom of the viewport, the way back on the left, the action on the right. */
+/**
+ * The step actions bar: always in view at the bottom of the viewport, the way back on the left, the
+ * action on the right; edge to edge across the page's gutter, the slides passing under it blurred.
+ */
 const stepBar =
-  'sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-4 border-t bg-background py-3'
+  'sticky bottom-0 z-10 -mx-gutter flex flex-wrap items-center justify-between gap-4 border-t bg-background/92 px-gutter py-3.5 backdrop-blur-sm @max-xl:-mx-4 @max-xl:px-4'
 
 /**
  * One step action bar for every step (A4): the workbench's screen, then the bar that holds the

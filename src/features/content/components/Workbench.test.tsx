@@ -158,7 +158,7 @@ it('goes back to the board with the filters it came from', () => {
       step="text"
     />,
   )
-  expect(screen.getByRole('link', { name: '← Board' })).toHaveAttribute(
+  expect(screen.getByRole('link', { name: 'Board' })).toHaveAttribute(
     'href',
     '/admin/board?filter=social&assignee=mine',
   )
@@ -321,7 +321,8 @@ it('reads Source · Ideas · Text · Images · Settings · Review · Live on the
     within(bar)
       .getAllByRole('listitem')
       .map((li) => li.textContent),
-  ).toEqual(['1Source', '2Ideas', '3Text', '4Images', '5Settings', '6Review', '7Live'])
+    // Done steps are ticked, not numbered.
+  ).toEqual(['Source', 'Ideas', 'Text', '4Images', '5Settings', '6Review', '7Live'])
 })
 
 const IDEA = {
