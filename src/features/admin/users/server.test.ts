@@ -127,6 +127,25 @@ describe.skipIf(!enabled)('the users server against the database', () => {
     expect(list.onlineNow).toBeGreaterThanOrEqual(1)
   })
 
+  test('counts every account and the admins and superadmins among them, whatever the filters', async () => {
+    const before = await server.getUsers(params({ q: 'no such user' }))
+    // This test's own: a, b (admin), c, d (superadmin).
+    expect(before.accounts).toBeGreaterThanOrEqual(4)
+    expect(before.staff).toBeGreaterThanOrEqual(2)
+    await db.insert(schema.user).values([
+      { id: `${P}e`, name: 'UM e', email: `${P}e@um.e2e.test`, role: 'admin' },
+      // A capability makes no one staff.
+      { id: `${P}f`, name: 'UM f', email: `${P}f@um.e2e.test`, editor: true, reviewer: true },
+    ])
+    try {
+      const after = await server.getUsers(params({ role: 'user', status: 'suspended', q: 'zz' }))
+      expect(after.accounts - before.accounts).toBe(2)
+      expect(after.staff - before.staff).toBe(1)
+    } finally {
+      await db.delete(schema.user).where(orm.inArray(schema.user.id, [`${P}e`, `${P}f`]))
+    }
+  })
+
   describe('one account', () => {
     test('is null for an unknown id', async () => {
       expect(await server.getUserDetail(`${P}missing`)).toBeNull()

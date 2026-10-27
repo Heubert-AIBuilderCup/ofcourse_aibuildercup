@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { Play } from 'lucide-react'
+import { type ReactNode, useState, useTransition } from 'react'
 import { TIERS, type Tier, type UseCase } from '@/features/content/ai/config'
 import { allowedTiers, KNOWN_MODELS } from '@/features/content/ai/models'
 import type { AiSettings, SettingChange } from '@/features/content/ai/settings'
+import { emptyBox, hairlineTable, tag } from '@/shared/components/classes'
 import { Button } from '@/shared/components/ui/button'
-import { Card } from '@/shared/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -15,20 +16,12 @@ import {
   DialogTitle,
 } from '@/shared/components/ui/dialog'
 import { NativeSelect } from '@/shared/components/ui/native-select'
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/shared/components/ui/table'
 import { Spin, Working } from '@/shared/components/Working'
 import { formatWhen } from '@/shared/lib/site'
 import { cn } from '@/shared/lib/utils'
 import type { ActionResult } from '@/shared/types/action-result'
-import { hint } from '../../components/styles'
+import { AdminBand } from '../../components/AdminBand'
+import { AdminPageHeader } from '../../components/AdminPageHeader'
 import { NETWORK_ERROR } from '../../hooks/useAdminAction'
 import type { StudentCallRow, TestResult } from '../test-call'
 import { USE_CASES } from '../use-cases'
@@ -36,6 +29,10 @@ import { USE_CASES } from '../use-cases'
 // The Models page (criteria 90–98): each use case's tier and model, each tier's model and where it
 // comes from, the failing mark, and the last changes. Everyone who may open the page sees them; a
 // superadmin also gets Test, Change and Reset, which the server actions check again.
+
+const { wrap, table, head, body, th, tr, td } = hairlineTable
+const code = 'font-mono text-caption'
+const muted = 'text-muted-foreground'
 
 const TIER_LABELS: Record<Tier, string> = {
   lite: 'Flash-Lite',
@@ -72,6 +69,26 @@ function resultLine(r: TestResult): string {
   const on = r.model ? ` on ${r.model}` : ''
   if (r.ok) return `Passed${on} in ${r.ms} ms`
   return `Failed${on} in ${r.ms} ms${r.error ? `: ${r.error}` : ''}`
+}
+
+/**
+ * The band over the page: "Not tested yet" until a row is tested here, then how many were and
+ * whether all passed. Results live in this page's state only, so a reload starts it again.
+ */
+function lastTestBand(
+  results: Partial<Record<UseCase, TestResult>>,
+  total: number,
+): { title: string; passed: number; failed: number; untested: number } {
+  const tested = Object.values(results)
+  const passed = tested.filter((r) => r.ok).length
+  const failed = tested.length - passed
+  const title =
+    tested.length === 0
+      ? 'Not tested yet'
+      : failed === 0
+        ? `${tested.length} tested, all passed`
+        : `${tested.length} tested, ${failed} failed`
+  return { title, passed, failed, untested: total - tested.length }
 }
 
 /** What a change log entry changed, in words. */
@@ -113,7 +130,7 @@ function useRun() {
 function Refusal({ error }: { error: string | null }) {
   if (!error) return null
   return (
-    <p role="alert" className={cn(hint, 'text-foreground')}>
+    <p role="alert" className="text-caption text-foreground">
       {error}
     </p>
   )
@@ -124,161 +141,202 @@ export function ModelsScreen(props: ModelsScreenProps) {
   const modelOf = (tier: Tier) => settings.tierModels[tier] ?? envModels[tier]
   // Tests need no settings; a change or a reset needs them read.
   const canChange = canManage && !unavailable
+  // Each row's last Test in this page's state: the band counts them, the row shows its own.
+  const [results, setResults] = useState<Partial<Record<UseCase, TestResult>>>({})
+  const band = lastTestBand(results, USE_CASES.length)
+  const students = useRun()
+  const [studentRows, setStudentRows] = useState<StudentCallRow[] | null>(null)
+  const groups: [string, UseCase[]][] = [
+    ['For the team', USE_CASES.filter((u) => !u.startsWith('student_'))],
+    ['For students', USE_CASES.filter((u) => u.startsWith('student_'))],
+  ]
+  const columns = 4 + (canManage ? 1 : 0) + (canChange ? 1 : 0)
 
   return (
     <div className="flex flex-col gap-block">
+      <AdminPageHeader
+        kicker="AI"
+        title="Models"
+        lede="Which model each AI call runs on, whether it is healthy, and who changed it last."
+      >
+        {canChange && <ResetToDefaults reset={actions.reset} />}
+        {canManage && (
+          <Button
+            disabled={students.pending}
+            onClick={() =>
+              students.run(actions.testStudentCalls, (res) => setStudentRows(res.rows))
+            }
+            className="h-11 px-5 @max-xl:flex-1"
+          >
+            {students.pending ? (
+              <Spin />
+            ) : (
+              <Play aria-hidden="true" strokeWidth={1.5} className="size-icon-sm" />
+            )}
+            Test all student calls
+          </Button>
+        )}
+      </AdminPageHeader>
+
+      <AdminBand
+        kicker="Last test"
+        title={band.title}
+        stats={[
+          { value: USE_CASES.length, label: 'AI calls' },
+          { value: band.passed, label: 'passed' },
+          { value: band.failed, label: 'failed' },
+          { value: band.untested, label: 'not tested yet' },
+        ]}
+      />
+
       {unavailable && (
-        <p role="alert" className={cn(hint, 'text-destructive')}>
+        <p role="alert" className="text-destructive">
           The model settings cannot be read, so every call runs on the environment's models. Nothing
           can be changed or reset until they can: the migration may not have run yet.
         </p>
       )}
-      {canManage ? (
-        <ManageBar actions={actions} canReset={canChange} />
-      ) : (
-        <p className={hint}>Only a superadmin can test, change or reset the models.</p>
+      {!canManage && (
+        <p className={muted}>Only a superadmin can test, change or reset the models.</p>
+      )}
+      {(students.pending || students.error || studentRows) && (
+        <div className="flex flex-col gap-stack">
+          {students.pending && <Working words="Testing the student calls…" />}
+          <Refusal error={students.error} />
+          {studentRows && (
+            <ul role="status" className="flex flex-col gap-1 text-caption">
+              {studentRows.map((r) => (
+                <li key={r.label} className={r.ok ? undefined : 'text-destructive'}>
+                  {`${r.label}: ${resultLine(r)}`}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
 
-      <Card as="section" aria-labelledby="models-use-cases">
-        <h2 id="models-use-cases" className="p-5 pb-0 text-h4 font-semibold">
-          Use cases
-        </h2>
-        <Table>
-          <TableCaption className="sr-only">Use cases</TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Use case</TableHead>
-              <TableHead>For</TableHead>
-              <TableHead>Tier</TableHead>
-              <TableHead>Model</TableHead>
-              {canManage && <TableHead>Test</TableHead>}
-              {canChange && <TableHead>Tier choice</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {USE_CASES.map((u) => {
-              const tier = settings.useCaseTiers[u] ?? defaultTiers[u]
-              return (
-                <UseCaseRow
-                  key={u}
-                  useCase={u}
-                  tier={tier}
-                  model={modelOf(tier)}
-                  canManage={canManage}
+      <Section id="models-use-cases" title="Use cases">
+        <div className={wrap}>
+          <table className={table}>
+            <caption className="sr-only">Use cases</caption>
+            <thead className={head}>
+              <tr>
+                <th className={th}>Use case</th>
+                <th className={th}>Tier</th>
+                <th className={th}>Model</th>
+                <th className={th}>Last test</th>
+                {canManage && <th className={th}>Test</th>}
+                {canChange && <th className={th}>Tier choice</th>}
+              </tr>
+            </thead>
+            {groups.map(([label, useCases]) => (
+              <tbody key={label} className={body}>
+                <tr className="@max-xl:block">
+                  <th
+                    colSpan={columns}
+                    scope="rowgroup"
+                    className={cn(th, 'pt-5 text-accent-700 @max-xl:block @max-xl:px-0')}
+                  >
+                    {label} · {useCases.length}
+                  </th>
+                </tr>
+                {useCases.map((u) => {
+                  const tier = settings.useCaseTiers[u] ?? defaultTiers[u]
+                  return (
+                    <UseCaseRow
+                      key={u}
+                      useCase={u}
+                      tier={tier}
+                      model={modelOf(tier)}
+                      result={results[u] ?? null}
+                      onResult={(r) => setResults((prev) => ({ ...prev, [u]: r }))}
+                      canManage={canManage}
+                      canChange={canChange}
+                      actions={actions}
+                    />
+                  )
+                })}
+              </tbody>
+            ))}
+          </table>
+        </div>
+      </Section>
+
+      <Section id="models-tiers" title="Tiers">
+        <div className={wrap}>
+          <table className={table}>
+            <caption className="sr-only">Tiers</caption>
+            <thead className={head}>
+              <tr>
+                <th className={th}>Tier</th>
+                <th className={th}>Model</th>
+                <th className={th}>Source</th>
+                <th className={th}>Last error</th>
+                {canChange && <th className={th}>Model choice</th>}
+              </tr>
+            </thead>
+            <tbody className={body}>
+              {TIERS.map((t) => (
+                <TierRow
+                  key={t}
+                  tier={t}
+                  model={modelOf(t)}
+                  chosen={settings.tierModels[t] !== undefined}
+                  failing={settings.failing[t] ?? null}
                   canChange={canChange}
                   actions={actions}
                 />
-              )
-            })}
-          </TableBody>
-        </Table>
-      </Card>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Section>
 
-      <Card as="section" aria-labelledby="models-tiers">
-        <h2 id="models-tiers" className="p-5 pb-0 text-h4 font-semibold">
-          Tiers
-        </h2>
-        <Table>
-          <TableCaption className="sr-only">Tiers</TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Tier</TableHead>
-              <TableHead>Model</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead>Last error</TableHead>
-              {canChange && <TableHead>Model choice</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {TIERS.map((t) => (
-              <TierRow
-                key={t}
-                tier={t}
-                model={modelOf(t)}
-                chosen={settings.tierModels[t] !== undefined}
-                failing={settings.failing[t] ?? null}
-                canChange={canChange}
-                actions={actions}
-              />
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
-
-      <Card as="section" aria-labelledby="models-changes">
-        <h2 id="models-changes" className="p-5 pb-0 text-h4 font-semibold">
-          Last changes
-        </h2>
-        <Table>
-          <TableCaption className="sr-only">Last changes</TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead>When</TableHead>
-              <TableHead>Who</TableHead>
-              <TableHead>What</TableHead>
-              <TableHead>Old</TableHead>
-              <TableHead>New</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {changes.map((c, i) => (
-              // The log has no id here; its order is fixed, newest first.
-              // biome-ignore lint/suspicious/noArrayIndexKey: entries can share key and time
-              <TableRow key={`${c.at}-${c.key}-${i}`}>
-                <TableCell>{formatWhen(c.at)}</TableCell>
-                <TableCell>{c.userName ?? 'Unknown'}</TableCell>
-                <TableCell>{changeLabel(c.key)}</TableCell>
-                <TableCell className="font-mono text-caption break-all">
-                  {c.oldValue ?? '—'}
-                </TableCell>
-                <TableCell className="font-mono text-caption break-all">
-                  {c.newValue ?? '—'}
-                </TableCell>
-              </TableRow>
-            ))}
-            {changes.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
-                  No changes yet.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+      <Section id="models-changes" title="Last changes">
+        {changes.length === 0 ? (
+          <p className={emptyBox}>No changes yet.</p>
+        ) : (
+          <div className={wrap}>
+            <table className={table}>
+              <caption className="sr-only">Last changes</caption>
+              <thead className={head}>
+                <tr>
+                  <th className={th}>When</th>
+                  <th className={th}>Who</th>
+                  <th className={th}>What</th>
+                  <th className={th}>Old</th>
+                  <th className={th}>New</th>
+                </tr>
+              </thead>
+              <tbody className={body}>
+                {changes.map((c, i) => (
+                  // The log has no id here; its order is fixed, newest first.
+                  // biome-ignore lint/suspicious/noArrayIndexKey: entries can share key and time
+                  <tr key={`${c.at}-${c.key}-${i}`} className={tr}>
+                    <td className={td}>{formatWhen(c.at)}</td>
+                    <td className={td}>{c.userName ?? 'Unknown'}</td>
+                    <td className={td}>{changeLabel(c.key)}</td>
+                    <td className={cn(td, code, 'break-all')}>{c.oldValue ?? '—'}</td>
+                    <td className={cn(td, code, 'break-all')}>{c.newValue ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Section>
     </div>
   )
 }
 
-/** "Test all student calls" with its lines, and "Reset to defaults" behind a confirmation. */
-function ManageBar({ actions, canReset }: { actions: Actions; canReset: boolean }) {
-  const students = useRun()
-  const [rows, setRows] = useState<StudentCallRow[] | null>(null)
+/** One of the page's parts: its heading over its table, set apart by whitespace. */
+function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-stack">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          variant="outline"
-          disabled={students.pending}
-          onClick={() => students.run(actions.testStudentCalls, (res) => setRows(res.rows))}
-        >
-          {students.pending && <Spin />}
-          Test all student calls
-        </Button>
-        {canReset && <ResetToDefaults reset={actions.reset} />}
-      </div>
-      {students.pending && <Working words="Testing the student calls…" />}
-      <Refusal error={students.error} />
-      {rows && (
-        <ul role="status" className="flex flex-col gap-1 text-caption">
-          {rows.map((r) => (
-            <li key={r.label} className={r.ok ? undefined : 'text-destructive'}>
-              {`${r.label}: ${resultLine(r)}`}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <section aria-labelledby={id} className="flex min-w-0 flex-col gap-3">
+      <h2 id={id} className="text-h3 font-semibold">
+        {title}
+      </h2>
+      {children}
+    </section>
   )
 }
 
@@ -287,14 +345,14 @@ function ResetToDefaults({ reset }: { reset: Actions['reset'] }) {
   const { pending, error, run } = useRun()
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>
+      <Button variant="outline" onClick={() => setOpen(true)} className="h-11 px-4 @max-xl:flex-1">
         Reset to defaults
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-lg font-semibold">Reset to defaults</DialogTitle>
-            <DialogDescription className={hint}>
+            <DialogTitle className="text-h4 font-semibold">Reset to defaults</DialogTitle>
+            <DialogDescription className={muted}>
               Clear every model and tier chosen on this page? Every call runs on the environment's
               models again. The change log is kept.
             </DialogDescription>
@@ -318,10 +376,34 @@ function ResetToDefaults({ reset }: { reset: Actions['reset'] }) {
   )
 }
 
+/** "Not tested yet", or the row's last result in this page's state, as a status when it lands. */
+function LastTest({ result }: { result: TestResult | null }) {
+  if (!result) return <span className={cn(muted, 'text-caption')}>Not tested yet</span>
+  return (
+    <p
+      role="status"
+      className={cn(
+        'inline-flex items-baseline gap-1.5 text-caption',
+        result.ok ? 'text-accent-700' : 'text-destructive',
+      )}
+    >
+      {result.ok && (
+        <span
+          aria-hidden="true"
+          className="size-1.75 shrink-0 self-center rounded-full bg-primary"
+        />
+      )}
+      {resultLine(result)}
+    </p>
+  )
+}
+
 function UseCaseRow({
   useCase,
   tier,
   model,
+  result,
+  onResult,
   canManage,
   canChange,
   actions,
@@ -329,53 +411,54 @@ function UseCaseRow({
   useCase: UseCase
   tier: Tier
   model: string
+  result: TestResult | null
+  onResult: (result: TestResult) => void
   canManage: boolean
   canChange: boolean
   actions: Actions
 }) {
   const test = useRun()
-  const [result, setResult] = useState<TestResult | null>(null)
   const change = useRun()
   const allowed = allowedTiers(useCase)
   return (
-    <TableRow>
-      <TableCell className="font-mono text-caption">{useCase}</TableCell>
-      <TableCell>{useCase.startsWith('student_') ? 'Student' : 'Admin'}</TableCell>
-      <TableCell>{TIER_LABELS[tier]}</TableCell>
-      <TableCell className="font-mono text-caption">{model || 'Not set'}</TableCell>
+    <tr className={tr}>
+      <td className={cn(td, code)}>{useCase}</td>
+      <td className={td}>
+        <span className={tag}>{TIER_LABELS[tier]}</span>
+      </td>
+      <td className={cn(td, code, muted, 'break-all')}>{model || 'Not set'}</td>
+      <td className={td}>
+        <LastTest result={result} />
+      </td>
       {canManage && (
-        <TableCell>
+        <td className={td}>
           <div className="flex flex-col items-start gap-1">
             <Button
-              size="sm"
-              variant="outline"
+              variant="text"
               aria-label={`Test ${useCase}`}
               disabled={test.pending}
               onClick={() =>
                 test.run(
                   () => actions.test(useCase),
-                  (res) => setResult(res.result),
+                  (res) => onResult(res.result),
                 )
               }
+              className="min-h-9 underline"
             >
-              {test.pending && <Spin />}
+              {test.pending ? (
+                <Spin />
+              ) : (
+                <Play aria-hidden="true" strokeWidth={1.5} className="size-icon-xs" />
+              )}
               Test
             </Button>
             {test.pending && <Working words="Testing… one call, up to half a minute" />}
-            {result && (
-              <p
-                role="status"
-                className={cn('text-caption', result.ok ? 'text-foreground' : 'text-destructive')}
-              >
-                {resultLine(result)}
-              </p>
-            )}
             <Refusal error={test.error} />
           </div>
-        </TableCell>
+        </td>
       )}
       {canChange && (
-        <TableCell>
+        <td className={td}>
           {allowed.length > 1 ? (
             <ChangePicker
               key={tier}
@@ -387,12 +470,14 @@ function UseCaseRow({
               onChange={(t) => change.run(() => actions.saveUseCaseTier(useCase, t as Tier))}
             />
           ) : (
-            <span className={hint}>{TIER_LABELS[allowed[0] ?? tier]} only</span>
+            <span className={cn(muted, 'text-caption')}>
+              {TIER_LABELS[allowed[0] ?? tier]} only
+            </span>
           )}
           <Refusal error={change.error} />
-        </TableCell>
+        </td>
       )}
-    </TableRow>
+    </tr>
   )
 }
 
@@ -416,26 +501,28 @@ function TierRow({
   const [result, setResult] = useState<TestResult | null>(null)
   const label = TIER_LABELS[tier]
   return (
-    <TableRow>
-      <TableCell>{label}</TableCell>
-      <TableCell className="font-mono text-caption">{model || 'Not set'}</TableCell>
-      <TableCell>{chosen ? 'Page' : 'Environment'}</TableCell>
-      <TableCell>
+    <tr className={tr}>
+      <td className={td}>
+        <span className={cn(tag, 'border-accent-700 text-accent-700')}>{label}</span>
+      </td>
+      <td className={cn(td, code, 'break-all')}>{model || 'Not set'}</td>
+      <td className={td}>{chosen ? 'Page' : 'Environment'}</td>
+      <td className={td}>
         {failing ? (
           <div className="flex flex-col items-start gap-1">
-            <span className="inline-flex items-center rounded-md border border-destructive px-2 py-0.5 text-caption font-medium text-destructive">
+            <span className={cn(tag, 'border-destructive font-medium text-destructive')}>
               Falling back to the default
             </span>
-            <span className="text-caption text-muted-foreground">
+            <span className={cn(muted, 'text-caption')}>
               {formatWhen(failing.at)}: {failing.error}
             </span>
           </div>
         ) : (
-          <span className={hint}>None</span>
+          <span className={muted}>None</span>
         )}
-      </TableCell>
+      </td>
       {canChange && (
-        <TableCell>
+        <td className={td}>
           <ChangePicker
             key={model}
             label={`Model for ${label}`}
@@ -454,9 +541,9 @@ function TierRow({
           {change.pending && <Working words="Testing the new model…" />}
           {result && <p role="status" className="text-caption">{`Saved. ${resultLine(result)}`}</p>}
           <Refusal error={change.error} />
-        </TableCell>
+        </td>
       )}
-    </TableRow>
+    </tr>
   )
 }
 
@@ -490,7 +577,7 @@ function ChangePicker({
         aria-label={label}
         value={choice}
         onChange={(e) => setChoice(e.target.value)}
-        className="w-auto"
+        className="h-9 w-auto min-w-28 border-foreground/30"
       >
         {placeholder && <option value="">{placeholder}</option>}
         {options.map((o) => (
@@ -500,11 +587,11 @@ function ChangePicker({
         ))}
       </NativeSelect>
       <Button
-        size="sm"
-        variant="outline"
+        variant="text"
         aria-label={changeLabel}
         disabled={pending || choice === '' || choice === saved}
         onClick={() => onChange(choice)}
+        className="min-h-9 underline"
       >
         {pending && <Spin />}
         Change

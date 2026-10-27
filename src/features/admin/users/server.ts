@@ -50,12 +50,16 @@ export type UserListRow = {
 
 /**
  * One page of the users list, newest first, with the search and every filter combined. The rows
- * and their total come back in one query; who is online now is counted across every account,
- * whatever the filters, in one more.
+ * and their total come back in one query; every account, the staff (admins and superadmins) and
+ * who is online now are counted across every account, whatever the filters, in one more.
  */
-export async function getUsers(
-  p: UsersParams,
-): Promise<{ rows: UserListRow[]; total: number; onlineNow: number }> {
+export async function getUsers(p: UsersParams): Promise<{
+  rows: UserListRow[]
+  total: number
+  onlineNow: number
+  accounts: number
+  staff: number
+}> {
   const since = seenSince()
   const where = and(
     searchCondition(p.q),
@@ -86,12 +90,16 @@ export async function getUsers(
     db
       .select({
         onlineNow: sql<number>`cast(count(*) filter (where ${gt(user.lastSeenAt, since)}) as int)`,
+        accounts: sql<number>`cast(count(*) as int)`,
+        staff: sql<number>`cast(count(*) filter (where ${user.role} in ('admin', 'superadmin')) as int)`,
       })
       .from(user),
   ])
   return {
     total: rows[0]?.total ?? 0,
     onlineNow: counts?.onlineNow ?? 0,
+    accounts: counts?.accounts ?? 0,
+    staff: counts?.staff ?? 0,
     rows: rows.map(({ total: _total, lastSeenAt, ...r }) => ({
       ...r,
       lastSeenMs: lastSeenAt?.getTime() ?? null,

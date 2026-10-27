@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { type FormEvent, type ReactNode, useState, useTransition } from 'react'
+import { tag } from '@/shared/components/classes'
 import { Button } from '@/shared/components/ui/button'
 import { Card } from '@/shared/components/ui/card'
 import {
@@ -40,7 +41,6 @@ import type { UserDetail } from '../users/server'
 import { AdminPageHeader } from './AdminPageHeader'
 import { CheckField } from './CheckField'
 import { Field } from './Field'
-import { chipStrong, hint } from './styles'
 
 export type UserPageProps = {
   user: UserDetail
@@ -86,7 +86,7 @@ function useControl() {
 function Refusal({ error }: { error: string | null }) {
   if (!error) return null
   return (
-    <p role="alert" className={cn(hint, 'text-foreground')}>
+    <p role="alert" className="text-caption text-foreground">
       {error}
     </p>
   )
@@ -121,7 +121,7 @@ export function UserPage({ user, viewer, now, activeSuperadmins, actions }: User
       </Section>
 
       <Section id="user-access" title="Access">
-        {outranked && <p className="text-base text-foreground">{ACCESS_ERRORS.hierarchy}</p>}
+        {outranked && <p className="text-foreground">{ACCESS_ERRORS.hierarchy}</p>}
         {canChangeRole && (
           <RoleSelect
             name={name}
@@ -161,7 +161,7 @@ export function UserPage({ user, viewer, now, activeSuperadmins, actions }: User
       </Section>
 
       <Section id="user-last-seen" title="Last seen">
-        <p className="text-sm text-foreground">{lastSeenLabel(user.lastSeenMs, now)}</p>
+        <p className="text-foreground">{lastSeenLabel(user.lastSeenMs, now)}</p>
       </Section>
     </div>
   )
@@ -170,7 +170,7 @@ export function UserPage({ user, viewer, now, activeSuperadmins, actions }: User
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
     <Card as="section" aria-labelledby={id} className="flex flex-col gap-4 p-5">
-      <h2 id={id} className="text-lg font-semibold">
+      <h2 id={id} className="text-h4 font-semibold">
         {title}
       </h2>
       {children}
@@ -186,15 +186,22 @@ function Header({ user, name }: { user: UserDetail; name: string }) {
     <header className="flex flex-col gap-2">
       <Link
         href="/admin/users"
-        className="text-sm font-semibold text-primary underline-offset-4 hover:underline"
+        className="self-start font-medium text-accent-700 underline-offset-4 hover:underline"
       >
         All users
       </Link>
       <AdminPageHeader kicker="People" title={name} lede={user.email} />
-      <ul className="flex flex-wrap gap-2">
-        <li className={chipStrong}>{ROLE_LABELS[user.role]}</li>
+      <ul className="flex flex-wrap items-center gap-1.5">
+        <li className={cn(tag, user.role !== 'user' && 'border-accent-700 text-accent-700')}>
+          {ROLE_LABELS[user.role]}
+        </li>
+        {CAPABILITIES.filter((c) => user[c]).map((c) => (
+          <li key={c} className={cn(tag, 'border-dashed border-foreground/40')}>
+            {CAPABILITY_LABELS[c]}
+          </li>
+        ))}
       </ul>
-      <p className="text-base font-semibold text-foreground">{status}</p>
+      <p className="font-semibold text-foreground">{status}</p>
     </header>
   )
 }
@@ -206,7 +213,7 @@ function Profile({ user }: { user: UserDetail }) {
     ['Joined', formatWhen(user.createdAt)],
   ]
   return (
-    <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
+    <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2">
       {rows.map(([term, value]) => (
         <div key={term} className="contents">
           <dt className="text-muted-foreground">{term}</dt>
@@ -350,8 +357,8 @@ function Confirm({
     <Dialog open={open} onOpenChange={(o) => !o && onCancel()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold">{title}</DialogTitle>
-          <DialogDescription className={hint}>{question}</DialogDescription>
+          <DialogTitle className="text-h4 font-semibold">{title}</DialogTitle>
+          <DialogDescription className="text-muted-foreground">{question}</DialogDescription>
         </DialogHeader>
         <Refusal error={error} />
         <DialogFooter className="gap-2">
@@ -426,8 +433,8 @@ function Suspend({
       <Dialog open={open} onOpenChange={(o) => !o && close()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-lg font-semibold">Suspend {name}</DialogTitle>
-            <DialogDescription className={hint}>
+            <DialogTitle className="text-h4 font-semibold">Suspend {name}</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
               They are signed out of every session at once, and cannot sign in until reactivated.
             </DialogDescription>
           </DialogHeader>
@@ -472,13 +479,13 @@ function Reactivate({ onReactivate }: { onReactivate: () => Promise<ActionResult
 }
 
 function Sessions({ sessions }: { sessions: UserDetail['sessions'] }) {
-  if (sessions.length === 0) return <p className={hint}>No open sessions</p>
+  if (sessions.length === 0) return <p className="text-muted-foreground">No open sessions</p>
   return (
     <ul className="flex flex-col divide-y divide-border">
       {sessions.map((s) => {
         const { browser, device } = describeUserAgent(s.userAgent)
         return (
-          <li key={s.id} className="flex flex-wrap gap-x-2 py-2 text-sm text-foreground">
+          <li key={s.id} className="flex flex-wrap gap-x-2 py-2 text-foreground">
             <span className="font-semibold">
               {browser} · {device}
             </span>

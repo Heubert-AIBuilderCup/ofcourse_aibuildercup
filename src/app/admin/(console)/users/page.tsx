@@ -25,6 +25,8 @@ export default async function AdminUsersPage({ searchParams }: PageProps<'/admin
         rows={list.rows}
         total={list.total}
         onlineNow={list.onlineNow}
+        accounts={list.accounts}
+        staff={list.staff}
         params={params}
         now={Date.now()}
         canManageRoles={managesRoles}

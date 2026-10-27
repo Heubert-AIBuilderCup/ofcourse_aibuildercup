@@ -80,6 +80,23 @@ const rowText = (first: string) =>
   [...document.querySelectorAll('tr')].find((tr) => tr.cells[0]?.textContent === first)
     ?.textContent ?? ''
 const count = (haystack: string, needle: string) => haystack.split(needle).length - 1
+/** The blue band (marked light so it keeps its look in a dark page): its title and its numbers. */
+const band = () => {
+  const section = document.querySelector('section[data-theme="light"]')
+  if (!section) throw new Error('no band')
+  return {
+    title: section.querySelector('h2')?.textContent ?? '',
+    stats: [...(section.lastElementChild?.children ?? [])].map((s) => s.textContent ?? ''),
+  }
+}
+/** The Last test cell of a use case's row. */
+const lastTest = (useCase: string) => {
+  const head = [...document.querySelectorAll('th')].findIndex(
+    (th) => th.textContent === 'Last test',
+  )
+  const tr = [...document.querySelectorAll('tr')].find((r) => r.cells[0]?.textContent === useCase)
+  return tr?.cells[head]?.textContent ?? ''
+}
 
 it('offers an admin who is not a superadmin no Test, Change or Reset', () => {
   render(<ModelsScreen {...props({ canManage: false })} />)
@@ -156,6 +173,57 @@ it('while a Test runs, says it is one call that can take half a minute, its butt
     // A transition left hanging would hold every later one in this file.
     await act(async () => answer({ ok: true, result: passed }))
   }
+})
+
+it('opens the band on "Not tested yet", every call untested, and each row not tested yet', () => {
+  render(<ModelsScreen {...props()} />)
+  expect(band().title).toBe('Not tested yet')
+  expect(band().stats).toEqual([
+    `${USE_CASES.length} AI calls`,
+    '0 passed',
+    '0 failed',
+    `${USE_CASES.length} not tested yet`,
+  ])
+  expect(lastTest('extract')).toBe('Not tested yet')
+  expect(lastTest('student_why')).toBe('Not tested yet')
+})
+
+it("counts a passed Test in the band and shows it in the row's Last test", async () => {
+  render(<ModelsScreen {...props()} />)
+  await act(async () => {
+    fireEvent.click(byLabel('button', 'Test extract'))
+  })
+  expect(band().title).toBe('1 tested, all passed')
+  expect(band().stats).toEqual([
+    `${USE_CASES.length} AI calls`,
+    '1 passed',
+    '0 failed',
+    `${USE_CASES.length - 1} not tested yet`,
+  ])
+  expect(lastTest('extract')).toBe('Passed on gemini-3.5-flash-lite in 812 ms')
+  expect(lastTest('draft')).toBe('Not tested yet')
+})
+
+it('names the failures in the band once a Test fails', async () => {
+  actions.test.mockImplementationOnce(async () => ({
+    ok: true,
+    result: { ok: false, model: 'env-lite', ms: 30, error: 'Model not found.' },
+  }))
+  render(<ModelsScreen {...props()} />)
+  await act(async () => {
+    fireEvent.click(byLabel('button', 'Test draft'))
+  })
+  await act(async () => {
+    fireEvent.click(byLabel('button', 'Test extract'))
+  })
+  expect(band().title).toBe('2 tested, 1 failed')
+  expect(band().stats).toEqual([
+    `${USE_CASES.length} AI calls`,
+    '1 passed',
+    '1 failed',
+    `${USE_CASES.length - 2} not tested yet`,
+  ])
+  expect(lastTest('draft')).toBe('Failed on env-lite in 30 ms: Model not found.')
 })
 
 it('shows a failed Test with its model, time and error', async () => {

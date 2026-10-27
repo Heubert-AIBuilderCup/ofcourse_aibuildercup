@@ -250,7 +250,7 @@ test("the users list shows who's live", async ({ page, browser }) => {
     const row = page.getByRole('row').filter({ hasText: p.email })
     await expect(row).toHaveCount(1)
     await expect(row).toContainText('Online')
-    const count = page.getByText(/^\d+ online now$/)
+    const count = page.getByText(/^\d+ (person|people) online$/)
     await expect(count).toBeVisible()
     expect(Number.parseInt((await count.textContent()) ?? '0', 10)).toBeGreaterThanOrEqual(1)
   } finally {

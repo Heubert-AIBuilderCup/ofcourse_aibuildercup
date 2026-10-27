@@ -1,4 +1,3 @@
-import { AdminPageHeader } from '@/features/admin'
 import {
   resetAction,
   saveTierModelAction,
@@ -36,28 +35,23 @@ export default async function AdminModelsPage() {
     UseCase,
     Tier
   >
+  // The screen draws its own title, with Reset and Test all student calls beside it (the design's
+  // page top), and the band of the last tests under it.
   return (
-    <>
-      <AdminPageHeader
-        kicker="AI"
-        title="Models"
-        lede="Which model each AI call runs on, whether it is healthy, and who changed it last."
-      />
-      <ModelsScreen
-        canManage={canManageModels(user.role)}
-        defaultTiers={defaultTiers}
-        envModels={aiConfig(process.env).models}
-        settings={settings}
-        changes={changes ?? []}
-        unavailable={changes === null}
-        actions={{
-          test: testAction,
-          testStudentCalls: testStudentCallsAction,
-          saveTierModel: saveTierModelAction,
-          saveUseCaseTier: saveUseCaseTierAction,
-          reset: resetAction,
-        }}
-      />
-    </>
+    <ModelsScreen
+      canManage={canManageModels(user.role)}
+      defaultTiers={defaultTiers}
+      envModels={aiConfig(process.env).models}
+      settings={settings}
+      changes={changes ?? []}
+      unavailable={changes === null}
+      actions={{
+        test: testAction,
+        testStudentCalls: testStudentCallsAction,
+        saveTierModel: saveTierModelAction,
+        saveUseCaseTier: saveUseCaseTierAction,
+        reset: resetAction,
+      }}
+    />
   )
 }

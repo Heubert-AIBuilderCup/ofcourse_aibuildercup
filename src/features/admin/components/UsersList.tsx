@@ -1,10 +1,11 @@
 'use client'
 
+import { Plus, Search } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { type FormEvent, useState, useTransition } from 'react'
+import { type FormEvent, useId, useState, useTransition } from 'react'
+import { emptyBox, filterLabel, hairlineTable, tag } from '@/shared/components/classes'
 import { Button } from '@/shared/components/ui/button'
-import { Card } from '@/shared/components/ui/card'
 import { Input } from '@/shared/components/ui/input'
 import {
   Select,
@@ -14,20 +15,12 @@ import {
   SelectValue,
 } from '@/shared/components/ui/select'
 import { Switch } from '@/shared/components/ui/switch'
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/shared/components/ui/table'
-import { INVITE_ROLES, type InviteRole, ROLES } from '@/shared/lib/auth/access'
+import { INVITE_ROLES, type InviteRole, ROLES, type Role } from '@/shared/lib/auth/access'
 import { lastSeenLabel } from '@/shared/lib/presence'
 import { cn } from '@/shared/lib/utils'
 import type { ActionResult } from '@/shared/types/action-result'
 import { NETWORK_ERROR, useAdminAction } from '../hooks/useAdminAction'
+import { initialsOf } from '../lib/initials'
 import { CAPABILITY_LABELS, ROLE_LABELS } from '../lib/labels'
 import {
   USER_STATUS_FILTERS,
@@ -37,10 +30,14 @@ import {
 } from '../lib/params'
 import type { InviteApplied } from '../users/commands'
 import type { UserListRow, WaitingInvite } from '../users/server'
+import { AdminBand } from './AdminBand'
 import { CheckField } from './CheckField'
 import { Field } from './Field'
 import { Pager } from './Pager'
-import { chip, hint } from './styles'
+
+const { wrap, table, head, body, th, tr, td } = hairlineTable
+/** The inputs at the height of the admin's other controls, on the hairline the design draws. */
+const control = 'h-11 border-foreground/30'
 
 const STATUS_LABELS: Record<UserStatusFilter, string> = {
   all: 'All',
@@ -61,13 +58,25 @@ const INVITE_CHOICE_LABELS: Record<InviteChoice, string> = {
   superadmin: ROLE_LABELS.superadmin,
 }
 
-/** A chip per capability the account or the invite holds. */
-function CapabilityChips({ caps }: { caps: Capabilities }) {
-  return CAPABILITIES.filter((c) => caps[c]).map((c) => (
-    <span key={c} className={cn(chip, 'text-caption')}>
-      {CAPABILITY_LABELS[c]}
+/**
+ * The role in a hairline tag, strong for the admin roles, and a dashed tag per capability beside
+ * it (Editor and Reviewer are capabilities, not roles). With no role, the capabilities alone.
+ */
+function RoleTags({ role, caps }: { role: Role | null; caps: Capabilities }) {
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      {role && (
+        <span className={cn(tag, role !== 'user' && 'border-accent-700 text-accent-700')}>
+          {ROLE_LABELS[role]}
+        </span>
+      )}
+      {CAPABILITIES.filter((c) => caps[c]).map((c) => (
+        <span key={c} className={cn(tag, 'border-dashed border-foreground/40')}>
+          {CAPABILITY_LABELS[c]}
+        </span>
+      ))}
     </span>
-  ))
+  )
 }
 
 /** "Editor", "Editor and Reviewer": the capabilities named, joined. */
@@ -97,6 +106,9 @@ export type UsersListProps = {
   rows: UserListRow[]
   total: number
   onlineNow: number
+  /** Every account and the staff (admins and superadmins), whatever the filters. */
+  accounts: number
+  staff: number
   params: UsersParams
   /** The server's clock, so the last-seen labels match on hydration. */
   now: number
@@ -133,54 +145,64 @@ function useGo() {
 
 /** Every account: search, filters, who's live, and roles waiting on an email. */
 export function UsersList(props: UsersListProps) {
-  const { rows, total, onlineNow, params, now, canManageRoles, waiting } = props
+  const { rows, total, onlineNow, accounts, staff, params, now, canManageRoles, waiting } = props
   const go = useGo()
 
   return (
     <div className="flex flex-col gap-6">
-      <p className="flex items-center gap-2 text-base font-semibold text-foreground">
-        <span aria-hidden className="size-2 rounded-full bg-primary" />
-        {onlineNow} online now
-      </p>
+      <AdminBand
+        kicker="Right now"
+        title={`${onlineNow} ${onlineNow === 1 ? 'person' : 'people'} online`}
+        // The waiting list is read for superadmins only; an admin's count would be a false 0.
+        stats={[
+          { value: accounts, label: accounts === 1 ? 'account' : 'accounts' },
+          { value: staff, label: 'staff: admin or superadmin' },
+          ...(canManageRoles
+            ? [{ value: waiting.length, label: 'waiting for first sign-in' }]
+            : []),
+        ]}
+      />
 
       <UsersFilters params={params} go={go} />
 
-      <Card>
-        <Table>
-          <TableCaption className="sr-only">Users</TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Last seen</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((u) => (
-              <UserRow key={u.id} user={u} now={now} />
-            ))}
-            {rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
-                  No users match.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </Card>
-      <Pager
-        total={total}
-        page={params.page}
-        pageSize={USERS_PAGE_SIZE}
-        noun="users"
-        onPage={(n) => go({ page: n ? String(n) : '' })}
-      />
+      <div className="flex flex-col gap-3">
+        <div className={wrap}>
+          <table className={table}>
+            <caption className="sr-only">Users</caption>
+            <thead className={head}>
+              <tr>
+                <th className={th}>Name</th>
+                <th className={th}>Email</th>
+                <th className={th}>Role</th>
+                <th className={th}>Status</th>
+                <th className={th}>Last seen</th>
+              </tr>
+            </thead>
+            <tbody className={body}>
+              {rows.map((u) => (
+                <UserRow key={u.id} user={u} now={now} />
+              ))}
+              {rows.length === 0 && (
+                <tr className="@max-xl:block">
+                  <td colSpan={5} className="py-10 text-center text-muted-foreground @max-xl:block">
+                    No users match.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <Pager
+          total={total}
+          page={params.page}
+          pageSize={USERS_PAGE_SIZE}
+          noun="users"
+          onPage={(n) => go({ page: n ? String(n) : '' })}
+        />
+      </div>
 
       {canManageRoles && (
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-10 @5xl:grid-cols-2">
           <AddByEmail addRoleInvite={props.addRoleInvite} />
           <WaitingList waiting={waiting} removeRoleInvite={props.removeRoleInvite} />
         </div>
@@ -206,28 +228,32 @@ function UsersFilters({
   const toggle = (key: string) => (on: boolean) => go({ [key]: on ? '1' : '', page: '' })
 
   return (
-    <div className="flex flex-col gap-4">
-      <search>
-        <form onSubmit={search} className="flex flex-wrap items-end gap-3">
-          <Field label="Search users" className="w-full max-w-sm">
-            {(id) => (
-              <Input
-                id={id}
-                type="search"
-                placeholder="Name or email"
-                value={text}
-                maxLength={100}
-                onChange={(e) => setText(e.target.value)}
-              />
-            )}
-          </Field>
-          <Button type="submit" variant="outline">
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-4 border-b pb-5 @max-xl:flex-col @max-xl:items-stretch @max-xl:gap-3 @max-xl:pb-4">
+      <search className="min-w-64 flex-1 @5xl:max-w-md @max-xl:min-w-0">
+        <form onSubmit={search} className="flex items-center gap-2">
+          <div className="relative flex flex-1 items-center">
+            <Search
+              aria-hidden="true"
+              strokeWidth={1.5}
+              className="pointer-events-none absolute left-3 size-icon text-muted-foreground"
+            />
+            <Input
+              type="search"
+              aria-label="Search users"
+              placeholder="Name or email"
+              value={text}
+              maxLength={100}
+              onChange={(e) => setText(e.target.value)}
+              className={cn(control, 'pl-9')}
+            />
+          </div>
+          <Button type="submit" variant="outline" className="h-11">
             Search
           </Button>
         </form>
       </search>
 
-      <div className="flex flex-wrap items-end gap-4">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-3 @max-xl:grid @max-xl:grid-cols-2">
         <FilterSelect
           label="Role"
           value={params.role}
@@ -253,6 +279,7 @@ function UsersFilters({
   )
 }
 
+/** A filter's label beside its select, as the board's filters draw it; above it on a phone. */
 function FilterSelect<T extends string>({
   label,
   value,
@@ -266,26 +293,32 @@ function FilterSelect<T extends string>({
   labels: Record<T, string>
   onChange: (v: string) => void
 }) {
+  const id = useId()
   return (
-    <Field label={label}>
-      {(id) => (
-        <Select value={value} onValueChange={onChange}>
-          <SelectTrigger id={id} className="w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {options.map((o) => (
-              <SelectItem key={o} value={o}>
-                {labels[o]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-    </Field>
+    <div className="flex items-center gap-2 @max-xl:flex-col @max-xl:items-stretch @max-xl:gap-1">
+      <label htmlFor={id} className={filterLabel}>
+        {label}
+      </label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger
+          id={id}
+          className="h-11 w-auto min-w-30 gap-3 border-foreground/30 @max-xl:w-full @max-xl:min-w-0"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((o) => (
+            <SelectItem key={o} value={o}>
+              {labels[o]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   )
 }
 
+/** The square switch the design draws, on the shadcn Switch (its thumb is the root's span). */
 function FilterSwitch({
   id,
   label,
@@ -298,9 +331,14 @@ function FilterSwitch({
   onChange: (on: boolean) => void
 }) {
   return (
-    <div className="flex h-11 items-center gap-2">
-      <Switch id={id} checked={checked} onCheckedChange={onChange} />
-      <label htmlFor={id} className="text-sm text-foreground">
+    <div className="flex min-h-11 items-center gap-2.5 @max-xl:col-span-2">
+      <Switch
+        id={id}
+        checked={checked}
+        onCheckedChange={onChange}
+        className="h-5.5 w-10 rounded-none border border-foreground/45 px-0.5 data-[state=checked]:border-primary-strong data-[state=checked]:bg-primary-strong data-[state=unchecked]:bg-transparent [&>span]:size-3.5 [&>span]:rounded-none [&>span]:bg-foreground/60 [&>span]:shadow-none [&>span[data-state=checked]]:bg-primary-strong-foreground"
+      />
+      <label htmlFor={id} className="text-foreground">
         {label}
       </label>
     </div>
@@ -310,38 +348,45 @@ function FilterSwitch({
 function UserRow({ user: u, now }: { user: UserListRow; now: number }) {
   const seen = lastSeenLabel(u.lastSeenMs, now)
   return (
-    <TableRow>
-      <TableCell>
-        <Link
-          href={`/admin/users/${u.id}`}
-          className="font-semibold text-primary underline-offset-4 hover:underline"
-        >
-          {u.name}
-        </Link>
-      </TableCell>
-      <TableCell>{u.email}</TableCell>
-      <TableCell>
-        <span className="flex flex-wrap items-center gap-1">
-          {ROLE_LABELS[u.role]}
-          <CapabilityChips caps={u} />
+    <tr className={tr}>
+      <td className={td}>
+        <span className="inline-flex items-center gap-2.5">
+          <span
+            aria-hidden="true"
+            className="inline-flex size-8 shrink-0 items-center justify-center border border-foreground/25 font-heading text-caption font-semibold"
+          >
+            {initialsOf(u.name)}
+          </span>
+          <Link
+            href={`/admin/users/${u.id}`}
+            className="font-medium text-accent-700 underline-offset-4 hover:underline"
+          >
+            {u.name}
+          </Link>
         </span>
-      </TableCell>
-      <TableCell>
-        <ul className="flex flex-wrap gap-1">
-          {u.suspended && <li className={chip}>Suspended</li>}
-        </ul>
-      </TableCell>
-      <TableCell>
+      </td>
+      <td className={cn(td, 'break-all')}>{u.email}</td>
+      <td className={td}>
+        <RoleTags role={u.role} caps={u} />
+      </td>
+      <td className={td}>
+        {u.suspended ? (
+          <span className={tag}>Suspended</span>
+        ) : (
+          <span className="text-muted-foreground">Active</span>
+        )}
+      </td>
+      <td className={td}>
         {seen === 'Online' ? (
-          <span className="inline-flex items-center gap-1.5 font-semibold text-foreground">
-            <span aria-hidden className="size-2 rounded-full bg-primary" />
+          <span className="inline-flex items-center gap-1.5 font-medium text-accent-700">
+            <span aria-hidden="true" className="size-1.75 rounded-full bg-primary" />
             Online
           </span>
         ) : (
           <span className="text-muted-foreground">{seen}</span>
         )}
-      </TableCell>
-    </TableRow>
+      </td>
+    </tr>
   )
 }
 
@@ -394,20 +439,20 @@ function AddByEmail({ addRoleInvite }: Pick<UsersListProps, 'addRoleInvite'>) {
   }
 
   return (
-    <Card as="section" className="p-5" aria-labelledby="add-by-email">
-      <h2 id="add-by-email" className="text-lg font-semibold">
+    <section className="flex min-w-0 flex-col gap-3" aria-labelledby="add-by-email">
+      <h2 id="add-by-email" className="text-h3 font-semibold">
         Add by email
       </h2>
-      <p className={cn(hint, 'mt-1 max-w-prose')}>
+      <p className="max-w-prose text-muted-foreground">
         Give an address a role, Editor or Reviewer before its first sign-in. An address that already
         has an account gets them at once.
       </p>
       <form
         aria-labelledby="add-by-email"
         onSubmit={submit}
-        className="mt-4 flex flex-wrap items-end gap-3"
+        className="mt-1 flex flex-wrap items-end gap-3 @max-xl:flex-col @max-xl:items-stretch"
       >
-        <Field label="Email" className="w-full max-w-xs">
+        <Field label="Email" className="min-w-56 flex-1 @max-xl:min-w-0">
           {(id) => (
             <Input
               id={id}
@@ -415,15 +460,17 @@ function AddByEmail({ addRoleInvite }: Pick<UsersListProps, 'addRoleInvite'>) {
               required
               autoComplete="off"
               maxLength={254}
+              placeholder="name@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              className={control}
             />
           )}
         </Field>
         <Field label="Role">
           {(id) => (
             <Select value={choice} onValueChange={(v) => setChoice(v as InviteChoice)}>
-              <SelectTrigger id={id} className="w-40">
+              <SelectTrigger id={id} className={cn(control, 'w-44 @max-xl:w-full')}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -436,20 +483,24 @@ function AddByEmail({ addRoleInvite }: Pick<UsersListProps, 'addRoleInvite'>) {
             </Select>
           )}
         </Field>
-        {CAPABILITIES.map((c) => (
-          <CheckField
-            key={c}
-            label={CAPABILITY_LABELS[c]}
-            checked={caps[c]}
-            onChange={(on) => setCaps((prev) => ({ ...prev, [c]: on }))}
-          />
-        ))}
-        <Button type="submit" disabled={pending}>
+        <fieldset className="flex items-center gap-3">
+          <legend className="float-left mr-1 text-caption text-muted-foreground">Can also</legend>
+          {CAPABILITIES.map((c) => (
+            <CheckField
+              key={c}
+              label={CAPABILITY_LABELS[c]}
+              checked={caps[c]}
+              onChange={(on) => setCaps((prev) => ({ ...prev, [c]: on }))}
+            />
+          ))}
+        </fieldset>
+        <Button type="submit" disabled={pending} className="h-11 px-5">
+          <Plus aria-hidden="true" strokeWidth={1.5} className="size-icon" />
           Add
         </Button>
       </form>
       {confirming && (
-        <div className="mt-3 flex flex-col gap-2">
+        <div className="flex flex-col gap-2">
           <p role="alert" className="text-caption">
             {removalWarning(confirming.address, confirming.removes)}
           </p>
@@ -463,15 +514,13 @@ function AddByEmail({ addRoleInvite }: Pick<UsersListProps, 'addRoleInvite'>) {
           </div>
         </div>
       )}
-      {notice?.ok && (
-        <output className={cn(hint, 'mt-3 block text-foreground')}>{notice.text}</output>
-      )}
+      {notice?.ok && <output className="block text-caption text-foreground">{notice.text}</output>}
       {notice && !notice.ok && (
-        <p role="alert" className={cn(hint, 'mt-3 text-foreground')}>
+        <p role="alert" className="text-caption text-foreground">
           {notice.text}
         </p>
       )}
-    </Card>
+    </section>
   )
 }
 
@@ -481,20 +530,19 @@ function WaitingList({
 }: Pick<UsersListProps, 'waiting' | 'removeRoleInvite'>) {
   const { pending, run } = useAdminAction()
   return (
-    <Card as="section" className="p-5" aria-labelledby="waiting-invites">
-      <h2 id="waiting-invites" className="text-lg font-semibold">
+    <section className="flex min-w-0 flex-col gap-3" aria-labelledby="waiting-invites">
+      <h2 id="waiting-invites" className="text-h3 font-semibold">
         Waiting for first sign-in
       </h2>
       {waiting.length === 0 ? (
-        <p className={cn(hint, 'mt-2')}>No address is waiting.</p>
+        <p className={emptyBox}>No address is waiting.</p>
       ) : (
-        <ul className="mt-3 flex flex-col divide-y divide-border">
+        <ul className="flex flex-col divide-y border-t-2 border-foreground [&>li]:border-border">
           {waiting.map((w) => (
-            <li key={w.email} className="flex items-center justify-between gap-3 py-2">
-              <span className="text-sm text-foreground">
-                <span className="font-semibold">{w.email}</span>{' '}
-                {w.role && <span className={cn(chip, 'text-caption')}>{ROLE_LABELS[w.role]}</span>}{' '}
-                <CapabilityChips caps={w} />
+            <li key={w.email} className="flex items-center justify-between gap-3 py-2.5">
+              <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="font-medium break-all">{w.email}</span>
+                <RoleTags role={w.role} caps={w} />
               </span>
               <Button
                 variant="outline"
@@ -511,6 +559,6 @@ function WaitingList({
           ))}
         </ul>
       )}
-    </Card>
+    </section>
   )
 }

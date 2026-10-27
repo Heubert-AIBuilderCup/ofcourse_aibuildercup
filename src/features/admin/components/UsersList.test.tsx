@@ -82,6 +82,8 @@ const props = {
   rows,
   total: 3,
   onlineNow: 3,
+  accounts: 6,
+  staff: 2,
   params,
   now: NOW,
   canManageRoles: false,
@@ -103,9 +105,40 @@ const rowOf = (name: string) => {
   return within(tr)
 }
 
-it('says how many people are online now', () => {
+/** The blue band (marked light so it keeps its look in a dark page): its title and its numbers. */
+const band = () => {
+  const section = document.querySelector('section[data-theme="light"]')
+  if (!section) throw new Error('no band')
+  const parts = [...section.children]
+  return {
+    title: section.querySelector('h2')?.textContent ?? '',
+    // The numbers sit after the title block, when there are any.
+    stats: parts.length > 1 ? [...(parts.at(-1)?.children ?? [])].map((s) => s.textContent) : [],
+  }
+}
+
+it('says in the band how many people are online now', () => {
   render(<UsersList {...props} />)
-  expect(screen.getByText('3 online now')).toBeInTheDocument()
+  expect(band().title).toBe('3 people online')
+})
+
+it('says one person, not one people, when only one is online', () => {
+  render(<UsersList {...props} onlineNow={1} />)
+  expect(band().title).toBe('1 person online')
+})
+
+it('counts in the band every account and the staff, whatever the filters, and for a superadmin the addresses waiting for a first sign-in', () => {
+  render(<UsersList {...props} canManageRoles waiting={waiting} />)
+  expect(band().stats).toEqual([
+    '6 accounts',
+    '2 staff: admin or superadmin',
+    '2 waiting for first sign-in',
+  ])
+})
+
+it('gives an admin, who cannot see the waiting list, no waiting count', () => {
+  render(<UsersList {...props} />)
+  expect(band().stats).toEqual(['6 accounts', '2 staff: admin or superadmin'])
 })
 
 it('labels when each person was last seen, by the server clock', () => {
@@ -206,7 +239,7 @@ it('lists the waiting addresses and removes one', async () => {
   expect(removeRoleInvite).toHaveBeenCalledWith('new.admin@example.com')
 })
 
-it('shows the Editor and Reviewer chips beside the role', () => {
+it('shows the Editor and Reviewer tags beside the role', () => {
   render(<UsersList {...props} />)
   expect(rowOf('Bikash Thapa').getByText('Editor')).toBeInTheDocument()
   expect(rowOf('Bikash Thapa').getByText('Reviewer')).toBeInTheDocument()

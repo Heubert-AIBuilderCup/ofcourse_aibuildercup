@@ -17,8 +17,8 @@ export function Pager({ total, page, pageSize, noun, onPage }: PagerProps) {
   const from = total === 0 ? 0 : page * pageSize + 1
   const to = Math.min(total, (page + 1) * pageSize)
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-muted-foreground">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <span className="text-caption text-muted-foreground">
         {total === 0 ? `No ${noun}` : `${from}–${to} of ${total} ${noun}`}
       </span>
       {pages > 1 && (
