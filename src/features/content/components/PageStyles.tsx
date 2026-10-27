@@ -1,15 +1,16 @@
 'use client'
 
+import { ImageIcon, Sparkles } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useId, useState, useTransition } from 'react'
+import { useId, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import { Blueprint } from '@/shared/components/Blueprint'
 import { Button } from '@/shared/components/ui/button'
 import { Label } from '@/shared/components/ui/label'
 import { NativeSelect } from '@/shared/components/ui/native-select'
 import { Textarea } from '@/shared/components/ui/textarea'
 import { Spin, Working } from '@/shared/components/Working'
 import { canEdit, type Staff } from '@/shared/lib/auth/access'
+import { cn } from '@/shared/lib/utils'
 import type { ActionResult } from '@/shared/types/action-result'
 import type { DesignFields } from '../ai/design-language'
 import { PAGE_BRANDS } from '../brands'
@@ -74,6 +75,9 @@ function PageStyleCard({ brand, style, editable, actions }: CardProps) {
   const [copyStyle, setCopyStyle] = useState(style?.copyStyle ?? '')
   const [templateId, setTemplateId] = useState(style?.closestTemplateId ?? TEMPLATES[0].id)
   const [error, setError] = useState<string | null>(null)
+  // A drag of files over the drop zone, so it can say it will take them.
+  const [over, setOver] = useState(false)
+  const files = useRef<HTMLInputElement>(null)
   // Which step is running, so only "Describe the style" waits as "Running…" for its own press.
   const { mark, pressed } = usePress<'upload' | 'describe' | 'save'>(pending)
   const describing = pressed('describe')
@@ -148,10 +152,13 @@ function PageStyleCard({ brand, style, editable, actions }: CardProps) {
   const filled = artStyle.trim() !== '' && copyStyle.trim() !== ''
 
   return (
-    <Blueprint as="section" aria-labelledby={`${ids}-name`} className="flex flex-col gap-6 p-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-4">
+    <section
+      aria-labelledby={`${ids}-name`}
+      className="flex flex-col gap-5 border border-foreground/18 p-5 @max-xl:p-4"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h2 id={`${ids}-name`} className="text-h4">
+          <h2 id={`${ids}-name`} className="text-h3 leading-tight font-semibold">
             {brand.name}
           </h2>
           {brand.instagram && <p className={reasonText}>{`@${brand.instagram.handle}`}</p>}
@@ -180,23 +187,60 @@ function PageStyleCard({ brand, style, editable, actions }: CardProps) {
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor={`${ids}-files`}>Reference images</Label>
-            <input
-              id={`${ids}-files`}
-              type="file"
-              accept={REFERENCE_TYPES.join(',')}
-              multiple
-              disabled={pending}
-              aria-describedby={`${ids}-files-note`}
-              className="text-caption file:mr-4 file:border file:bg-transparent file:px-3 file:py-1"
-              onChange={(e) => {
-                upload(Array.from(e.target.files ?? []))
-                e.target.value = ''
+            {/* The drop zone takes dropped images through the same upload as the file picker. */}
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: dropping is a pointer shortcut; "Choose files" is the keyboard's way to the same upload. */}
+            <div
+              data-drop
+              onDragOver={(e) => {
+                if (pending) return
+                e.preventDefault()
+                setOver(true)
               }}
-            />
-            <p id={`${ids}-files-note`} className={reasonText}>
-              One or two PNG or JPEG images of the page's posts, up to 5 MB each. Colours and fonts
-              stay the brand's.
-            </p>
+              onDragLeave={() => setOver(false)}
+              onDrop={(e) => {
+                e.preventDefault()
+                setOver(false)
+                if (!pending) upload(Array.from(e.dataTransfer?.files ?? []))
+              }}
+              className={cn(
+                'flex items-center gap-3.5 border border-dashed border-foreground/35 bg-[repeating-linear-gradient(135deg,transparent_0_0.5rem,color-mix(in_oklch,var(--color-foreground)_3%,transparent)_0.5rem_1rem)] p-4 text-muted-foreground @max-xl:flex-wrap',
+                over && 'border-primary bg-accent-100',
+              )}
+            >
+              <ImageIcon aria-hidden="true" strokeWidth={1.5} className="size-icon-lg shrink-0" />
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="font-medium text-foreground">
+                  Add one or two of the page's posts
+                </span>
+                <span id={`${ids}-files-note`} className="text-caption">
+                  PNG or JPEG, up to 5 MB each. Colours and fonts stay the brand's.
+                </span>
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pending}
+                onClick={() => files.current?.click()}
+              >
+                Choose files
+              </Button>
+              <input
+                ref={files}
+                id={`${ids}-files`}
+                type="file"
+                accept={REFERENCE_TYPES.join(',')}
+                multiple
+                disabled={pending}
+                tabIndex={-1}
+                aria-describedby={`${ids}-files-note`}
+                className="sr-only"
+                onChange={(e) => {
+                  upload(Array.from(e.target.files ?? []))
+                  e.target.value = ''
+                }}
+              />
+            </div>
           </div>
           <Button
             variant="outline"
@@ -204,7 +248,11 @@ function PageStyleCard({ brand, style, editable, actions }: CardProps) {
             disabled={pending || refs.length === 0}
             onClick={describe}
           >
-            {describing && <Spin />}
+            {describing ? (
+              <Spin />
+            ) : (
+              <Sparkles aria-hidden="true" strokeWidth={1.5} className="size-icon-sm" />
+            )}
             {describing ? 'Running…' : 'Describe the style'}
           </Button>
           {describing && <Working words="Describing the style…" />}
@@ -275,6 +323,6 @@ function PageStyleCard({ brand, style, editable, actions }: CardProps) {
           {`Saved by ${style.updatedByName ?? 'someone'} · ${new Date(style.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`}
         </p>
       )}
-    </Blueprint>
+    </section>
   )
 }

@@ -1198,7 +1198,7 @@ export function BlogImagesStep({ view, viewer, actions }: BlogImagesStepProps) {
                       className="aspect-4/5 object-cover"
                     />
                   ) : (
-                    <div className="aspect-4/5 w-full border bg-muted" />
+                    <div className="aspect-4/5 w-full border border-dashed border-foreground/35" />
                   )}
                   {waiting && <div className={thumbWaiting} />}
                 </div>

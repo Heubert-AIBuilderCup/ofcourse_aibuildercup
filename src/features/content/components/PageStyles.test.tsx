@@ -102,6 +102,30 @@ describe('PageStyles (105)', () => {
     expect(refresh).toHaveBeenCalled()
   })
 
+  it('uploads images dropped on the drop zone, as it does the chosen ones', async () => {
+    view()
+    const main = card('Main')
+    const zone = main.getByText("Add one or two of the page's posts").closest('[data-drop]')
+    if (!zone) throw new Error('no drop zone')
+    await act(async () => {
+      fireEvent.drop(zone, { dataTransfer: { files: [png('a.png')] } })
+    })
+    expect(actions.uploadReferenceAction).toHaveBeenCalledTimes(1)
+    const sent = actions.uploadReferenceAction.mock.calls[0][0] as FormData
+    expect((sent.get('file') as File).name).toBe('a.png')
+    expect(main.getAllByRole('img', { name: 'Reference 1 for Main' }).length).toBe(1)
+  })
+
+  it('opens the file picker from "Choose files"', () => {
+    view()
+    const main = card('Main')
+    const input = main.getByLabelText('Reference images') as HTMLInputElement
+    let opened = 0
+    input.addEventListener('click', () => opened++)
+    fireEvent.click(main.getByRole('button', { name: 'Choose files' }))
+    expect(opened).toBe(1)
+  })
+
   it('refuses a third image before any upload', async () => {
     view()
     const main = card('Main')

@@ -1,9 +1,9 @@
 'use client'
 
+import { Check, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
-import { Blueprint } from '@/shared/components/Blueprint'
 import { Button } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
 import type { ActionResult } from '@/shared/types/action-result'
@@ -12,7 +12,8 @@ import { postPath } from '../lib/steps'
 
 type Decide = (id: string) => Promise<ActionResult<{ href: string | null }>>
 
-const overline = 'text-overline text-muted-foreground uppercase'
+const overline =
+  'font-heading text-overline font-medium tracking-widest text-muted-foreground uppercase'
 const link = 'text-accent-700 underline-offset-4 hover:underline'
 
 /**
@@ -34,7 +35,7 @@ export function IdeasQueue({
 }) {
   return (
     <div className="@container flex flex-col gap-3">
-      <p className="text-caption text-muted-foreground">Suggested ideas (mock)</p>
+      <p className="text-caption text-muted-foreground">{`${rows.length} suggested ${rows.length === 1 ? 'idea' : 'ideas'} (mock)`}</p>
       {rows.length === 0 ? (
         <p>No ideas waiting.</p>
       ) : (
@@ -82,50 +83,63 @@ function IdeaRow({
   }
 
   return (
-    <Blueprint
-      as="li"
+    <li
       aria-labelledby={titleId}
-      className="grid gap-4 p-4 @5xl:grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)_minmax(0,1.4fr)_auto]"
+      className="grid gap-6 border border-foreground/18 p-5 hover:border-foreground/45 motion-safe:transition-colors @max-xl:gap-4 @max-xl:p-4 @5xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1.6fr)_auto]"
     >
-      <div className="flex min-w-0 flex-col items-start gap-1.5">
+      <div className="flex min-w-0 flex-col items-start gap-2">
         <span
           className={cn(
-            'border px-2 py-0.5 text-overline uppercase',
+            'border px-2 py-0.5 font-heading text-overline font-medium tracking-widest uppercase',
             idea.group === 'expansion'
-              ? 'border-primary-strong bg-primary-strong text-primary-strong-foreground'
-              : 'text-muted-foreground',
+              ? 'border-accent-700 text-accent-700'
+              : 'border-foreground/30 text-muted-foreground',
           )}
         >
           {`${idea.group} · ${idea.kind}`}
         </span>
-        <h2 id={titleId} className="text-h4">
+        <h2 id={titleId} className="text-h3 leading-tight font-semibold">
           {idea.title}
         </h2>
-        <p className="text-caption">{idea.evidence}</p>
+        <p>{idea.evidence}</p>
         <p className="text-caption text-muted-foreground">From: {idea.from}</p>
       </div>
-      <div className="flex min-w-0 flex-col gap-1">
-        <p className={overline}>Suggested</p>
-        <p>{idea.suggested.format}</p>
-        <p className="text-caption text-muted-foreground">{idea.suggested.destination}</p>
-      </div>
-      <div className="flex min-w-0 flex-col gap-1">
-        <p className={overline}>{event ? 'Delivered by' : 'Candidate sources'}</p>
-        <ul className="flex flex-col gap-1">
-          {(idea.deliveredBy ?? idea.sources ?? []).map((s) => (
-            <li key={s} className="text-caption">
-              — {s}
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div className="flex min-w-0 flex-col items-start gap-2 @5xl:items-end">
+      <dl className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(12rem,100%),1fr))] gap-5">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <dt className={overline}>Suggested</dt>
+          <dd className="flex flex-col gap-1">
+            <span className="font-heading text-h4 leading-tight font-semibold">
+              {idea.suggested.format}
+            </span>
+            <span className="text-caption text-muted-foreground">{idea.suggested.destination}</span>
+          </dd>
+        </div>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <dt className={overline}>{event ? 'Delivered by' : 'Candidate sources'}</dt>
+          <dd>
+            <ul className="flex flex-col gap-1.5">
+              {(idea.deliveredBy ?? idea.sources ?? []).map((s) => (
+                <li key={s} className="flex items-start gap-1.5 text-caption">
+                  <FileText
+                    aria-hidden="true"
+                    strokeWidth={1.5}
+                    className="icon-on-line-sm size-icon-sm shrink-0 text-accent-700"
+                  />
+                  {s}
+                </li>
+              ))}
+            </ul>
+          </dd>
+        </div>
+      </dl>
+      <div className="flex min-w-28 flex-col items-stretch gap-2 @max-5xl:flex-row @max-5xl:flex-wrap @max-5xl:items-center">
         {state ? (
           <Accepted idea={idea} postId={state.postId} />
         ) : (
           editable && (
             <>
               <Button size="sm" disabled={pending} onClick={() => decide(accept)}>
+                <Check aria-hidden="true" strokeWidth={1.5} className="size-icon-sm" />
                 Accept
               </Button>
               <Button
@@ -145,7 +159,7 @@ function IdeaRow({
           </p>
         )}
       </div>
-    </Blueprint>
+    </li>
   )
 }
 

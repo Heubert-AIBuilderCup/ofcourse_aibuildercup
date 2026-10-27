@@ -290,10 +290,8 @@ export function SourcePane({ view, viewer, actions }: SourcePaneProps) {
                 return (
                   <li
                     key={p.ref}
-                    className={cn(
-                      'flex gap-2 px-2 py-1 text-foreground',
-                      used.has(p.ref) && 'bg-muted',
-                    )}
+                    data-used={used.has(p.ref) || undefined}
+                    className="flex gap-2 border border-transparent px-2 py-1 text-foreground data-used:border-border"
                   >
                     <span className="shrink-0 font-heading text-caption text-muted-foreground">
                       {p.ref}
@@ -318,9 +316,9 @@ export function SourcePane({ view, viewer, actions }: SourcePaneProps) {
                               aria-pressed={selected?.id === s.id}
                               onClick={() => setSelected(selected?.id === s.id ? null : s)}
                               className={cn(
-                                'inline cursor-pointer text-left hover:bg-muted',
+                                'inline cursor-pointer text-left underline-offset-2 hover:underline hover:decoration-foreground/40',
                                 selected?.id === s.id &&
-                                  'bg-muted underline decoration-primary underline-offset-2',
+                                  'underline decoration-primary decoration-2 hover:decoration-primary',
                               )}
                             >
                               {marked(s.text, spans, s.start)}

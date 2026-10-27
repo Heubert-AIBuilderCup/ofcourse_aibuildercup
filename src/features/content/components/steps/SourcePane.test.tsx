@@ -318,16 +318,16 @@ const pickedDraft = (): CurrentPost['drafts'] => {
 // text-foreground switch.
 const FIXED = /accent-\d{3}|\bbg-white\b|\btext-destructive\b|\btext-red|\bbg-red|\bbg-pink/
 
-it('highlights the paragraph the picked draft rests on with theme tokens, text in the foreground', () => {
+it('marks only the paragraph the picked draft rests on, in theme tokens', () => {
   const { container } = pane({ current: current({ drafts: pickedDraft() }), picked: 0 })
   openArticle()
   const used = screen.getAllByText('¶2')[0].closest('li')
   if (!used) throw new Error('no paragraph row')
-  expect(used).toHaveClass('bg-muted', 'text-foreground')
+  expect(used.hasAttribute('data-used')).toBe(true)
   expect(used.className).not.toMatch(FIXED)
   const plain = screen.getAllByText('¶1')[0].closest('li')
-  expect(plain).not.toHaveClass('bg-muted')
-  expect(container.querySelectorAll('ol > li.bg-muted')).toHaveLength(1)
+  expect(plain?.hasAttribute('data-used')).toBe(false)
+  expect(container.querySelectorAll('ol > li[data-used]').length).toBe(1)
 })
 
 it('reads the unsupported span in the foreground colour, and marks only the span', () => {

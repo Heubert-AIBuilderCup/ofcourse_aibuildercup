@@ -1,9 +1,15 @@
 /// <reference lib="dom" />
 /// <reference path="../../../../node_modules/@testing-library/jest-dom/types/bun.d.ts" />
-import { afterEach, expect, it } from 'bun:test'
+import { afterAll, afterEach, beforeAll, expect, it } from 'bun:test'
 import { cleanup, render, screen } from '@testing-library/react'
 import type { InsightRow, ShowingStats } from '../lib/rank'
 import { InsightsTable } from './InsightsTable'
+
+// next/image (the band's duck) resolves its src against the page's URL; happy-dom starts on about:blank.
+const dom = (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM
+const startUrl = location.href
+beforeAll(() => dom.setURL('http://localhost:3000/admin/comic-gaps'))
+afterAll(() => dom.setURL(startUrl))
 
 afterEach(cleanup)
 
@@ -17,7 +23,7 @@ const row = (id: string, over: Partial<InsightRow> = {}): InsightRow => ({
   ...over,
 })
 
-const MOCK_LINE = 'Counts marked mock are examples until real views build up.'
+const MOCK_STAT = 'counts until real views build up'
 
 it('links "Make comic" to a new comic with the row’s path chosen, for an editor', () => {
   render(<InsightsTable rows={[row('ecu-cyber'), row('uts-data')]} canMake />)
@@ -35,10 +41,58 @@ it('offers no "Make comic" to someone who cannot make one', () => {
 
 it('says what mock counts are only when a row is mock', () => {
   const { rerender } = render(<InsightsTable rows={[row('a'), row('b')]} canMake={false} />)
-  expect(screen.queryByText(MOCK_LINE)).toBeNull()
+  expect(screen.queryAllByText(MOCK_STAT).length).toBe(0)
+  expect(screen.queryAllByText('Mock').length).toBe(0)
   rerender(<InsightsTable rows={[row('a'), row('b', { mock: true })]} canMake={false} />)
-  expect(screen.getByText(MOCK_LINE)).toBeInTheDocument()
-  expect(screen.getByText('Mock')).toBeInTheDocument()
+  expect(screen.getAllByText(MOCK_STAT).length).toBe(1)
+  // The band's "Mock" and the mock row's tag.
+  expect(screen.getAllByText('Mock').length).toBe(2)
+})
+
+it('heads the table with the paths without a comic, the times shown and the comics made', () => {
+  render(
+    <InsightsTable
+      rows={[
+        row('a', { count: 30 }),
+        row('b', { count: 12, status: 'live' }),
+        row('c', { count: 8, status: 'in_progress' }),
+        row('d', { count: 0 }),
+      ]}
+      canMake={false}
+    />,
+  )
+  expect(
+    screen.getAllByRole('heading', { level: 2, name: '2 paths have no comic yet' }).length,
+  ).toBe(1)
+  const band = screen.getByRole('heading', { level: 2 }).closest('section')
+  expect(band?.textContent).toContain('50 times shown')
+  expect(band?.textContent).toContain('1 comic made')
+})
+
+it('says so when one path, or none, has no comic', () => {
+  const { rerender } = render(
+    <InsightsTable rows={[row('a'), row('b', { status: 'live' })]} canMake={false} />,
+  )
+  expect(screen.getAllByRole('heading', { level: 2, name: '1 path has no comic yet' }).length).toBe(
+    1,
+  )
+  rerender(<InsightsTable rows={[row('a', { status: 'live' })]} canMake={false} />)
+  expect(screen.getAllByRole('heading', { level: 2, name: 'Every path has a comic' }).length).toBe(
+    1,
+  )
+})
+
+it('draws each count as a bar against the most shown path', () => {
+  render(
+    <InsightsTable
+      rows={[row('a', { count: 60 }), row('b', { count: 15 }), row('c', { count: 0 })]}
+      canMake={false}
+    />,
+  )
+  const widths = [...document.querySelectorAll<HTMLElement>('[data-bar]')].map(
+    (bar) => bar.style.width,
+  )
+  expect(widths).toEqual(['100%', '25%', '0%'])
 })
 
 const zero = { cost: 0, time: 0, work: 0, pr: 0, location: 0, career: 0 }

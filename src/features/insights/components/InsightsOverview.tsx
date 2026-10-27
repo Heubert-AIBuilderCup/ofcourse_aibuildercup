@@ -1,13 +1,21 @@
 import type { ReactNode } from 'react'
-import { AdminPageHeader } from '@/features/admin'
-import { Blueprint } from '@/shared/components/Blueprint'
+import { AdminBand, AdminPageHeader } from '@/features/admin'
+import { hairlineTable } from '@/shared/components/classes'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/shared/components/ui/table'
 import { cn } from '@/shared/lib/utils'
 import { barRows, cacheShare, dimensionBars, type PerformanceRow } from '../lib/overview'
 import type { OVERVIEW } from '../overview'
 import type { WeekFigures } from '../server/overview'
 import { EvidenceGaps } from './EvidenceGaps'
 
-const overline = 'text-overline text-muted-foreground uppercase'
+const { table, head, body, th, tr, td } = hairlineTable
 const caption = 'text-caption text-muted-foreground'
 const n = (value: number) => value.toLocaleString('en-AU')
 
@@ -40,153 +48,186 @@ export function InsightsOverview({
   const reuse = cacheShare(week)
   const { scope } = data
   return (
-    <div className="@container flex flex-col gap-6">
-      <AdminPageHeader
-        kicker="Students, in aggregate"
-        title="Insights"
-        lede={`${scope.country} · ${scope.window} · ${n(scope.students)} students · aggregated (mock)`}
-      />
+    <div className="@container flex flex-col gap-block">
+      <div className="flex flex-col gap-6">
+        <AdminPageHeader
+          kicker="Students, in aggregate"
+          title="Insights"
+          lede={`${scope.country} · ${scope.window} · ${n(scope.students)} students · aggregated (mock)`}
+        />
+        <AdminBand
+          kicker="AI cost and reuse · 7 days"
+          title={`AUD ${data.ai.costPerStudentWeekAud.toFixed(2)} per active student a week (mock)`}
+          stats={[
+            {
+              value: String(data.ai.callsPerSession),
+              label: 'AI calls per student a session (mock)',
+            },
+            {
+              value: reuse === null ? '—' : `${reuse}%`,
+              label:
+                reuse === null
+                  ? 'answered from the cache: no calls this week'
+                  : 'answered from the cache, no new call',
+            },
+            { value: n(week.renders), label: 'renders a week' },
+            { value: n(week.calls), label: 'AI calls a week' },
+          ]}
+        />
+      </div>
 
-      <Blueprint
-        as="section"
-        aria-labelledby="insights-ai"
-        className="grid grid-cols-[repeat(auto-fit,minmax(min(12rem,100%),1fr))] gap-6 p-4"
+      <Section
+        id="insights-gaps"
+        title="Evidence gaps (mock)"
+        help={
+          <>
+            Claims shown with weak or no evidence, ranked by students who saw them. Students see
+            "we're not sure about this yet".
+          </>
+        }
       >
-        <h2 id="insights-ai" className={overline}>
-          AI cost and reuse · 7 days
-        </h2>
-        <Stat value={String(data.ai.callsPerSession)}>AI calls per student per session (mock)</Stat>
-        <Stat value={reuse === null ? '—' : `${reuse}%`}>
-          {reuse === null
-            ? 'AI calls answered from the cache: no calls this week'
-            : 'AI calls answered from the cache, no new call'}
-        </Stat>
-        <Stat value={n(week.renders)}>{`renders a week · ${n(week.calls)} AI calls`}</Stat>
-        <Stat value={`AUD ${data.ai.costPerStudentWeekAud.toFixed(2)}`}>
-          AI cost per active student a week (mock)
-        </Stat>
-      </Blueprint>
-
-      <Blueprint as="section" aria-labelledby="insights-gaps" className="flex flex-col gap-3 p-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-          <h2 id="insights-gaps" className={overline}>
-            Evidence gaps · claims shown with weak or no evidence (mock)
-          </h2>
-          <p className={caption}>
-            Ranked by students who saw the claim. Students see "we're not sure about this yet".
-          </p>
-        </div>
         <EvidenceGaps gaps={gaps} editable={editable} />
         <p className={caption}>
           Attaching a source updates every future card and route that uses the claim. Research tasks
           also go to the Ideas queue.
         </p>
-      </Blueprint>
+      </Section>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(20rem,100%),1fr))] gap-6">
-        <Panel id="insights-dimensions" title="Most-weighted dimensions (mock)">
-          <p className={caption}>Share of students weighting each one high</p>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(18rem,100%),1fr))] gap-block">
+        <Section
+          id="insights-dimensions"
+          title="Most-weighted dimensions (mock)"
+          help="Share of students weighting each one high"
+        >
           <Bars rows={dimensionBars(data.dimensions).map((b) => ({ key: b.id, ...b }))} />
-        </Panel>
-        <Panel id="insights-routes" title="Most-ranked routes (mock)">
-          <p className={caption}>Students with the route in their ranked list · ranked 1st</p>
+        </Section>
+        <Section
+          id="insights-routes"
+          title="Most-ranked routes (mock)"
+          help="Students with the route in their ranked list · ranked 1st"
+        >
           <ol className="flex flex-col">
             {data.routes.map((r, i) => (
               <li
                 key={r.route}
-                className="grid grid-cols-[1.5rem_minmax(0,1fr)_auto_3rem] gap-2 border-b py-2 text-caption"
+                className="grid grid-cols-[1.5rem_minmax(0,1fr)_auto_2.5rem] items-center gap-3 border-b py-2.5"
               >
-                <span className="text-muted-foreground">{i + 1}</span>
+                <span className="font-heading font-semibold text-muted-foreground">{i + 1}</span>
                 <span>{r.route}</span>
-                <span className="text-right">{n(r.students)}</span>
+                <span className="text-right font-heading font-semibold">{n(r.students)}</span>
                 <span className="text-right text-muted-foreground">{`${r.firstShare}%`}</span>
               </li>
             ))}
           </ol>
-        </Panel>
-        <Panel id="insights-blockers" title="Why courses are not yet reachable (mock)">
-          <p className={caption}>Share of sealed courses, by first blocker</p>
+        </Section>
+        <Section
+          id="insights-blockers"
+          title="Why courses are not yet reachable (mock)"
+          help="Share of sealed courses, by first blocker"
+        >
           <Bars rows={barRows(data.blockers).map((b) => ({ key: b.label, ...b }))} />
-        </Panel>
+        </Section>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(24rem,100%),1fr))] gap-6">
-        <Panel id="insights-performance" title="Content performance · portal feed">
-          <p className={caption}>
-            {livePosts
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(24rem,100%),1fr))] gap-block">
+        <Section
+          id="insights-performance"
+          title="Content performance · portal feed"
+          help={
+            livePosts
               ? 'Live posts; views, saves and completion are mock.'
-              : 'No post is live yet: mock rows.'}
-          </p>
-          <table className="w-full text-caption">
-            <thead>
-              <tr className={cn(overline, 'border-b text-left')}>
-                <th className="py-2 font-normal">Post</th>
-                <th className="py-2 text-right font-normal">Views</th>
-                <th className="py-2 text-right font-normal">Saves</th>
-                <th className="py-2 text-right font-normal">Completion</th>
-                <th className="py-2 text-right font-normal">Into the studio</th>
-              </tr>
-            </thead>
-            <tbody>
+              : 'No post is live yet: mock rows.'
+          }
+        >
+          <Table className={table}>
+            <TableHeader className={head}>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className={th}>Post</TableHead>
+                <TableHead className={cn(th, 'text-right')}>Views</TableHead>
+                <TableHead className={cn(th, 'text-right')}>Saves</TableHead>
+                <TableHead className={cn(th, 'text-right')}>Completion</TableHead>
+                <TableHead className={cn(th, 'text-right')}>Into the studio</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className={body}>
               {performance.map((row) => (
-                <tr key={row.key} className="border-b">
-                  <td className="py-2 pr-2">{row.title}</td>
-                  <td className="py-2 text-right">{n(row.views)}</td>
-                  <td className="py-2 text-right">{n(row.saves)}</td>
-                  <td className="py-2 text-right">{`${row.completion}%`}</td>
-                  <td className="py-2 text-right">{n(row.intoStudio)}</td>
-                </tr>
+                <TableRow key={row.key} className={tr}>
+                  <TableCell className={cn(td, 'font-heading font-semibold')}>
+                    {row.title}
+                  </TableCell>
+                  <Num label="views">{n(row.views)}</Num>
+                  <Num label="saves">{n(row.saves)}</Num>
+                  <Num label="completion">{`${row.completion}%`}</Num>
+                  <Num label="into the studio">{n(row.intoStudio)}</Num>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </Panel>
-        <Panel
+            </TableBody>
+          </Table>
+        </Section>
+        <Section
           id="insights-reach"
           title={`Update reach · ${reach.title}${reach.mock ? ' (mock)' : ''}`}
         >
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-caption">Matched</span>
-            <span className="font-heading text-h3">{n(reach.matched)}</span>
+          <div className="flex items-baseline justify-between gap-2 border-b py-2.5">
+            <span>Matched</span>
+            <span className="font-heading text-h3 font-semibold">{n(reach.matched)}</span>
           </div>
-        </Panel>
+        </Section>
       </div>
     </div>
   )
 }
 
-function Stat({ value, children }: { value: string; children: ReactNode }) {
+/** A figure in the performance table; below @xl, where the head hides, it says what it counts. */
+function Num({ label, children }: { label: string; children: string }) {
   return (
-    <div className="flex flex-col gap-1">
-      <span className="font-heading text-h2">{value}</span>
-      <span className="text-caption">{children}</span>
-    </div>
+    <TableCell
+      className={cn(td, 'text-right font-heading font-semibold tabular-nums @max-xl:text-left')}
+    >
+      {children}
+      <span className="sr-only font-sans font-normal text-muted-foreground @max-xl:not-sr-only">{` ${label}`}</span>
+    </TableCell>
   )
 }
 
-function Panel({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+/** One part of the overview: its heading, a line on what it counts, and its content. No frame. */
+function Section({
+  id,
+  title,
+  help,
+  children,
+}: {
+  id: string
+  title: string
+  help?: ReactNode
+  children: ReactNode
+}) {
   return (
-    <Blueprint as="section" aria-labelledby={id} className="flex flex-col gap-3 p-4">
-      <h2 id={id} className={overline}>
-        {title}
-      </h2>
+    <section aria-labelledby={id} className="flex min-w-0 flex-col gap-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 id={id} className="text-h3 leading-tight font-semibold">
+          {title}
+        </h2>
+        {help ? <p className={caption}>{help}</p> : null}
+      </div>
       {children}
-    </Blueprint>
+    </section>
   )
 }
 
 function Bars({ rows }: { rows: { key: string; label: string; share: number; width: string }[] }) {
   return (
-    <ul className="flex flex-col gap-2">
+    <ul className="flex flex-col">
       {rows.map((r) => (
         <li
           key={r.key}
-          className="grid grid-cols-[minmax(0,8rem)_minmax(0,1fr)_3rem] items-center gap-3 text-caption"
+          className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_2.75rem] items-center gap-3 py-1.5"
         >
           <span>{r.label}</span>
-          <span className="h-2 bg-muted">
-            <span className="block h-full bg-primary" style={{ width: r.width }} />
+          <span className="relative h-2 bg-foreground/8">
+            <span className="absolute inset-y-0 left-0 bg-accent-600" style={{ width: r.width }} />
           </span>
-          <span className="text-right text-muted-foreground">{`${r.share}%`}</span>
+          <span className="text-right font-heading font-semibold">{`${r.share}%`}</span>
         </li>
       ))}
     </ul>

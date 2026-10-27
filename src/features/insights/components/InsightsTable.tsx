@@ -1,8 +1,9 @@
+import { PanelsTopLeft } from 'lucide-react'
 import Link from 'next/link'
+import { AdminBand } from '@/features/admin'
 import { DIMENSION_LABELS, DIMENSIONS, type Dimension } from '@/features/engine'
-import { tag } from '@/shared/components/classes'
+import { hairlineTable, tag } from '@/shared/components/classes'
 import { buttonVariants } from '@/shared/components/ui/button'
-import { Card } from '@/shared/components/ui/card'
 import {
   Table,
   TableBody,
@@ -12,8 +13,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/components/ui/table'
+import { cn } from '@/shared/lib/utils'
 import { FUTURE_IDS, type FutureId } from '@/shared/types/student'
 import type { InsightRow, ShowingStats } from '../lib/rank'
+
+const { table, head, body, th, tr, td } = hairlineTable
 
 const STATUS_LABELS: Record<InsightRow['status'], string> = {
   none: 'None',
@@ -29,6 +33,13 @@ const FUTURE_LABELS: Record<FutureId, string> = {
 }
 
 const times = (n: number) => `${n} ${n === 1 ? 'time' : 'times'}`
+
+/** The band's title: how many paths still have no comic. */
+function gapsTitle(rows: InsightRow[]): string {
+  const none = rows.filter((r) => r.status === 'none').length
+  if (none === 0) return 'Every path has a comic'
+  return `${none} ${none === 1 ? 'path has' : 'paths have'} no comic yet`
+}
 
 /** The dimensions seen, largest share first, as "Cost 80% · Time 40%"; "None" when none was. */
 function shares(byDimension: Record<Dimension, number>): string {
@@ -104,69 +115,101 @@ function PathDetails({ row }: { row: InsightRow }) {
   )
 }
 
-/** The paths, most shown first, with each one's comic; "Make comic" for those who may make one. */
+/**
+ * The paths, most shown first, with each one's comic; "Make comic" for those who may make one. The
+ * band above counts the paths still without a comic, the times they were shown and the comics
+ * made (live), and says when the counts are mock.
+ */
 export function InsightsTable({ rows, canMake }: { rows: InsightRow[]; canMake: boolean }) {
+  const shown = rows.reduce((sum, r) => sum + r.count, 0)
+  const made = rows.filter((r) => r.status === 'live').length
+  const most = Math.max(0, ...rows.map((r) => r.count))
   return (
-    <div className="flex flex-col gap-4">
-      {rows.some((r) => r.mock) && (
-        <p className="text-caption text-muted-foreground">
-          Counts marked mock are examples until real views build up.
-        </p>
-      )}
-      <Card>
-        <Table>
-          <TableCaption className="sr-only">Paths by times shown</TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Rank</TableHead>
-              <TableHead>Path</TableHead>
-              <TableHead>Times shown</TableHead>
-              <TableHead>Comic</TableHead>
+    <div className="flex flex-col gap-6">
+      <AdminBand
+        kicker="Last 30 days"
+        title={gapsTitle(rows)}
+        duck
+        stats={[
+          {
+            value: shown.toLocaleString('en-AU'),
+            label: shown === 1 ? 'time shown' : 'times shown',
+          },
+          { value: made, label: made === 1 ? 'comic made' : 'comics made' },
+          ...(rows.some((r) => r.mock)
+            ? [{ value: 'Mock', label: 'counts until real views build up' }]
+            : []),
+        ]}
+      />
+      <Table className={table}>
+        <TableCaption className="sr-only">Paths by times shown</TableCaption>
+        <TableHeader className={head}>
+          <TableRow className="hover:bg-transparent">
+            <TableHead className={th}>Rank</TableHead>
+            <TableHead className={th}>Path</TableHead>
+            <TableHead className={th}>Times shown</TableHead>
+            <TableHead className={th}>Comic</TableHead>
+            {canMake && (
+              <TableHead className={th}>
+                <span className="sr-only">Make comic</span>
+              </TableHead>
+            )}
+          </TableRow>
+        </TableHeader>
+        <TableBody className={body}>
+          {rows.map((r, i) => (
+            <TableRow key={r.path.id} className={cn(tr, '*:align-top')}>
+              <TableCell
+                className={cn(
+                  td,
+                  'w-12 font-heading font-semibold text-muted-foreground tabular-nums',
+                )}
+              >
+                {i + 1}
+              </TableCell>
+              <TableCell className={td}>
+                <div className="flex flex-col gap-2">
+                  <span className="font-heading text-h4 leading-tight font-semibold">
+                    {r.path.label}
+                  </span>
+                  <PathDetails row={r} />
+                </div>
+              </TableCell>
+              <TableCell className={td}>
+                <span className="flex min-w-48 items-center gap-3 tabular-nums">
+                  <span className="relative h-2 flex-1 bg-foreground/8">
+                    <span
+                      data-bar
+                      className="absolute inset-y-0 left-0 bg-accent-600"
+                      style={{ width: `${most === 0 ? 0 : Math.round((r.count / most) * 100)}%` }}
+                    />
+                  </span>
+                  <span className="min-w-8 font-heading font-semibold">{r.count}</span>
+                  {r.mock && <span className={tag}>Mock</span>}
+                </span>
+              </TableCell>
+              <TableCell className={td}>
+                {r.status === 'none' ? (
+                  <span className="text-muted-foreground">{STATUS_LABELS.none}</span>
+                ) : (
+                  <span className={tag}>{STATUS_LABELS[r.status]}</span>
+                )}
+              </TableCell>
               {canMake && (
-                <TableHead>
-                  <span className="sr-only">Make comic</span>
-                </TableHead>
+                <TableCell className={td}>
+                  <Link
+                    href={`/admin/comics/new?path=${encodeURIComponent(r.path.id)}`}
+                    className={buttonVariants({ variant: 'outline', size: 'sm' })}
+                  >
+                    <PanelsTopLeft aria-hidden="true" strokeWidth={1.5} className="size-icon-sm" />
+                    Make comic<span className="sr-only"> about {r.path.label}</span>
+                  </Link>
+                </TableCell>
               )}
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((r, i) => (
-              <TableRow key={r.path.id} className="*:align-top">
-                <TableCell className="tabular-nums">{i + 1}</TableCell>
-                <TableCell>
-                  <div className="flex flex-col gap-2">
-                    {r.path.label}
-                    <PathDetails row={r} />
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <span className="inline-flex items-center gap-2 tabular-nums">
-                    {r.count}
-                    {r.mock && <span className={tag}>Mock</span>}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  {r.status === 'none' ? (
-                    <span className="text-muted-foreground">{STATUS_LABELS.none}</span>
-                  ) : (
-                    <span className={tag}>{STATUS_LABELS[r.status]}</span>
-                  )}
-                </TableCell>
-                {canMake && (
-                  <TableCell>
-                    <Link
-                      href={`/admin/comics/new?path=${encodeURIComponent(r.path.id)}`}
-                      className={buttonVariants({ variant: 'outline', size: 'sm' })}
-                    >
-                      Make comic<span className="sr-only"> about {r.path.label}</span>
-                    </Link>
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   )
 }

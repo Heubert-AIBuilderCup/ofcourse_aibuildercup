@@ -3,7 +3,7 @@
 import { Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { type ReactNode, useId, useRef, useState, useTransition } from 'react'
-import { AdminPageHeader } from '@/features/admin/components/AdminPageHeader'
+import { AdminPageHeader } from '@/features/admin'
 import { tag } from '@/shared/components/classes'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -49,7 +49,8 @@ type Actions = {
 type Listed = { kind: 'stored' | 'sample'; id: string }
 type Selected = { kind: 'none' } | { kind: 'new' } | Listed
 
-const overline = 'text-overline text-muted-foreground uppercase'
+const overline =
+  'font-heading text-overline font-medium tracking-widest text-muted-foreground uppercase'
 const caption = 'text-caption text-muted-foreground'
 
 const students = (n: number) => `${n} student${n === 1 ? '' : 's'}`
@@ -133,23 +134,23 @@ export function UpdatesScreen({
   const row = (key: Listed, u: UpdateInput, status: string) => {
     const current = 'id' in selected && selected.kind === key.kind && selected.id === key.id
     return (
-      <li key={`${key.kind}-${key.id}`} className="border-b">
+      <li key={`${key.kind}-${key.id}`}>
         <button
           type="button"
           onClick={() => pick(key)}
           aria-current={current ? 'true' : undefined}
           className={cn(
-            'flex w-full cursor-pointer flex-col gap-0.5 px-2 py-3 text-left hover:bg-accent',
-            current && 'bg-accent-200',
+            'flex w-full cursor-pointer flex-col gap-1.5 border border-foreground/18 p-3.5 text-left hover:border-foreground/45 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring motion-safe:transition-colors',
+            current && 'border-primary bg-accent-100 hover:border-primary',
           )}
         >
           <span className="flex items-center justify-between gap-2">
             <span className={overline}>{overlineOf(u)}</span>
             {key.kind === 'sample' && (
-              <span className={cn(tag, 'text-muted-foreground')}>Mock</span>
+              <span className={cn(tag, 'border-dashed text-muted-foreground')}>Mock</span>
             )}
           </span>
-          <span className="font-heading font-semibold">{u.title}</span>
+          <span className="font-heading text-h4 leading-tight font-semibold">{u.title}</span>
           <span className={caption}>{status}</span>
         </button>
       </li>
@@ -173,7 +174,7 @@ export function UpdatesScreen({
       </AdminPageHeader>
       <div className="grid gap-8 @5xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)] @5xl:items-start">
         <div className="flex flex-col gap-4">
-          <ul aria-label="Updates" className="flex flex-col border-t">
+          <ul aria-label="Updates" className="flex flex-col gap-2">
             {updates.map((u) =>
               row(
                 { kind: 'stored', id: u.id },
@@ -264,11 +265,12 @@ export function UpdatesScreen({
 function Reach({ matches }: { matches: Match[] }) {
   return (
     <section aria-label="Reach" className="flex flex-col gap-2">
-      <p className="font-heading font-semibold">{`Reaches ${students(matches.length)} (mock)`}</p>
+      <p className={overline}>Who it reaches</p>
+      <p className="font-heading text-h4 font-semibold">{`Reaches ${students(matches.length)} (mock)`}</p>
       {matches.length > 0 && (
-        <ul className="flex flex-col gap-1">
+        <ul className="flex flex-col border-t">
           {matches.map((m) => (
-            <li key={m.student.id} className="flex flex-wrap gap-x-2 text-caption">
+            <li key={m.student.id} className="flex flex-wrap gap-x-2 border-b py-2 text-caption">
               <span className="font-semibold">{m.student.name}</span>
               <span className="text-muted-foreground">{m.student.homeCountry}</span>
               <span>{m.why}</span>
@@ -300,7 +302,7 @@ function UpdateDetail({
         <span className={overline}>{overlineOf(update)}</span>
         <span className={tag}>{label}</span>
       </div>
-      <h2 className="text-h3">{update.title}</h2>
+      <h2 className="text-h3 leading-tight font-semibold">{update.title}</h2>
       <p>{update.body}</p>
       <Reach matches={matches} />
       {note && <p className={caption}>{note}</p>}
